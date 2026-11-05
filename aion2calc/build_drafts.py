@@ -6,11 +6,11 @@ import hashlib
 import json
 import math
 
-from .kit.base import Build, ClassData, spec_slots
+from .kit.base import CRYSTAL_BOARDS, Build, ClassData, spec_slots
 from .model.stats import Stats
 
 CLASSES = {"gladiator", "templar", "assassin", "ranger", "sorcerer", "spiritmaster", "cleric", "chanter"}
-CRYSTALS = {"Nezekan", "Zikel", "Vaizel", "Triniel"}
+CRYSTALS = set(CRYSTAL_BOARDS)
 MAX_BYTES = 128 * 1024
 NOTE = ("Entered equipment/stat contributions and Genus lines are assumptions. Source profile stats are not recalculated or verified. "
         "The neutral, uncalibrated damage model evaluates the selected allocation with its default class priority; no allocation, supporting effect or rotation is optimized. "

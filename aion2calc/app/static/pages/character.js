@@ -532,11 +532,11 @@ async function pageCharacter() {
     try {
       savedBudgets = JSON.parse(localStorage.getItem(BUDGETS_KEY) || "{}")[v.key] || {};
     } catch (_) {}
+    // The Ariel board's Daevanion Crystal: Ariel is a total of its own (0.2.381); a view from before it has none.
+    const budgetKeys = ["skill", "stigma", "daevanion", ...(Number.isInteger(v.points?.ariel) ? ["ariel"] : [])];
+    const budgetLabel = (k) => (k === "ariel" ? "Ariel crystal" : cap(k));
     const availableBudgets = Object.fromEntries(
-      ["skill", "stigma", "daevanion"].map((k) => [
-        k,
-        Math.max(v.points[k], savedBudgets[k] ?? v.budgets?.[k] ?? v.points[k]),
-      ]),
+      budgetKeys.map((k) => [k, Math.max(v.points[k], savedBudgets[k] ?? v.budgets?.[k] ?? v.points[k])]),
     );
     // The totals in the fields: what the profile shows spent, or what the player typed (kept, per character, only
     // where above the spent points; 0.2.371).
@@ -564,8 +564,8 @@ async function pageCharacter() {
         )
         .join("")}
         <div class="kpi"><div class="k">Skill points</div><div class="v">${v.points.skill} / ${v.budgets?.skill ?? "Unknown"}</div></div><div class="kpi"><div class="k">Stigma points</div><div class="v">${v.points.stigma} / ${v.budgets?.stigma ?? "Unknown"}</div></div>
-        <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion} / ${v.budgets?.daevanion ?? "Unknown"}</div></div></div>
-      ${progressionHTML(v.progression)}${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${["skill", "stigma", "daevanion"].map((k) => `<label>${cap(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:103px"></label>`).join("")}<label>Game version (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem("point-game-patch") || "")}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><label>Damage objective <select id="character-objective"><option value="primary">Primary scenario (existing behavior)</option><option value="balanced">Balanced: PvE boss/dummy or PvP sustained/burst</option></select></label><p class="small muted">Balanced uses 50% of each modeled DPS score and may trade primary damage for the combined score. HP and trained-skill reserves still apply. Rotation search takes longer; macro and skill-share views describe the primary scenario.</p><div id="survival-options"></div><div id="skill-reserves"></div><div id="character-genus"></div><div id="optres"></div></div></section><div id="cwins"></div>`;
+        <div class="kpi"><div class="k">Daevanion</div><div class="v">${v.points.daevanion} / ${v.budgets?.daevanion ?? "Unknown"}</div></div>${budgetKeys.includes("ariel") ? `<div class="kpi"><div class="k">Ariel crystal</div><div class="v">${v.points.ariel} / ${v.budgets?.ariel ?? "Unknown"}</div></div>` : ""}</div>
+      ${progressionHTML(v.progression)}${(v.warnings || []).map((w) => `<div class="small muted">• ${esc(w)}</div>`).join("")}<p class="small muted">The profile gives allocated points. Unspent points and some quest rewards may be absent. Enter the total available in your game window (spent + unspent) before optimizing. These values are the observed lower bound, not a verified maximum.</p><div class="row">${budgetKeys.map((k) => `<label${k === "ariel" ? ' title="Daevanion Crystal: Ariel, the level-45 Ariel board&#39;s own points"' : ""}>${budgetLabel(k)} total <input type="number" data-character-budget="${k}" min="${v.points[k]}" max="10000" value="${availableBudgets[k]}" style="width:103px"></label>`).join("")}<label>Game version (optional) <input id="cpointpatch" maxlength="100" placeholder="Unknown" value="${esc(localStorage.getItem("point-game-patch") || "")}"></label></div><p class="small muted">PvP optimization is an experimental damage-only estimate against a stationary player proxy. It does not score survival, crowd control or win chance. PvE and PvP results are saved separately.</p><label>Damage objective <select id="character-objective"><option value="primary">Primary scenario (existing behavior)</option><option value="balanced">Balanced: PvE boss/dummy or PvP sustained/burst</option></select></label><p class="small muted">Balanced uses 50% of each modeled DPS score and may trade primary damage for the combined score. HP and trained-skill reserves still apply. Rotation search takes longer; macro and skill-share views describe the primary scenario.</p><div id="survival-options"></div><div id="skill-reserves"></div><div id="character-genus"></div><div id="optres"></div></div></section><div id="cwins"></div>`;
     const objectiveSelect = $("#character-objective");
     objectiveSelect.value = localStorage.getItem("character-damage-objective") === "balanced" ? "balanced" : "primary";
     objectiveSelect.onchange = () => localStorage.setItem("character-damage-objective", objectiveSelect.value);
@@ -600,12 +600,12 @@ async function pageCharacter() {
       A2ProgressionBudgets.read(communityAPI, v.class, { region: st.hit?.region || "" })
         .then((result) => {
           if (S.character.v !== v || !budgetFields.every((e) => e.isConnected)) return;
-          const shown = ["skill", "stigma", "daevanion"].filter((k) => result.points[k] !== null);
+          const shown = budgetKeys.filter((k) => result.points[k] !== null && result.points[k] !== undefined);
           if (!shown.length) return;
           const note = document.createElement("p");
           note.className = "small muted";
           note.dataset.communityPoints = "";
-          note.textContent = `Highest totals reported for the class: ${shown.map((k) => `${k} ${result.points[k]}`).join(", ")}. The optimizer uses your totals above; type yours in if you have points left unspent.`;
+          note.textContent = `Highest totals reported for the class: ${shown.map((k) => `${k === "ariel" ? "Ariel crystal" : k} ${result.points[k]}`).join(", ")}. The optimizer uses your totals above; type yours in if you have points left unspent.`;
           budgetFields[0]?.closest(".row")?.after(note);
         })
         .catch(() => {});

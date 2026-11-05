@@ -23,9 +23,21 @@ CRIT_A, CRIT_K, CRIT_X0, CRIT_CAP = 1.0461, 0.0060, 1024.52, 0.80
 #: Base crit multiplier (x1.5 PvE); Critical Damage Boost adds linearly.
 CRIT_BASE = 0.5
 
-#: Each multi-hit proc adds up to 4 extra hits worth 10% each; community
-#: calculators use +12.5% expected extra damage per proc.
-MULTIHIT_BONUS = 0.125
+#: A Multi-Hit lands one to four extra hits inside the hit's own record; with the same buffs, a hit with one to
+#: four is 1.05, 1.11, 1.16 and 1.21 times as large as one with none (1.20 for four in 0.2.380's sample), about 5 %
+#: an extra hit (docs/methodology.md "Multi-Hit from the recordings"). A certain Multi-Hit ("Multi-Hit on hit",
+#: "lands as Multi-Hit", the "multi" tag) always lands four: +20 %.
+MULTI_HIT_ON_HIT = 0.20
+
+#: What a Multi-Hit from the Multi-Hit chance adds, on average (0.2.382): it lands one, two, three or four extra
+#: hits 42, 24, 14 and 21 % of the time (2.14 on average; 9,122 of them in eight captures, the same with the "+50 %
+#: Multi-Hit" options), 11 % in all; the community calculators' 12.5 % is what equally likely counts would give.
+MULTIHIT_BONUS = 0.11
+
+#: Zikel's Blessing (Lv 15) and Bow of Blessing (Lv 5): their "+50% Multi-Hit chance" also makes every Multi-Hit
+#: while the buff lasts land all four extra hits (0.2.382: 915 of 916 recorded in the buffs). A buff with this key
+#: values its Multi-Hits at :data:`MULTI_HIT_ON_HIT`.
+MULTIHIT_FULL = "multihit_full"
 
 #: Weapon Damage Boost is applied at 66% efficiency (community calculator).
 WEAPON_AMP_EFF = 0.66

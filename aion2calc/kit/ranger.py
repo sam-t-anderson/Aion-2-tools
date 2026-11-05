@@ -17,6 +17,7 @@ things the client does not expose live in :data:`TIMING` / :data:`ASSUME`.
 """
 from __future__ import annotations
 
+from ..model.stats import MULTIHIT_FULL
 from ..sim.engine import Action
 from .base import Build, ClassData
 from .common import Kit, add_stagger_skill, add_weave, fallback_to_generic, ms, spec_options  # noqa: F401
@@ -198,8 +199,10 @@ def build_kit(build: Build, cd: ClassData, filler: str = "snipe") -> Kit:
 
     def drill_cast(sim, a):
         n = 2 if has("DRILL", 5) else 1
-        mods = {"multihit": 0.5} if has("DRILL", 4) else None
-        sim.hit("Drill Dart", dr_f, dr_c, n=n, spread=0.2 * (n - 1), mods=mods)
+        # Lv 12 "Multi-Hit on hit": a certain Multi-Hit, four extra hits (190 of 193 recorded hits with it; 0.2.382),
+        # not +50 % Multi-Hit chance
+        tags = ("multi",) if has("DRILL", 4) else ()
+        sim.hit("Drill Dart", dr_f, dr_c, n=n, spread=0.2 * (n - 1), tags=tags)
         sim.dot("bleed", "Drill Dart (Bleed)", bl_f, bl_c, 1.0, bleed_dur)
     A["drill_dart"] = Action("drill_dart", "Drill Dart", SID["DRILL"], TIMING["drill_dart"],
                              cooldown=cd.cd(SID["DRILL"], lv("DRILL")),
@@ -287,9 +290,18 @@ def _build_stigmas(A, build, cd, stig, st, notes):
         stats = {"crit": float(bv[0])}
         if st("BOWBLESS", 15):
             stats["crit_dmg"] = 0.20
+        # Lv 5: +50% Multi-Hit Chance, and while it lasts every Multi-Hit lands all four extra hits (0.2.382, the
+        # recorded Rangers' Multi-Hits in it), for the buff's own duration
+        multi = ((ms(bv[-1]) if isinstance(bv[-1], dict) else 20.0, {"multihit": 0.5, MULTIHIT_FULL: 1.0})
+                 if st("BOWBLESS", 5) else None)
+
+        def bowbless(sim, a, s=stats, multi=multi):
+            sim.buff("bowbless", 20.0, s)
+            if multi:
+                sim.buff("bowbless_multihit", multi[0], dict(multi[1]))
         A["bowbless"] = Action("bowbless", cd.skills[SID["BOWBLESS"]]["name"], SID["BOWBLESS"], TIMING["stigma"],
                               cooldown=cd.cd(SID["BOWBLESS"], build.stigmas[SID["BOWBLESS"]]),
-                              on_cast=lambda sim, a, s=stats: sim.buff("bowbless", 20.0, s))
+                              on_cast=bowbless)
 
     for key in ("EXPLOSIVE", "ASTORM", "ILLUSORY", "SEALING", "ASMITE"):
         if not stig(key):

@@ -33436,6 +33436,3317 @@
    ]
   },
   {
+   "id": 45,
+   "name": "Ariel",
+   "needLevel": 45,
+   "nodes": [
+    {
+     "id": 450001,
+     "row": 1,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Unique",
+     "cost": 4,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Damage Boost +1.5%",
+     "short": "+1.5%",
+     "stats": [
+      {
+       "stat": "PvEAmplifyDamage",
+       "value": 150
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450002,
+     "row": 1,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450003,
+     "row": 1,
+     "col": 3,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3, PvE Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450007,
+     "row": 1,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450008,
+     "row": 1,
+     "col": 8,
+     "type": "Stat",
+     "grade": "Unique",
+     "cost": 4,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Damage Boost +1.5%",
+     "short": "+1.5%",
+     "stats": [
+      {
+       "stat": "PvEAmplifyDamage",
+       "value": 150
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450009,
+     "row": 1,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "HP +100",
+     "short": "+100",
+     "stats": [
+      {
+       "stat": "HPMax",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450011,
+     "row": 1,
+     "col": 11,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5, PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      },
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450012,
+     "row": 1,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450013,
+     "row": 1,
+     "col": 13,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450014,
+     "row": 1,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450015,
+     "row": 1,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Unique",
+     "cost": 4,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Damage Tolerance +1.5%",
+     "short": "+1.5%",
+     "stats": [
+      {
+       "stat": "PvEDecreaseDamage",
+       "value": 150
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450016,
+     "row": 2,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450018,
+     "row": 2,
+     "col": 3,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450019,
+     "row": 2,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450020,
+     "row": 2,
+     "col": 5,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450021,
+     "row": 2,
+     "col": 6,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Critical Hit Resist +10",
+     "short": "+10",
+     "stats": [
+      {
+       "stat": "CriticalResist",
+       "value": 10
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450022,
+     "row": 2,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450024,
+     "row": 2,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3, Boss Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450026,
+     "row": 2,
+     "col": 11,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450028,
+     "row": 2,
+     "col": 13,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Critical Hit +10",
+     "short": "+10",
+     "stats": [
+      {
+       "stat": "Critical",
+       "value": 10
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450030,
+     "row": 2,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450031,
+     "row": 3,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450032,
+     "row": 3,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Damage Boost +1%",
+     "short": "+1%",
+     "stats": [
+      {
+       "stat": "BossNpcAmplifyDamage",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450034,
+     "row": 3,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3, Boss Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450037,
+     "row": 3,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450038,
+     "row": 3,
+     "col": 8,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450039,
+     "row": 3,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450040,
+     "row": 3,
+     "col": 10,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450041,
+     "row": 3,
+     "col": 11,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450042,
+     "row": 3,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450043,
+     "row": 3,
+     "col": 13,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450044,
+     "row": 3,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450045,
+     "row": 3,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3, PvE Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450047,
+     "row": 4,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450049,
+     "row": 4,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450050,
+     "row": 4,
+     "col": 5,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450051,
+     "row": 4,
+     "col": 6,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450052,
+     "row": 4,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5, PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      },
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450055,
+     "row": 4,
+     "col": 10,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Critical Hit Resist +10",
+     "short": "+10",
+     "stats": [
+      {
+       "stat": "CriticalResist",
+       "value": 10
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450057,
+     "row": 4,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3, Boss Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450059,
+     "row": 4,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450061,
+     "row": 5,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5, PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      },
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450062,
+     "row": 5,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450063,
+     "row": 5,
+     "col": 3,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450064,
+     "row": 5,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Damage Tolerance +1%",
+     "short": "+1%",
+     "stats": [
+      {
+       "stat": "BossNpcDecreaseDamage",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450067,
+     "row": 5,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450070,
+     "row": 5,
+     "col": 10,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450072,
+     "row": 5,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450073,
+     "row": 5,
+     "col": 13,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450074,
+     "row": 5,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Damage Boost +1%",
+     "short": "+1%",
+     "stats": [
+      {
+       "stat": "BossNpcAmplifyDamage",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450076,
+     "row": 6,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450079,
+     "row": 6,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450081,
+     "row": 6,
+     "col": 6,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Critical Hit +10",
+     "short": "+10",
+     "stats": [
+      {
+       "stat": "Critical",
+       "value": 10
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450082,
+     "row": 6,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450083,
+     "row": 6,
+     "col": 8,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "HP +100",
+     "short": "+100",
+     "stats": [
+      {
+       "stat": "HPMax",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450084,
+     "row": 6,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3, PvE Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450085,
+     "row": 6,
+     "col": 10,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450087,
+     "row": 6,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450089,
+     "row": 6,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450091,
+     "row": 7,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "MP +50",
+     "short": "+50",
+     "stats": [
+      {
+       "stat": "MPMax",
+       "value": 50
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450092,
+     "row": 7,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3, Boss Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450093,
+     "row": 7,
+     "col": 3,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450094,
+     "row": 7,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3, PvE Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450095,
+     "row": 7,
+     "col": 5,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450096,
+     "row": 7,
+     "col": 6,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450098,
+     "row": 7,
+     "col": 8,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450100,
+     "row": 7,
+     "col": 10,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450101,
+     "row": 7,
+     "col": 11,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Damage Tolerance +1%",
+     "short": "+1%",
+     "stats": [
+      {
+       "stat": "BossNpcDecreaseDamage",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450102,
+     "row": 7,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450103,
+     "row": 7,
+     "col": 13,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450104,
+     "row": 7,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5, PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      },
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450105,
+     "row": 7,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450106,
+     "row": 8,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Unique",
+     "cost": 4,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Damage Tolerance +1.5%",
+     "short": "+1.5%",
+     "stats": [
+      {
+       "stat": "PvEDecreaseDamage",
+       "value": 150
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450108,
+     "row": 8,
+     "col": 3,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "HP +100",
+     "short": "+100",
+     "stats": [
+      {
+       "stat": "HPMax",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450111,
+     "row": 8,
+     "col": 6,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450112,
+     "row": 8,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450113,
+     "row": 8,
+     "col": 8,
+     "type": "Start",
+     "grade": null,
+     "cost": 0,
+     "needLevel": 45,
+     "auto": true,
+     "label": "Start",
+     "short": "★",
+     "stats": [],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450114,
+     "row": 8,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450115,
+     "row": 8,
+     "col": 10,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450118,
+     "row": 8,
+     "col": 13,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "MP +50",
+     "short": "+50",
+     "stats": [
+      {
+       "stat": "MPMax",
+       "value": 50
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450120,
+     "row": 8,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Unique",
+     "cost": 4,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Damage Tolerance +1.5%",
+     "short": "+1.5%",
+     "stats": [
+      {
+       "stat": "PvEDecreaseDamage",
+       "value": 150
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450121,
+     "row": 9,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450122,
+     "row": 9,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5, PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      },
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450123,
+     "row": 9,
+     "col": 3,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450124,
+     "row": 9,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450125,
+     "row": 9,
+     "col": 5,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Damage Tolerance +1%",
+     "short": "+1%",
+     "stats": [
+      {
+       "stat": "BossNpcDecreaseDamage",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450126,
+     "row": 9,
+     "col": 6,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450128,
+     "row": 9,
+     "col": 8,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450130,
+     "row": 9,
+     "col": 10,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450131,
+     "row": 9,
+     "col": 11,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450132,
+     "row": 9,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3, Boss Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450133,
+     "row": 9,
+     "col": 13,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450134,
+     "row": 9,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3, PvE Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450135,
+     "row": 9,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "HP +100",
+     "short": "+100",
+     "stats": [
+      {
+       "stat": "HPMax",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450137,
+     "row": 10,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450139,
+     "row": 10,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450141,
+     "row": 10,
+     "col": 6,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450142,
+     "row": 10,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3, Boss Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450143,
+     "row": 10,
+     "col": 8,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "MP +50",
+     "short": "+50",
+     "stats": [
+      {
+       "stat": "MPMax",
+       "value": 50
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450144,
+     "row": 10,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450145,
+     "row": 10,
+     "col": 10,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Critical Hit +10",
+     "short": "+10",
+     "stats": [
+      {
+       "stat": "Critical",
+       "value": 10
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450147,
+     "row": 10,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450150,
+     "row": 10,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450152,
+     "row": 11,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Damage Boost +1%",
+     "short": "+1%",
+     "stats": [
+      {
+       "stat": "BossNpcAmplifyDamage",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450153,
+     "row": 11,
+     "col": 3,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450154,
+     "row": 11,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450156,
+     "row": 11,
+     "col": 6,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450159,
+     "row": 11,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450162,
+     "row": 11,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Damage Tolerance +1%",
+     "short": "+1%",
+     "stats": [
+      {
+       "stat": "BossNpcDecreaseDamage",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450163,
+     "row": 11,
+     "col": 13,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450164,
+     "row": 11,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450165,
+     "row": 11,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5, PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      },
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450167,
+     "row": 12,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450169,
+     "row": 12,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3, PvE Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450171,
+     "row": 12,
+     "col": 6,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Critical Hit Resist +10",
+     "short": "+10",
+     "stats": [
+      {
+       "stat": "CriticalResist",
+       "value": 10
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450174,
+     "row": 12,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5, PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      },
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450175,
+     "row": 12,
+     "col": 10,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450176,
+     "row": 12,
+     "col": 11,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450177,
+     "row": 12,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450179,
+     "row": 12,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450181,
+     "row": 13,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3, Boss Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450182,
+     "row": 13,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450183,
+     "row": 13,
+     "col": 3,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450184,
+     "row": 13,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450185,
+     "row": 13,
+     "col": 5,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450186,
+     "row": 13,
+     "col": 6,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450187,
+     "row": 13,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450188,
+     "row": 13,
+     "col": 8,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450189,
+     "row": 13,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450192,
+     "row": 13,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3, PvE Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450194,
+     "row": 13,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Damage Boost +1%",
+     "short": "+1%",
+     "stats": [
+      {
+       "stat": "BossNpcAmplifyDamage",
+       "value": 100
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450195,
+     "row": 13,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450196,
+     "row": 14,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450198,
+     "row": 14,
+     "col": 3,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Critical Hit +10",
+     "short": "+10",
+     "stats": [
+      {
+       "stat": "Critical",
+       "value": 10
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450200,
+     "row": 14,
+     "col": 5,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450202,
+     "row": 14,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3, PvE Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450204,
+     "row": 14,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450205,
+     "row": 14,
+     "col": 10,
+     "type": "Stat",
+     "grade": "Legend",
+     "cost": 3,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Critical Hit Resist +10",
+     "short": "+10",
+     "stats": [
+      {
+       "stat": "CriticalResist",
+       "value": 10
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450206,
+     "row": 14,
+     "col": 11,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "PvEDamageDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450207,
+     "row": 14,
+     "col": 12,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450208,
+     "row": 14,
+     "col": 13,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450210,
+     "row": 14,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450211,
+     "row": 15,
+     "col": 1,
+     "type": "Stat",
+     "grade": "Unique",
+     "cost": 4,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Damage Tolerance +1.5%",
+     "short": "+1.5%",
+     "stats": [
+      {
+       "stat": "PvEDecreaseDamage",
+       "value": 150
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450212,
+     "row": 15,
+     "col": 2,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "PvEAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450213,
+     "row": 15,
+     "col": 3,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450214,
+     "row": 15,
+     "col": 4,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Defense +30",
+     "short": "+30",
+     "stats": [
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450215,
+     "row": 15,
+     "col": 5,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5, PvE Evasion +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      },
+      {
+       "stat": "PvEEvasion",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450217,
+     "row": 15,
+     "col": 7,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "MP +50",
+     "short": "+50",
+     "stats": [
+      {
+       "stat": "MPMax",
+       "value": 50
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450218,
+     "row": 15,
+     "col": 8,
+     "type": "Stat",
+     "grade": "Unique",
+     "cost": 4,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Damage Boost +1.5%",
+     "short": "+1.5%",
+     "stats": [
+      {
+       "stat": "PvEAmplifyDamage",
+       "value": 150
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450219,
+     "row": 15,
+     "col": 9,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Accuracy +5",
+     "short": "+5",
+     "stats": [
+      {
+       "stat": "PvEAccuracy",
+       "value": 5
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450223,
+     "row": 15,
+     "col": 13,
+     "type": "Stat",
+     "grade": "Rare",
+     "cost": 2,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3, Boss Defense +30",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      },
+      {
+       "stat": "BossNpcDefense",
+       "value": 30
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450224,
+     "row": 15,
+     "col": 14,
+     "type": "Stat",
+     "grade": "Common",
+     "cost": 1,
+     "needLevel": 45,
+     "auto": false,
+     "label": "Boss Attack +3",
+     "short": "+3",
+     "stats": [
+      {
+       "stat": "BossNpcAddDamage",
+       "value": 3
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    },
+    {
+     "id": 450225,
+     "row": 15,
+     "col": 15,
+     "type": "Stat",
+     "grade": "Unique",
+     "cost": 4,
+     "needLevel": 45,
+     "auto": false,
+     "label": "PvE Damage Boost +1.5%",
+     "short": "+1.5%",
+     "stats": [
+      {
+       "stat": "PvEAmplifyDamage",
+       "value": 150
+      }
+     ],
+     "skillId": null,
+     "skillName": null,
+     "skillLevels": 1
+    }
+   ]
+  },
+  {
    "id": 46,
    "name": "Azphel",
    "needLevel": 45,
@@ -36771,7 +40082,17 @@
   "PvPAccuracy": "PvP Accuracy",
   "PvPEvasion": "PvP Evasion",
   "AbnormalResistance": "Status Effect Resist",
-  "PvPAmplifyDamage": "PvP Damage Boost"
+  "PvPAmplifyDamage": "PvP Damage Boost",
+  "PvEAmplifyDamage": "PvE Damage Boost",
+  "BossNpcAddDamage": "Boss Attack",
+  "PvEAddDamage": "PvE Attack",
+  "PvEDamageDefense": "PvE Defense",
+  "PvEAccuracy": "PvE Accuracy",
+  "PvEEvasion": "PvE Evasion",
+  "BossNpcDefense": "Boss Defense",
+  "PvEDecreaseDamage": "PvE Damage Tolerance",
+  "BossNpcAmplifyDamage": "Boss Damage Boost",
+  "BossNpcDecreaseDamage": "Boss Damage Tolerance"
  },
  "base_stats": {
   "1": {

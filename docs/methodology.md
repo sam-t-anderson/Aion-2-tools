@@ -58,7 +58,28 @@ Budgets constrain a particular optimization, not the maximum progression availab
 | Stigma level price | Lv 1–5: 1, 6–10: 2, 11–15: 4, 16–20: 8 (75 to Lv 20) | metabot |
 | Stigma slots | 4 (Lv 22/27/32/37) | client data |
 | Daevanion Crystal points | **360** is the example PvE budget, including level, dungeon, quest and other progression sources; it is configurable and is not a verified maximum | metabot board guide; the global top-player "most common" board spends 351 |
-| Daevanion boards | Nezekan (134), Zikel (134), Vaizel (134), Triniel (168) share the crystal pool; Azphel (232) is PvP and uses its own currency | client data |
+| Daevanion boards | Nezekan (134), Zikel (134), Vaizel (134), Triniel (168) share the crystal pool; Ariel (232, PvE) and Azphel (232, PvP) open at level 45 and each use their own currency, Daevanion Crystal: Ariel and Daevanion Crystal: Azphel | client data |
+| Daevanion Crystal: Ariel | The character's own total (its profile's spend, or the total entered); class optimizations take the highest total the server reports, else none. Its own budget (`--ariel-points`) | official profiles, server progression |
+
+**The Ariel board (0.2.381).** The global client's 4 November 2026 data adds a sixth board to every class, board x5 between
+Triniel and Azphel: Ariel, the PvE counterpart of Azphel's PvP board. It opens at level 45 and is paid with Daevanion
+Crystal: Ariel; its 152 nodes cost 232 points (104 at 1, 24 at 2, 16 at 3, 8 at 4) and raise no skill. Filled, it gives
+PvE Damage Boost +6 %, Boss Damage Boost +4 %, PvE Attack +72, Boss Attack +72 and Critical Hit +40, with Critical Hit
+Resist +40, HP +400, MP +200, and PvE and Boss Defense +720, PvE and Boss Damage Tolerance +6 % and +4 %, PvE Accuracy
+and Evasion +120. The model counts the damage stats (Boss Damage Boost in the Damage Boost bucket with PvE Damage Boost,
+Boss Attack with PvE Attack); the defenses, tolerances, accuracy and evasion change nothing it simulates (no boss
+damage taken, no hit chance) and are shown only. The whole board raises a typical Sorcerer's boss DPS by over 5 %.
+
+Its points are a budget of their own (`Build.ariel_cost`; `daevanion_cost` counts the four crystal boards only). The
+optimizer places them on the Ariel board alone, after the crystal boards and skill points are solved, valuing each
+node by the build's stat weights (`Optimizer(ariel_budget=...)`, 30 s of HiGHS, past which it gains about 2 % of the
+board's worth). Without an Ariel budget a build's Ariel nodes stay as they are, and nodes on boards the search does
+not allocate (Azphel's) are now kept: the search used to return the crystal boards' nodes only, dropping an imported
+character's others. An imported character's Ariel budget is the crystal its profile shows spent, or the total typed on
+My Character; a class optimization in the planner takes the field's value, else the highest total the server reports
+for the class (servers before aion2logs 0.2.166 report none, and then none is spent). Community comparisons keep their
+skill, stigma and Daevanion budgets and the four crystal boards: a submitted build leaves its Ariel and Azphel nodes,
+and clients before 0.2.381 would refuse a scope with a fourth budget.
 
 **A character below level 45 (0.2.322).** The optimizer holds a character to what its level
 gives: the stigma slots its level opens (22/27/32/37), filled only as far as the stigma points go
@@ -88,7 +109,8 @@ vulnerable = 1 + "damage taken from the caster" debuffs   (separate multiplier)
 weapon     = 1 + 0.66 × Weapon Damage Boost
 crit       = 1 + P(crit) × (0.5 + Critical Damage Boost)   (+ Critical Attack on crit)
 double     = Double (Smite) = ×2 ; Perfect = max weapon roll ; Double and Perfect never stack
-multi-hit  = 1 + P(multi-hit) × 0.125
+multi-hit  = 1 + P(multi-hit) × 0.11 ; a certain Multi-Hit ("Multi-Hit on hit", "lands as Multi-Hit") = ×1.20
+             (every Multi-Hit during Zikel's Blessing Lv 15 and Bow of Blessing Lv 5: × (1 + P × 0.20))
 position   : a direct hit lands from the front, from behind or from the side, in the target's shares;
              Front/Back Attack (flat), Front/Back Attack Damage Boost (its own multiplier) and
              Front/Back Attack Critical Hit (added Critical Hit) count only on hits from their side
@@ -102,7 +124,7 @@ Sources: Taiwanese Bahamut research translated on Inven
 article ([news 312835](https://www.inven.co.kr/webzine/news/?news=312835&site=aion2)),
 and the community DPS calculator
 [aion2ssow](https://bongbong99999-debug.github.io/aion2ssow/) (weapon-boost 66 %
-efficiency, multi-hit 12.5 %, crit curve capped at 80 %).
+efficiency, crit curve capped at 80 %; its multi-hit 12.5 % gave way to the recorded values in 0.2.382).
 
 * **Skill value = coefficient × Attack + flat** — the coefficient is constant
   across skill levels; only the flat part grows (TW tests, confirmed by the
@@ -124,6 +146,10 @@ efficiency, multi-hit 12.5 %, crit curve capped at 80 %).
 * **Front / Back Attack Critical Hit** add Critical Hit on hits from their side
   and are assumed to scale with Critical Hit increase, Precision and Death like
   Critical Hit itself.
+* **Multi-Hit**: a Multi-Hit lands one to four extra hits inside the hit's own record, each about 5 %
+  of the hit: one from the Multi-Hit chance lands 2.14 on average, 11 %; a certain one (the
+  *Multi-Hit on hit* and *lands as Multi-Hit* options) always four, 20 %, with no chance on top
+  ([measured from the recordings](#multi-hit-from-the-recordings-02382)). Damage over time never multi-hits.
 * **Primary and deity stats**: +0.1 % per point to each of their effects in the
   global client (metabot "Stats explained"; KR later raised deity stats to
   0.2 %).  Might/Destruction → Attack %, Precision/Death → Crit %, Wisdom →
@@ -1042,7 +1068,7 @@ than 0.3 s apart (the cast records hold every key press, held keys included, and
   again after `heart_gore_recast` (0.73 s at 0 % Combat Speed) when it is reset, and otherwise waits the
   expected time, a crit's share of the recast and the rest of the cooldown, so the stat weights stay smooth.
   Heart Gore crit as often as the other skills, so the Lv 8 "+20 % Critical Hit when less targets hit" either
-  was not taken or does not show on a boss; the kit keeps the tooltip. *Since [0.2.381](#illusive-clones-echo-of-a-fifth-02381):
+  was not taken or does not show on a boss; the kit keeps the tooltip. *Since [0.2.383](#illusive-clones-echo-of-a-fifth-02383):
   a seventh of this damage is Illusive Clone's echoes of a fifth, recorded under Heart Gore's id; without them Heart
   Gore is 24.0 % of the same Assassin's damage, where it reads 27.9 % with them.*
 * **Illusive Clone**: 99 windows, 18.0 s long (median; its Lv 20 duration is 20 s), starting 46 s apart (q1 40,
@@ -1050,7 +1076,7 @@ than 0.3 s apart (the cast records hold every key press, held keys included, and
   ("Illusive Clone", 2,005 of them, 4.2 % of the damage) are 7 % of the damage dealt inside its window in
   every window (median 0.07, q1 0.06, q3 0.07), where the tooltip says 20 %: the kit echoes the measured 7 %
   (`clone_echo`). Its Lv 20 "50 % chance to deal extra damage on Critical Hit" is the Clone Attack hits, 0.8 %
-  of the damage inside the window (`clone_attack_echo`). *Since [0.2.381](#illusive-clones-echo-of-a-fifth-02381):
+  of the damage inside the window (`clone_attack_echo`). *Since [0.2.383](#illusive-clones-echo-of-a-fifth-02383):
   the tooltip's 20 % is the echo of a fifth of every active skill's hit, which the recordings credit to each skill;
   the kit deals it as the clone's, and the clone's own hits stay `clone_echo` (0.072 of the damage besides the
   clone's).*
@@ -1109,7 +1135,7 @@ the best legal specializations for them, an optimized rotation), against the rec
 | Shadowstrike | 1.0 % | 1.7 % |
 | Whirlwind Slice, Infiltrate's Dark Strike | not pressed | 3.9 %, 2.8 % |
 
-*Corrected in [0.2.381](#illusive-clones-echo-of-a-fifth-02381): each active skill's recorded share above holds
+*Corrected in [0.2.383](#illusive-clones-echo-of-a-fifth-02383): each active skill's recorded share above holds
 Illusive Clone's echoes of a fifth, a tenth to a seventh of the skill's damage. Counted as the clone's, the same
 Assassin's fights read Heart Gore 24.0 %, Insignia Explosion 17.9 %, the basic chain 15.8 % and Illusive Clone 13.6 %;
 the table there corrects every row and gives the model with the echo.*
@@ -1131,7 +1157,7 @@ model simulates, so they show as *either*: since 0.2.368 a specialization is mar
 build simulates less damage without it (`kit.specialties.free_marks`). The stigma search stopped at level 15
 and, for a character with more than 75 stigma points, found no pattern that spent them and left the seed in
 place: the player saw 30 of 268 points spent on the least-picked stigmas. It now reaches level 20
-(`opt.pipeline.stigma_patterns`) and, for this character's 168 points, spends them on Illusive Clone 16, Swift Contract 20, Triniel's Dagger 10 and Savage Fang 15 (the player runs 20, 15, 12 and 15; the model values Illusive Clone's last four levels, 2.5 s of duration and the 0.8 % Clone Attack, below Swift Contract's Lv 20 Combat Speed). *Since [0.2.381](#illusive-clones-echo-of-a-fifth-02381) the echo doubles what the clone is worth, and its levels 16 to 20 tie with the same points elsewhere; Swift Contract 20 still decides.*
+(`opt.pipeline.stigma_patterns`) and, for this character's 168 points, spends them on Illusive Clone 16, Swift Contract 20, Triniel's Dagger 10 and Savage Fang 15 (the player runs 20, 15, 12 and 15; the model values Illusive Clone's last four levels, 2.5 s of duration and the 0.8 % Clone Attack, below Swift Contract's Lv 20 Combat Speed). *Since [0.2.383](#illusive-clones-echo-of-a-fifth-02383) the echo doubles what the clone is worth, and its levels 16 to 20 tie with the same points elsewhere; Swift Contract 20 still decides.*
 
 ### The stagger skills from the recordings (0.2.379)
 
@@ -1242,7 +1268,7 @@ uploads' official profiles), each fight, and each player's train in it, counted 
   halved to 13.4 for Multi-Hit), and 0.2.379 took them for the Lv 12 Multi-Hit. Every count and ratio below leaves
   them out. In the clone's windows they are 10–12 % of the damage, besides the clone's own hits (7.5–7.9 %, Clone Attack
   included), which are all the kit's clone echoes (`clone_echo`, `clone_attack_echo`); the echo of a fifth is not
-  modelled yet. *Since [0.2.381](#illusive-clones-echo-of-a-fifth-02381) it is: one echo to every active skill's hit,
+  modelled yet. *Since [0.2.383](#illusive-clones-echo-of-a-fifth-02383) it is: one echo to every active skill's hit,
   the Savage Roar chain's too, 14 % of the damage in the windows, and the clone's own hits and Clone Attack 6.5–6.9 %.*
 * **A Multi-Hit is inside the hit's record.** The game sends a Multi-Hit's extra hits (one to four) inside the hit's
   own record, each a tenth of its total, and the a2log exports keep the total as one hit. The raw skill id names the
@@ -1252,7 +1278,8 @@ uploads' official profiles), each fight, and each player's train in it, counted 
   the same skill without a Multi-Hit, on the same boss and side, within 3 s (the same buffs), a hit with one, two,
   three or four extra hits is 1.05, 1.10, 1.16 and 1.20 times as large, critical or not (1,217 hits of 15–23 skills in
   eight captures): about 5 % an extra hit. *Multi-Hit on hit* is worth 20 % a hit, where the damage model gives a
-  certain Multi-Hit 12.5 %.
+  certain Multi-Hit 12.5 %. *Since [0.2.382](#multi-hit-from-the-recordings-02382) the damage model gives every certain
+  Multi-Hit the 20 %.*
 * **Each hit's share of the tooltip,** measured as 0.2.379 did, the clone's echoes left out of both skills: Storm
   Rampage against Heart Gore 0.16 (5 players, 0.11–0.17); compared inside the same staggers (the same buffs), the hits
   of the player with the most staggers come to 0.19. Flame Scattershot against Blaze 0.21 and against Firestorm's first
@@ -1281,7 +1308,8 @@ regenerated: the Sorcerer's, replayed in the boss scenario, reads 21,641 DPS whe
 hits where it had 120), and the Assassin's has no Storm Rampage in its priority.
 
 **Multi-Hit on every class's stagger skill.** The helper is shared, so every class's *Multi-Hit on hit* now adds the
-measured 20 % to each hit (`kit.common.MULTI_HIT_ON_HIT`), where 0.2.379 gave the six 12.5 %; Storm Rampage's no
+measured 20 % to each hit (`kit.common.MULTI_HIT_ON_HIT`; since 0.2.382 the damage model's
+`model.stats.MULTI_HIT_ON_HIT`), where 0.2.379 gave the six 12.5 %; Storm Rampage's no
 longer doubles its hits. With the skill at 16 it adds 0.5–1.4 % to the typical builds' boss DPS (0.3–0.8 % before for
 the six, 4.5 % for the Assassin's doubled hits), and the MP option still beats it for the Chanter (+3.8 %) and the
 Templar (+1.8 %). Its extra hits take no second off: they are inside the hit's record, and *on hit* counts records.
@@ -1294,13 +1322,107 @@ the other skills back sooner (6.6 %). The six others' are unchanged within 0.1 p
 [linked-effects](#supporting-effects-that-act-on-each-others-cooldowns-02376) group of its own, and the search takes it.
 
 **Still open.** Illusive Clone's echo of a fifth (10–12 % of the damage in its windows, which the kit leaves out;
-modelled since [0.2.381](#illusive-clones-echo-of-a-fifth-02381), and 14 % measured again).
+modelled since [0.2.383](#illusive-clones-echo-of-a-fifth-02383), and 14 % measured again).
 *Multi-Hit on hit* on other skills (Heart Gore, Blaze, Hellfire and the rest) and the Multi-Hit chance stay at the
 damage model's 12.5 %. The six classes' shares from 0.2.379 include players who took Multi-Hit on the stagger skill,
 whose hits read a fifth high where the reference skill has none; the uploads keep only a skill's family, so a profiled
-player's options are unknown.
+player's options are unknown. *Measured in [0.2.382](#multi-hit-from-the-recordings-02382): every certain Multi-Hit
+is worth the 20 % in the damage model, and one from the Multi-Hit chance 11 %.*
 
-### Illusive Clone's echo of a fifth (0.2.381)
+### Multi-Hit from the recordings (0.2.382)
+
+0.2.380 measured what a Multi-Hit adds and gave the stagger skills' *Multi-Hit on hit* the measured 20 % through a
+factor of their own. Every other certain Multi-Hit (*Multi-Hit on hit* on Heart Gore, Blaze, Drill Dart, Condemnation
+and the rest; *lands as Multi-Hit* on Hellfire, Deadshot, Ankle Slice and the rest) and the Multi-Hit chance stayed at
+the community calculators' 12.5 % a Multi-Hit (documented as up to four extra hits worth 10 % each), which is what one
+to four extra hits at 5 % each would give if every count were as likely. The eight fight captures of the diagnostics
+archive, replayed through the meter (`meter.a2parser.engine.MeterEngine`, each with its summary's `server_port`), give
+every hit's extra hits (`multi_hit_count`, `multi_hit_damage`) and the options it was dealt with (the raw skill id,
+`meter.a2parser.lookup.decode_spec_flags`); their cast records give each player's buffs.
+
+**What the recordings show.**
+
+* **The size of a Multi-Hit.** Each extra hit is a tenth of the record's total, every one of them to the damage point.
+  Against the same player's hits of the same skill without a Multi-Hit, on the same boss, from the same side and with
+  the same hit flags (critical, Double, Perfect and the rest), at least two of them within 1.5 s, a hit with one, two,
+  three or four extra hits is 1.05, 1.11, 1.16 and 1.21 times as large (2,340 hits); with any one within 3 s, 1.05,
+  1.11, 1.16 and 1.22 (6,447 hits of 94 skills). The same comparison of hits without a Multi-Hit against each other
+  reads 1.000, and critical hits read as the others, as in 0.2.380's 1.05, 1.10, 1.16 and 1.20: about 5 % an extra
+  hit. A certain Multi-Hit lands four: 4,336 of the 4,391 hits dealt with *Multi-Hit on hit* or *lands as Multi-Hit*.
+  So do the options two kits did not read as a certain Multi-Hit: Drill Dart's *Multi-Hit on hit* on 190 of 193 hits
+  (the Ranger kit gave it +50 % Multi-Hit chance), Incandescent Blow's *lands as Multi-Hit* on 147 of 148 and on 77 of
+  77 of its chain skill Bursting Blow's, Rushing Smash's on 15 of 15, Heat Wave Blow's on 7 of 7 and Wave Blow's
+  *Multi-Hit on hit* on 44 of 44 (the Chanter kit read none of them).
+* **How many extra hits the Multi-Hit chance lands.** The hits of skills whose options include no Multi-Hit, outside
+  the buffs below: one, two, three or four extra hits 41.6, 23.9, 13.6 and 20.9 % of the time (9,122 Multi-Hits in
+  35,634 hits), 2.14 on average; the dungeon captures alone, where every party member's casts are in view, 42.0,
+  24.0, 13.7 and 20.3 %. How often a player multi-hits (0.18–0.33 of their pressed hits for most) does not move it:
+  2.08–2.19 extra hits on average from the lowest band to the highest but three players' 2.61. The *+50 % Multi-Hit
+  on hit* options raise the share of hits with a Multi-Hit from 0.26 to 0.79 (1,668 hits) and land the same counts
+  (38.8, 24.2, 15.8 and 21.2 %). With the measured sizes a Multi-Hit from the chance adds 11.2 % (10.8 % with
+  0.2.380's sizes, 10.7 % at 5 % an extra hit), not 12.5 %.
+* **Zikel's Blessing and Bow of Blessing make every Multi-Hit whole.** While the Gladiator's Zikel's Blessing with its
+  Lv 15 *+50 % Multi-Hit chance* or the Ranger's Bow of Blessing with its Lv 5 *+50 % Multi-Hit Chance for duration*
+  lasts, the caster multi-hits 0.46 more often than outside it (0.31–0.56 by player), and 915 of the 916 Multi-Hits in
+  them land four extra hits (Zikel's Blessing in two captures, Bow of Blessing in three). A stigma's cast names how
+  many of its options its level has opened (Zikel's Blessing at 15–19 casts as 11250030, Bow of Blessing at 10–14 as
+  14220020), as the kits take it (a stigma's options open with its level): Zikel's Blessing cast below 15 leaves the
+  Multi-Hits as they are (0.28 of 1,783 hits, one to four extra hits), at 15 and up 241 of 241 land four. Battlefield
+  Banner's *+10 % Multi-Hit Chance* shows too few hits to tell (seven Multi-Hits in its windows, one of four).
+* **What multi-hits.** Pressed skills, their chain steps, the basic chain, damaging stigmas and the summons' attacks.
+  Damage over time never does (0 of 14,675 ticks), nor do passives' hits (5 of 11,861, the Cleric's Empyrean Lord's
+  Grace aside at 26 %), theostones (2 of 1,751), or Illusive Clone's echoes and the auras among the stigmas (Noble
+  Aura, Supporting Fire). Chain steps take their first skill's options: Swift and Breaking Slice with Quick Slice's
+  *+50 % Multi-Hit* multi-hit on 0.80–0.83 of their hits, Resonance and Bolt Crush with Onslaught's on 0.78–0.81.
+
+**What the model does now.** `model.damage.expected_hit` values a certain Multi-Hit (the `"multi"` tag, which every kit
+gives *Multi-Hit on hit* and *lands as Multi-Hit*) at the four extra hits, +20 % with no Multi-Hit chance on top
+(`model.stats.MULTI_HIT_ON_HIT`, moved from `kit.common`), and a Multi-Hit from the chance at 11 %
+(`MULTIHIT_BONUS`, was 12.5 %); the *+50 % Multi-Hit* options add 0.5 to the chance as before. The stagger skills'
+*Multi-Hit on hit* (`kit.common.add_stagger_skill`) needs no factor of its own. Drill Dart's *Multi-Hit on hit* is now a
+certain Multi-Hit, and the Chanter kit reads its options: *lands as Multi-Hit* on Incandescent Blow (and the Bursting
+Blow it folds in), Rushing Smash and Heat Wave Blow, *Multi-Hit on hit* on Wave Blow and *+50 % Multi-Hit* on Tremor
+Crush. Zikel's Blessing from Lv 15 and Bow of Blessing from Lv 5 add 0.5 to the chance for the buff's own duration
+(10 s and 0.5 s a level: 17 s at 15, 20 s at 20; the kits keep 20 s for the buffs' other stats) and value every
+Multi-Hit in it at the four (`MULTIHIT_FULL`); neither option was modelled before. Battlefield Banner keeps its +10 % at
+11 % a Multi-Hit. Every direct hit still takes the chance, the passives', theostones' and echoes' that never multi-hit
+too: 0.6 % of their damage at the typical builds' 5.5 % Multi-Hit chance.
+
+**The optimizer's choices.** Each bundled class build in its boss scenario, under its own rotation, with every legal
+combination of the options of each skill that has a Multi-Hit option (the optimizer's coordinate step over one skill):
+
+| Skill | Best with the Multi-Hit option against the best without, 0.2.380 / now | The best combination |
+|---|---:|---|
+| Heart Gore (Assassin) | +1.03 % / +1.67 % | *Multi-Hit on hit* and *+20 % Critical Hit* on one target, both times |
+| Blaze (Sorcerer) | +0.68 % / +1.19 % | *Multi-Hit on hit* and *Delayed Damage*, both times |
+| Hellfire (Sorcerer) | −0.73 % / +0.22 % | now *lands as Multi-Hit* and its Fire DoT, where it was *+30 % Skill Speed* and the DoT |
+| Deadshot (Ranger) | +1.50 % / +2.45 % | *lands as Multi-Hit* and *+30 % Skill Speed*, both times |
+| Ankle Slice (Gladiator) | +0.56 % / +0.91 % | *lands as Multi-Hit* and *Ankle Smash*, both times |
+| Drill Dart (Ranger) | +0.40 % / +1.23 % | *Multi-Hit on hit* and *+20 % Skill Speed*, both times (read as +50 % Multi-Hit chance before) |
+
+The *+50 % Multi-Hit* options lose 0.02–0.12 points and every choice stays: Quick Slice's, Whirlwind Slice's, Insignia
+Explosion's, Burst Arrow's, Jointstrike: Curse's and Dimensional Control's are taken, Keen Strike's, Vicious Strike's,
+Annihilate's, Flame Arrow's, Suppressing Arrow's and Earth's Retribution's are not. The Chanter's options open at Lv 8
+to 16, above the bundled and typical builds' levels (Incandescent Blow 14, the others 1–6): raised to 16, Incandescent
+Blow's *lands as Multi-Hit* adds 10.9 % to the bundled Chanter's boss DPS (22,725 to 25,204), where it added nothing.
+Zikel's Blessing at 15 adds 2.5 % to the bundled Gladiator's (13,607 to 13,948) and Bow of Blessing at 5 adds 1.2 % to
+the bundled Ranger's (13,041 to 13,204), where their levels changed nothing before. The level and stigma searches take
+these. The typical Ranger's Bow of Blessing at 7 holds the Multi-Hit option: its boss DPS reads 10,374 where it read
+10,207 (+1.6 %); the other typical builds move 0.05–0.1 % down.
+
+The bundled builds are not regenerated. Replayed in the boss scenario: Ranger 12,824 to 13,041 DPS (+1.7 %), Sorcerer
+21,641 to 21,748 (+0.5 %), Assassin 10,225 to 10,260 (+0.3 %), Gladiator 13,570 to 13,607 (+0.3 %), Spiritmaster
+−0.15 %, Templar, Cleric and Chanter −0.1 % or less. A new run would change the Sorcerer's Hellfire options, the
+Gladiator's and Ranger's stigma levels and likely the Chanter's Incandescent Blow level.
+
+**Still open.** The passives', theostones' and echoes' hits never multi-hit, and the model gives them the chance. The
+recorded players multi-hit on 0.26 of their pressed hits, where the typical builds' gear gives a 5.5 % chance; the
+profiles hold Multi-Hit chance on Daevanion nodes (+1.5 % and +4.5 %) and on item lines the typical loadouts may not
+all hold. Battlefield Banner's +10 %: too few hits in its windows. Chain steps take their first skill's options (the
+*+50 % Multi-Hit* of Quick Slice and Onslaught on their chain steps above, and every chain step's raw id names its
+first skill's options), where the kits give a basic chain's *+50 % Multi-Hit* to its first step only.
+
+### Illusive Clone's echo of a fifth (0.2.383)
 
 Illusive Clone's tooltip says it "deals 20 % of damage dealt as extra damage" for its duration. 0.2.368 took the
 clone's own hits ("Illusive Clone", 7 % of the damage in its windows) for that effect, and the kit echoed 7 % of every

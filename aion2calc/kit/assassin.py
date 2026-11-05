@@ -74,7 +74,7 @@ ASSUME = {
     "storm_rampage_hit": 0.16,    # each hit against the tooltip's value, measured against a Heart Gore hit (0.32 before,
                                   #   from hits that counted the clone's; the tooltip split over a press's four hits
                                   #   would be 0.25)
-    # Illusive Clone (0.2.381; docs/methodology.md "Illusive Clone's echo of a fifth"): its tooltip's 20 % is an echo of
+    # Illusive Clone (0.2.383; docs/methodology.md "Illusive Clone's echo of a fifth"): its tooltip's 20 % is an echo of
     # each active skill's hit, which the kit takes from the tooltip; the clone's own hits and Clone Attack are these two,
     # each against the damage the clone's windows hold besides the clone's (one recorded Assassin's 423 windows):
     "clone_echo": 0.072,          # the clone's own hits ("Illusive Clone"): 7.2 % (0.071 the median window, q1 0.065,
@@ -355,7 +355,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "quick_slice") -> Kit:
 
     # ------------------------------------------------------------- stigmas
     # Illusive Clone: for its duration Heart Gore has no cooldown and the clone "deals 20% of damage dealt as extra
-    # damage": every hit of an active skill is followed by a hit of a fifth of it (0.2.381; recorded 0.16 s after its
+    # damage": every hit of an active skill is followed by a hit of a fifth of it (0.2.383; recorded 0.16 s after its
     # hit at 0.20 of it, one to a hit, the woven basic steps', Storm Rampage's and the Savage Roar chain's too), never a
     # passive's proc or a damage-over-time tick. The game records the echo under the skill's own id; the model counts
     # it as the clone's (``as_source`` keeps the recorded attribution for comparisons with recorded fights).

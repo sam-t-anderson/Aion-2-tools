@@ -137,6 +137,8 @@ def main(argv: list[str] | None = None) -> int:
     o.add_argument("--skill-points", type=int,
                    help="skill point budget (default: 203 from levels; ~383 with every Empyrean Trace)")
     o.add_argument("--stigma-points", type=int, help="stigma point budget (default 30)")
+    o.add_argument("--ariel-points", type=int, default=0,
+                   help="Daevanion Crystal: Ariel for the level-45 Ariel board (default 0: none)")
     o.add_argument("--crit-midpoint", type=float,
                    help="Crit value with ~52%% crit chance (default 1024.5, the measured fit); lower it if "
                         "launch testing shows more crit at your Crit value")
@@ -339,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
         from .report import run_report
         run_report(args.cls, args.out or f"results/{args.cls}_l45", scenario_name=args.scenario,
                    daev_budget=args.daevanion, iterations=args.iterations, loadout=args.loadout,
-                   sp_budget=args.skill_points, stigma_points=args.stigma_points)
+                   sp_budget=args.skill_points, stigma_points=args.stigma_points, ariel_budget=args.ariel_points)
     elif args.cmd == "simulate":
         from .run import simulate
         from .scenarios import SCENARIOS, typical_build

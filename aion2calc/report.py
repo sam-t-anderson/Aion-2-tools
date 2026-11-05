@@ -11,7 +11,7 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
-from .kit.base import ClassData
+from .kit.base import ARIEL, CRYSTAL_BOARDS, ClassData
 from .opt.macro import MODEL_VERSION, describe_plan, plan_macro
 from .opt.pipeline import Optimizer
 from .opt.rotation import describe, materialize, optimize_rotation
@@ -122,12 +122,17 @@ def _board_images(cd, build, comm, out: Path, daev_budget: int) -> None:
     labels = cd.raw.get("stat_labels", {})
     for k, v in sorted(raw.items(), key=lambda kv: -kv[1]):
         rule_pct = k in ("CombatSpeed", "CoolTimeDecrease", "AmplifyAllDamage", "AmplifyCriticalDamage",
-                         "AdditionalHitRate", "DecreaseDamage", "DecreaseCriticalDamage", "AdditionalHitResistRate")
+                         "AdditionalHitRate", "DecreaseDamage", "DecreaseCriticalDamage", "AdditionalHitResistRate",
+                         "PvEAmplifyDamage", "BossNpcAmplifyDamage", "PvEDecreaseDamage", "BossNpcDecreaseDamage")
         board_lines.append(f"{labels.get(k, k)}: +{v / 100:.1f}%" if rule_pct else f"{labels.get(k, k)}: +{v:g}")
     render_boards(cd, build.daevanion, str(out / "images" / "daevanion_optimized.png"),
                   f"{cls.capitalize()} L45 (global) — optimized Daevanion ({build.daevanion_cost(cd)}/{daev_budget} pts)",
                   summary_lines=board_lines, budget=daev_budget)
-    comm_crystal = {n for n in comm.daevanion if cd.node_index[n][0]["name"] != "Azphel"}
+    if build.ariel_cost(cd):            # the Ariel board, on its own crystal (0.2.381)
+        render_boards(cd, build.daevanion, str(out / "images" / "daevanion_ariel.png"),
+                      f"{cls.capitalize()} L45 (global) — Ariel board ({build.ariel_cost(cd)} Daevanion Crystal: Ariel)",
+                      boards=(ARIEL,), summary_lines=board_lines)
+    comm_crystal = {n for n in comm.daevanion if cd.node_index[n][0]["name"] in CRYSTAL_BOARDS}
     render_boards(cd, comm_crystal, str(out / "images" / "daevanion_community.png"),
                   f"{cls.capitalize()} L45 — most common global top-player Daevanion (metabot, aggregate)",
                   summary_lines=["## Note", "Aggregate of the most-picked nodes", "(not one player's board)"])
@@ -321,8 +326,11 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                iterations: int = 3, loadout: str | None = None, verbose: bool = True,
                sp_budget: int | None = None, stigma_points: int | None = None,
                current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None, genus=None, objective="primary", progression=None,
-               level: int = 45, initial_build=None, initial_policy: list | None = None) -> dict:
+               level: int = 45, initial_build=None, initial_policy: list | None = None,
+               ariel_budget: int | None = None) -> dict:
     """``current``: a Build (e.g. an imported character) to evaluate and diff against.
+    ``ariel_budget``: the Daevanion Crystal: Ariel the search may place on the Ariel board (0.2.381); ``None`` keeps
+    the starting build's Ariel nodes as they are.
     ``progress``: optional callback(str) for live phase updates (the app streams these to the UI).
     ``level``: the character's level, which gates its stigma slots, skill levels and boards.
     ``initial_build`` / ``initial_policy``: where the search starts (an imported character's own build and
@@ -346,7 +354,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     from .opt.weighted import optimizer_for, objective_summary
     opt = optimizer_for(cls, scen, other, objective, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
                         stigma_points=stigma_points, progress=progress, survival=survival, skill_reserves=skill_reserves,
-                        level=level)
+                        level=level, ariel_budget=ariel_budget)
     skill_reserves = opt.skill_reserves
     opt.log("Damage objective: " + objective + "; HP and trained-skill reserves remain enforced")
     res = opt.run(iterations=iterations, initial_build=initial_build, initial_policy=initial_policy)
@@ -401,7 +409,8 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     summary = {
         "class": cls, "level": level, "scenario": scenario_name, "daevanion_budget": daev_budget,
         "progression": copy.deepcopy(progression),
-        "budgets": {"skill": opt.sp_budget, "stigma": opt.stigma_points, "daevanion": daev_budget},
+        "budgets": {"skill": opt.sp_budget, "stigma": opt.stigma_points, "daevanion": daev_budget,
+                    **({"ariel": ariel_budget} if ariel_budget is not None else {})},
         "dps": {scenario_name: final.dps, other_name: final_other.dps},
         "whole_fight": ({"scenario": fight_name, "dps": fight.dps, "inactive_share": fight.inactive_share,
                          "note": "The rotation stretched over the share of a recorded boss fight the class's players spend "
@@ -420,7 +429,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                   "specs": {cd.skills[k]["name"]: [_spec_text(cd, k, x) for x in v]
                             for k, v in build.specs.items() if v},
                   "daevanion_nodes": sorted(build.daevanion),
-                  "daevanion_cost": build.daevanion_cost(cd),
+                  "daevanion_cost": build.daevanion_cost(cd), "ariel_cost": build.ariel_cost(cd),
                   "effective_levels": {cd.skills[k]["name"]: v for k, v in eff.items() if v > 1},
                   "specialties": describe_specialties(cd,opt._with_gear(build))},
         "policy": describe(policy),

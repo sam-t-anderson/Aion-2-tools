@@ -146,11 +146,12 @@ def test_the_optimizer_budgets_a_character_with_its_own_points(tmp_path, monkeyp
     imp = SimpleNamespace(cls="sorcerer", key="k1",
                           build=SimpleNamespace(sp_spent=lambda: 90, stigma_spent=lambda: 10, daevanion=set()))
     write_user_json({"k1": {"skill": 383, "stigma": 268, "daevanion": 416}}, "character-points.json")
-    assert charopt.budgets_of(imp) == {"skill": 90, "stigma": 10, "daevanion": 0}       # the old file is not read
-    spent = {"skill": 90, "stigma": 10, "daevanion": 0}
-    charopt.remember_entered("k1", {"skill": 90, "stigma": 25, "daevanion": 0}, spent)
+    # the Ariel board's Daevanion Crystal: Ariel is a budget of its own since 0.2.381
+    assert charopt.budgets_of(imp) == {"skill": 90, "stigma": 10, "daevanion": 0, "ariel": 0}   # the old file is not read
+    spent = {"skill": 90, "stigma": 10, "daevanion": 0, "ariel": 0}
+    charopt.remember_entered("k1", {"skill": 90, "stigma": 25, "daevanion": 0, "ariel": 0}, spent)
     assert read_json(charopt.ENTERED_POINTS) == {"k1": {"stigma": 25}}                   # only the typed total
-    assert charopt.budgets_of(imp) == {"skill": 90, "stigma": 25, "daevanion": 0}
+    assert charopt.budgets_of(imp) == {"skill": 90, "stigma": 25, "daevanion": 0, "ariel": 0}
     charopt.remember_entered("k1", dict(spent), spent)                                   # back to the profile's own
     assert read_json(charopt.ENTERED_POINTS) == {} and charopt.budgets_of(imp)["stigma"] == 10
     assert json.loads((tmp_path / "home" / "data" / "character-points.json").read_text())["k1"]["stigma"] == 268

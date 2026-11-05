@@ -58,6 +58,26 @@ def test_double_and_perfect_are_exclusive_and_dot_ignores_them():
     assert dot == pytest.approx(1000, rel=1e-6)
 
 
+def test_multi_hit_is_worth_its_recorded_extra_hits():
+    """0.2.382: a certain Multi-Hit (the "multi" tag: "Multi-Hit on hit", "lands as Multi-Hit") lands four extra hits,
+    +20 %, whatever the Multi-Hit chance; one from the chance lands one to four, +11 % on average; while a buff makes
+    every Multi-Hit whole ("multihit_full": Zikel's and Bow of Blessing) each is worth the four. DoT never multi-hits."""
+    from aion2calc.model.stats import MULTI_HIT_ON_HIT, MULTIHIT_BONUS, MULTIHIT_FULL
+    assert (MULTI_HIT_ON_HIT, MULTIHIT_BONUS) == (0.20, 0.11)
+    t = Target(tolerance=0.0)
+    hit = lambda d, mods=None, tags=(): expected_hit(d, mods or {}, t, HitContext(flat=0, coef=1.0, tags=tags))
+    none, some = _derived(), _derived(multihit=0.3)
+    assert hit(some) / hit(none) == pytest.approx(1 + 0.3 * 0.11, rel=1e-9)
+    assert hit(some, {"multihit": 0.5}) / hit(none) == pytest.approx(1 + 0.8 * 0.11, rel=1e-9)
+    assert hit(none, tags=("multi",)) / hit(none) == pytest.approx(1.20, rel=1e-9)
+    assert hit(some, tags=("multi",)) / hit(none) == pytest.approx(1.20, rel=1e-9)      # no chance on top
+    full = {"multihit": 0.5, MULTIHIT_FULL: 1.0}
+    assert hit(some, full) / hit(none) == pytest.approx(1 + 0.8 * 0.20, rel=1e-9)
+    assert hit(some, {"multihit": 0.9, MULTIHIT_FULL: 1.0}) / hit(none) == pytest.approx(1.20, rel=1e-9)  # capped
+    dot = lambda d, mods=None: expected_hit(d, mods or {}, t, HitContext(flat=0, coef=1.0, tags=("dot", "multi")))
+    assert dot(some, full) == pytest.approx(dot(none), rel=1e-9) == pytest.approx(1000, rel=1e-9)
+
+
 def test_boost_bucket_is_additive_and_element_multiplicative():
     d = _derived(amp_pve=0.2, amp_all=0.1, fire_amp=0.2)
     t = Target(tolerance=0.1)
@@ -108,8 +128,14 @@ def test_sorcerer_data_loaded(sorc):
     assert sorc.budget(45)["skill"] == 203
     assert sorc.budget(45)["stigma"] == 29
     assert {b["name"] for b in sorc.boards} >= {"Nezekan", "Zikel", "Vaizel", "Triniel"}
-    crystal = sum(n["cost"] for b in sorc.boards if b["name"] != "Azphel" for n in b["nodes"])
+    from aion2calc.kit.base import CRYSTAL_BOARDS
+    crystal = sum(n["cost"] for b in sorc.boards if b["name"] in CRYSTAL_BOARDS for n in b["nodes"])
     assert crystal == 570                  # 134 * 3 + 168
+    # the level-45 boards on crystals of their own, in the game's order (Ariel since 0.2.381): 232 points each
+    assert [b["name"] for b in sorc.boards] == ["Nezekan", "Zikel", "Vaizel", "Triniel", "Ariel", "Azphel"]
+    for name in ("Ariel", "Azphel"):
+        board = next(b for b in sorc.boards if b["name"] == name)
+        assert board["needLevel"] == 45 and sum(n["cost"] for n in board["nodes"]) == 232
 
 
 def test_daevanion_program_respects_budget_and_connectivity(sorc):

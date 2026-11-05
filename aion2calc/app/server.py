@@ -187,6 +187,9 @@ def _point_observation(body: dict, imp, points: dict, source: str) -> dict:
     since 0.2.328, the bonus skill levels the character's gear rolls and arcana cards give."""
     observation = {"class": imp.cls, "region": body.get("region", ""), "game_patch": body.get("game_patch", ""),
                    "points": {k: points[k] for k in ("skill", "stigma", "daevanion")}, "source": source}
+    if type(points.get("ariel")) is int and 0 <= points["ariel"] <= 10000:
+        # the Ariel board's Daevanion Crystal: Ariel (0.2.381); servers before it take the three totals and ignore it
+        observation["points"]["ariel"] = points["ariel"]
     bonus = _skill_bonus_observation(imp)
     if bonus:
         observation["skill_bonus"] = bonus
@@ -325,19 +328,33 @@ def act_preset_refresh(body: dict, log) -> dict:
 
 
 def _class_point_budgets(body: dict) -> dict:
+    """The skill, stigma, Daevanion and Ariel budgets of a class optimization: the body's, else the highest totals the
+    server reports for the class. The Ariel board's Daevanion Crystal: Ariel (0.2.381) is optional: without the body's
+    or a server-reported total, none is spent."""
     from ..combat.share import community_request
     fields = {"skill": "skill_points", "stigma": "stigma_points", "daevanion": "daevanion"}
     result = {key: body.get(field) for key, field in fields.items()}
-    if any(value is None for value in result.values()):
+    ariel = body.get("ariel")
+    missing = any(value is None for value in result.values())
+    if missing or ariel is None:
         query = urllib.parse.urlencode({"class": body["class"]})
-        observations = community_request("/api/v1/progression?" + query).get("observations", [])
+        try:
+            observations = community_request("/api/v1/progression?" + query).get("observations", [])
+        except Exception:
+            if missing:
+                raise
+            observations = []
         rows = [r for r in observations if r.get("class_name") == body["class"]
                 and all(type(r.get(k)) is int and 0 <= r[k] <= 10000 for k in fields)]
-        if not rows:
-            raise ValueError("No server-reported resources available; supply skill, stigma and Daevanion budgets explicitly")
-        for key in result:
-            if result[key] is None:
-                result[key] = max(row[key] for row in rows)
+        if missing:
+            if not rows:
+                raise ValueError("No server-reported resources available; supply skill, stigma and Daevanion budgets explicitly")
+            for key in result:
+                if result[key] is None:
+                    result[key] = max(row[key] for row in rows)
+        if ariel is None:
+            ariel = max((r["ariel"] for r in rows if type(r.get("ariel")) is int and 0 <= r["ariel"] <= 10000), default=0)
+    result["ariel"] = ariel
     if any(type(value) is not int or not 0 <= value <= 10000 for value in result.values()):
         raise ValueError("Point budgets must be integers from 0 to 10000")
     return result
@@ -358,7 +375,7 @@ def act_optimize_class(body: dict, log) -> dict:
     log(f"optimizing {cls} (this takes several minutes)")
     run_report(cls, str(out), scenario_name=scenario, iterations=int(body.get("iterations", 2)), loadout=body.get("loadout"),
                sp_budget=points["skill"], stigma_points=points["stigma"],
-               daev_budget=points["daevanion"], verbose=False, progress=log)
+               daev_budget=points["daevanion"], ariel_budget=points["ariel"], verbose=False, progress=log)
     summary = _summary_at(str(out))
     from ..combat.preset_sync import submit as submit_canonical
     from ..combat.share import submit_preset

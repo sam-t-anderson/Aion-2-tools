@@ -266,7 +266,7 @@ class Sim:
         # Echoes (0.2.368): while one lasts, every landed hit also deals a share of its damage under the echo's
         # own name (Illusive Clone's "deals 20% of damage dealt as extra damage"): (key, name, share, until, skip,
         # as_source). ``echo_of[name][source]`` is what an echo the game records under the hit's own skill took from
-        # each source (0.2.381), for comparisons with recorded fights (``SimResult.as_recorded``).
+        # each source (0.2.383), for comparisons with recorded fights (``SimResult.as_recorded``).
         self.echoes: list[tuple[str, str, float, float, tuple, bool]] = []
         self.echo_of: dict[str, dict[str, float]] = {}
         self.casts: dict[str, int] = {}

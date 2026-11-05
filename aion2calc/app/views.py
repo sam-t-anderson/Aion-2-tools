@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ..kit.base import ClassData, spec_slots
+from ..kit.base import ARIEL, CRYSTAL_BOARDS, ClassData, spec_slots
 from ..model.character import load_loadout, loadout_stats
 from ..opt.gear import ARCANA, arcana_choice, enchant_value, per_unit, roll_priorities, title_ranking
 
@@ -44,7 +44,16 @@ DAEV_LABELS = {"FixingDamage": ("Attack", 1, "num"), "Critical": ("Critical Hit"
                "CriticalResist": ("Critical Hit Resist", 1, "num"),
                "DecreaseDamage": ("Damage Tolerance", 1e-4, "pct"),
                "DecreaseCriticalDamage": ("Critical Damage Tolerance", 1e-4, "pct"),
-               "AdditionalHitResistRate": ("Multi-hit Resist", 1e-4, "pct")}
+               "AdditionalHitResistRate": ("Multi-hit Resist", 1e-4, "pct"),
+               # Ariel's and Azphel's percentages (hundredths of a percent, as the other boards')
+               "PvEAmplifyDamage": ("PvE Damage Boost", 1e-4, "pct"),
+               "BossNpcAmplifyDamage": ("Boss Damage Boost", 1e-4, "pct"),
+               "PvEDecreaseDamage": ("PvE Damage Tolerance", 1e-4, "pct"),
+               "BossNpcDecreaseDamage": ("Boss Damage Tolerance", 1e-4, "pct"),
+               "PvPAmplifyDamage": ("PvP Damage Boost", 1e-4, "pct"),
+               "PvPDecreaseDamage": ("PvP Damage Tolerance", 1e-4, "pct"),
+               "AbnormalAccuracy": ("Status Effect Chance", 1e-4, "pct"),
+               "AbnormalResistance": ("Status Effect Resist", 1e-4, "pct")}
 
 
 def fmt_stats(stats: dict) -> list[dict]:
@@ -70,12 +79,14 @@ def _sum(dicts) -> dict:
     return tot
 
 
-def daevanion_view(cd: ClassData, nodes: set, budget: int | None = None) -> dict:
+def daevanion_view(cd: ClassData, nodes: set, budget: int | None = None, ariel_budget: int | None = None) -> dict:
+    """Every board with its nodes. ``used`` / ``budget`` are the Daevanion Crystal of the four crystal boards; the Ariel
+    board takes Daevanion Crystal: Ariel (``ariel_used`` / ``ariel_budget``, 0.2.381) and Azphel its own crystal."""
     boards = []
     for b in cd.boards:
         taken = [n for n in b["nodes"] if n["id"] in nodes]
         boards.append({
-            "id": b["id"], "name": b["name"],
+            "id": b["id"], "name": b["name"], "crystal": b["name"] in CRYSTAL_BOARDS,
             "rows": max(n["row"] for n in b["nodes"]), "cols": max(n["col"] for n in b["nodes"]),
             "used": sum(n["cost"] for n in taken), "total": sum(n["cost"] for n in b["nodes"]),
             "nodes": [{"id": n["id"], "row": n["row"], "col": n["col"], "type": n["type"], "grade": n.get("grade"),
@@ -89,9 +100,11 @@ def daevanion_view(cd: ClassData, nodes: set, budget: int | None = None) -> dict
         x = v * scale
         stats.append({"label": label, "text": f"{100 * x:+.1f}%" if kind == "pct" else f"{x:+,.0f}"})
     lv = cd.daevanion_levels(nodes)
+    cost = {n: cd.node_index[n] for n in nodes if n in cd.node_index}
     return {"boards": boards, "budget": budget,
-            "used": sum(cd.node_index[n][1]["cost"] for n in nodes if n in cd.node_index
-                        and cd.node_index[n][0]["name"] != "Azphel"),
+            "used": sum(n["cost"] for b, n in cost.values() if b["name"] in CRYSTAL_BOARDS),
+            "ariel_budget": ariel_budget,
+            "ariel_used": sum(n["cost"] for b, n in cost.values() if b["name"] == ARIEL),
             "stats": stats,
             "skills": [{"name": cd.skills[k]["name"], "levels": v} for k, v in sorted(lv.items(), key=lambda kv: -kv[1])]}
 
@@ -393,10 +406,11 @@ def build_view(summary: dict) -> dict:
         "score": summary.get("score"), "scoring_policy": summary.get("scoring_policy"),
         "preset_checked_at": summary.get("preset_checked_at"), "preset_source": summary.get("preset_source"),
         "candidate_generation": summary.get("candidate_generation"),
-        "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(), "daevanion": build.daevanion_cost(cd)},
+        "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(), "daevanion": build.daevanion_cost(cd),
+                   "ariel": build.ariel_cost(cd)},
         "skills": skills_view(cd, build, gear),
         "stigmas": stigmas_view(cd, build),
-        "daevanion": daevanion_view(cd, build.daevanion, budgets.get("daevanion")),
+        "daevanion": daevanion_view(cd, build.daevanion, budgets.get("daevanion"), budgets.get("ariel")),
         "equipment": equipment_view(lo, weights, cls),
         "extras": extras_view(lo, weights, summary),
         **rotation_view(cd, build, gear, summary),
@@ -544,10 +558,11 @@ def character_view(imp, evaluation: dict | None = None) -> dict:
                                      "best legal ones for your levels (used for the as-is score)"] if evaluation else []),
         "dps": (evaluation or {}).get("dps"), "budgets": (evaluation or {}).get("budgets"), "progression": (evaluation or {}).get("progression"),
         "points": {"skill": build.sp_spent(), "stigma": build.stigma_spent(),
-                   "daevanion": daevanion_view(cd, build.daevanion)["used"]},
+                   "daevanion": build.daevanion_cost(cd), "ariel": build.ariel_cost(cd)},
         "skills": skills_view(cd, build, gear_bonus, levels_override=totals),
         "stigmas": stigmas_view(cd, build),
-        "daevanion": daevanion_view(cd, build.daevanion, (evaluation or {}).get("budgets", {}).get("daevanion")),
+        "daevanion": daevanion_view(cd, build.daevanion, (evaluation or {}).get("budgets", {}).get("daevanion"),
+                                    (evaluation or {}).get("budgets", {}).get("ariel")),
         "equipment": {"slots": eq_rows, "total": fmt_stats(_sum(r.get("stats", {}) for r in sysm.get("equipment", []))),
                       "rolls": {}, "enchant": []},
         "arcana_items": arcana,

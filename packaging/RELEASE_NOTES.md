@@ -1,8 +1,28 @@
-## Illusive Clone deals what its tooltip says (0.2.381)
+## Illusive Clone deals what its tooltip says (0.2.383)
 
 **The Assassin's Illusive Clone counts in full.** Its tooltip says the clone deals 20 % of the damage dealt as extra damage while it lasts, and the recordings show exactly that: after every hit of the Assassin's skills, a hit of a fifth of it, recorded under the skill's own name. The simulation had only the clone's own hits, about 7 % of the damage while it lasts. It now adds a fifth of every skill's hit, the basic attacks' and Storm Rampage's included but not the passives' extra hits or poison, and counts it as the clone's. The clone is now about a fifth of the damage dealt while it lasts, as recorded (21 %), and a typical Assassin's boss DPS rises 4 % with Illusive Clone at level 9 and 6 to 8 % at level 20. The optimizer now values the clone at about twice what it did; its last five levels still weigh about the same as those points spent elsewhere, and Swift Contract at level 20 matters more. Part of Heart Gore's recorded share was these hits: the Assassin measured in 0.2.368 has Heart Gore at 24 % of the damage without them, where 29 % was read with them, and the simulation now agrees.
 
 **Comparisons with recorded fights count them as the logs do.** The meter credits each of these hits to the skill it follows, so where the simulation is compared with recorded fights (the per-skill factors learned from your own fights, a fight against the optimal rotation, the fidelity to the Korean logs), they count with that skill. The bundled class builds are not regenerated: optimize again to see what the clone is worth for your Assassin.
+
+## Multi-Hit as recorded, on every skill (0.2.382)
+
+**A certain Multi-Hit is worth 20 % on every skill.** A Multi-Hit's extra hits arrive inside the hit itself, each worth about 5 % of it, and the "Multi-Hit on hit" and "lands as Multi-Hit" effects always land four. 0.2.380 gave the stagger skills' effect those 20 %; every other skill's, such as Heart Gore's, Blaze's, Hellfire's or Deadshot's, still counted 12.5 %. They all count 20 % now. The optimizer now takes Hellfire's "lands as Multi-Hit", and Heart Gore's and Blaze's Multi-Hit, which it already took, are worth more.
+
+**Multi-Hit chance, measured.** A Multi-Hit from the Multi-Hit chance lands one to four extra hits, one in 42 % of them and four in 21 %, 2.14 on average, which makes it worth 11 %, not 12.5 %. The "+50 % Multi-Hit" effects of skills raise the chance by half and land the same counts.
+
+**Multi-Hit effects the simulation missed.** The Ranger's Drill Dart counted its "Multi-Hit on hit" as +50 % Multi-Hit chance, and the Chanter's simulation left out Incandescent Blow's, Rushing Smash's and Heat Wave Blow's "lands as Multi-Hit", Wave Blow's "Multi-Hit on hit" and Tremor Crush's "+50 % Multi-Hit". The recorded hits with each of the first five land four extra hits every time. They all count now; at skill level 16, Incandescent Blow's effect adds about 11 % to a Chanter's boss DPS.
+
+**Zikel's Blessing and Bow of Blessing make every Multi-Hit whole.** Their "+50 % Multi-Hit chance" (Zikel's Blessing from level 15, Bow of Blessing from level 5) does more than its text says: while the buff lasts, every Multi-Hit lands all four extra hits. The simulation left both effects out. They now count for the buff's duration, and are worth about 2.5 % of a Gladiator's boss DPS and 1.2 to 1.6 % of a Ranger's.
+
+**The bundled class builds are not regenerated**: optimize again to see what this changes for your build. A new run would change the Sorcerer's Hellfire effects, raise the Gladiator's Zikel's Blessing and the Ranger's Bow of Blessing, and likely the Chanter's Incandescent Blow.
+
+## The Ariel Daevanion board (0.2.381)
+
+**A sixth board for every class.** The 4 November patch adds the Ariel board, the PvE counterpart of the Azphel board. It opens at level 45 and is paid with its own crystal, Daevanion Crystal: Ariel: 232 points for its 152 nodes. Filled, it gives PvE Damage Boost +6 %, Boss Damage Boost +4 %, PvE and Boss Attack +72 each and Critical Hit +40, besides defenses, damage tolerances, accuracy and evasion against monsters and bosses. The app now knows it everywhere: the Planner's and My Character's Daevanion windows have an Ariel tab, the build workspace (in the app and on the website) lets you plan it with its own budget, and an imported character's Ariel nodes count in its damage. The whole board raises a typical build's boss damage by over 5 %.
+
+**The Ariel crystal is a budget of its own.** My Character has an **Ariel crystal total** next to the skill, stigma and Daevanion totals: it starts at what your profile shows spent, and the optimizer places that many points on the Ariel board alone. In the Planner the Ariel crystal field is optional: left empty, a class optimization uses the highest total other players reported for the class, or none. Your Ariel total is shared with the community totals the same way as the others (a log server from 0.2.166 keeps it), and the Combat Logs page's **Highest observed build points** (in the app and on the website) and the community panel's point totals show it in an Ariel column, with — for a class nobody has reported one for yet.
+
+**Nodes the optimizer does not plan are kept.** The optimizer used to return only the four crystal boards' nodes, so an imported character's Azphel nodes vanished from its optimized build. They are now kept as they are. Community comparisons stay on the four crystal boards.
 
 ## Storm Rampage and Flame Scattershot as recorded, and Multi-Hit as measured (0.2.380)
 
