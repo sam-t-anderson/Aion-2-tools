@@ -4,14 +4,14 @@ Each class is optimized with the same budgets (203 SP, 30 stigma points, 360 Dae
 
 | Class | Optimized DPS | Typical top build DPS | Gain | KR share overlap | Report |
 |---|---:|---:|---:|---:|---|
-| sorcerer | 21,507 | 18,873 | +14.0% | 71% | [sorcerer](sorcerer/README.md) |
-| chanter | 20,469 | 18,443 | +11.0% | 28% | [chanter](chanter/README.md) |
-| templar | 19,418 | 15,572 | +24.7% | 43% | [templar](templar/README.md) |
-| spiritmaster | 16,032 | 14,781 | +8.5% | 47% | [spiritmaster](spiritmaster/README.md) |
-| cleric | 15,937 | 12,137 | +31.3% | 72% | [cleric](cleric/README.md) |
-| gladiator | 13,063 | 11,593 | +12.7% | 33% | [gladiator](gladiator/README.md) |
-| ranger | 12,175 | 10,701 | +13.8% | 61% | [ranger](ranger/README.md) |
-| assassin | 9,346 | 8,009 | +16.7% | 41% | [assassin](assassin/README.md) |
+| chanter | 22,515 | 20,007 | +12.5% | 30% | [chanter](chanter/README.md) |
+| sorcerer | 21,778 | 19,075 | +14.2% | 76% | [sorcerer](sorcerer/README.md) |
+| templar | 20,356 | 16,382 | +24.3% | 43% | [templar](templar/README.md) |
+| cleric | 17,050 | 12,863 | +32.6% | 73% | [cleric](cleric/README.md) |
+| spiritmaster | 16,910 | 15,780 | +7.2% | 47% | [spiritmaster](spiritmaster/README.md) |
+| gladiator | 13,992 | 12,004 | +16.6% | 32% | [gladiator](gladiator/README.md) |
+| ranger | 13,047 | 11,751 | +11.0% | 63% | [ranger](ranger/README.md) |
+| assassin | 12,097 | 9,150 | +32.2% | 51% | [assassin](assassin/README.md) |
 
 The Cleric's boss number includes its heals at the recorded Clerics' rate (4.6 a minute, about 3.4 % of the fight). Recorded Clerics still fit about a third as many Condemnations into each Earth Punishment window: they press Judgment Thunder there as well.
 

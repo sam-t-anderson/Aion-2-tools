@@ -1536,6 +1536,45 @@ outside the windows. The bundled builds in `results/compare/` are not regenerate
 stigma points on Swift Contract, Throw Shadowblade, Smoke Bomb and Triniel's Dagger, with no Illusive Clone, so it reads
 the same 10,225 boss DPS; its stigma search ran without the echo.
 
+### Bundled builds regenerated (0.2.384)
+
+The bundled optimized builds (`results/compare/<class>`, the Sorcerer example in `results/sorcerer_l45` and its
+variants) were last searched before 0.2.379. Every consumer replays a saved build under the current model, so none
+used stale damage numbers, but the builds were no longer what the optimizer finds: since then every class's stagger
+skill is simulated ([0.2.379](#the-stagger-skills-from-the-recordings-02379),
+[0.2.380](#storm-rampage-and-flame-scattershot-from-the-recordings-02380)), Multi-Hit is valued as recorded with the
+options two kits missed ([0.2.382](#multi-hit-from-the-recordings-02382)) and Illusive Clone deals its echo of a
+fifth ([0.2.383](#illusive-clones-echo-of-a-fifth-02383)). 0.2.384 searches them again with the settings of
+[0.2.311](#bundled-builds-regenerated-02311): 203 skill points, 30 stigma points, 360 Daevanion points, the class's
+median global loadout and 2 optimizer iterations, 3 for the Sorcerer example and its variants. The Ariel board stays
+empty, as the comparisons keep the four crystal boards ([0.2.381](#character-budgets-and-legal-allocations)). From its
+usual start the search left the Templar and the 383-point Sorcerer below their previous builds (−1.5 % and −1.6 %);
+both were searched again from the previous build, which the search keeps unless it finds a better one. Boss DPS, every
+build replayed under 0.2.384's model:
+
+<<TABLE>>
+
+*Change* is the new build against the previous one, both under 0.2.384's model; *Typical build* is the class's
+typical top build with its rotation optimized, as the comparison index lists it.
+
+**What changed.**
+
+* The Assassin takes Illusive Clone (10, with Swift Contract, Savage Fang and Triniel's Dagger at 5): with its echo of
+  a fifth it is worth its points. Heart Gore keeps *Multi-Hit on hit*, now beside *+20 % Critical Hit* on one target.
+* The Ranger raises Bow of Blessing from 1 to 7, whose *+50 % Multi-Hit Chance* makes every Multi-Hit whole while it
+  lasts, and takes Suppressing Arrow's *+50 % Multi-Hit on hit*.
+* The Sorcerer takes Hellfire's *lands as Multi-Hit* and Flame Scattershot's *Multi-Hit on hit*.
+* The Gladiator and the Cleric train their stagger skills (Sword Aura Rampage to 3, Lightning Strike Scattershot to 10
+  with *Multi-Hit on hit*), and the Chanter trains Rushing Smash to 10, with its charge options, in place of Heat Wave
+  Blow.
+* The Templar keeps its build; its priority puts Judgment and Warding Strike before Noble Armor and Annihilate earlier.
+* Out of the comparison budget's reach: Zikel's Blessing at 15, whose *+50 % Multi-Hit chance* needs 35 stigma points
+  of the 30, and Incandescent Blow at 16, whose *lands as Multi-Hit* needs two levels above the 14 that ten trained
+  levels and the four Daevanion nodes give on median gear. A character with the points or the gear rolls gets them
+  from its own optimization.
+
+The PvP builds (`results/pvp`) are not regenerated.
+
 ## Optimization and macro planning
 
 `aion2calc/opt/pipeline.py` alternates, accepting only improvements:
