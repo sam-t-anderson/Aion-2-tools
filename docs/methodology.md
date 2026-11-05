@@ -1157,7 +1157,7 @@ model simulates, so they show as *either*: since 0.2.368 a specialization is mar
 build simulates less damage without it (`kit.specialties.free_marks`). The stigma search stopped at level 15
 and, for a character with more than 75 stigma points, found no pattern that spent them and left the seed in
 place: the player saw 30 of 268 points spent on the least-picked stigmas. It now reaches level 20
-(`opt.pipeline.stigma_patterns`) and, for this character's 168 points, spends them on Illusive Clone 16, Swift Contract 20, Triniel's Dagger 10 and Savage Fang 15 (the player runs 20, 15, 12 and 15; the model values Illusive Clone's last four levels, 2.5 s of duration and the 0.8 % Clone Attack, below Swift Contract's Lv 20 Combat Speed). *Since [0.2.383](#illusive-clones-echo-of-a-fifth-02383) the echo doubles what the clone is worth, and its levels 16 to 20 tie with the same points elsewhere; Swift Contract 20 still decides.*
+(`opt.pipeline.stigma_patterns`) and, for this character's 168 points, spends them on Illusive Clone 16, Swift Contract 20, Triniel's Dagger 10 and Savage Fang 15 (the player runs 20, 15, 12 and 15; the model values Illusive Clone's last four levels, 2.5 s of duration and the 0.8 % Clone Attack, below Swift Contract's Lv 20 Combat Speed). *Since [0.2.383](#illusive-clones-echo-of-a-fifth-02383) the echo doubles what the clone is worth, and its levels 16 to 20 add twice what the same points add to Savage Fang, so the search keeps it at 20, with Swift Contract 20.*
 
 ### The stagger skills from the recordings (0.2.379)
 
@@ -1483,11 +1483,10 @@ optimal rotation, and the KR and own-capture fidelity; the model's own breakdown
 The model's figures are the typical build's in the 180 s boss scenario under the kit's own priority: Illusive Clone at
 its Lv 9, at 20 with Swift Contract 15, Triniel's Dagger 10 and Savage Fang 15, and that again with Storm Rampage at 16.
 The kit's passives are a larger share of its damage than recorded (for the recorded Assassin's own profile below,
-Ambush Stance 5.4 % against 3.4 % and Determination 3.0 % against 1.8 %), so less of the windows' damage is echoed:
-that is the remaining point. With the echo, the typical
-build's boss DPS rises 4.0 % with Illusive Clone at 9 and 5.8 % at 20 (8.2 % with Storm Rampage at 16). With Storm
-Rampage at 16 the clone comes back in the boss scenario after each train, whose hits pull its cooldown in, so the
-model's trains carry no echo.
+Ambush Stance 5.3 % against 3.4 % and Determination 2.9 % against 1.8 %), so less of the windows' damage is echoed:
+that is the remaining point. With the echo, the typical build's boss DPS rises 4.0 % with Illusive Clone at 9 and
+5.8 % at 20 (8.2 % with Storm Rampage at 16). With Storm Rampage at 16 the clone comes back in the boss scenario after
+each train, whose hits pull its cooldown in, so the model's trains carry no echo.
 
 **0.2.368's comparison, corrected.** 0.2.368 compared the recorded per-skill shares, each skill's echoes included,
 with the model's. The table below counts the echoes as the clone's, from the Assassin's 196 fights; pooled as 0.2.368
@@ -1495,46 +1494,47 @@ pooled them, those fights read within a point of its 51 (in brackets). The model
 from 1 November as the app scores it: 168 stigma points, Illusive Clone 20, Swift Contract 15, Triniel's Dagger 12 and
 Savage Fang 15. With 0.2.368's code that profile reads 87,271 boss DPS, where 0.2.368's import read 85,168.
 
-| | Recorded, pooled (0.2.368's 51 fights) | Recorded, the echoes as the clone's | Model, 0.2.380 | Model now |
+| | Recorded, pooled (0.2.368's 51 fights) | Recorded, the echoes as the clone's | Model without the echo (0.2.382) | Model now |
 |---|---:|---:|---:|---:|
-| Boss DPS | 48,635 (53,852) | | 87,532 (the rotation) | 94,948 (the rotation) |
-| Heart Gore | 27.9 % (28.8 %) | 24.0 % | 27.2 % | 24.1 % |
-| Insignia Explosion | 20.1 % (20.8 %) | 17.9 % | 13.5 % | 12.6 % |
-| Quick, Swift and Breaking Slice | 17.9 % (17.9 %) | 15.8 % | 12.1 % | 11.6 % |
-| Savage Roar with Savage Back Kick and Savage Smash | 7.2 % (6.5 %) | 7.1 % | 6.6 % | 6.2 % |
-| Illusive Clone (and its Clone Attack) | 3.9 % (4.2 %), 0.6 % (1.1 %) | 13.6 %, 0.6 % | 3.6 %, 0.4 % | 11.8 %, 0.4 % |
-| Ambush | 3.9 % (3.9 %) | 3.5 % | 4.2 % | 3.6 % |
-| Ambush Stance | 3.4 % (3.4 %) | 3.4 % | 6.0 % | 5.4 % |
-| Exploit Weakness's clones | 2.3 % (2.5 %) | 2.3 % | 0.9 % | 0.9 % |
-| Triniel's Dagger | 2.1 % (2.0 %) | 1.9 % | 2.9 % | 2.7 % |
+| Boss DPS | 48,635 (53,852) | | 89,199 (the rotation) | 98,057 (the rotation) |
+| Heart Gore | 27.9 % (28.8 %) | 24.0 % | 27.9 % | 25.4 % |
+| Insignia Explosion | 20.1 % (20.8 %) | 17.9 % | 13.4 % | 12.3 % |
+| Quick, Swift and Breaking Slice | 17.9 % (17.9 %) | 15.8 % | 11.5 % | 11.5 % |
+| Savage Roar with Savage Back Kick and Savage Smash | 7.2 % (6.5 %) | 7.1 % | 6.6 % | 5.8 % |
+| Illusive Clone (and its Clone Attack) | 3.9 % (4.2 %), 0.6 % (1.1 %) | 13.6 %, 0.6 % | 3.7 %, 0.4 % | 11.9 %, 0.4 % |
+| Ambush | 3.9 % (3.9 %) | 3.5 % | 3.4 % | 3.6 % |
+| Ambush Stance | 3.4 % (3.4 %) | 3.4 % | 6.1 % | 5.3 % |
+| Exploit Weakness's clones | 2.3 % (2.5 %) | 2.3 % | 0.9 % | 0.8 % |
+| Triniel's Dagger | 2.1 % (2.0 %) | 1.9 % | 2.8 % | 2.6 % |
 | Storm Rampage | 1.6 % (1.8 %) | 1.5 % | 1.8 % | 1.6 % |
-| Determination | 1.8 % (1.7 %) | 1.8 % | 3.2 % | 3.0 % |
+| Determination | 1.8 % (1.7 %) | 1.8 % | 3.4 % | 2.9 % |
 | Flash Slice | 1.4 % (1.4 %) | 1.2 % | 1.7 % | 1.6 % |
-| Savage Fang | 1.2 % (1.2 %) | 1.0 % | 1.2 % | 1.3 % |
+| Savage Fang | 1.2 % (1.2 %) | 1.0 % | 1.5 % | 1.2 % |
 | Shadowstrike | 1.0 % (1.0 %) | 0.9 % | 1.9 % | 1.7 % |
-| Whirlwind Slice, Infiltrate's Dark Strike | not pressed | | 3.7 %, 3.1 % | 3.4 %, 2.8 % |
+| Whirlwind Slice, Infiltrate's Dark Strike | not pressed | | 4.1 %, 3.0 % | 3.3 %, 2.6 % |
 
-A seventh of Heart Gore's 28.8 % was echoes, and without them it matches the model; the clone's share rises from
-about 4 % to 12–14 % on both sides. As before, Insignia Explosion and the basic chain stay under the recordings and the
-passives over them.
+A seventh of Heart Gore's 28.8 % was echoes: without them it reads 24.0 %, against the model's 25.4 % (27.9 % without
+the echo). The clone's share rises from about 4 % to 12–14 % on both sides. As before, Insignia Explosion and the basic
+chain stay under the recordings and the passives over them.
 
-**The stigma search.** For the same character's 168 points, 0.2.380's search chose Illusive Clone 20, Swift Contract
-20, Triniel's Dagger 10 and Assault Ambush 3 (93,763 boss DPS, 7.1 % over the character as it is). With the echo it
-chooses Illusive Clone 15, Swift Contract 20, Triniel's Dagger 12 and Savage Fang 15 (103,453, 9.0 % over 94,948).
-* The echo doubles what the clone is worth: at 15, in place of Assault Ambush 15, it adds 21.8 % where it added 11.4 %.
-* Its levels 16 to 20 now add 1.2 % at a fixed rotation, where they added 0.3 %: the 8.6 s of windows they add carry
-  the echo.
-* With the rotation searched again those levels add 2.6 %, as much as the same 40 points add to Savage Fang (3 to 16),
-  and as before. The patterns with Illusive Clone at 15, 16 or 20 lie within a quarter of a percent of each other.
-
-Swift Contract's Lv 20 Combat Speed decides: the player's Illusive Clone 20, Swift Contract 15, Triniel's Dagger 12
-and Savage Fang 15 read 3.4 % under the best pattern.
+**The stigma search.** For the same character's 168 points, the search without the echo (0.2.382) chooses Illusive
+Clone 20, Swift Contract 20, Triniel's Dagger 10 and Savage Fang 3 (99,166 boss DPS, 11.2 % over the character as it
+is). With the echo it chooses Illusive Clone 20, Swift Contract 20, Triniel's Dagger 10 and Smoke Bomb 3 (104,749,
+6.8 % over 98,057). Scored again, each pattern's rotation searched from two starting priorities (one pattern moves by
+up to a percent between them):
+* The echo doubles what the clone is worth: at 15, in place of Assault Ambush 15, it adds 25.9 % where it added 11.9 %.
+* Its levels 16 to 20 add 4.9 % where they added 2.1 %: the 8.6 s of windows they add carry the echo. The same 40
+  points add 2.5 % to Savage Fang (3 to 16; 2.1 % without the echo). Without the echo the two tied, and Illusive
+  Clone 16 with Savage Fang 15 read 1.0 % over the search's choice; with it, the search's choice is the best pattern.
+* The player's Illusive Clone 20, Swift Contract 15, Triniel's Dagger 12 and Savage Fang 15 read 2.2 % under the best
+  pattern (3.4 % without the echo): Swift Contract 20 is worth more than Triniel's Dagger's and Savage Fang's levels.
 
 **Still open.** The passives' and Insignia Explosion's shares above. Whether an echo counts as a hit for "on hit"
 effects (Storm Rampage's Lv 16 cooldown pull, the passives' procs): the kit counts it for none. Clone Attack's hits
 outside the windows. The bundled builds in `results/compare/` are not regenerated. The bundled Assassin spends its 30
 stigma points on Swift Contract, Throw Shadowblade, Smoke Bomb and Triniel's Dagger, with no Illusive Clone, so it reads
-the same 10,225 boss DPS; its stigma search ran without the echo.
+the same 10,260 boss DPS with and without the echo; its stigma search ran without the echo. *Regenerated in
+[0.2.384](#bundled-builds-regenerated-02384): the bundled Assassin now takes Illusive Clone at 10 (12,097 boss DPS).*
 
 ### Bundled builds regenerated (0.2.384)
 
