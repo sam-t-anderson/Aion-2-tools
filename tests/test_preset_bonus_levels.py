@@ -21,6 +21,12 @@ def _summary():
     return json.loads((resource_root() / "results/sorcerer_l45/build.json").read_text(encoding="utf-8"))
 
 
+def _budgets():
+    """The bundled Sorcerer example's own point budgets: the Sorcerer's highest reported ones (0.2.384), above the
+    fixed 203/30/360 of a policy without reports."""
+    return {k: _summary()["budgets"][k] for k in ("skill", "stigma", "daevanion")}
+
+
 def test_the_policy_carries_the_allowance_in_its_scope():
     from aion2calc.canonical_presets import scoring_policy
     from aion2calc.presets import InvalidPreset
@@ -45,6 +51,7 @@ def test_a_candidate_keeps_bonus_levels_within_the_allowance():
     assert "bonus" not in candidate(summary, scoring_policy("sorcerer", "pve"))["build"]["build"]   # none allowed: none sent
     # A personal build carries its rolls in its loadout snapshot: folded in by skill name, cut to the allowance.
     personal = _summary()
+    personal["build"].pop("bonus", None)                      # a personal build names none of its own
     personal["loadout_snapshot"] = {"level": 45, "components": [
         {"slot": "Gear skill rolls", "item": "arcana, accessories and armor skill options",
          "stats": {"skill_bonus": {str(cd.by_name["Hellfire"]["id"]): 5, str(cd.by_name["Blaze"]["id"]): 3}}}]}
@@ -61,18 +68,19 @@ def test_parse_checks_bonus_levels_against_the_allowance():
         document["build"]["build"]["bonus"] = bonus          # as a tampered document would carry it
         return document
 
-    build, _ = parse(doc({"Ice Chain": 6}), bonus=ALLOWANCE)
+    budgets = _budgets()
+    build, _ = parse(doc({"Ice Chain": 6}), bonus=ALLOWANCE, budgets=budgets)
     assert build.bonus == {ClassData("sorcerer").by_name["Ice Chain"]["id"]: 6}
     with pytest.raises(InvalidPreset):
-        parse(doc({"Ice Chain": 6}))                                                  # no allowance in this scope
+        parse(doc({"Ice Chain": 6}), budgets=budgets)                                 # no allowance in this scope
     with pytest.raises(InvalidPreset):
-        parse(doc({"Ice Chain": 9}), bonus=ALLOWANCE)                                  # over the per-skill cap
+        parse(doc({"Ice Chain": 9}), bonus=ALLOWANCE, budgets=budgets)                 # over the per-skill cap
     with pytest.raises(InvalidPreset):
-        parse(doc({"Ice Chain": 8, "Firestorm": 8, "Blaze": 8}), bonus=ALLOWANCE)      # over the total
+        parse(doc({"Ice Chain": 8, "Firestorm": 8, "Blaze": 8}), bonus=ALLOWANCE, budgets=budgets)   # over the total
     for bad in ({"Nope": 1}, {"Ice Chain": 0}, {"Ice Chain": "6"}, {"Ice Chain": 41}, ["Ice Chain"]):
         with pytest.raises(InvalidPreset):
-            parse(doc(bad), bonus=ALLOWANCE)
-    assert parse(doc({}), bonus=ALLOWANCE)[0].bonus == {}                            # an allowance needs no bonus
+            parse(doc(bad), bonus=ALLOWANCE, budgets=budgets)
+    assert parse(doc({}), bonus=ALLOWANCE, budgets=budgets)[0].bonus == {}           # an allowance needs no bonus
     assert "bonus" not in legacy({**_summary(), "build": {**_summary()["build"], "bonus": ["x"]}})["build"]["build"]   # not a map: dropped
 
 
@@ -81,7 +89,8 @@ def test_evaluation_with_bonus_levels_reaches_the_fifth_effect_and_third_slot():
     from aion2calc.canonical_presets import candidate, evaluate, scoring_policy
     from aion2calc.kit.base import ClassData
     cd = ClassData("sorcerer")
-    policy = scoring_policy("sorcerer", "pve", None, ALLOWANCE)
+    budgets = _budgets()
+    policy = scoring_policy("sorcerer", "pve", budgets, ALLOWANCE)
     summary = _summary()
     fifth = next(x["text"] for x in cd.by_name["Ice Chain"]["specs"] if x["unlock"] == 16)
     # Ice Chain's first two effects fixed, not the bundled build's own (0.2.384 regenerated it with -1s [Winter's
@@ -89,11 +98,11 @@ def test_evaluation_with_bonus_levels_reaches_the_fifth_effect_and_third_slot():
     # bonus levels and that effect beat the plain build depends on which effects it sits beside
     summary["build"]["specs"]["Ice Chain"] = ["+20% Skill Speed", "Deals up to 12% more damage when less targets are hit",
                                               fifth]
-    plain = evaluate(candidate(summary, scoring_policy("sorcerer", "pve")))
+    plain = evaluate(candidate(summary, scoring_policy("sorcerer", "pve", budgets)), budgets)
     # without bonus levels the skill stays at 14: the level-16 effect and the third slot are stripped
     assert plain["build"]["effective_levels"]["Ice Chain"] == 14 and len(plain["build"]["specs"]["Ice Chain"]) == 2
     summary["build"]["bonus"] = {"Ice Chain": 6}
-    boosted = evaluate(candidate(summary, policy), None, ALLOWANCE)
+    boosted = evaluate(candidate(summary, policy), budgets, ALLOWANCE)
     assert boosted["build"]["effective_levels"]["Ice Chain"] == 20
     assert len(boosted["build"]["specs"]["Ice Chain"]) == 3 and boosted["build"]["specs"]["Ice Chain"][-1] == fifth
     assert boosted["build"]["bonus"] == {"Ice Chain": 6} and boosted["score"] > plain["score"]
