@@ -135,10 +135,28 @@ def test_sp_fill_includes_neutral_utility_points(monkeypatch):
     assert all(lv <= ClassData("sorcerer").skills[sid].get("buyMax", 10) for sid, lv in build.sp.items())
 
 
+def _legacy_sorcerer_summary():
+    """A Sorcerer report inside the legacy (v1) comparison's fixed budgets, 203 skill, 30 stigma and 360 Daevanion
+    points: the typical top build on a connected board, with its kit's priority. The bundled builds have each class's
+    highest reported budgets (0.2.384), above them."""
+    from aion2calc.kit.base import ClassData
+    from aion2calc.opt.rotation import describe
+    from aion2calc.run import kit_module
+    from aion2calc.scenarios import _fit_board, typical_build
+    cd = ClassData("sorcerer")
+    build = typical_build("sorcerer", daev_budget=360)
+    build.daevanion = _fit_board(cd, build.daevanion, 360)
+    return {"class": "sorcerer", "level": 45, "scenario": "boss", "loadout": "sorcerer_l45_global_median",
+            "dps": {"boss": 20000.0, "dummy": 22000.0},
+            "policy": describe(kit_module("sorcerer").build_kit(build, cd).policy),
+            "build": {"sp": {cd.skills[k]["name"]: v for k, v in build.sp.items()},
+                      "stigmas": {cd.skills[k]["name"]: v for k, v in build.stigmas.items()},
+                      "specs": {}, "daevanion_nodes": sorted(build.daevanion)}}
+
+
 def test_preset_strips_private_data_and_recomputes_score():
-    from aion2calc.paths import resource_root
     from aion2calc.presets import candidate, evaluate
-    summary = json.loads((resource_root() / "results/sorcerer_l45/build.json").read_text(encoding="utf-8"))
+    summary = _legacy_sorcerer_summary()
     summary["loadout"] = "private_character_name"
     summary["dps"] = {"boss": 1e100}
     document = candidate(summary)
@@ -153,11 +171,10 @@ def test_preset_strips_private_data_and_recomputes_score():
 
 def test_preset_sync_persists_usable_report_and_survives_offline(monkeypatch):
     from io import BytesIO
-    from aion2calc.paths import resource_root, read_json
+    from aion2calc.paths import read_json
     from aion2calc.combat import share
     from aion2calc.presets import evaluate, candidate
-    summary = json.loads((resource_root() / "results/sorcerer_l45/build.json").read_text(encoding="utf-8"))
-    canonical = evaluate(candidate(summary))
+    canonical = evaluate(candidate(_legacy_sorcerer_summary()))
     monkeypatch.setattr(share, "effective", lambda: {"url": "https://community.test"})
     def get(url, **kwargs):
         value = {"build": canonical, "updated_at": 1} if url.endswith("/sorcerer") else {

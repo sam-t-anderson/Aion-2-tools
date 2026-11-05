@@ -235,7 +235,10 @@ def build_from_summary(summary: dict):
     policy = [e if " [" not in e else (e.split(" [")[0], e.split(" [")[1][:-1]) for e in summary["policy"]]
     from .opt.rotation import with_essentials
     from .kit.common import learned_only
-    return b, with_essentials(policy, learned_only(kit_module(cls).build_kit(b, cd), cd, b.level))
+    # a PvP build's priority was searched with the PvP kit: the PvE kit's essential actions (the Templar's Punishing
+    # Strike) are not in it and would make the priority invalid there (0.2.384)
+    pvp = str(summary.get("scenario", "")).startswith("pvp")
+    return b, with_essentials(policy, learned_only(kit_module(cls, pvp=pvp).build_kit(b, cd), cd, b.level))
 
 
 def rerender(out_dir: str) -> str:

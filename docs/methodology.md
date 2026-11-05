@@ -1603,7 +1603,7 @@ The PvP builds (`results/pvp`) are not regenerated.
    differences.
 5. **Daevanion + skill points** – one integer program (PuLP with the
    in-process HiGHS solver): node choices with flow-based connectivity per
-   board, the 360-point budget, the 203 SP budget with the real price table,
+   board, the Daevanion budget, the skill-point budget with the real price table,
    and ordered "level ≥ k" indicators so specialization breakpoints
    (non-concave value jumps) are handled exactly.  The solve stops after
    120 s and often gets there, returning the best allocation found so far,
@@ -1704,11 +1704,11 @@ Personal character search can use its primary scenario or an equal-weight pair w
 
 Community comparison policies, generation and server evaluation use bundled class, hit-profile and common-loadout data. Local synchronized copies continue to supply personal planning. Their loader caches are separated, and comparison scope is restored after each call; user settings and storage remain available. Actual model/data mismatches still reject submission and identify the differing policy fields.
 
-The versioned canonical preset evaluator compares allocations within one class, combat mode and scoring scope. It uses a common median loadout and fixed example budgets of 203 Skill, 30 Stigma and 360 crystal-board Daevanion points. These are comparison resources, not verified game maxima. Over-budget submissions need a separate optimization under these resources; they are not silently trimmed into a different build.
+The versioned canonical preset evaluator compares allocations within one class, combat mode and scoring scope. It uses a common median loadout and, on a server with budget reports, the highest skill, stigma and crystal-board Daevanion points and bonus skill levels its contributors reported for the class (policy version 2); without reports, fixed example budgets of 203 Skill, 30 Stigma and 360 crystal-board Daevanion points (version 1). These are comparison resources, not verified game maxima. Over-budget submissions need a separate optimization under these resources; they are not silently trimmed into a different build.
 
 PvE weights the 180-second boss and dummy damage scenarios equally. PvP weights the 180-second stationary player proxy and 30-second burst proxy equally. The score is the arithmetic mean of the two modeled DPS values, not a percentile, user rating or win probability. Personal gear, Genus, HP reserves and trained skill constraints are not shared comparison inputs. Learned calibration is disabled.
 
-Bundled PvP examples run separate sustained and burst allocation searches, each with one optimization iteration and personal calibration disabled. Both allocations are reevaluated with the same weighted objective, and only the stronger example is published per class. Search objective, iteration count, score components and frozen common loadout are retained. This two-candidate search does not establish global optimality.
+Bundled PvP examples come from the community comparison's own search (`community_comparison.search`, 0.2.384) under a version-2 policy with the class's highest reported budgets: separate sustained and burst allocation searches, then the stronger refined on the weighted objective, each with one optimization iteration and personal calibration disabled. All three allocations are reevaluated with the same weighted objective, and only the strongest is published per class. Search objective, iteration count, score components and frozen common loadout are retained. This three-candidate search does not establish global optimality.
 
 The scope fingerprints the scoring-model revision (separate from capture/UI application versions), class data, hit profiles, common loadout, budgets, durations and weights. A different scope requires reevaluation. The best eligible evaluated candidate can become canonical; that does not establish a global optimum or a competitive PvP build. Mode-scoped storage records one current winner per comparison scope. Planner synchronizes bounded, validated common-loadout snapshots from the configured server and labels cached comparisons separately from examples. The server owns scoring; clients display its components and policy rather than substituting a score from a different local model.
 

@@ -20,6 +20,9 @@ python -m aion2calc optimize sorcerer
 python -m aion2calc optimize gladiator --scenario dummy --daevanion 300
 # with 120 Daevanion Crystal: Ariel to place on the level-45 Ariel board (default: none)
 python -m aion2calc optimize sorcerer --ariel-points 120
+# with the highest skill, stigma and Daevanion points and bonus skill levels the community server reports for the
+# class (how the bundled presets are made)
+python -m aion2calc optimize sorcerer --reported-budgets
 # World PvP (experimental): area skills on several players, survival and crowd control weighed in
 python -m aion2calc optimize gladiator --scenario pvp_world --out results/gladiator_l45_world_pvp
 
@@ -33,6 +36,8 @@ python -m aion2calc diff results/sorcerer_l45 results/sorcerer_l45_geared
 
 # optimize several classes with identical settings and rank them (writes results/compare/README.md)
 python -m aion2calc compare sorcerer ranger assassin gladiator
+# each class with its own highest reported budgets, as the bundled class comparison is made
+python -m aion2calc compare gladiator templar assassin ranger sorcerer spiritmaster cleric chanter --reported-budgets
 
 # import and optimize a real character (official AION 2 site, global regions)
 python -m aion2calc character "Name" --server Zikel --optimize
