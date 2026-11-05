@@ -154,3 +154,20 @@ def test_a_pvp_priority_keeps_to_the_pvp_kit():
     preset = _summary("pvp", "templar")
     policy = scoring_policy("templar", "pvp", preset["budgets"], preset["scoring_policy"].get("bonus"))
     assert evaluate(candidate(preset, policy), preset["budgets"], policy.get("bonus"))["score"] > 0
+
+
+def test_the_typical_build_spends_a_larger_budgets_stigma_points():
+    """The typical top build a report compares with is fitted to the report's budgets. Given more stigma points than
+    the top players' average levels take (a reported budget, an imported character's own), it spends them as it spends
+    skill points, the most-levelled stigma first; given 30 or fewer it keeps the averages, trimmed (0.2.384)."""
+    from aion2calc.kit.base import ClassData
+    from aion2calc.scenarios import typical_build
+    cd = ClassData("sorcerer")
+    plain, rich, full = (typical_build("sorcerer", stigma_points=n) for n in (30, 188, 300))
+    assert plain.stigma_spent() <= 30 and rich.stigma_spent() == 188 and full.stigma_spent() == 300
+    assert set(rich.stigmas) == set(plain.stigmas) == set(full.stigmas)
+    most = max(plain.stigmas, key=lambda sid: (plain.stigmas[sid], -list(plain.stigmas).index(sid)))
+    assert cd.skills[most]["name"] == "Element Enhancement" and rich.stigmas[most] == 20
+    assert all(level >= plain.stigmas[sid] for sid, level in rich.stigmas.items())
+    assert set(full.stigmas.values()) == {20}
+    assert typical_build("sorcerer").stigmas == plain.stigmas                 # the default budget is 30

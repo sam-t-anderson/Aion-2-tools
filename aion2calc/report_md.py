@@ -186,8 +186,9 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
       f"rotation optimizer, and **{100 * (s['dps'][scen] / base['community_naive'] - 1):+.1f}%** over that build "
       "played with the default priority. *Typical top global build* = average skill levels, the four most-picked "
       "damage stigmas and the most-picked Daevanion nodes of the top tracked global L45 players of this class "
-      "(metabot.gg live data), given the best legal specializations for its levels (specs are not published)"
-      + (", the same point budgets and the same bonus levels from gear rolls and arcana cards as this build"
+      "(metabot.gg live data), fitted to this build's skill and stigma points (spare points raise its most-levelled "
+      "skills and stigmas first) and given the best legal specializations for its levels (specs are not published)"
+      + (", with the same bonus levels from gear rolls and arcana cards as this build"
          if s.get("bonus_allowance") else "") + ".\n")
 
     w("## Rotation (priority list)\n")
