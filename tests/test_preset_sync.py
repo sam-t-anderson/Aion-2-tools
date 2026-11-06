@@ -16,11 +16,14 @@ KEY = "a2l_community-key"
 
 @pytest.fixture(scope="module")
 def preset():
-    """A real canonical preset: the bundled Sorcerer build scored under the current policy, as a server serves it."""
+    """A real canonical preset: the bundled Sorcerer build scored under the current policy, as a server serves it. The
+    policy has the build's own budgets and bonus allowance, the Sorcerer's highest reported ones (0.2.384), as a server
+    with reports publishes them."""
     from aion2calc.canonical_presets import candidate, evaluate, scoring_policy
     summary = json.loads((ROOT / "results" / "compare" / "sorcerer" / "build.json").read_text(encoding="utf-8"))
-    policy = scoring_policy("sorcerer", "pve")
-    evaluated = evaluate(candidate(summary, policy))
+    budgets, allowance = summary["budgets"], summary.get("bonus_allowance")
+    policy = scoring_policy("sorcerer", "pve", budgets, allowance)
+    evaluated = evaluate(candidate(summary, policy), budgets, allowance)
     return {"summary": summary, "policy": policy,
             "remote": {"class": "sorcerer", "mode": "pve", "scope": policy["scope"], "score": evaluated["score"],
                        "updated_at": 1000.0, "build": evaluated}}
