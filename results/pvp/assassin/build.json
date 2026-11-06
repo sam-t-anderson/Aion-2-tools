@@ -152,29 +152,29 @@
   ]
  },
  "budgets": {
-  "skill": 203,
-  "stigma": 30,
-  "daevanion": 360
+  "skill": 383,
+  "stigma": 268,
+  "daevanion": 438
  },
- "daevanion_budget": 360,
+ "daevanion_budget": 438,
  "dps": {
-  "pvp": 7990.991872907425,
-  "pvp_burst": 9627.769410030192
+  "pvp": 12698.882845410182,
+  "pvp_burst": 15762.03897187811
  },
- "score": 8809.380641468808,
+ "score": 14230.460908644145,
  "scoring_policy": {
-  "version": 1,
-  "model": "0.3.6",
+  "version": 2,
+  "model": "0.3.13",
   "class": "assassin",
   "mode": "pvp",
   "budgets": {
-   "skill": 203,
-   "stigma": 30,
-   "daevanion": 360
+   "skill": 383,
+   "stigma": 268,
+   "daevanion": 438
   },
   "loadout": "assassin_l45_global_median",
   "loadout_fingerprint": "d065122ef2a3a214276727553d00cf792117900b0459cf0d163c75fdc983de59",
-  "data_fingerprint": "ac26c9a0b659db2bb0958a425c65889cdac9c44d0283ff51f2f39d637e5687ec",
+  "data_fingerprint": "0edbffa674dd31cea69a04fb9411eae96508004b8fc167f3f740ad25c62e3aa4",
   "score_kind": "weighted_modeled_dps",
   "weights": {
    "pvp": 0.5,
@@ -185,59 +185,81 @@
    "pvp_burst": 30
   },
   "calibration": "disabled",
-  "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
+  "note": "Common-loadout comparison using the highest server-reported resources for this class, pooled across available region/build contexts. Reports and allocated lower bounds are not verified game caps. Bonus skill levels from gear rolls and arcana cards are allowed up to the highest reported total and per-skill count; a preset names the skills to put them on. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus and survival constraints are excluded. Best evaluated eligible candidate, not proof of a global optimum.",
+  "bonus": {
+   "levels": 52,
+   "per_skill": 6
+  },
   "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
-  "scope": "c99bed916a876ed3cdd08566f43107a7e8f22340b64713aa65136fadcb91ad64"
+  "scope": "0209a3bd766739e5992ba65124de206739029a0747a2e7554f06ea0352aecc52"
  },
  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
  "build": {
   "sp": {
    "Quick Slice": 10,
-   "Ambush": 9,
+   "Ambush": 10,
+   "Whirlwind Slice": 10,
+   "Infiltrate": 10,
+   "Shadow Fall": 10,
    "Insignia Explosion": 10,
-   "Whirlwind Slice": 7,
-   "Shadow Fall": 6,
-   "Heart Gore": 10,
-   "Infiltrate": 8,
    "Exploit Weakness": 10,
    "Rear Smite": 10,
    "Assault Stance": 10,
    "Impact Hit": 10,
-   "Ambush Stance": 7,
-   "Determination": 2
+   "Ambush Stance": 10,
+   "Defiance": 5,
+   "Storm Rampage": 10,
+   "Heart Gore": 10,
+   "Heightened Sixth Sense": 10,
+   "Apply Poison": 10,
+   "Defense Break": 10,
+   "Revitalization Contract": 10,
+   "Determination": 10
   },
   "stigmas": {
-   "Assault Ambush": 6,
-   "Swift Contract": 1,
-   "Throw Shadowblade": 10,
-   "Triniel's Dagger": 6
+   "Savage Fang": 20,
+   "Assault Ambush": 16,
+   "Throw Shadowblade": 20,
+   "Aerial Bind": 20
   },
   "specs": {
    "Quick Slice": [
     "+50% Multi-Hit on hit",
-    "-1s [Insignia Explosion] cooldown on hit"
+    "-1s [Insignia Explosion] cooldown on hit",
+    "Ignores Block and Evasion and lands as a Critical Hit"
    ],
-   "Heart Gore": [
-    "Absorbs 70, 70% HP",
-    "Multi-Hit on hit"
-   ],
-   "Insignia Explosion": [
-    "Adds rotate effect",
-    "+50% Multi-Hit on hit"
-   ],
+   "Savage Roar": [],
+   "Shadowstrike": [],
    "Ambush": [
     "Engraves 2 Insignias for 10s on landing as a Back attack",
     "Absorbs 300, 300% HP"
    ],
-   "Whirlwind Slice": [
-    "+50% Multi-Hit on hit"
+   "Heart Gore": [
+    "Absorbs 70, 70% HP",
+    "Engraves 1 Insignia for 10s on hit"
    ],
+   "Storm Rampage": [
+    "Absorbs 500, 500% HP"
+   ],
+   "Whirlwind Slice": [
+    "+50% Multi-Hit on hit",
+    "Changes to AoE damage",
+    "+16m range"
+   ],
+   "Flash Slice": [],
    "Infiltrate": [
     "Restores 300 Stamina on landing [Infiltrate]",
+    "+10m [Infiltrate] range",
     "Adds [Dark Strike] Chain Skill"
    ],
+   "Insignia Explosion": [
+    "Adds rotate effect",
+    "+50% Multi-Hit on hit",
+    "-3s cooldown"
+   ],
    "Shadow Fall": [
-    "Absorbs 1000, 1000% HP"
+    "Absorbs 1000, 1000% HP",
+    "-5s cooldown"
    ]
   },
   "daevanion_nodes": [
@@ -247,6 +269,7 @@
    410037,
    410038,
    410039,
+   410041,
    410042,
    410043,
    410048,
@@ -259,19 +282,32 @@
    410058,
    410063,
    410064,
+   410065,
    410067,
+   410069,
    410071,
    410072,
    410073,
    410079,
+   410082,
+   410084,
    410086,
+   410088,
+   410093,
    410094,
+   410095,
+   410096,
+   410097,
    410098,
+   410099,
    410100,
    410101,
    410102,
+   410103,
+   410111,
    410115,
    410123,
+   410124,
    410125,
    410126,
    410127,
@@ -280,72 +316,96 @@
    410130,
    410131,
    410132,
+   410133,
    410138,
    410140,
+   410142,
    410144,
    410147,
    410153,
    410154,
    410155,
+   410157,
+   410158,
    410159,
    410161,
    410162,
    410163,
    410168,
    410170,
+   410171,
+   410172,
    410174,
+   410175,
    410176,
+   410178,
+   410183,
+   410184,
    410187,
    410188,
-   410189,
    410191,
    410192,
    410193,
    420033,
    420034,
    420035,
-   420036,
    420037,
    420038,
    420039,
    420040,
    420041,
-   420042,
-   420043,
    420048,
-   420052,
+   420055,
    420058,
    420063,
    420067,
+   420068,
+   420069,
+   420070,
+   420071,
+   420072,
    420073,
    420078,
+   420080,
+   420081,
    420082,
+   420084,
+   420086,
    420093,
    420094,
    420095,
    420097,
+   420099,
+   420100,
+   420101,
+   420102,
    420109,
    420112,
    420114,
+   420125,
+   420127,
    420129,
    420131,
    420132,
    420133,
+   420138,
+   420140,
+   420142,
    420144,
    420145,
-   420148,
+   420146,
    420153,
    420154,
    420155,
    420156,
    420157,
-   420159,
    420161,
    420162,
    420163,
+   420168,
    420171,
    420174,
-   420176,
+   420183,
    420184,
    420185,
    420186,
@@ -353,7 +413,6 @@
    420188,
    420189,
    420190,
-   420191,
    430033,
    430034,
    430035,
@@ -363,19 +422,22 @@
    430051,
    430052,
    430054,
+   430058,
    430067,
    430068,
    430069,
-   430070,
-   430071,
    430072,
    430073,
    430082,
+   430087,
    430093,
+   430094,
    430097,
    430098,
+   430102,
    430103,
    430108,
+   430111,
    430118,
    430123,
    430124,
@@ -394,16 +456,25 @@
    430147,
    430153,
    430154,
+   430155,
+   430156,
    430157,
+   430158,
    430159,
+   430161,
    430162,
    430163,
    430170,
    430172,
+   430174,
+   430175,
+   430176,
    430178,
+   430184,
    430185,
    430186,
    430187,
+   430189,
    430191,
    430192,
    430193,
@@ -416,19 +487,20 @@
    440032,
    440034,
    440035,
-   440036,
-   440037,
    440039,
    440040,
    440041,
    440044,
    440047,
-   440052,
+   440049,
+   440054,
    440057,
    440059,
+   440064,
    440065,
    440066,
    440067,
+   440069,
    440070,
    440071,
    440072,
@@ -440,11 +512,15 @@
    440093,
    440095,
    440096,
+   440097,
+   440098,
+   440099,
    440100,
    440101,
    440102,
+   440103,
+   440104,
    440107,
-   440111,
    440115,
    440117,
    440119,
@@ -455,70 +531,149 @@
    440126,
    440127,
    440128,
-   440129,
    440130,
    440132,
-   440133,
    440134,
    440138,
    440141,
+   440145,
    440147,
    440152,
    440153,
+   440154,
+   440155,
    440156,
    440157,
-   440159,
    440160,
-   440161,
    440162,
+   440163,
    440167,
    440172,
+   440173,
    440174,
    440177,
    440182,
+   440187,
+   440190,
+   440191,
    440192,
    440197,
    440198,
-   440199
+   440199,
+   440202,
+   440203,
+   440207,
+   440208,
+   440209
   ],
-  "sp_spent": 203,
-  "stigma_spent": 30,
-  "daevanion_cost": 360,
+  "sp_spent": 383,
+  "stigma_spent": 268,
+  "daevanion_cost": 438,
+  "bonus": {
+   "Quick Slice": 6,
+   "Insignia Explosion": 6,
+   "Whirlwind Slice": 6,
+   "Shadow Fall": 1,
+   "Infiltrate": 6,
+   "Exploit Weakness": 6,
+   "Rear Smite": 6,
+   "Assault Stance": 6,
+   "Impact Hit": 6,
+   "Ambush Stance": 3
+  },
   "effective_levels": {
-   "Quick Slice": 14,
-   "Savage Roar": 1,
-   "Shadowstrike": 1,
-   "Ambush": 12,
+   "Quick Slice": 20,
+   "Savage Roar": 3,
+   "Shadowstrike": 2,
+   "Ambush": 14,
    "Heart Gore": 13,
-   "Storm Rampage": 2,
-   "Whirlwind Slice": 11,
-   "Flash Slice": 4,
-   "Infiltrate": 12,
-   "Shadow Fall": 10,
-   "Insignia Explosion": 14,
-   "Defiance": 2,
-   "Heightened Sixth Sense": 5,
-   "Exploit Weakness": 14,
-   "Apply Poison": 2,
-   "Rear Smite": 14,
-   "Assault Stance": 14,
-   "Impact Hit": 14,
-   "Ambush Stance": 10,
-   "Defense Break": 3,
-   "Revitalization Contract": 1,
-   "Determination": 5,
-   "Assault Ambush": 6,
-   "Swift Contract": 1,
-   "Throw Shadowblade": 10,
-   "Triniel's Dagger": 6
+   "Storm Rampage": 11,
+   "Whirlwind Slice": 20,
+   "Flash Slice": 3,
+   "Infiltrate": 20,
+   "Shadow Fall": 15,
+   "Insignia Explosion": 20,
+   "Defiance": 6,
+   "Heightened Sixth Sense": 12,
+   "Exploit Weakness": 20,
+   "Apply Poison": 12,
+   "Rear Smite": 20,
+   "Assault Stance": 20,
+   "Impact Hit": 20,
+   "Ambush Stance": 17,
+   "Defense Break": 12,
+   "Revitalization Contract": 11,
+   "Determination": 12,
+   "Savage Fang": 20,
+   "Assault Ambush": 16,
+   "Throw Shadowblade": 20,
+   "Aerial Bind": 20
   },
   "specialties": [
+   {
+    "id": 13360000,
+    "skill": "Infiltrate",
+    "kind": "active",
+    "level": 20,
+    "slots": 3,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 13360010,
+      "number": 1,
+      "text": "Restores 300 Stamina on landing [Infiltrate]",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13360020,
+      "number": 2,
+      "text": "+10m [Infiltrate] range",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13360030,
+      "number": 3,
+      "text": "Breaks Protective Shields on landing [Infiltrate]",
+      "unlock": 8,
+      "available": true,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 13360040,
+      "number": 4,
+      "text": "Adds [Dark Strike] Chain Skill",
+      "unlock": 12,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13360050,
+      "number": 5,
+      "text": "+20% [Infiltrate] Blind Chance",
+      "unlock": 16,
+      "available": true,
+      "selected": false,
+      "free": false
+     }
+    ],
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
+   },
    {
     "id": 13130000,
     "skill": "Insignia Explosion",
     "kind": "active",
-    "level": 14,
-    "slots": 2,
+    "level": 20,
+    "slots": 3,
     "automatic": false,
     "effects": [
      {
@@ -527,7 +682,8 @@
       "text": "Adds rotate effect",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 13130020,
@@ -535,7 +691,8 @@
       "text": "+50% Multi-Hit on hit",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 13130030,
@@ -543,7 +700,8 @@
       "text": "Keep 2 stacks of Insignias after [Insignia Explosion]",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13130040,
@@ -551,26 +709,29 @@
       "text": "+1s Stun duration",
       "unlock": 12,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13130050,
       "number": 5,
       "text": "-3s cooldown",
       "unlock": 16,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      }
     ],
-    "next_effect_level": 16,
-    "next_slot_level": 20
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
    },
    {
     "id": 13010000,
     "skill": "Quick Slice",
     "kind": "active",
-    "level": 14,
-    "slots": 2,
+    "level": 20,
+    "slots": 3,
     "automatic": false,
     "effects": [
      {
@@ -579,7 +740,8 @@
       "text": "+20% MP restored",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13010020,
@@ -587,7 +749,8 @@
       "text": "Absorbs 70, 70% HP",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13010030,
@@ -595,7 +758,8 @@
       "text": "+50% Multi-Hit on hit",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 13010040,
@@ -603,19 +767,196 @@
       "text": "-1s [Insignia Explosion] cooldown on hit",
       "unlock": 12,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 13010050,
       "number": 5,
       "text": "Ignores Block and Evasion and lands as a Critical Hit",
       "unlock": 16,
+      "available": true,
+      "selected": true,
+      "free": false
+     }
+    ],
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
+   },
+   {
+    "id": 13210000,
+    "skill": "Whirlwind Slice",
+    "kind": "active",
+    "level": 20,
+    "slots": 3,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 13210010,
+      "number": 1,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13210020,
+      "number": 2,
+      "text": "Changes to AoE damage",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13210030,
+      "number": 3,
+      "text": "+16m range",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13210040,
+      "number": 4,
+      "text": "+20% Stun Chance",
+      "unlock": 12,
+      "available": true,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 13210050,
+      "number": 5,
+      "text": "25% chance to reset [Whirlwind Slice] cooldown on Evasion",
+      "unlock": 16,
+      "available": true,
+      "selected": false,
+      "free": false
+     }
+    ],
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
+   },
+   {
+    "id": 13220000,
+    "skill": "Shadow Fall",
+    "kind": "active",
+    "level": 15,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 13220010,
+      "number": 1,
+      "text": "Absorbs 1000, 1000% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13220020,
+      "number": 2,
+      "text": "Engraves 3 Insignias for 10s on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 13220030,
+      "number": 3,
+      "text": "-5s cooldown",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13220040,
+      "number": 4,
+      "text": "+1s Knockdown duration",
+      "unlock": 12,
+      "available": true,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 13220050,
+      "number": 5,
+      "text": "Can be used on targets afflicted with Blind",
+      "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 16,
-    "next_slot_level": 20
+    "next_slot_level": 20,
+    "free": 0
+   },
+   {
+    "id": 13060000,
+    "skill": "Ambush",
+    "kind": "active",
+    "level": 14,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 13060010,
+      "number": 1,
+      "text": "Engraves 2 Insignias for 10s on landing as a Back attack",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13060020,
+      "number": 2,
+      "text": "Absorbs 300, 300% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13060030,
+      "number": 3,
+      "text": "Breaks Protective Shields on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 13060040,
+      "number": 4,
+      "text": "50% chance to trigger [Whirlwind Slice] on hit",
+      "unlock": 12,
+      "available": true,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 13060050,
+      "number": 5,
+      "text": "+2 consecutive uses",
+      "unlock": 16,
+      "available": false,
+      "selected": false,
+      "free": false
+     }
+    ],
+    "next_effect_level": 16,
+    "next_slot_level": 20,
+    "free": 0
    },
    {
     "id": 13350000,
@@ -631,7 +972,8 @@
       "text": "Absorbs 70, 70% HP",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 13350020,
@@ -639,7 +981,8 @@
       "text": "Engraves 1 Insignia for 10s on hit",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": true,
+      "free": false
      },
      {
       "id": 13350030,
@@ -647,7 +990,8 @@
       "text": "Up to +20% Critical Hit when less targets hit",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13350040,
@@ -655,7 +999,8 @@
       "text": "Multi-Hit on hit",
       "unlock": 12,
       "available": true,
-      "selected": true
+      "selected": false,
+      "free": false
      },
      {
       "id": 13350050,
@@ -663,277 +1008,77 @@
       "text": "Resets [Heart Gore] cooldown on landing a Critical Hit",
       "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 16,
-    "next_slot_level": 20
+    "next_slot_level": 20,
+    "free": 0
    },
    {
-    "id": 13060000,
-    "skill": "Ambush",
-    "kind": "active",
-    "level": 12,
-    "slots": 2,
-    "automatic": false,
-    "effects": [
-     {
-      "id": 13060010,
-      "number": 1,
-      "text": "Engraves 2 Insignias for 10s on landing as a Back attack",
-      "unlock": 8,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 13060020,
-      "number": 2,
-      "text": "Absorbs 300, 300% HP",
-      "unlock": 8,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 13060030,
-      "number": 3,
-      "text": "Breaks Protective Shields on hit",
-      "unlock": 8,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 13060040,
-      "number": 4,
-      "text": "50% chance to trigger [Whirlwind Slice] on hit",
-      "unlock": 12,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 13060050,
-      "number": 5,
-      "text": "+2 consecutive uses",
-      "unlock": 16,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 16,
-    "next_slot_level": 20
-   },
-   {
-    "id": 13360000,
-    "skill": "Infiltrate",
-    "kind": "active",
-    "level": 12,
-    "slots": 2,
-    "automatic": false,
-    "effects": [
-     {
-      "id": 13360010,
-      "number": 1,
-      "text": "Restores 300 Stamina on landing [Infiltrate]",
-      "unlock": 8,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 13360020,
-      "number": 2,
-      "text": "+10m [Infiltrate] range",
-      "unlock": 8,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 13360030,
-      "number": 3,
-      "text": "Breaks Protective Shields on landing [Infiltrate]",
-      "unlock": 8,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 13360040,
-      "number": 4,
-      "text": "Adds [Dark Strike] Chain Skill",
-      "unlock": 12,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 13360050,
-      "number": 5,
-      "text": "+20% [Infiltrate] Blind Chance",
-      "unlock": 16,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 16,
-    "next_slot_level": 20
-   },
-   {
-    "id": 13210000,
-    "skill": "Whirlwind Slice",
+    "id": 13340000,
+    "skill": "Storm Rampage",
     "kind": "active",
     "level": 11,
     "slots": 1,
     "automatic": false,
     "effects": [
      {
-      "id": 13210010,
+      "id": 13340010,
       "number": 1,
-      "text": "+50% Multi-Hit on hit",
+      "text": "Absorbs 500, 500% HP",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
-      "id": 13210020,
+      "id": 13340020,
       "number": 2,
-      "text": "Changes to AoE damage",
+      "text": "Restores 120 MP on hit",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
-      "id": 13210030,
+      "id": 13340030,
       "number": 3,
-      "text": "+16m range",
+      "text": "Changes to mobile skill",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
-      "id": 13210040,
+      "id": 13340040,
       "number": 4,
-      "text": "+20% Stun Chance",
+      "text": "Multi-Hit on hit",
       "unlock": 12,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
-      "id": 13210050,
+      "id": 13340050,
       "number": 5,
-      "text": "25% chance to reset [Whirlwind Slice] cooldown on Evasion",
+      "text": "-1s all skill cooldowns on hit",
       "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 12,
-    "next_slot_level": 12
-   },
-   {
-    "id": 13220000,
-    "skill": "Shadow Fall",
-    "kind": "active",
-    "level": 10,
-    "slots": 1,
-    "automatic": false,
-    "effects": [
-     {
-      "id": 13220010,
-      "number": 1,
-      "text": "Absorbs 1000, 1000% HP",
-      "unlock": 8,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 13220020,
-      "number": 2,
-      "text": "Engraves 3 Insignias for 10s on hit",
-      "unlock": 8,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 13220030,
-      "number": 3,
-      "text": "-5s cooldown",
-      "unlock": 8,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 13220040,
-      "number": 4,
-      "text": "+1s Knockdown duration",
-      "unlock": 12,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 13220050,
-      "number": 5,
-      "text": "Can be used on targets afflicted with Blind",
-      "unlock": 16,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 12,
-    "next_slot_level": 12
-   },
-   {
-    "id": 13050000,
-    "skill": "Flash Slice",
-    "kind": "active",
-    "level": 4,
-    "slots": 0,
-    "automatic": false,
-    "effects": [
-     {
-      "id": 13050010,
-      "number": 1,
-      "text": "+2s Blind duration",
-      "unlock": 8,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 13050020,
-      "number": 2,
-      "text": "+6m Range",
-      "unlock": 8,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 13050030,
-      "number": 3,
-      "text": "Up to +20% damage when more targets hit",
-      "unlock": 8,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 13050040,
-      "number": 4,
-      "text": "+1 consecutive use",
-      "unlock": 12,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 13050050,
-      "number": 5,
-      "text": "50% chance to rotate and inflict Stun for 3s on hitting a target afflicted with Blind",
-      "unlock": 16,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 8,
-    "next_slot_level": 8
+    "next_slot_level": 12,
+    "free": 0
    },
    {
     "id": 13260000,
     "skill": "Defiance",
     "kind": "active",
-    "level": 2,
+    "level": 6,
     "slots": 0,
     "automatic": false,
     "effects": [
@@ -943,7 +1088,8 @@
       "text": "Adds [Storm Slice] Chain Skill",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13260020,
@@ -951,7 +1097,8 @@
       "text": "Restores 1,000 Stamina on using [Defiance]",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13260030,
@@ -959,7 +1106,8 @@
       "text": "Restores 20% HP on using [Defiance]",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13260040,
@@ -967,7 +1115,8 @@
       "text": "+2s Tenacity duration",
       "unlock": 12,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13260050,
@@ -975,69 +1124,77 @@
       "text": "+50% PvE Damage Tolerance and +25% PvP Damage Tolerance for Tenacity duration",
       "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 8,
-    "next_slot_level": 8
+    "next_slot_level": 8,
+    "free": 0
    },
    {
-    "id": 13340000,
-    "skill": "Storm Rampage",
+    "id": 13050000,
+    "skill": "Flash Slice",
     "kind": "active",
-    "level": 2,
+    "level": 3,
     "slots": 0,
     "automatic": false,
     "effects": [
      {
-      "id": 13340010,
+      "id": 13050010,
       "number": 1,
-      "text": "Absorbs 500, 500% HP",
+      "text": "+2s Blind duration",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
-      "id": 13340020,
+      "id": 13050020,
       "number": 2,
-      "text": "Restores 120 MP on hit",
+      "text": "+6m Range",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
-      "id": 13340030,
+      "id": 13050030,
       "number": 3,
-      "text": "Changes to mobile skill",
+      "text": "Up to +20% damage when more targets hit",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
-      "id": 13340040,
+      "id": 13050040,
       "number": 4,
-      "text": "Multi-Hit on hit",
+      "text": "+1 consecutive use",
       "unlock": 12,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
-      "id": 13340050,
+      "id": 13050050,
       "number": 5,
-      "text": "-1s all skill cooldowns on hit",
+      "text": "50% chance to rotate and inflict Stun for 3s on hitting a target afflicted with Blind",
       "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 8,
-    "next_slot_level": 8
+    "next_slot_level": 8,
+    "free": 0
    },
    {
     "id": 13100000,
     "skill": "Savage Roar",
     "kind": "active",
-    "level": 1,
+    "level": 3,
     "slots": 0,
     "automatic": false,
     "effects": [
@@ -1047,7 +1204,8 @@
       "text": "-20% MP consumed",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13100020,
@@ -1055,7 +1213,8 @@
       "text": "+20% Skill Speed",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13100030,
@@ -1063,7 +1222,8 @@
       "text": "Deals up to 12% more damage when less targets are hit",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13100040,
@@ -1071,7 +1231,8 @@
       "text": "-1s [Shadowstrike] cooldown on hit",
       "unlock": 12,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13100050,
@@ -1079,17 +1240,19 @@
       "text": "Pulls nearby targets on using [Savage Smash]",
       "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 8,
-    "next_slot_level": 8
+    "next_slot_level": 8,
+    "free": 0
    },
    {
     "id": 13070000,
     "skill": "Shadowstrike",
     "kind": "active",
-    "level": 1,
+    "level": 2,
     "slots": 0,
     "automatic": false,
     "effects": [
@@ -1099,7 +1262,8 @@
       "text": "+1s Stun duration",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13070020,
@@ -1107,7 +1271,8 @@
       "text": "+20% caster Critical Damage Boost for 10s on hit",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13070030,
@@ -1115,7 +1280,8 @@
       "text": "50% chance to inflict Seal for 5s on hit",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13070040,
@@ -1123,7 +1289,8 @@
       "text": "50% chance to inflict Root for 5s on hit",
       "unlock": 12,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 13070050,
@@ -1131,17 +1298,117 @@
       "text": "Changes to AoE Skill",
       "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 8,
-    "next_slot_level": 8
+    "next_slot_level": 8,
+    "free": 0
+   },
+   {
+    "id": 13230000,
+    "skill": "Aerial Bind",
+    "kind": "stigma",
+    "level": 20,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 13230010,
+      "number": 1,
+      "text": "+16m [Aerial Bind] range",
+      "unlock": 5,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13230020,
+      "number": 2,
+      "text": "Adds [Aerial Slaughter] Chain Skill",
+      "unlock": 10,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13230030,
+      "number": 3,
+      "text": "x1.5 [Ambush Stance] effect for 10s on first strike of [Aerial Bind]",
+      "unlock": 15,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13230040,
+      "number": 4,
+      "text": "-30s cooldown",
+      "unlock": 20,
+      "available": true,
+      "selected": true,
+      "free": false
+     }
+    ],
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
+   },
+   {
+    "id": 13270000,
+    "skill": "Savage Fang",
+    "kind": "stigma",
+    "level": 20,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 13270010,
+      "number": 1,
+      "text": "Up to +20% damage when more targets hit",
+      "unlock": 5,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13270020,
+      "number": 2,
+      "text": "+50 Stagger Gauge Damage",
+      "unlock": 10,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13270030,
+      "number": 3,
+      "text": "+10% PvE Damage Boost and +5% PvP Damage Boost for 10s on hit",
+      "unlock": 15,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 13270040,
+      "number": 4,
+      "text": "Critical Hit on hit",
+      "unlock": 20,
+      "available": true,
+      "selected": true,
+      "free": false
+     }
+    ],
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
    },
    {
     "id": 13020000,
     "skill": "Throw Shadowblade",
     "kind": "stigma",
-    "level": 10,
+    "level": 20,
     "slots": null,
     "automatic": true,
     "effects": [
@@ -1151,7 +1418,8 @@
       "text": "Adds [Shadowblade Pursuit] Chain Skill",
       "unlock": 5,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 13020020,
@@ -1159,33 +1427,37 @@
       "text": "Resets cooldown on defeating an enemy",
       "unlock": 10,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 13020030,
       "number": 3,
       "text": "Critical Hit on hit",
       "unlock": 15,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      },
      {
       "id": 13020040,
       "number": 4,
       "text": "Changes to AoE Skill",
       "unlock": 20,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      }
     ],
-    "next_effect_level": 15,
-    "next_slot_level": null
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
    },
    {
     "id": 13700000,
     "skill": "Assault Ambush",
     "kind": "stigma",
-    "level": 6,
+    "level": 16,
     "slots": null,
     "automatic": true,
     "effects": [
@@ -1195,23 +1467,26 @@
       "text": "+20% Attack for 5s on hit",
       "unlock": 5,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 13700020,
       "number": 2,
       "text": "500 MP damage on hit",
       "unlock": 10,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      },
      {
       "id": 13700030,
       "number": 3,
       "text": "+10m range",
       "unlock": 15,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      },
      {
       "id": 13700040,
@@ -1219,126 +1494,41 @@
       "text": "+20% Blind Chance",
       "unlock": 20,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
-    "next_effect_level": 10,
-    "next_slot_level": null
-   },
-   {
-    "id": 13300000,
-    "skill": "Triniel's Dagger",
-    "kind": "stigma",
-    "level": 6,
-    "slots": null,
-    "automatic": true,
-    "effects": [
-     {
-      "id": 13300010,
-      "number": 1,
-      "text": "Changes to mobile skill",
-      "unlock": 5,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 13300020,
-      "number": 2,
-      "text": "-10% all skill cooldowns on hit",
-      "unlock": 10,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 13300030,
-      "number": 3,
-      "text": "Resets cooldown on defeating an enemy with [Triniel's Dagger]",
-      "unlock": 15,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 13300040,
-      "number": 4,
-      "text": "+3% all skill cooldowns",
-      "unlock": 20,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 10,
-    "next_slot_level": null
-   },
-   {
-    "id": 13390000,
-    "skill": "Swift Contract",
-    "kind": "stigma",
-    "level": 1,
-    "slots": null,
-    "automatic": true,
-    "effects": [
-     {
-      "id": 13390010,
-      "number": 1,
-      "text": "-20% MP Cost for the duration",
-      "unlock": 5,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 13390020,
-      "number": 2,
-      "text": "x1.5 [Rear Smite] effect for the duration",
-      "unlock": 10,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 13390030,
-      "number": 3,
-      "text": "x1.5 [Assault Stance] effect for the duration",
-      "unlock": 15,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 13390040,
-      "number": 4,
-      "text": "+10% additional Combat Speed",
-      "unlock": 20,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 5,
-    "next_slot_level": null
+    "next_effect_level": 20,
+    "next_slot_level": null,
+    "free": 0
    }
   ]
  },
  "policy": [
   "throw_shadowblade",
   "whirlwind_slice",
-  "shadow_fall",
-  "insignia_explosion",
-  "infiltrate",
   "assault_ambush",
-  "heart_gore",
-  "triniel_s_dagger",
+  "insignia_explosion",
+  "savage_fang",
+  "aerial_bind",
+  "infiltrate",
+  "shadow_fall",
   "quick_slice"
  ],
  "shares": {
-  "Quick Slice": 0.29471234704969296,
-  "Heart Gore": 0.1391774909107784,
-  "Insignia Explosion": 0.1365030203513577,
-  "Whirlwind Slice": 0.1052867608641385,
-  "Ambush Stance": 0.08844208427838066,
-  "Shadow Fall": 0.05353625721405085,
-  "Throw Shadowblade (chain)": 0.04811314530785933,
-  "Infiltrate (chain)": 0.04387232575347942,
-  "Throw Shadowblade": 0.032514236250994415,
-  "Infiltrate": 0.031504933975725576,
-  "Triniel's Dagger": 0.015682894078104758,
-  "Assault Ambush": 0.010654503965434043
+  "Quick Slice": 0.4284816058642485,
+  "Insignia Explosion": 0.13089060992654603,
+  "Whirlwind Slice": 0.09300521847300601,
+  "Ambush Stance": 0.07699394485513246,
+  "Shadow Fall": 0.06067890705589117,
+  "Throw Shadowblade (chain)": 0.05812234852676801,
+  "Infiltrate (chain)": 0.04236744691959622,
+  "Throw Shadowblade": 0.03920349265314758,
+  "Infiltrate": 0.030143576538365163,
+  "Savage Fang": 0.018022387136311675,
+  "Assault Ambush": 0.009588133737007141,
+  "Aerial Bind (chain)": 0.007296590312237897,
+  "Aerial Bind": 0.0052057380017372906
  },
  "opener": [
   [
@@ -1351,7 +1541,7 @@
   ],
   [
    1.82,
-   "shadow_fall"
+   "assault_ambush"
   ],
   [
    2.72,
@@ -1359,19 +1549,19 @@
   ],
   [
    3.63,
-   "infiltrate"
+   "savage_fang"
   ],
   [
    4.54,
-   "assault_ambush"
+   "aerial_bind"
   ],
   [
    5.45,
-   "heart_gore"
+   "infiltrate"
   ],
   [
    6.36,
-   "triniel_s_dagger"
+   "shadow_fall"
   ],
   [
    7.27,
@@ -1379,11 +1569,11 @@
   ],
   [
    8.04,
-   "quick_slice"
+   "insignia_explosion"
   ],
   [
-   8.81,
-   "insignia_explosion"
+   8.94,
+   "quick_slice"
   ],
   [
    9.71,
@@ -1395,7 +1585,7 @@
   ],
   [
    11.39,
-   "heart_gore"
+   "insignia_explosion"
   ],
   [
    12.3,
@@ -1407,11 +1597,11 @@
   ],
   [
    13.84,
-   "insignia_explosion"
+   "quick_slice"
   ],
   [
-   14.75,
-   "quick_slice"
+   14.61,
+   "insignia_explosion"
   ],
   [
    15.52,
@@ -1419,112 +1609,120 @@
   ],
   [
    16.29,
-   "heart_gore"
-  ],
-  [
-   17.2,
    "quick_slice"
   ],
   [
-   17.97,
+   17.06,
+   "quick_slice"
+  ],
+  [
+   17.83,
    "insignia_explosion"
   ],
   [
-   18.87,
+   18.74,
    "quick_slice"
   ],
   [
-   19.64,
+   19.5,
    "quick_slice"
   ],
   [
-   20.41,
+   20.27,
    "whirlwind_slice"
   ],
   [
-   21.32,
+   21.18,
+   "insignia_explosion"
+  ],
+  [
+   22.09,
    "shadow_fall"
   ],
   [
-   22.23,
-   "heart_gore"
+   23.0,
+   "quick_slice"
   ],
   [
-   23.14,
+   23.77,
+   "quick_slice"
+  ],
+  [
+   24.54,
+   "insignia_explosion"
+  ],
+  [
+   25.45,
    "infiltrate"
   ],
   [
-   24.05,
+   26.36,
+   "quick_slice"
+  ],
+  [
+   27.12,
+   "quick_slice"
+  ],
+  [
+   27.89,
    "insignia_explosion"
   ],
   [
-   24.95,
-   "quick_slice"
-  ],
-  [
-   25.72,
-   "quick_slice"
-  ],
-  [
-   26.49,
-   "quick_slice"
-  ],
-  [
-   27.26,
-   "heart_gore"
-  ],
-  [
-   28.17,
-   "insignia_explosion"
-  ],
-  [
-   29.08,
+   28.8,
    "throw_shadowblade"
   ],
   [
-   29.99,
+   29.71,
    "whirlwind_slice"
   ]
  ],
  "stats": {
-  "attack_avg": 1365.378,
-  "crit_stat": 837.4767999999999,
-  "crit_chance_vs_target": 0.25691427831572294,
-  "cdr": 0.0503,
+  "attack_avg": 1377.6971999999998,
+  "crit_stat": 925.4687999999999,
+  "crit_chance_vs_target": 0.3720425296750262,
+  "cdr": 0.0653,
   "combat_speed": 0.0816,
-  "boost_bucket": 0.34750000000000003,
-  "double": 0.047200000000000006,
+  "boost_bucket": 0.4525,
+  "double": 0.0652,
   "perfect": 0.0884,
-  "multihit": 0.04,
+  "multihit": 0.05500000000000001,
   "weapon_amp": 0.1
  },
  "evaluation": {
-  "model": "0.3.6",
-  "scope": "c99bed916a876ed3cdd08566f43107a7e8f22340b64713aa65136fadcb91ad64",
-  "policy_version": 1
+  "model": "0.3.13",
+  "scope": "0209a3bd766739e5992ba65124de206739029a0747a2e7554f06ea0352aecc52",
+  "policy_version": 2
  },
  "candidate_generation": {
-  "objective": "pvp_burst",
+  "objective": "weighted",
   "iterations": 1,
   "calibration": "disabled",
-  "note": "Fresh stationary damage search under common comparison resources; not a global optimum or competitive win-rate claim.",
+  "search_revision": 2,
   "selection": {
-   "method": "Highest equal-weight sustained/burst modeled DPS among two generated allocations",
+   "method": "Two scenario seeds followed by direct weighted-objective refinement; retain the best evaluated candidate",
    "candidates": [
     {
      "objective": "pvp",
-     "score": 8796.300790503541,
+     "score": 13594.751162596107,
      "dps": {
-      "pvp": 8350.004587145448,
-      "pvp_burst": 9242.596993861636
+      "pvp": 12739.709321679607,
+      "pvp_burst": 14449.793003512606
      }
     },
     {
      "objective": "pvp_burst",
-     "score": 8809.380641468808,
+     "score": 13971.077844391493,
      "dps": {
-      "pvp": 7990.991872907425,
-      "pvp_burst": 9627.769410030192
+      "pvp": 12469.640089328816,
+      "pvp_burst": 15472.51559945417
+     }
+    },
+    {
+     "objective": "weighted",
+     "score": 14230.460908644145,
+     "dps": {
+      "pvp": 12698.882845410182,
+      "pvp_burst": 15762.03897187811
      }
     }
    ]
