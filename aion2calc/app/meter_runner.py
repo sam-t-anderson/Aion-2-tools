@@ -589,6 +589,10 @@ class Runner:
         for key in ("auto_port", "capture_filter"):
             if stats.get(key) is not None:
                 self.session.capture_evidence[key] = stats[key]
+        # How often the game moved to a new connection the capture followed (a zone change on a fresh socket),
+        # so a log shows whether its zone loads came through a handover.
+        if isinstance(stats.get("flow_handovers"), int) and not isinstance(stats["flow_handovers"], bool):
+            self.session.capture_evidence["flow_handovers"] = stats["flow_handovers"]
         if stats.get("flow_detected"):
             self.session.capture_evidence["flow_detected"] = True
 

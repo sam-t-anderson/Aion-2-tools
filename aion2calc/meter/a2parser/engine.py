@@ -93,6 +93,9 @@ class MeterEngine:
         # ``_observe_local_mp`` and ``_observe_local_cast``), and the other actor the last MP record was for.
         self.local_identity_from_mp = False
         self._mp_candidate: int | None = None
+        # How many times an MP record moved the local player to a new actor inside a zone and the name the game
+        # gave the previous one went with it (a zone load the capture missed; see ``_bind_inferred_local``).
+        self.local_name_carried = 0
         # While the local player is only a guess from cast-ends (``_observe_local_cast``): each
         # candidate's class-skill cast-ends since the guess, and the actors seen casting an auto attack.
         self._cast_guess: dict[int, int] | None = None
@@ -829,14 +832,31 @@ class MeterEngine:
             self._mp_candidate = entity
             return
         self._mp_candidate = None
+        # The id a record gave (a self record, the name re-bind, the typed name) is the same character's: the MP
+        # record is sent for the local player only. A guess from cast-ends passes nothing on.
+        previous = self.local_player_id if self._cast_guess is None else None
         self._cast_guess = None
         if entity in self.not_local:
             self._idle_rule_off = True               # its presses never reached the input clock (a gamepad)
             self.not_local.clear()
-        self._bind_inferred_local(entity)
+        self._bind_inferred_local(entity, carry_from=previous)
 
-    def _bind_inferred_local(self, entity: int) -> None:
-        """Name the local player from its own records (MP, cast-ends) rather than a self record."""
+    def _bind_inferred_local(self, entity: int, carry_from: int | None = None) -> None:
+        """Name the local player from its own records (MP, cast-ends) rather than a self record.
+
+        ``carry_from`` is the local actor an MP record moves the player away from, when a record identified
+        it. A new actor inside one zone is the same character re-registered after a zone load the capture
+        missed (a new game connection whose first packets were lost), whose self record would have named it:
+        the name and class the game gave the previous actor move to it, so names stay unique (a summon is linked
+        to its owner by an exact, single name match). Up to 0.2.384 the recorder fought the rest of the zone as
+        an unnamed "Player #N" while its name stayed on the abandoned actor (three Krao Cave runs of 4-6
+        November): the log could not attribute the recorder, and the party view listed them twice."""
+        name = self.names.get(carry_from) if carry_from is not None and carry_from != entity else None
+        if name and not self.names.get(entity) and entity not in self.summons:
+            self.names[entity] = self.names.pop(carry_from)
+            if self.jobs.get(carry_from):
+                self.jobs.setdefault(entity, self.jobs[carry_from])
+            self.local_name_carried += 1
         self.local_player_id = entity
         self.local_identity_from_game = True
         self.local_identity_from_mp = True
