@@ -1,10 +1,12 @@
-"""The kernel capture filter narrows to the game connection on the live handle, and widens again.
+"""The kernel capture filter narrows to the game's server port on the live handle, and widens again.
 
 A Fire Temple recording on 0.2.287 ran the whole session on the broad ``tcp`` filter in auto-port
 mode: 12.0M of 14.2M packets were dropped by the capture buffer, taking zone-load identity and
 spawn packets with them. Once the flow detector has located the game connection, each adapter's
-filter now shrinks to that server host and port (plus TCP handshakes, so a replacement connection
-is still seen) without reopening the handle, and widens again when the connection ends.
+filter now shrinks to the game's server port (plus TCP handshakes, so a replacement connection
+on another port is still seen) without reopening the handle, and widens again when the connection
+ends. The port on any host since 0.2.385: entering an instance moves the game to a connection on
+another server, and its first packets are the zone load that names every player.
 """
 from aion2calc.meter.a2parser import capture
 
@@ -12,11 +14,14 @@ from aion2calc.meter.a2parser import capture
 SELECTED = ("Ethernet", "203.0.113.9", 50349, "192.168.1.20", 61234)   # a server->client key
 
 
-def test_narrow_filter_keeps_the_game_connection_and_every_handshake():
+def test_narrow_filter_keeps_the_game_port_on_any_server_and_every_handshake():
     expr = capture.narrow_filter(SELECTED)
-    assert "host 203.0.113.9 and port 50349" in expr
+    assert expr.startswith("(tcp and port 50349) or")
+    assert "host" not in expr                                 # the next server's zone load passes from its first packet
     assert "tcp-syn|tcp-fin|tcp-rst" in expr                 # a new connection's SYN still reaches the callback
-    assert capture.narrow_filter(SELECTED, "tcp and host 203.0.113.9").startswith("(tcp and host 203.0.113.9 and host")
+    assert capture.narrow_filter(SELECTED, "tcp and host 203.0.113.9").startswith("(tcp and host 203.0.113.9 and port 50349)")
+    other_server = ("Ethernet", "198.51.100.4", 50349, "192.168.1.20", 61500)
+    assert capture.narrow_filter(other_server) == expr       # a handover to another server reinstalls nothing
 
 
 def test_kernel_filter_narrows_once_and_widens_when_the_connection_is_gone():

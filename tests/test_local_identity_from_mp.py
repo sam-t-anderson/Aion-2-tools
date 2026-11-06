@@ -224,3 +224,37 @@ def test_a_wrong_guess_hands_its_hits_to_the_corrected_player():
     players = {p["id"]: p for p in snap["players"]}
     assert snap["identity_status"]["local_id"] == ME
     assert players[str(ME)]["damage"] == 8000
+
+
+def test_an_mp_record_that_moves_the_recorder_inside_a_zone_carries_its_name():
+    # a zone load the capture missed (a new game connection whose first packets were lost): the recorder
+    # re-registered under a new actor and only its MP records say so; its self record would have named it
+    engine = _engine()
+    engine.consume(_self_record(STALE, "Recorder"), 1_000, STREAM)
+    engine.jobs[STALE] = "Templar"
+    engine.consume(_mp(ME), 2_000, STREAM)
+    engine.consume(_mp(ME, 2700), 3_000, STREAM)
+    assert engine.local_player_id == ME and engine.local_identity_from_mp
+    assert engine.names.get(ME) == "Recorder" and STALE not in engine.names     # one actor carries the name
+    assert engine.jobs[ME] == "Templar" and engine.local_name_carried == 1
+    engine.consume(_self_record(ME, "Recorder"), 4_000, STREAM)                 # the next zone load agrees
+    assert engine.local_player_id == ME and not engine.local_identity_from_mp
+
+
+def test_a_guess_from_casts_passes_no_name_on():
+    engine = _engine()
+    engine.names[PET] = "Spirit"
+    _casts(engine, PET, SORC_SKILL, 1_000, CAST_GUESS_MIN)
+    assert engine.local_player_id == PET
+    engine.consume(_mp(ME), 2_000, STREAM)
+    assert engine.local_player_id == ME and ME not in engine.names and engine.names[PET] == "Spirit"
+    assert engine.local_name_carried == 0
+
+
+def test_a_name_another_actor_already_has_is_not_overwritten():
+    engine = _engine()
+    engine.consume(_self_record(STALE, "Recorder"), 1_000, STREAM)
+    engine.names[ME] = "Someone"
+    engine.consume(_mp(ME), 2_000, STREAM)
+    engine.consume(_mp(ME, 2700), 3_000, STREAM)
+    assert engine.local_player_id == ME and engine.names[ME] == "Someone" and engine.names[STALE] == "Recorder"

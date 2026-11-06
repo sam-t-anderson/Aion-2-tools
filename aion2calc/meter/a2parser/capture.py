@@ -113,19 +113,26 @@ class TCPReassembler:
         self.generation += 1
 
 
-#: Always passes a narrowed kernel filter: TCP connection setup and teardown. A zone change
-#: or reconnect can replace the game socket (new port, maybe a new host); its handshake is the
-#: one packet guaranteed to reach the callback, where the filter widens again to find it.
+#: Always passes a narrowed kernel filter: TCP connection setup and teardown. A reconnect can
+#: replace the game socket on another port; its handshake is the one packet guaranteed to reach
+#: the callback, where the filter widens again to find it.
 _HANDSHAKE_CLAUSE = "(tcp[tcpflags] & (tcp-syn|tcp-fin|tcp-rst) != 0)"
 
 
 def narrow_filter(selected: tuple, base: str = "tcp") -> str:
-    """The kernel filter for the located game connection: only its server host and port (plus
-    every TCP handshake/teardown packet, see ``_HANDSHAKE_CLAUSE``). ``selected`` is the flow
-    detector's key, a server->client packet: ``(interface, server, server_port, client, port)``.
-    ``base`` is the broad filter the capture opened with ("tcp", or "tcp and host X")."""
-    host, port = selected[1], int(selected[2])
-    return f"({base} and host {host} and port {port}) or ({base} and {_HANDSHAKE_CLAUSE})"
+    """The kernel filter for the located game connection: its server port, on any host (plus every
+    TCP handshake/teardown packet, see ``_HANDSHAKE_CLAUSE``). ``selected`` is the flow detector's
+    key, a server->client packet: ``(interface, server, server_port, client, port)``. ``base`` is
+    the broad filter the capture opened with ("tcp", or "tcp and host X").
+
+    Not the server's host: entering an instance moves the game to a new connection, usually on
+    another server (each of the ten zone loads of the 10 and 19 October recordings that changed
+    connection did), and that connection opens with the zone load that names every player. Up to
+    0.2.384 the filter kept only the old server, so the new one's packets reached the meter only
+    once the old connection was seen to close or had been idle five seconds and some other packet
+    passed the filter -- in the Krao Cave runs of 4-6 November, after the zone load had gone by."""
+    port = int(selected[2])
+    return f"({base} and port {port}) or ({base} and {_HANDSHAKE_CLAUSE})"
 
 
 def apply_kernel_filter(capture_socket, expression: str, interface: str | None = None) -> bool:
@@ -160,9 +167,9 @@ class KernelFilter:
     With the broad ``tcp`` filter every TCP packet on the machine (downloads, streams, voice)
     reaches the Python callback and the capture buffer; a recording showed 84% of 14.2M packets
     dropped that way, including the zone-load bursts that carry identities and spawns. Once the
-    flow detector has the game connection, each adapter's filter shrinks to that host and port
-    (plus handshakes), and widens again as soon as the connection is gone so a replacement is
-    found. ``apply`` is the installer (``apply_kernel_filter``); an adapter whose backend refuses
+    flow detector has the game connection, each adapter's filter shrinks to the game's server port
+    on any host (plus handshakes, see ``narrow_filter``), and widens again as soon as the connection
+    is gone so a replacement on another port is found. ``apply`` is the installer (``apply_kernel_filter``); an adapter whose backend refuses
     is left alone and never retried."""
 
     def __init__(self, base: str = "tcp", apply=apply_kernel_filter):
@@ -202,20 +209,56 @@ class KernelFilter:
 
 
 class CombatFlowDetector:
-    """Identify a game flow with the upstream 12-packet/3-second marker gate."""
+    """Identify a game flow with the upstream 12-packet/3-second marker gate, and follow the game when a zone
+    change moves it to a new connection.
+
+    Entering an instance moves the game to a new connection, usually on another server, and that connection
+    opens with the zone load: the zone change, the recording player's own record, the other players' records and
+    the instance id, within its first seconds (6.8 s in the 19 October recording). Nothing names the players again
+    until the next zone load. So once the game's server port is known, a connection to that port on the same
+    adapter is a *successor*: its server's packets are kept from the first, and it takes over -- those packets
+    returned for decoding in arrival order -- once it has sent ``HANDOVER_MARKERS`` marker packets while the
+    selected connection is quiet (``HANDOVER_QUIET_S``) or gone (closed, or idle five seconds).
+
+    Up to 0.2.384 the detector ignored every other connection until the selected one was seen to close or had
+    been idle five seconds, then started the marker gate at the new connection's first marked packet. A zone load
+    sent meanwhile was lost: in three Krao Cave runs of 4-6 November the recording player fought the first part of
+    the instance as "Player #N" and the party's hits were dropped as out of scope."""
     signatures = (b"\x0e\x00\x36", b"\x06\x00\x36")
+    #: Marker packets a successor sends before it takes over. A game connection sends its clock record every
+    #: 50 ms once it is going; in the ten recorded changes of connection the first came 1.4-1.6 s after the new
+    #: connection's first packet and the twelfth within 0.7 s more.
+    HANDOVER_MARKERS = 3
+    #: How long the selected connection must have sent nothing for a successor to take over while it is still
+    #: open. Every recorded change stopped the old connection 0.04-0.14 s before the new one's first packet; a
+    #: connection still in use sends its clock record every 50 ms.
+    HANDOVER_QUIET_S = 1.0
+    #: Bounds on what a successor holds before it takes over (a zone load's bundle is 13-18 KB; the 19 October
+    #: recording's busiest connection averaged 4 KB/s), and on a successor that never sends the game's markers.
+    SUCCESSOR_BYTES = 1_048_576
+    SUCCESSOR_TTL_S = 30.0
+    MAX_SUCCESSORS = 4
 
     def __init__(self):
         self.candidates: dict[tuple, dict] = {}
+        self.successors: dict[tuple, dict] = {}
         self.selected: tuple | None = None
         self.first_candidate: float | None = None
         self.selected_last_seen: float | None = None
+        #: The adapter and server port of the game's connection, kept when it ends so that the next connection
+        #: to that port is recognised from its first packet.
+        self.game_port: tuple | None = None
+        #: How many times the game moved to a successor connection (diagnostics).
+        self.handovers = 0
 
     def reset(self) -> None:
+        """Forget the game connection and every candidate."""
         self.selected = None
         self.selected_last_seen = None
         self.first_candidate = None
         self.candidates.clear()
+        self.successors.clear()
+        self.game_port = None
 
     def is_connection(self, key: tuple) -> bool:
         if self.selected is None:
@@ -223,16 +266,84 @@ class CombatFlowDetector:
         selected = self.selected
         return key == selected or key == (selected[0], selected[3], selected[4], selected[1], selected[2])
 
+    def _is_successor(self, key: tuple) -> bool:
+        """A server->client packet of another connection to the game's server port, on the game's adapter."""
+        return (self.game_port is not None and (key[0], key[2]) == self.game_port
+                and not self.is_connection(key))
+
+    def connection_closed(self, key: tuple, now: float) -> list[tuple]:
+        """A FIN or RST of ``key``. The end of the selected game connection hands over to a successor that is
+        already sending (its packets are returned for decoding); otherwise the next connection to the game's port
+        takes over at its third marker packet, and a game moved to another port is found by the marker gate (the
+        caller widens the kernel filter meanwhile). A successor's own end forgets it."""
+        if self.is_connection(key):
+            return self._drop_selection(now)
+        self.successors.pop(key, None)
+        self.successors.pop((key[0], key[3], key[4], key[1], key[2]), None)
+        return []
+
+    def _drop_selection(self, now: float) -> list[tuple]:
+        """The selected connection is gone: a successor that is sending takes over, else none is selected."""
+        self.selected = None
+        self.selected_last_seen = None
+        self.first_candidate = None
+        self.candidates.clear()
+        ready = [key for key, entry in self.successors.items() if entry["markers"] >= self.HANDOVER_MARKERS]
+        if ready:
+            return self._take_over(max(ready, key=lambda key: self.successors[key]["last"]), now)
+        return []
+
+    def _take_over(self, key: tuple, now: float) -> list[tuple]:
+        entry = self.successors.pop(key)
+        self.selected = key
+        self.selected_last_seen = now
+        self.game_port = (key[0], key[2])
+        self.successors.clear()
+        self.candidates.clear()
+        self.first_candidate = None
+        self.handovers += 1
+        return entry["packets"]
+
+    def _follow(self, key: tuple, payload: bytes, sequence: int, syn: bool, now: float) -> list[tuple]:
+        """Keep a successor's packets from its first (its SYN-ACK when seen, which gives the reassembler the
+        stream's start), and hand over when it is the game's connection now."""
+        for stale in [k for k, entry in self.successors.items() if now - entry["first"] > self.SUCCESSOR_TTL_S]:
+            del self.successors[stale]              # never sent the game's markers: not the game
+        if not payload and not syn:
+            return []                               # a bare ACK carries nothing to decode
+        entry = self.successors.get(key)
+        if entry is None:
+            if len(self.successors) >= self.MAX_SUCCESSORS:
+                self.successors.pop(min(self.successors, key=lambda k: self.successors[k]["last"]))
+            entry = self.successors[key] = {"hits": [], "packets": [], "bytes": 0, "markers": 0, "first": now, "last": now}
+        entry["last"] = now
+        entry["packets"].append((key, sequence, payload, syn))
+        entry["bytes"] += len(payload)
+        while entry["bytes"] > self.SUCCESSOR_BYTES and len(entry["packets"]) > 1:
+            entry["bytes"] -= len(entry["packets"].pop(0)[2])
+        if any(signature in payload for signature in self.signatures):
+            entry["markers"] += 1
+            entry["hits"] = [stamp for stamp in entry["hits"] if now - stamp <= 3.0] + [now]
+        quiet = (self.selected is None or self.selected_last_seen is None
+                 or now - self.selected_last_seen >= self.HANDOVER_QUIET_S)
+        if entry["markers"] >= self.HANDOVER_MARKERS and quiet:
+            return self._take_over(key, now)
+        return []
+
     def feed(self, key: tuple, payload: bytes, sequence: int, syn: bool, now: float) -> list[tuple]:
+        if self._is_successor(key):
+            return self._follow(key, payload, sequence, syn, now)
         if self.selected is not None:
             if key == self.selected:
                 if payload:
                     self.selected_last_seen = now
                 return [(key, sequence, payload, syn)]
-            # Zone changes can replace the socket without a captured FIN/RST.
-            # Resume the marker gate when the previous server stream goes idle.
+            # Zone changes can replace the socket without a captured FIN/RST. When the selected server stream
+            # goes idle, a successor that is sending takes over; with none, resume the marker gate.
             if self.selected_last_seen is not None and now - self.selected_last_seen >= 5.0:
-                self.reset()
+                handover = self._drop_selection(now)
+                if handover:
+                    return handover
             else:
                 return []
         if not payload or (len(payload) >= 3 and 0x14 <= payload[0] <= 0x17 and payload[1] == 3):
@@ -261,8 +372,10 @@ class CombatFlowDetector:
             return []
         self.selected = key
         self.selected_last_seen = now
+        self.game_port = (key[0], key[2])
         packets = candidate["packets"]
         self.candidates.clear()
+        self.successors.clear()
         return packets
 
 
@@ -480,6 +593,27 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
         if segment:
             on_segment(adapter, capture_socket, *segment)
 
+    def deliver(chunks) -> None:
+        """Reassemble and forward the detector's packets. Caller holds ``callback_lock``."""
+        for stream_key, sequence, chunk, has_syn in chunks:
+            # Shared sequence state suppresses duplicate fixed-port packets
+            # seen on several adapters (e.g. VPN plus physical interface).
+            flow_key = stream_key if auto_port else stream_key[1:]
+            flow = flows.setdefault(flow_key, TCPReassembler())
+            before, generation_before = flow.discarded_payloads, flow.generation
+            reassembled = flow.feed(sequence, chunk, syn=has_syn)
+            stats["tcp_discarded_payloads"] += flow.discarded_payloads - before
+            _, src, sport, dst, dport = stream_key
+            stream_id = f"{src}:{sport}->{dst}:{dport}"
+            if flow.generation != generation_before:
+                stats["tcp_stream_resets"] += 1
+                emit("stream_reset", stream_id)
+                # Record loss before subsequent combat can trigger a save.
+                emit("capture_stats", dict(stats))
+            if reassembled:
+                emit("packet", stream_id, reassembled, time.time_ns() // 1_000_000)
+                stats["forwarded"] += 1
+
     def on_segment(adapter, capture_socket, source, destination, sport, dport, flags, seq, ack, payload) -> None:
         if not auto_port and sport != server_port and dport != server_port:
             return
@@ -509,30 +643,18 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                     stats["flow_detected"] = True   # the game flow was located (so the kernel filter could be narrowed to it)
             else:
                 chunks = [(key, seq, payload, syn)]
-            for stream_key, sequence, chunk, has_syn in chunks:
-                # Shared sequence state suppresses duplicate fixed-port packets
-                # seen on several adapters (e.g. VPN plus physical interface).
-                flow_key = stream_key if auto_port else stream_key[1:]
-                flow = flows.setdefault(flow_key, TCPReassembler())
-                before, generation_before = flow.discarded_payloads, flow.generation
-                reassembled = flow.feed(sequence, chunk, syn=has_syn)
-                stats["tcp_discarded_payloads"] += flow.discarded_payloads - before
-                _, src, sport, dst, dport = stream_key
-                stream_id = f"{src}:{sport}->{dst}:{dport}"
-                if flow.generation != generation_before:
-                    stats["tcp_stream_resets"] += 1
-                    emit("stream_reset", stream_id)
-                    # Record loss before subsequent combat can trigger a save.
-                    emit("capture_stats", dict(stats))
-                if reassembled:
-                    emit("packet", stream_id, reassembled, time.time_ns() // 1_000_000)
-                    stats["forwarded"] += 1
+            deliver(chunks)
             if flags & (0x01 | 0x04):
                 closed = flows.pop(key if auto_port else key[1:], None)
                 stats["tcp_unresolved_flows"] += int(bool(closed and closed.waiting))
-                if auto_port and detector.is_connection(key):
-                    detector.reset()
-                    stats["port"] = None
+                if auto_port:
+                    # The game connection's end hands over to the connection the game moved to, its packets
+                    # from the first (the zone load), when that one is already sending.
+                    handover = detector.connection_closed(key, time.monotonic())
+                    stats["port"] = detector.selected[2] if detector.selected else None
+                    deliver(handover)
+            if auto_port:
+                stats["flow_handovers"] = detector.handovers
             # Narrow this adapter's kernel filter to the located game connection, or widen it
             # back once that connection is gone (its idle reset or FIN/RST above). This runs on
             # the adapter's own receive thread, the only thread allowed to touch its handle.
@@ -608,7 +730,10 @@ def capture_packets(stop_event: threading.Event, output_queue: queue.Queue,
                             stats["tcp_unresolved_flows"] += int(bool(flow.waiting))
                             flows.pop(stale_key, None)
                     last_prune = now
-                stats["candidate_flows"] = [{"interface": key[0], "src": key[1], "sport": key[2], "dst": key[3], "dport": key[4], "signature_hits": len(value["hits"])} for key, value in detector.candidates.items()]
+                stats["candidate_flows"] = [{"interface": key[0], "src": key[1], "sport": key[2], "dst": key[3], "dport": key[4], "signature_hits": len(value["hits"]),
+                                             **({"successor": True} if kind == "successor" else {})}
+                                            for kind, rows in (("candidate", detector.candidates), ("successor", detector.successors))
+                                            for key, value in rows.items()]
                 stats["selected_flow"] = detector.selected
                 stats["tcp_pending_bytes"] = sum(len(data) for flow in flows.values() for data in flow.waiting.values())
                 stats.update(driver_snapshot())

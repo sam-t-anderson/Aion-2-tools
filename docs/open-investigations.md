@@ -126,6 +126,33 @@ The raw records also showed that `23 36` frames whose varint is not 0 are JSON t
 
 **An 18 October recording (0.2.316) held identity across 41 identity epochs, without raw TCP.** It ran two and a half hours, then six minutes more: transcendence and dungeon runs, the open world and the Abyss's field bosses, in nine archive parts. It spans 41 identity epochs, each opened by a zone reset, and consecutive epochs on one map (three in a row on map 1110, two on map 20) are what same-map teleports such as Kibelisk's make. The recording player was identified in every segment of every epoch, and no unnamed player actor dealt its damage. Record TCP payloads was ticked, yet both captures recorded nothing: they started from the launch-time start or the overlay's Start, and those (and the Start/Stop hotkey) ignored the box until 0.2.318. So which record re-identified the player after each teleport, a fresh `33 36` or the name re-bind, stays unconfirmed.
 
+## Krao Cave entries, 4–6 November: a zone load lost at the change of connection (0.2.385)
+
+Reported: players left unidentified, mainly in the Krao Cave expedition. Three uploads from one recorder (game 2.0.10.0, client 0.2.380 and 0.2.384) show it in the first part of each run, until the first wipe:
+
+- The recorder is exported as "Player #N" with its class and server, while its name sits on a second actor id in the same identity epoch that never acts. No zone reset came at the entry: the map stayed the open world's in one run, and the instance id stayed unknown in the other two.
+- The other members are unnamed for most of it and their hits were dropped as out of scope (3,343 to 11,868 effects per archive part, against 580 in the session's first part). The fights are unranked ("identity unverified").
+- One trash fight in another recorder's upload (client 0.2.371) shows the same. The earlier unnamed recorders in Krao Cave (before 4 November) are the documented limit of a meter started inside a zone: no server, and the rest of the party named.
+
+**The cause.** Entering an instance moves the game to a new connection, usually on another server: in the 10 and 19 October recordings each of the ten changes of connection went to another host, the old connection's last packet 0.04–0.14 s before the new one's first. The new connection opens with the zone load: the map record 2 s in, then the zone transition and the self record 6.8 s in (19 October). The flow detector ignored every other connection until it saw the old one close or the old one had been idle 5 s. Since 0.2.288 the kernel filter passed only the old server's host and port plus handshakes, so the 5 s rule ran only when another program's handshake got through. In the 19 October recording the filter reopened at each change, so the old connection's close was seen.
+
+Replaying that recording through the live capture path (the real detector, reassembler, engine and session) with the close unseen and another program's handshake every 10 s reproduces the uploads:
+
+- the open-world epoch runs on into the instance with the map unchanged;
+- the MP record moves the recorder to its new actor 56 s later, without a name;
+- the recorder is exported unnamed with its class and server;
+- the next revive names everyone again.
+
+**What ships (0.2.385).**
+
+1. The kernel filter narrows to the game's server port on any host. The detector keeps a connection to that port from its first packet, and hands over when the old connection closes, or goes quiet for a second while the new one sends three marker packets, or idles five seconds. The same replays now read every zone load whatever the close and handshake timing: 19 October with handshakes every 1, 10 and 60 s, and 10 October across all its changes of connection.
+2. An MP record that moves the local player to a new actor inside a zone carries the name and class from the previous actor when a record identified it, never from a cast guess.
+3. In a group instance, an unnamed actor that struck only with player class skills counts as a party member when the party list holds more members of its class than there are named actors of theirs fighting since it first struck. Across the four recordings with group instances it counted only real members: at the 10 October start inside Krao Cave, the four members whose ids are named in the next epoch; and in that next epoch the party's second Ranger, whose name never came.
+
+Fixes 2 and 3 also hold when a zone load is missed anyway. Replaying the 19 October entry with the 0.2.384 capture path (handshakes every 10 s, so the zone load still goes by), the recorder keeps its name and server, the four other members' damage is credited, and the party's second Cleric, a healer whose name never came, is listed as "Player #N" with its class.
+
+**Unverified.** Why the old connection's close was not seen at those entries: 2.0.10.0 may close it later, or that machine may see few handshakes. No 2.0.10.0 recording with raw TCP exists yet; one spanning a Krao Cave entry would show the change of connection. Logs now count the detector's handovers (`capture_quality.flow_handovers`).
+
 ## Observed field-boss feed and the open-world map ids (0.2.298)
 
 The live kill feed placed every Altgard field-boss kill on map **1110** (one on **1100**, the base map), which fixes Altgard's open-world ids; Verteron is taken as the paired numbering of the bundled open-world map table (1000 / 1010 / 1011) until an Elyos kill confirms it. Three bosses the community reference lists in both zones under one name (Silent Dartan, Soul Ruler Kashapa, High Commander Lagta) are told apart by that map; the kill's map is the primary faction signal for every boss, so names the catalog and the reference spell differently still land in the right zone. The probe also found a periodic record (`1c 92`, u32 at offset 12) that carries the current map id alongside the server id at offset 6 — unverified beyond one capture, noted here as a lead.

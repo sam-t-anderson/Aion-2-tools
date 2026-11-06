@@ -802,9 +802,15 @@ class CombatSession:
         observed = identity.setdefault("observed_players", set())
         observed.update(engine.known_players)
         observed.update(e.actor_id for e in events if isinstance(e, DamageEvent) and job_from_skill(e.skill_code))
-        # Actors seen using a class skill (a hit or a heal): who fights here, for the group-instance party.
-        identity.setdefault("fighters", set()).update(
-            e.actor_id for e in events if isinstance(e, (DamageEvent, HealEvent)) and job_from_skill(e.skill_code))
+        # Actors seen using a class skill (a hit or a heal): who fights here, for the group-instance party, and
+        # when each first and last did (``_unnamed_members`` tells a member still fighting from a stale id).
+        fighters, spans = identity.setdefault("fighters", set()), identity.setdefault("fighter_spans", {})
+        for e in events:
+            if isinstance(e, (DamageEvent, HealEvent)) and job_from_skill(e.skill_code):
+                fighters.add(e.actor_id)
+                span = spans.get(e.actor_id)
+                spans[e.actor_id] = ((e.timestamp_ms, e.timestamp_ms) if span is None
+                                     else (min(span[0], e.timestamp_ms), max(span[1], e.timestamp_ms)))
         # Who struck with a player's own class skill, and who with an NPC's (0.2.354): an actor the capture
         # has no name or spawn record for that struck only with class skills is a player (an arena opponent,
         # a stranger in the Abyss), not an enemy of unknown type. Heals are no evidence: a draining skill's
@@ -1237,6 +1243,49 @@ class CombatSession:
         # Observed actors are descriptive only; never infer PvP teams or Self.
         return "party" if self.pvp or self.identities[epoch]["local_id"] is not None else "all"
 
+    @staticmethod
+    def _unnamed_members(identity, party, local):
+        """The party's players in a group instance the capture has no name for (0.2.385).
+
+        A zone load the capture missed (entering an instance on a new game connection whose first packets were
+        lost) leaves the party's new actors without the identity records that name them; their hits were dropped
+        as out of scope, and the recorder fought each boss alone in the log (three Krao Cave runs of 4-6 November
+        lost 3,343 to 11,868 effects each). An actor counts as a member when it struck only with a player's own
+        class skills (never an NPC's), has no spawn record and no owner link, and the party list holds more
+        members of its class than there are named actors of theirs fighting since it first struck. A member's
+        name on the id it had before the missed load accounts for nothing (that id fights no more), while a
+        member who re-registered under a named id is not counted twice, nor is a pet with no owner link yet beside
+        its named owner; an unnamed recorder accounts for its own entry."""
+        if not party:
+            return set()
+        roster, carried = identity["roster"], identity.get("carried_entries") or {}
+        member_jobs = {member: (roster.get(member) or carried.get(member) or {}).get("job") for member in party}
+        members = Counter(job for job in member_jobs.values() if job)
+        names, strikes, owners = identity["names"], identity.get("class_strikes", {}), identity["owners"]
+        if local is not None and local not in names:
+            job = strikes.get(local) or identity["jobs"].get(local) or (identity.get("profile") or {}).get("job")
+            if job and members[job] > 0:
+                members[job] -= 1                                  # the recorder's own entry
+        if not +members:
+            return set()
+        spans, npc_strikes, spawns = identity.get("fighter_spans", {}), identity.get("npc_strikes", ()), identity["spawns"]
+        named_last = {}                                            # class -> when each member's named actor last fought
+        for actor, name in names.items():
+            job = member_jobs.get(name.casefold()) if isinstance(name, str) else None
+            if job and actor in spans and actor not in owners:
+                named_last.setdefault(job, []).append(spans[actor][1])
+        counted = set()
+        for actor in identity.get("fighters", ()):
+            job = strikes.get(actor)
+            if (actor == local or actor in names or not job or members[job] <= 0 or actor in npc_strikes
+                    or actor in owners or spawns.get(actor, {}).get("mobCode")):
+                continue
+            since = spans.get(actor, (None, None))[0]
+            fighting = sum(1 for last in named_last.get(job, ()) if since is None or last >= since)
+            if fighting < members[job]:
+                counted.add(actor)
+        return counted
+
     def _allowed(self, record, scope):
         identity = self.identities[record.epoch]
         scope = self._effective_scope(scope, record.epoch)
@@ -1254,6 +1303,7 @@ class CombatSession:
                 # as out of scope: a roster that read one member of five kept under a third of each boss's damage.
                 allowed.update(a for a in identity.get("fighters", ()) if a in identity["names"]
                                and a not in identity["owners"] and not identity["spawns"].get(a, {}).get("mobCode"))
+                allowed.update(self._unnamed_members(identity, party, local))
         elif scope == "all":
             allowed.update(a for a in identity["names"] if not self._spawned_npc(identity, a))
             allowed.update(a for a in identity.get("observed_players", ())
@@ -2668,7 +2718,10 @@ class CombatSession:
                     server = info.get("serverId") or profile.get("serverId")
                     if server and actor_id in identity["names"]:
                         pid = f"p:{server}:" + (str(info["dbid"]) if info.get("dbid") else name.casefold())
-                    players[pid] = {"id": pid, "name": name, "class": identity["jobs"].get(actor_id) or info.get("job") or players.get(pid, {}).get("class"),
+                    # A member with no name or roster entry is known by the class skills it struck with (0.2.385): a
+                    # healer's few hits may all fall outside this segment's.
+                    players[pid] = {"id": pid, "name": name, "class": identity["jobs"].get(actor_id) or info.get("job") or players.get(pid, {}).get("class")
+                                    or identity.get("class_strikes", {}).get(actor_id),
                         "server": str(server) if server else None,
                         "character_id": str(info["dbid"]) if info.get("dbid") else None,
                         "combat_power": info.get("combatPower"), "gear_score": info.get("gearScore")}
