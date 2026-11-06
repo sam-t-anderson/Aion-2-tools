@@ -113,7 +113,7 @@ def parse(doc: dict, *, scenario_name: str = "boss", loadout_snapshot: dict | No
     if extra and (sum(extra.values()) > bonus["levels"] or max(extra.values()) > bonus["per_skill"]):
         raise InvalidPreset("bonus levels exceed the comparison's allowance")
     clean = candidate(summary)["build"]
-    build, rotation = build_from_summary(clean)
+    build, rotation = build_from_summary({**clean, "scenario": scenario_name})
     if build.sp_spent() > budgets["skill"] or build.stigma_spent() > budgets["stigma"] or build.daevanion_cost(cd) > budgets["daevanion"]:
         raise InvalidPreset("build exceeds the current comparison skill / stigma / Daevanion budgets")
     for sid, level in build.effective_levels(cd).items():

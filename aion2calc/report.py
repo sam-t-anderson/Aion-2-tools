@@ -235,7 +235,10 @@ def build_from_summary(summary: dict):
     policy = [e if " [" not in e else (e.split(" [")[0], e.split(" [")[1][:-1]) for e in summary["policy"]]
     from .opt.rotation import with_essentials
     from .kit.common import learned_only
-    return b, with_essentials(policy, learned_only(kit_module(cls).build_kit(b, cd), cd, b.level))
+    # a PvP build's priority was searched with the PvP kit: the PvE kit's essential actions (the Templar's Punishing
+    # Strike) are not in it and would make the priority invalid there (0.2.384)
+    pvp = str(summary.get("scenario", "")).startswith("pvp")
+    return b, with_essentials(policy, learned_only(kit_module(cls, pvp=pvp).build_kit(b, cd), cd, b.level))
 
 
 def rerender(out_dir: str) -> str:
@@ -327,10 +330,13 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                sp_budget: int | None = None, stigma_points: int | None = None,
                current: object | None = None, progress=None, survival=None, loadout_snapshot: dict | None = None, skill_reserves=None, genus=None, objective="primary", progression=None,
                level: int = 45, initial_build=None, initial_policy: list | None = None,
-               ariel_budget: int | None = None) -> dict:
+               ariel_budget: int | None = None, bonus_pool: dict | None = None) -> dict:
     """``current``: a Build (e.g. an imported character) to evaluate and diff against.
     ``ariel_budget``: the Daevanion Crystal: Ariel the search may place on the Ariel board (0.2.381); ``None`` keeps
     the starting build's Ariel nodes as they are.
+    ``bonus_pool``: bonus skill levels from gear rolls and arcana cards the search may place itself
+    (``{"levels", "per_skill"}``, the most the community server's contributors reported; the bundled presets, 0.2.384).
+    The build names where they go, and the typical top build it is compared with gets the same levels.
     ``progress``: optional callback(str) for live phase updates (the app streams these to the UI).
     ``level``: the character's level, which gates its stigma slots, skill levels and boards.
     ``initial_build`` / ``initial_policy``: where the search starts (an imported character's own build and
@@ -354,7 +360,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     from .opt.weighted import optimizer_for, objective_summary
     opt = optimizer_for(cls, scen, other, objective, daev_budget=daev_budget, verbose=verbose, sp_budget=sp_budget,
                         stigma_points=stigma_points, progress=progress, survival=survival, skill_reserves=skill_reserves,
-                        level=level, ariel_budget=ariel_budget)
+                        level=level, ariel_budget=ariel_budget, **({"bonus_pool": bonus_pool} if bonus_pool else {}))
     skill_reserves = opt.skill_reserves
     opt.log("Damage objective: " + objective + "; HP and trained-skill reserves remain enforced")
     res = opt.run(iterations=iterations, initial_build=initial_build, initial_policy=initial_policy)
@@ -365,6 +371,12 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
     opt.log("Report: scoring the typical top-player build at the same budgets, for comparison")
     comm = typical_build(cls, sp_budget=opt.sp_budget, stigma_points=opt.stigma_points, level=level,
                          daev_budget=daev_budget)
+    if bonus_pool:
+        # the same bonus levels from gear rolls and arcana cards (none past a skill's last level): the gain is what
+        # the allocation and the rotation add
+        reach = opt._with_gear(comm).effective_levels(cd)
+        comm.bonus = {sid: n for sid, n in ((sid, min(v, (cd.skills[sid].get("max") or 40) - reach.get(sid, 1)))
+                                            for sid, v in build.bonus.items()) if n > 0}
     baseline_opt = (optimizer_for(cls, baseline_scen, baseline_other, objective, verbose=False, level=level)
                     if (skill_reserves or {}).get("specs") or (survival or {}).get("action_windows") else opt)
     comm = baseline_opt.optimize_specs(comm, list(kit_module(cls, pvp=scen.target.is_player).build_kit(baseline_opt._with_gear(comm), cd).policy))
@@ -411,6 +423,7 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
         "progression": copy.deepcopy(progression),
         "budgets": {"skill": opt.sp_budget, "stigma": opt.stigma_points, "daevanion": daev_budget,
                     **({"ariel": ariel_budget} if ariel_budget is not None else {})},
+        **({"bonus_allowance": dict(bonus_pool)} if bonus_pool else {}),
         "dps": {scenario_name: final.dps, other_name: final_other.dps},
         "whole_fight": ({"scenario": fight_name, "dps": fight.dps, "inactive_share": fight.inactive_share,
                          "note": "The rotation stretched over the share of a recorded boss fight the class's players spend "
@@ -430,6 +443,9 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
                             for k, v in build.specs.items() if v},
                   "daevanion_nodes": sorted(build.daevanion),
                   "daevanion_cost": build.daevanion_cost(cd), "ariel_cost": build.ariel_cost(cd),
+                  # bonus levels from gear rolls and arcana cards the build names (a bonus pool's placement)
+                  **({"bonus": {cd.skills[k]["name"]: v for k, v in sorted(build.bonus.items()) if v > 0}}
+                     if any(v > 0 for v in build.bonus.values()) else {}),
                   "effective_levels": {cd.skills[k]["name"]: v for k, v in eff.items() if v > 1},
                   "specialties": describe_specialties(cd,opt._with_gear(build))},
         "policy": describe(policy),

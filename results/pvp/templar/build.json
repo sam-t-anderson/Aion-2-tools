@@ -152,29 +152,29 @@
   ]
  },
  "budgets": {
-  "skill": 203,
-  "stigma": 30,
-  "daevanion": 360
+  "skill": 383,
+  "stigma": 300,
+  "daevanion": 416
  },
- "daevanion_budget": 360,
+ "daevanion_budget": 416,
  "dps": {
-  "pvp": 5072.24058705099,
-  "pvp_burst": 10513.951534321845
+  "pvp": 14799.840157931712,
+  "pvp_burst": 16054.54165048071
  },
- "score": 7793.096060686417,
+ "score": 15427.19090420621,
  "scoring_policy": {
-  "version": 1,
-  "model": "0.3.6",
+  "version": 2,
+  "model": "0.3.13",
   "class": "templar",
   "mode": "pvp",
   "budgets": {
-   "skill": 203,
-   "stigma": 30,
-   "daevanion": 360
+   "skill": 383,
+   "stigma": 300,
+   "daevanion": 416
   },
   "loadout": "templar_l45_global_median",
   "loadout_fingerprint": "c7ccb66e5198ef196c48fcfdb2a36278e65e2db1106c425432b2008cb81c91f0",
-  "data_fingerprint": "fc26c8e9bbcdd0574b4144d65f0757a03f5119ea9c227c68048b7a6876c77714",
+  "data_fingerprint": "78e5ff93d6368facb4df2e06487403915a01c05629fcf9d8c9cc8fdbfff140f0",
   "score_kind": "weighted_modeled_dps",
   "weights": {
    "pvp": 0.5,
@@ -185,69 +185,92 @@
    "pvp_burst": 30
   },
   "calibration": "disabled",
-  "note": "Common-loadout damage comparison with fixed example budgets, not verified progression maxima. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus lines, HP reserves and trained skill constraints are not comparison inputs. The canonical build is the best evaluated eligible candidate, not proof of a global optimum.",
+  "note": "Common-loadout comparison using the highest server-reported resources for this class, pooled across available region/build contexts. Reports and allocated lower bounds are not verified game caps. Bonus skill levels from gear rolls and arcana cards are allowed up to the highest reported total and per-skill count; a preset names the skills to put them on. Each scenario contributes 50% of modeled DPS. Scores compare only the same class, mode and scope. Personal gear, Genus and survival constraints are excluded. Best evaluated eligible candidate, not proof of a global optimum.",
+  "bonus": {
+   "levels": 70,
+   "per_skill": 9
+  },
   "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
-  "scope": "2d0747fdb723f32fd455b2b68bca418aa689e84ea5cf20c11c371754e4af8d65"
+  "scope": "99894d7dca16403716b73cbfc8108c2f2bae0dc537aa27915137f9f4f2768ff0"
  },
  "model_note": "Experimental PvP damage-only proxy: 180 seconds against a stationary player target with neutral mitigation, full HP and no stagger windows. PvE/boss bonuses and learned proc/skill multipliers are excluded. Generic skill data is used for every class; PvP-specific damage coefficients, opponent gear, movement, crowd control, survival and win probability are not modeled. Uses the existing skill, stigma and crystal-board budgets; dedicated PvP progression is not optimized. A separate 30-second proxy score evaluates the same build and priority. This is not a verified competitive PvP build.",
  "build": {
   "sp": {
-   "Pummel": 10,
-   "Punishment": 10,
-   "Poach": 8,
+   "Vicious Strike": 10,
    "Judgment": 10,
    "Debilitating Smash": 10,
-   "Annihilate": 10,
-   "Warding Strike": 10,
    "Shield Rush": 10,
+   "Annihilate": 10,
+   "Punishment": 10,
    "Punishing Benediction": 10,
    "Impact Hit": 10,
-   "Block Pain": 2
+   "Defiance": 5,
+   "Flash Rampage": 10,
+   "Warding Strike": 10,
+   "Enhance Health": 10,
+   "Warding Shield": 10,
+   "Ironclad Defense": 10,
+   "Guarding Seal": 10,
+   "Insulting Roar": 10,
+   "Fury": 10,
+   "Survival Willpower": 10,
+   "Block Pain": 10
   },
   "stigmas": {
-   "Empyrean Lord's Punishment": 5,
-   "Assault Fury": 5,
-   "Doom Shield": 5,
-   "Executing Blade": 10
+   "Assault Fury": 20,
+   "Doom Shield": 20,
+   "Executing Blade": 20,
+   "Taunt": 20
   },
   "specs": {
-   "Pummel": [
-    "Deals up to 12% more damage when less targets are hit",
-    "-1s [Punishment] cooldown on hit"
+   "Vicious Strike": [
+    "+50% Multi-Hit on hit",
+    "-2s [Warding Strike] cooldown on hit",
+    "Adds [Threatening Blow] Chain Skill"
    ],
+   "Pummel": [],
+   "Poach": [],
+   "Shield Smite": [],
    "Judgment": [
     "Absorbs 100, 100% HP",
+    "Extra damage on hit",
     "Critical Hit on hit"
+   ],
+   "Flash Rampage": [
+    "Absorbs 500, 500% HP",
+    "Restores 120 MP on hit"
+   ],
+   "Debilitating Smash": [
+    "30% chance to inflict Stun for 3s",
+    "+3s Debilitate duration",
+    "Ignores Block and Evasion and lands as Multi-Hit"
    ],
    "Warding Strike": [
     "-5s cooldown",
     "+100 Block during Warding"
    ],
-   "Punishment": [
-    "Absorbs 1000, 1000% HP",
-    "+30% Skill Speed"
-   ],
-   "Poach": [
-    "Moves to the target if target has Incapacitated Immunity",
-    "-20% Status Effect Resist for 5s on hit"
-   ],
-   "Debilitating Smash": [
-    "30% chance to inflict Stun for 3s",
-    "Ignores Block and Evasion and lands as Multi-Hit"
-   ],
    "Shield Rush": [
     "Restores 300 Stamina on hit",
-    "+10m range"
+    "+10m range",
+    "Changes to Charge Skill and deals AoE damage"
    ],
    "Annihilate": [
+    "+50% Multi-Hit on hit",
     "+100% damage to targets with Incapacitated Immunity",
     "-10s cooldown"
+   ],
+   "Punishment": [
+    "Absorbs 1000, 1000% HP",
+    "+30% Skill Speed",
+    "Ignores Block and Evasion and lands as a Critical Hit"
    ]
   },
   "daevanion_nodes": [
    210033,
    210034,
    210035,
+   210037,
+   210038,
    210039,
    210041,
    210042,
@@ -260,27 +283,48 @@
    210055,
    210056,
    210058,
+   210063,
+   210064,
+   210065,
    210067,
    210068,
    210069,
    210071,
+   210072,
+   210073,
+   210079,
    210082,
+   210084,
    210086,
+   210088,
    210093,
    210094,
    210095,
    210096,
    210097,
    210098,
+   210099,
+   210100,
    210101,
    210102,
+   210103,
+   210108,
+   210111,
    210115,
+   210118,
    210123,
+   210124,
+   210125,
+   210126,
    210127,
    210128,
    210129,
    210130,
+   210131,
+   210132,
+   210133,
    210138,
+   210140,
    210142,
    210144,
    210147,
@@ -288,27 +332,39 @@
    210154,
    210155,
    210157,
+   210158,
    210159,
    210161,
    210162,
+   210163,
+   210168,
    210170,
    210171,
    210172,
    210174,
    210175,
    210176,
+   210178,
    210183,
    210184,
    210185,
    210187,
    210188,
+   210189,
+   210191,
+   210192,
+   210193,
    220034,
    220035,
+   220036,
+   220037,
+   220038,
    220039,
    220040,
    220041,
+   220042,
    220048,
-   220050,
+   220052,
    220055,
    220058,
    220063,
@@ -316,10 +372,8 @@
    220065,
    220067,
    220068,
-   220069,
    220070,
    220071,
-   220072,
    220073,
    220078,
    220080,
@@ -327,34 +381,39 @@
    220082,
    220084,
    220086,
+   220088,
    220093,
    220094,
    220097,
    220099,
+   220101,
    220102,
    220103,
    220109,
+   220112,
    220114,
    220117,
    220123,
    220124,
    220125,
+   220127,
    220129,
    220131,
    220132,
    220133,
    220138,
+   220140,
+   220142,
    220144,
    220145,
    220146,
+   220148,
+   220153,
    220156,
    220157,
-   220159,
    220161,
-   220162,
    220163,
    220171,
-   220174,
    220184,
    220185,
    220186,
@@ -362,6 +421,7 @@
    220188,
    220189,
    220190,
+   230033,
    230039,
    230040,
    230048,
@@ -369,93 +429,97 @@
    230051,
    230052,
    230054,
-   230058,
    230063,
    230064,
    230065,
    230067,
    230068,
    230069,
-   230070,
-   230071,
    230072,
-   230073,
-   230079,
    230082,
    230087,
    230093,
-   230094,
+   230097,
    230098,
+   230099,
+   230100,
    230101,
    230102,
    230103,
    230108,
-   230111,
+   230118,
    230123,
    230124,
    230125,
    230126,
    230127,
    230128,
-   230129,
-   230130,
    230131,
    230132,
+   230133,
    230139,
    230142,
    230147,
-   230154,
    230155,
+   230156,
    230157,
-   230158,
    230161,
    230162,
    230163,
    230170,
    230172,
-   230184,
+   230174,
+   230175,
+   230176,
    230185,
+   230189,
+   230191,
+   230192,
+   230193,
    240017,
    240018,
    240019,
    240022,
    240023,
-   240024,
    240032,
    240034,
    240035,
+   240036,
+   240037,
    240039,
    240040,
    240041,
-   240042,
+   240044,
    240047,
-   240049,
+   240052,
+   240053,
+   240054,
    240057,
-   240064,
+   240059,
    240066,
    240067,
+   240069,
    240070,
    240071,
    240072,
    240073,
-   240079,
+   240074,
    240081,
    240085,
-   240092,
    240093,
    240094,
    240095,
-   240096,
-   240097,
    240100,
    240101,
-   240104,
    240107,
+   240109,
    240115,
    240117,
    240119,
    240122,
    240123,
+   240124,
+   240125,
    240126,
    240127,
    240128,
@@ -471,23 +535,18 @@
    240147,
    240152,
    240153,
-   240154,
-   240155,
    240156,
    240157,
    240160,
    240162,
    240163,
    240167,
-   240169,
    240172,
    240173,
    240174,
    240177,
-   240184,
+   240182,
    240187,
-   240190,
-   240191,
    240192,
    240197,
    240198,
@@ -497,148 +556,54 @@
    240208,
    240209
   ],
-  "sp_spent": 203,
-  "stigma_spent": 30,
-  "daevanion_cost": 360,
+  "sp_spent": 383,
+  "stigma_spent": 300,
+  "daevanion_cost": 416,
+  "bonus": {
+   "Vicious Strike": 9,
+   "Punishment": 6,
+   "Judgment": 9,
+   "Debilitating Smash": 6,
+   "Annihilate": 6,
+   "Shield Rush": 6,
+   "Punishing Benediction": 6,
+   "Impact Hit": 8
+  },
   "effective_levels": {
-   "Vicious Strike": 3,
-   "Pummel": 14,
-   "Poach": 12,
-   "Shield Smite": 2,
-   "Judgment": 14,
-   "Flash Rampage": 1,
-   "Debilitating Smash": 14,
-   "Warding Strike": 14,
-   "Shield Rush": 14,
-   "Annihilate": 14,
-   "Punishment": 14,
-   "Defiance": 2,
-   "Enhance Health": 1,
-   "Warding Shield": 1,
-   "Punishing Benediction": 14,
-   "Ironclad Defense": 1,
-   "Guarding Seal": 3,
-   "Impact Hit": 14,
-   "Insulting Roar": 1,
-   "Fury": 3,
-   "Survival Willpower": 2,
-   "Block Pain": 5,
-   "Empyrean Lord's Punishment": 5,
-   "Assault Fury": 5,
-   "Doom Shield": 5,
-   "Executing Blade": 10
+   "Vicious Strike": 23,
+   "Pummel": 4,
+   "Poach": 3,
+   "Shield Smite": 3,
+   "Judgment": 23,
+   "Flash Rampage": 12,
+   "Debilitating Smash": 20,
+   "Warding Strike": 12,
+   "Shield Rush": 20,
+   "Annihilate": 20,
+   "Punishment": 20,
+   "Defiance": 7,
+   "Enhance Health": 12,
+   "Warding Shield": 13,
+   "Punishing Benediction": 20,
+   "Ironclad Defense": 13,
+   "Guarding Seal": 13,
+   "Impact Hit": 22,
+   "Insulting Roar": 10,
+   "Fury": 12,
+   "Survival Willpower": 10,
+   "Block Pain": 12,
+   "Assault Fury": 20,
+   "Doom Shield": 20,
+   "Executing Blade": 20,
+   "Taunt": 20
   },
   "specialties": [
-   {
-    "id": 12300000,
-    "skill": "Annihilate",
-    "kind": "active",
-    "level": 14,
-    "slots": 2,
-    "automatic": false,
-    "effects": [
-     {
-      "id": 12300010,
-      "number": 1,
-      "text": "+50% Multi-Hit on hit",
-      "unlock": 8,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 12300020,
-      "number": 2,
-      "text": "+20% Knockdown Chance",
-      "unlock": 8,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 12300030,
-      "number": 3,
-      "text": "+100% damage to targets with Incapacitated Immunity",
-      "unlock": 8,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 12300040,
-      "number": 4,
-      "text": "-10s cooldown",
-      "unlock": 12,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 12300050,
-      "number": 5,
-      "text": "Changes to AoE Skill",
-      "unlock": 16,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 16,
-    "next_slot_level": 20
-   },
-   {
-    "id": 12270000,
-    "skill": "Debilitating Smash",
-    "kind": "active",
-    "level": 14,
-    "slots": 2,
-    "automatic": false,
-    "effects": [
-     {
-      "id": 12270010,
-      "number": 1,
-      "text": "30% chance to inflict Stun for 3s",
-      "unlock": 8,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 12270020,
-      "number": 2,
-      "text": "+3s Debilitate duration",
-      "unlock": 8,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 12270030,
-      "number": 3,
-      "text": "-60% Incoming Heal during Debilitate",
-      "unlock": 8,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 12270040,
-      "number": 4,
-      "text": "Ignores Block and Evasion and lands as Multi-Hit",
-      "unlock": 12,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 12270050,
-      "number": 5,
-      "text": "25% chance to reset cooldown on Block",
-      "unlock": 16,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 16,
-    "next_slot_level": 20
-   },
    {
     "id": 12240000,
     "skill": "Judgment",
     "kind": "active",
-    "level": 14,
-    "slots": 2,
+    "level": 23,
+    "slots": 3,
     "automatic": false,
     "effects": [
      {
@@ -647,7 +612,8 @@
       "text": "Absorbs 100, 100% HP",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 12240020,
@@ -655,7 +621,8 @@
       "text": "Deals extra damage on attacking a target afflicted with Impact-type status",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12240030,
@@ -663,7 +630,8 @@
       "text": "Extra damage on hit",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": true,
+      "free": false
      },
      {
       "id": 12240040,
@@ -671,78 +639,203 @@
       "text": "Critical Hit on hit",
       "unlock": 12,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 12240050,
       "number": 5,
       "text": "Remove cooldown",
       "unlock": 16,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": false,
+      "free": false
      }
     ],
-    "next_effect_level": 16,
-    "next_slot_level": 20
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
    },
    {
-    "id": 12040000,
-    "skill": "Pummel",
+    "id": 12010000,
+    "skill": "Vicious Strike",
     "kind": "active",
-    "level": 14,
-    "slots": 2,
+    "level": 23,
+    "slots": 3,
     "automatic": false,
     "effects": [
      {
-      "id": 12040010,
+      "id": 12010010,
       "number": 1,
-      "text": "-20% MP consumed",
+      "text": "+20% MP restored",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
-      "id": 12040020,
+      "id": 12010020,
       "number": 2,
-      "text": "[Punishing Strike] absorbs 300, 300% HP",
+      "text": "Absorbs 100, 100% HP",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
-      "id": 12040030,
+      "id": 12010030,
       "number": 3,
-      "text": "Deals up to 12% more damage when less targets are hit",
+      "text": "+50% Multi-Hit on hit",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
-      "id": 12040040,
+      "id": 12010040,
       "number": 4,
-      "text": "-1s [Punishment] cooldown on hit",
+      "text": "-2s [Warding Strike] cooldown on hit",
       "unlock": 12,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
-      "id": 12040050,
+      "id": 12010050,
       "number": 5,
-      "text": "[Punishing Strike] grants extra damage on hit",
+      "text": "Adds [Threatening Blow] Chain Skill",
       "unlock": 16,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      }
     ],
-    "next_effect_level": 16,
-    "next_slot_level": 20
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
+   },
+   {
+    "id": 12300000,
+    "skill": "Annihilate",
+    "kind": "active",
+    "level": 20,
+    "slots": 3,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 12300010,
+      "number": 1,
+      "text": "+50% Multi-Hit on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12300020,
+      "number": 2,
+      "text": "+20% Knockdown Chance",
+      "unlock": 8,
+      "available": true,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12300030,
+      "number": 3,
+      "text": "+100% damage to targets with Incapacitated Immunity",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12300040,
+      "number": 4,
+      "text": "-10s cooldown",
+      "unlock": 12,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12300050,
+      "number": 5,
+      "text": "Changes to AoE Skill",
+      "unlock": 16,
+      "available": true,
+      "selected": false,
+      "free": false
+     }
+    ],
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
+   },
+   {
+    "id": 12270000,
+    "skill": "Debilitating Smash",
+    "kind": "active",
+    "level": 20,
+    "slots": 3,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 12270010,
+      "number": 1,
+      "text": "30% chance to inflict Stun for 3s",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12270020,
+      "number": 2,
+      "text": "+3s Debilitate duration",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12270030,
+      "number": 3,
+      "text": "-60% Incoming Heal during Debilitate",
+      "unlock": 8,
+      "available": true,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12270040,
+      "number": 4,
+      "text": "Ignores Block and Evasion and lands as Multi-Hit",
+      "unlock": 12,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12270050,
+      "number": 5,
+      "text": "25% chance to reset cooldown on Block",
+      "unlock": 16,
+      "available": true,
+      "selected": false,
+      "free": false
+     }
+    ],
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
    },
    {
     "id": 12090000,
     "skill": "Punishment",
     "kind": "active",
-    "level": 14,
-    "slots": 2,
+    "level": 20,
+    "slots": 3,
     "automatic": false,
     "effects": [
      {
@@ -751,7 +844,8 @@
       "text": "Absorbs 1000, 1000% HP",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 12090020,
@@ -759,7 +853,8 @@
       "text": "Inflicts Damage over Time to target on hit",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12090030,
@@ -767,7 +862,8 @@
       "text": "+30% Skill Speed",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 12090040,
@@ -775,26 +871,29 @@
       "text": "Changes to mobile skill",
       "unlock": 12,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12090050,
       "number": 5,
       "text": "Ignores Block and Evasion and lands as a Critical Hit",
       "unlock": 16,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      }
     ],
-    "next_effect_level": 16,
-    "next_slot_level": 20
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
    },
    {
     "id": 12430000,
     "skill": "Shield Rush",
     "kind": "active",
-    "level": 14,
-    "slots": 2,
+    "level": 20,
+    "slots": 3,
     "automatic": false,
     "effects": [
      {
@@ -803,7 +902,8 @@
       "text": "Restores 300 Stamina on hit",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 12430020,
@@ -811,7 +911,8 @@
       "text": "+10m range",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 12430030,
@@ -819,7 +920,8 @@
       "text": "Changes to Charge Skill and deals AoE damage",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": true,
+      "free": false
      },
      {
       "id": 12430040,
@@ -827,25 +929,86 @@
       "text": "-10s cooldown",
       "unlock": 12,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12430050,
       "number": 5,
       "text": "+25% Stun Chance",
       "unlock": 16,
+      "available": true,
+      "selected": false,
+      "free": false
+     }
+    ],
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
+   },
+   {
+    "id": 12340000,
+    "skill": "Flash Rampage",
+    "kind": "active",
+    "level": 12,
+    "slots": 2,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 12340010,
+      "number": 1,
+      "text": "Absorbs 500, 500% HP",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12340020,
+      "number": 2,
+      "text": "Restores 120 MP on hit",
+      "unlock": 8,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12340030,
+      "number": 3,
+      "text": "Changes to mobile skill",
+      "unlock": 8,
+      "available": true,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12340040,
+      "number": 4,
+      "text": "Multi-Hit on hit",
+      "unlock": 12,
+      "available": true,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12340050,
+      "number": 5,
+      "text": "-1s to all skill cooldowns on hit",
+      "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 16,
-    "next_slot_level": 20
+    "next_slot_level": 20,
+    "free": 0
    },
    {
     "id": 12350000,
     "skill": "Warding Strike",
     "kind": "active",
-    "level": 14,
+    "level": 12,
     "slots": 2,
     "automatic": false,
     "effects": [
@@ -855,7 +1018,8 @@
       "text": "-5s cooldown",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 12350020,
@@ -863,7 +1027,8 @@
       "text": "+100 Block during Warding",
       "unlock": 8,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 12350030,
@@ -871,7 +1036,8 @@
       "text": "Heal over Time during Warding",
       "unlock": 8,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12350040,
@@ -879,7 +1045,8 @@
       "text": "Adds PvE Damage Tolerance and PvP Damage Tolerance increase effect when more targets hit to Warding",
       "unlock": 12,
       "available": true,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12350050,
@@ -887,121 +1054,19 @@
       "text": "+10% PvE Damage Tolerance and +5% PvP Damage Tolerance to party members on skill use",
       "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 16,
-    "next_slot_level": 20
-   },
-   {
-    "id": 12130000,
-    "skill": "Poach",
-    "kind": "active",
-    "level": 12,
-    "slots": 2,
-    "automatic": false,
-    "effects": [
-     {
-      "id": 12130010,
-      "number": 1,
-      "text": "Moves to the target if target has Incapacitated Immunity",
-      "unlock": 8,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 12130020,
-      "number": 2,
-      "text": "-20% Status Effect Resist for 5s on hit",
-      "unlock": 8,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 12130030,
-      "number": 3,
-      "text": "Resets cooldown on defeating an enemy",
-      "unlock": 8,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 12130040,
-      "number": 4,
-      "text": "10% Max HP Protective Shield",
-      "unlock": 12,
-      "available": true,
-      "selected": false
-     },
-     {
-      "id": 12130050,
-      "number": 5,
-      "text": "50% chance to Stun for 3s",
-      "unlock": 16,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 16,
-    "next_slot_level": 20
-   },
-   {
-    "id": 12010000,
-    "skill": "Vicious Strike",
-    "kind": "active",
-    "level": 3,
-    "slots": 0,
-    "automatic": false,
-    "effects": [
-     {
-      "id": 12010010,
-      "number": 1,
-      "text": "+20% MP restored",
-      "unlock": 8,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 12010020,
-      "number": 2,
-      "text": "Absorbs 100, 100% HP",
-      "unlock": 8,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 12010030,
-      "number": 3,
-      "text": "+50% Multi-Hit on hit",
-      "unlock": 8,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 12010040,
-      "number": 4,
-      "text": "-2s [Warding Strike] cooldown on hit",
-      "unlock": 12,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 12010050,
-      "number": 5,
-      "text": "Adds [Threatening Blow] Chain Skill",
-      "unlock": 16,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 8,
-    "next_slot_level": 8
+    "next_slot_level": 20,
+    "free": 0
    },
    {
     "id": 12260000,
     "skill": "Defiance",
     "kind": "active",
-    "level": 2,
+    "level": 7,
     "slots": 0,
     "automatic": false,
     "effects": [
@@ -1011,7 +1076,8 @@
       "text": "Adds [Capture] Chain Skill",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12260020,
@@ -1019,7 +1085,8 @@
       "text": "Restores 1,000 Stamina on using [Defiance]",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12260030,
@@ -1027,7 +1094,8 @@
       "text": "Restores 20% HP on using [Defiance]",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12260040,
@@ -1035,7 +1103,8 @@
       "text": "+2s Tenacity duration",
       "unlock": 12,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12260050,
@@ -1043,17 +1112,135 @@
       "text": "+50% PvE Damage Tolerance and +25% PvP Damage Tolerance for Tenacity duration",
       "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 8,
-    "next_slot_level": 8
+    "next_slot_level": 8,
+    "free": 0
+   },
+   {
+    "id": 12040000,
+    "skill": "Pummel",
+    "kind": "active",
+    "level": 4,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 12040010,
+      "number": 1,
+      "text": "-20% MP consumed",
+      "unlock": 8,
+      "available": false,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12040020,
+      "number": 2,
+      "text": "[Punishing Strike] absorbs 300, 300% HP",
+      "unlock": 8,
+      "available": false,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12040030,
+      "number": 3,
+      "text": "Deals up to 12% more damage when less targets are hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12040040,
+      "number": 4,
+      "text": "-1s [Punishment] cooldown on hit",
+      "unlock": 12,
+      "available": false,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12040050,
+      "number": 5,
+      "text": "[Punishing Strike] grants extra damage on hit",
+      "unlock": 16,
+      "available": false,
+      "selected": false,
+      "free": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8,
+    "free": 0
+   },
+   {
+    "id": 12130000,
+    "skill": "Poach",
+    "kind": "active",
+    "level": 3,
+    "slots": 0,
+    "automatic": false,
+    "effects": [
+     {
+      "id": 12130010,
+      "number": 1,
+      "text": "Moves to the target if target has Incapacitated Immunity",
+      "unlock": 8,
+      "available": false,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12130020,
+      "number": 2,
+      "text": "-20% Status Effect Resist for 5s on hit",
+      "unlock": 8,
+      "available": false,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12130030,
+      "number": 3,
+      "text": "Resets cooldown on defeating an enemy",
+      "unlock": 8,
+      "available": false,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12130040,
+      "number": 4,
+      "text": "10% Max HP Protective Shield",
+      "unlock": 12,
+      "available": false,
+      "selected": false,
+      "free": false
+     },
+     {
+      "id": 12130050,
+      "number": 5,
+      "text": "50% chance to Stun for 3s",
+      "unlock": 16,
+      "available": false,
+      "selected": false,
+      "free": false
+     }
+    ],
+    "next_effect_level": 8,
+    "next_slot_level": 8,
+    "free": 0
    },
    {
     "id": 12100000,
     "skill": "Shield Smite",
     "kind": "active",
-    "level": 2,
+    "level": 3,
     "slots": 0,
     "automatic": false,
     "effects": [
@@ -1063,7 +1250,8 @@
       "text": "+1s Stun duration",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12100020,
@@ -1071,7 +1259,8 @@
       "text": "Removes MP Cost and restores 200 MP on hit",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12100030,
@@ -1079,7 +1268,8 @@
       "text": "50% chance to trigger [Debilitating Smash] on hit",
       "unlock": 8,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12100040,
@@ -1087,7 +1277,8 @@
       "text": "-2s cooldown",
       "unlock": 12,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      },
      {
       "id": 12100050,
@@ -1095,113 +1286,19 @@
       "text": "AoE Stun",
       "unlock": 16,
       "available": false,
-      "selected": false
+      "selected": false,
+      "free": false
      }
     ],
     "next_effect_level": 8,
-    "next_slot_level": 8
-   },
-   {
-    "id": 12340000,
-    "skill": "Flash Rampage",
-    "kind": "active",
-    "level": 1,
-    "slots": 0,
-    "automatic": false,
-    "effects": [
-     {
-      "id": 12340010,
-      "number": 1,
-      "text": "Absorbs 500, 500% HP",
-      "unlock": 8,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 12340020,
-      "number": 2,
-      "text": "Restores 120 MP on hit",
-      "unlock": 8,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 12340030,
-      "number": 3,
-      "text": "Changes to mobile skill",
-      "unlock": 8,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 12340040,
-      "number": 4,
-      "text": "Multi-Hit on hit",
-      "unlock": 12,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 12340050,
-      "number": 5,
-      "text": "-1s to all skill cooldowns on hit",
-      "unlock": 16,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 8,
-    "next_slot_level": 8
-   },
-   {
-    "id": 12410000,
-    "skill": "Executing Blade",
-    "kind": "stigma",
-    "level": 10,
-    "slots": null,
-    "automatic": true,
-    "effects": [
-     {
-      "id": 12410010,
-      "number": 1,
-      "text": "-15s cooldown",
-      "unlock": 5,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 12410020,
-      "number": 2,
-      "text": "Inflict Exposed for 5s on hit",
-      "unlock": 10,
-      "available": true,
-      "selected": true
-     },
-     {
-      "id": 12410030,
-      "number": 3,
-      "text": "Critical Hit on hit",
-      "unlock": 15,
-      "available": false,
-      "selected": false
-     },
-     {
-      "id": 12410040,
-      "number": 4,
-      "text": "+30% damage on attacking a target inflicted with Impact-type status",
-      "unlock": 20,
-      "available": false,
-      "selected": false
-     }
-    ],
-    "next_effect_level": 15,
-    "next_slot_level": null
+    "next_slot_level": 8,
+    "free": 0
    },
    {
     "id": 12700000,
     "skill": "Assault Fury",
     "kind": "stigma",
-    "level": 5,
+    "level": 20,
     "slots": null,
     "automatic": true,
     "effects": [
@@ -1211,41 +1308,46 @@
       "text": "+20% Attack for 5s on hit",
       "unlock": 5,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 12700020,
       "number": 2,
       "text": "500 MP damage on hit",
       "unlock": 10,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      },
      {
       "id": 12700030,
       "number": 3,
       "text": "+10m range",
       "unlock": 15,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      },
      {
       "id": 12700040,
       "number": 4,
       "text": "+20% Stun Chance",
       "unlock": 20,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      }
     ],
-    "next_effect_level": 10,
-    "next_slot_level": null
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
    },
    {
     "id": 12070000,
     "skill": "Doom Shield",
     "kind": "stigma",
-    "level": 5,
+    "level": 20,
     "slots": null,
     "automatic": true,
     "effects": [
@@ -1255,292 +1357,360 @@
       "text": "Resets [Annihilate] cooldown on hit",
       "unlock": 5,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
       "id": 12070020,
       "number": 2,
       "text": "+200 Block for 5s on hit",
       "unlock": 10,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      },
      {
       "id": 12070030,
       "number": 3,
       "text": "Resets cooldown on defeating an enemy",
       "unlock": 15,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      },
      {
       "id": 12070040,
       "number": 4,
       "text": "+25% Knockdown Chance",
       "unlock": 20,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      }
     ],
-    "next_effect_level": 10,
-    "next_slot_level": null
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
    },
    {
-    "id": 12310000,
-    "skill": "Empyrean Lord's Punishment",
+    "id": 12410000,
+    "skill": "Executing Blade",
     "kind": "stigma",
-    "level": 5,
+    "level": 20,
     "slots": null,
     "automatic": true,
     "effects": [
      {
-      "id": 12310010,
+      "id": 12410010,
       "number": 1,
-      "text": "Up to +20% damage when less targets hit",
+      "text": "-15s cooldown",
       "unlock": 5,
       "available": true,
-      "selected": true
+      "selected": true,
+      "free": false
      },
      {
-      "id": 12310020,
+      "id": 12410020,
       "number": 2,
-      "text": "+50 Stagger Gauge Damage",
+      "text": "Inflict Exposed for 5s on hit",
       "unlock": 10,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      },
      {
-      "id": 12310030,
+      "id": 12410030,
       "number": 3,
-      "text": "+10% PvE Damage Boost and +5% PvP Damage Boost for 10s on hit",
+      "text": "Critical Hit on hit",
       "unlock": 15,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      },
      {
-      "id": 12310040,
+      "id": 12410040,
       "number": 4,
-      "text": "+25% Stun Chance",
+      "text": "+30% damage on attacking a target inflicted with Impact-type status",
       "unlock": 20,
-      "available": false,
-      "selected": false
+      "available": true,
+      "selected": true,
+      "free": false
      }
     ],
-    "next_effect_level": 10,
-    "next_slot_level": null
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
+   },
+   {
+    "id": 12120000,
+    "skill": "Taunt",
+    "kind": "stigma",
+    "level": 20,
+    "slots": null,
+    "automatic": true,
+    "effects": [
+     {
+      "id": 12120010,
+      "number": 1,
+      "text": "Adds 10% PvE Damage Tolerance reduction and 5% PvP Damage Tolerance reduction effect to Shrink",
+      "unlock": 5,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12120020,
+      "number": 2,
+      "text": "+10% Shrink Attack reduction",
+      "unlock": 10,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12120030,
+      "number": 3,
+      "text": "-5s cooldown",
+      "unlock": 15,
+      "available": true,
+      "selected": true,
+      "free": false
+     },
+     {
+      "id": 12120040,
+      "number": 4,
+      "text": "+2s Taunt duration, +5s Shrink duration",
+      "unlock": 20,
+      "available": true,
+      "selected": true,
+      "free": false
+     }
+    ],
+    "next_effect_level": null,
+    "next_slot_level": null,
+    "free": 0
    }
   ]
  },
  "policy": [
-  "executing_blade",
-  "annihilate",
-  "judgment",
-  "warding_strike",
-  "debilitating_smash",
-  "empyrean_lord_s_punishment",
-  "doom_shield",
-  "assault_fury",
   "punishment",
-  "pummel"
+  "annihilate",
+  "assault_fury",
+  "judgment",
+  "executing_blade",
+  "vicious_strike"
  ],
  "shares": {
-  "Judgment": 0.3997131910836485,
-  "Debilitating Smash": 0.12692189503563975,
-  "Pummel": 0.11687025972709185,
-  "Annihilate": 0.10764014360801938,
-  "Punishing Benediction": 0.06831842516445215,
-  "Punishment": 0.05887749864150542,
-  "Executing Blade": 0.04612792211894394,
-  "Doom Shield": 0.045485712458508916,
-  "Warding Strike": 0.013753312171430568,
-  "Assault Fury": 0.009942198554203132,
-  "Empyrean Lord's Punishment": 0.006349441436556951
+  "Vicious Strike (chain)": 0.2828654827976528,
+  "Judgment": 0.2126887535572573,
+  "Vicious Strike": 0.20378994986894503,
+  "Annihilate": 0.1471990088095041,
+  "Punishing Benediction": 0.05514558575731106,
+  "Punishment": 0.04971381521061694,
+  "Executing Blade": 0.04407577709091222,
+  "Assault Fury": 0.004521626907797789
  },
  "opener": [
   [
    0.0,
-   "executing_blade"
+   "punishment"
   ],
   [
-   0.92,
+   0.72,
    "annihilate"
   ],
   [
-   1.84,
-   "judgment"
-  ],
-  [
-   2.76,
-   "warding_strike"
-  ],
-  [
-   3.68,
-   "debilitating_smash"
-  ],
-  [
-   4.6,
-   "empyrean_lord_s_punishment"
-  ],
-  [
-   5.52,
-   "doom_shield"
-  ],
-  [
-   6.44,
+   1.63,
    "assault_fury"
   ],
   [
-   7.36,
+   2.53,
    "judgment"
   ],
   [
-   8.28,
-   "punishment"
-  ],
-  [
-   9.01,
-   "pummel"
-  ],
-  [
-   9.79,
-   "pummel"
-  ],
-  [
-   10.57,
-   "annihilate"
-  ],
-  [
-   11.49,
-   "pummel"
-  ],
-  [
-   12.27,
-   "judgment"
-  ],
-  [
-   13.19,
-   "debilitating_smash"
-  ],
-  [
-   14.11,
-   "pummel"
-  ],
-  [
-   14.89,
-   "pummel"
-  ],
-  [
-   15.67,
-   "pummel"
-  ],
-  [
-   16.45,
-   "pummel"
-  ],
-  [
-   17.23,
-   "judgment"
-  ],
-  [
-   18.15,
-   "punishment"
-  ],
-  [
-   18.87,
-   "pummel"
-  ],
-  [
-   19.65,
-   "pummel"
-  ],
-  [
-   20.43,
-   "annihilate"
-  ],
-  [
-   21.35,
-   "pummel"
-  ],
-  [
-   22.13,
-   "judgment"
-  ],
-  [
-   23.05,
-   "debilitating_smash"
-  ],
-  [
-   23.97,
-   "pummel"
-  ],
-  [
-   24.75,
-   "pummel"
-  ],
-  [
-   25.53,
-   "pummel"
-  ],
-  [
-   26.31,
-   "warding_strike"
-  ],
-  [
-   27.23,
-   "judgment"
-  ],
-  [
-   28.15,
+   3.44,
    "executing_blade"
   ],
   [
-   29.07,
+   4.35,
+   "vicious_strike"
+  ],
+  [
+   5.12,
+   "vicious_strike"
+  ],
+  [
+   5.89,
+   "vicious_strike"
+  ],
+  [
+   6.66,
+   "vicious_strike"
+  ],
+  [
+   7.43,
+   "judgment"
+  ],
+  [
+   8.33,
+   "vicious_strike"
+  ],
+  [
+   9.1,
+   "vicious_strike"
+  ],
+  [
+   9.87,
+   "vicious_strike"
+  ],
+  [
+   10.64,
+   "annihilate"
+  ],
+  [
+   11.55,
+   "vicious_strike"
+  ],
+  [
+   12.32,
+   "judgment"
+  ],
+  [
+   13.23,
+   "vicious_strike"
+  ],
+  [
+   14.0,
+   "vicious_strike"
+  ],
+  [
+   14.77,
+   "vicious_strike"
+  ],
+  [
+   15.54,
+   "vicious_strike"
+  ],
+  [
+   16.31,
+   "vicious_strike"
+  ],
+  [
+   17.08,
+   "judgment"
+  ],
+  [
+   17.98,
+   "vicious_strike"
+  ],
+  [
+   18.75,
+   "vicious_strike"
+  ],
+  [
+   19.52,
+   "vicious_strike"
+  ],
+  [
+   20.29,
+   "annihilate"
+  ],
+  [
+   21.2,
+   "vicious_strike"
+  ],
+  [
+   21.97,
+   "judgment"
+  ],
+  [
+   22.88,
+   "vicious_strike"
+  ],
+  [
+   23.65,
+   "vicious_strike"
+  ],
+  [
+   24.42,
+   "vicious_strike"
+  ],
+  [
+   25.18,
+   "vicious_strike"
+  ],
+  [
+   25.95,
+   "vicious_strike"
+  ],
+  [
+   26.72,
+   "judgment"
+  ],
+  [
+   27.63,
+   "vicious_strike"
+  ],
+  [
+   28.4,
    "punishment"
   ],
   [
-   29.8,
+   29.12,
+   "vicious_strike"
+  ],
+  [
+   29.89,
    "annihilate"
   ]
  ],
  "stats": {
   "attack_avg": 1401.4455,
-  "crit_stat": 449.0164,
-  "crit_chance_vs_target": 0.03209317264166791,
+  "crit_stat": 469.7084,
+  "crit_chance_vs_target": 0.03618874432752593,
   "cdr": 0.06509999999999999,
-  "combat_speed": 0.067,
+  "combat_speed": 0.082,
   "boost_bucket": 0.0,
-  "double": 0.0471,
+  "double": 0.0711,
   "perfect": 0.0889,
   "multihit": 0.05500000000000001,
   "weapon_amp": 0.1
  },
  "evaluation": {
-  "model": "0.3.6",
-  "scope": "2d0747fdb723f32fd455b2b68bca418aa689e84ea5cf20c11c371754e4af8d65",
-  "policy_version": 1
+  "model": "0.3.13",
+  "scope": "99894d7dca16403716b73cbfc8108c2f2bae0dc537aa27915137f9f4f2768ff0",
+  "policy_version": 2
  },
  "candidate_generation": {
-  "objective": "pvp_burst",
+  "objective": "weighted",
   "iterations": 1,
   "calibration": "disabled",
-  "note": "Fresh stationary damage search under common comparison resources; not a global optimum or competitive win-rate claim.",
+  "search_revision": 2,
   "selection": {
-   "method": "Highest equal-weight sustained/burst modeled DPS among two generated allocations",
+   "method": "Two scenario seeds followed by direct weighted-objective refinement; retain the best evaluated candidate",
    "candidates": [
     {
      "objective": "pvp",
-     "score": 7087.08896350142,
+     "score": 14820.751162809502,
      "dps": {
-      "pvp": 6839.452734939965,
-      "pvp_burst": 7334.725192062875
+      "pvp": 14684.26701832562,
+      "pvp_burst": 14957.235307293382
      }
     },
     {
      "objective": "pvp_burst",
-     "score": 7793.096060686416,
+     "score": 11435.934304989536,
      "dps": {
-      "pvp": 5072.24058705099,
-      "pvp_burst": 10513.951534321843
+      "pvp": 7539.380199110107,
+      "pvp_burst": 15332.488410868964
+     }
+    },
+    {
+     "objective": "weighted",
+     "score": 15427.19090420621,
+     "dps": {
+      "pvp": 14799.840157931712,
+      "pvp_burst": 16054.54165048071
      }
     }
    ]

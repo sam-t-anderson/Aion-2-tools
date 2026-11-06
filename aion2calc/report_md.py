@@ -186,7 +186,10 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
       f"rotation optimizer, and **{100 * (s['dps'][scen] / base['community_naive'] - 1):+.1f}%** over that build "
       "played with the default priority. *Typical top global build* = average skill levels, the four most-picked "
       "damage stigmas and the most-picked Daevanion nodes of the top tracked global L45 players of this class "
-      "(metabot.gg live data), given the best legal specializations for its levels (specs are not published).\n")
+      "(metabot.gg live data), fitted to this build's skill and stigma points (spare points raise its most-levelled "
+      "skills and stigmas first) and given the best legal specializations for its levels (specs are not published)"
+      + (", with the same bonus levels from gear rolls and arcana cards as this build"
+         if s.get("bonus_allowance") else "") + ".\n")
 
     w("## Rotation (priority list)\n")
     w("Use the highest skill that is ready; the last entry is the filler.\n")
@@ -249,6 +252,13 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
       f"Daevanion **{b['daevanion_cost']} / {s['daevanion_budget']}**"
       + (f", Ariel crystal **{b['ariel_cost']} / {bud.get('ariel', '—')}**" if b.get("ariel_cost") or bud.get("ariel") else "")
       + ".\n")
+    allowance, bonus = s.get("bonus_allowance"), b.get("bonus") or {}
+    if allowance or bonus:
+        placed = sorted(bonus.items(), key=lambda kv: (-kv[1], kv[0]))
+        w(f"Bonus skill levels from gear rolls and arcana cards **{sum(bonus.values())}"
+          + (f" / {allowance['levels']}** (at most {allowance['per_skill']} on one skill)" if allowance else "**")
+          + ": " + (", ".join(f"{name} +{n}" for name, n in placed) or "none worth a level") + ". They count in the "
+          "effective levels below; get them from your gear's skill rolls and arcana cards' skill options.\n")
     w("| Skill | Trained (SP) | Effective level | Specializations |")
     w("|---|---:|---:|---|")
     eff = b["effective_levels"]

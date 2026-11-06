@@ -138,7 +138,8 @@ def typical_build(cls: str, sp_budget: int | None = None, stigma_points: int | N
       levels those nodes give, fitted to the 203-point budget (most-levelled
       skills keep their points first)
     * stigmas: the four most-picked damage stigmas at their average levels,
-      fitted to 30 points (least-picked gives way first)
+      fitted to 30 points (least-picked gives way first); a larger budget's
+      spare points raise the most-levelled first, up to level 20
 
     Specializations are not published; callers give this build the best legal
     specs for its levels (benefit of the doubt). ``level`` holds it to what a
@@ -180,8 +181,16 @@ def typical_build(cls: str, sp_budget: int | None = None, stigma_points: int | N
     # a stigma costs a point at level 1: fewer points than slots leave the rest empty
     stig = sorted(stig, key=lambda nr: -nr[1]["pick"])[: min(cd.budget(b.level)["slots"], points)]
     lv = {cd.by_name[n]["id"]: max(1, round(r.get("avg_level") or 1)) for n, r in stig}
+    spare = points > sum(stigma_points_to_reach(v) for v in lv.values())
     for sid in reversed(list(lv)):                               # least-picked gives way first
         while sum(stigma_points_to_reach(v) for v in lv.values()) > points and lv[sid] > 1:
             lv[sid] -= 1
+    if spare:
+        # more points than the average levels take (a reported budget, an imported character's own): spend them as the
+        # skill points are, the most-levelled stigma first, so the build compared at a budget has it (0.2.384)
+        for sid in sorted(lv, key=lambda k: -lv[k]):
+            while lv[sid] < 20 and sum(stigma_points_to_reach(v) for v in lv.values()) \
+                    - stigma_points_to_reach(lv[sid]) + stigma_points_to_reach(lv[sid] + 1) <= points:
+                lv[sid] += 1
     b.stigmas = lv
     return b

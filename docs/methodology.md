@@ -1533,7 +1533,127 @@ up to a percent between them):
 effects (Storm Rampage's Lv 16 cooldown pull, the passives' procs): the kit counts it for none. Clone Attack's hits
 outside the windows. The bundled builds in `results/compare/` are not regenerated. The bundled Assassin spends its 30
 stigma points on Swift Contract, Throw Shadowblade, Smoke Bomb and Triniel's Dagger, with no Illusive Clone, so it reads
-the same 10,260 boss DPS with and without the echo; its stigma search ran without the echo.
+the same 10,260 boss DPS with and without the echo; its stigma search ran without the echo. *Regenerated in
+[0.2.384](#bundled-presets-from-the-highest-reported-budgets-02384): the bundled Assassin now takes Illusive Clone at 20
+(26,845 boss DPS at the Assassin's reported budgets).*
+
+### Bundled presets from the highest reported budgets (0.2.384)
+
+The bundled builds are the presets the planner offers before a character is imported: the class comparison's PvE
+builds (`results/compare/<class>`; the Sorcerer's PvE preset is the Sorcerer example in `results/sorcerer_l45`) and
+the PvP builds (`results/pvp/<class>`). They also feed the log review's comparison with the optimum, the Advice page
+and a community server's canonical-preset seeds. They had two problems. They were last searched before 0.2.379, so
+they were no longer what the optimizer finds: since then every class's stagger skill is simulated
+([0.2.379](#the-stagger-skills-from-the-recordings-02379),
+[0.2.380](#storm-rampage-and-flame-scattershot-from-the-recordings-02380)), Multi-Hit is valued as recorded with the
+options two kits missed ([0.2.382](#multi-hit-from-the-recordings-02382)) and Illusive Clone deals its echo of a
+fifth ([0.2.383](#illusive-clones-echo-of-a-fifth-02383)). And they were made with the launch's example budgets, 203
+skill, 30 stigma and 360 Daevanion points with no bonus skill levels, while players have reported far more to the
+community server: up to 300 stigma points, 438 Daevanion points and 90 bonus skill levels from gear rolls and arcana
+cards.
+
+0.2.384 searches every preset again with its class's highest reported budgets: the skill, stigma and Daevanion points
+and the bonus-level allowance the server's comparison policy for the class lists
+([canonical preset comparison policy](#canonical-preset-comparison-policy)), as `optimize` and `compare` take them with
+`--reported-budgets`. The totals pool every report for the class, so a preset is made for the most any player of the
+class has been seen to have; a character's own optimization still uses its own points. The search places the bonus
+levels and the preset names the skills to put them on (`build.bonus`). As before, each class has its median global
+loadout, 2 optimizer iterations (3 for the Sorcerer example) and the four crystal boards; no report carries an Ariel
+total yet, so the Ariel board stays empty. The budgets on 5 November 2026, from optimization submissions (not unique
+characters):
+
+| Class | Skill | Stigma | Daevanion | Bonus levels (most on one skill) | Submissions |
+|---|---:|---:|---:|---:|---:|
+| Assassin | 383 | 268 | 438 | 52 (6) | 25 |
+| Chanter | 383 | 300 | 416 | 76 (13) | 21 |
+| Cleric | 383 | 116 | 412 | 43 (5) | 51 |
+| Gladiator | 383 | 260 | 416 | 90 (14) | 18 |
+| Ranger | 383 | 276 | 415 | 59 (7) | 9 |
+| Sorcerer | 383 | 188 | 417 | 50 (6) | 5 |
+| Spiritmaster | 347 | 50 | 305 | none reported | 2 |
+| Templar | 383 | 300 | 416 | 70 (9) | 25 |
+
+The budgets differ with what has been reported. The Spiritmaster's come from two submissions, include no bonus levels
+and hold fewer Daevanion points than the launch's 360: its preset has fewer than before until more Spiritmasters
+report.
+
+**The typical build at a larger budget.** The typical top build each PvE build is compared with kept the top players'
+average stigma levels, about 30 points, whatever the budget; at 116 to 300 stigma points it left most of them unspent,
+and the Sorcerer example read 51 % over it. Given more points than the averages take, `typical_build` now spends them
+as it spends skill points, the most-levelled stigma first, up to level 20 (30 points or fewer change nothing). It gets
+the same bonus levels as the build it is compared with, so *gain* is what the allocation and the rotation add. Its
+Daevanion board stays the most-picked nodes (336 to 367 points, the Spiritmaster's 292 of its 305), short of the
+reported budgets.
+
+Boss DPS under 0.2.384's model, against each class's build searched with the launch's budgets under the same model:
+
+| Build | Skill / stigma / Daevanion | Bonus levels placed (most on one skill) | At 203 / 30 / 360 | New build | Change | Typical build | Gain over typical | KR share overlap |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Sorcerer | 383 / 188 / 417 | 50 of 50 (6) | 21,778 | 49,658 | +128.0 % | 44,920 | +10.5 % | 78 % |
+| Chanter | 383 / 300 / 416 | 64 of 76 (13) | 22,515 | 37,594 | +67.0 % | 35,550 | +5.7 % | 40 % |
+| Templar | 383 / 300 / 416 | 70 of 70 (9) | 20,356 | 35,686 | +75.3 % | 31,666 | +12.7 % | 66 % |
+| Gladiator | 383 / 260 / 416 | 77 of 90 (14) | 13,992 | 31,875 | +127.8 % | 30,562 | +4.3 % | 43 % |
+| Cleric | 383 / 116 / 412 | 43 of 43 (5) | 17,050 | 29,700 | +74.2 % | 19,286 | +54.0 % | 78 % |
+| Assassin | 383 / 268 / 438 | 52 of 52 (6) | 12,097 | 26,845 | +121.9 % | 20,916 | +28.3 % | 59 % |
+| Ranger | 383 / 276 / 415 | 59 of 59 (7) | 13,047 | 20,048 | +53.7 % | 17,243 | +16.3 % | 61 % |
+| Spiritmaster | 347 / 50 / 305 | — | 16,910 | 17,205 | +1.7 % | 15,859 | +8.5 % | 47 % |
+| Sorcerer example | 383 / 188 / 417 | 50 of 50 (6) | 22,190 | 49,658 | +123.8 % | 44,920 | +10.5 % | 78 % |
+| Sorcerer example, geared | 383 / 188 / 417 | — | 33,225 | 43,793 | +31.8 % | 37,722 | +16.1 % | 70 % |
+
+*At 203 / 30 / 360* is the class's build searched with the launch's budgets (0.2.384's first regeneration, never
+released). *Typical build* is the class's typical top build at the same points and bonus levels with its rotation
+optimized, as the comparison index lists it. *KR share overlap* rose for six of the eight classes (Templar 43 % to
+66 %, Cleric 73 % to 78 %): the shares of builds at these budgets are closer to the Korean dummy logs' than those at
+the launch's budgets were. The Sorcerer example on upgrade gear (`results/sorcerer_l45_geared`) has the Sorcerer's
+reported points but no bonus pool, since its five Unique arcana carry 20 skill levels of their own: it reads 11.8 %
+under the median-gear preset on a boss and 5.2 % over it on the dummy. The 383-point Sorcerer example
+(`results/sorcerer_l45_full_sp`) keeps the launch's 30 stigma and 360 Daevanion points and is not searched again; its
+`DIFF.md` now shows what the reported stigma, Daevanion and bonus levels add to it.
+
+**What changed.** The points buy whole stigmas and the bonus levels lift skills past 14, to the level-20 effects:
+
+* The Templar and the Chanter raise all four stigmas to 20, the Gladiator, the Ranger and the Assassin three, the
+  Sorcerer two (Element Enhancement and Fire Wall) and the Cleric one (Earth Punishment). The Gladiator's Zikel's
+  Blessing passes 15, where its *+50 % Multi-Hit chance* makes every Multi-Hit whole while it lasts; the Templar takes
+  Empyrean Lord's Punishment in place of Executing Blade.
+* Level-20 effects that remove or cut a cooldown lead several builds: the Templar's Judgment at 23 with *Remove
+  cooldown* (52 % of its boss damage), the Gladiator's Overhead Slam at 24 with *Remove cooldown* (35 %), the
+  Chanter's Dark Crush with *Removes [Dark Crush] cooldown*, the Assassin's Heart Gore with *Resets [Heart Gore]
+  cooldown on landing a Critical Hit*, and the Sorcerer's Wish of Concentration at 20 with *-10 s all skill
+  cooldowns*, the linked effect out of reach on median gear at 203 skill points
+  ([0.2.376](#supporting-effects-that-act-on-each-others-cooldowns-02376)).
+* Options that were out of the launch budget's reach are taken: the Chanter's Incandescent Blow at 24 *lands as
+  Multi-Hit*, the Cleric's Condemnation at 19 adds *Multi-Hit on hit* (56 % of its damage), the Ranger's Drill Dart
+  *activates one extra time*, and the Assassin trains Storm Rampage to 16 with *Multi-Hit on hit*.
+* The Spiritmaster, with 347 skill, 50 stigma and 305 Daevanion points, raises Summon: Ancient Spirit to 16 and
+  changes little else (+1.7 %).
+
+**PvP.** The PvP presets come from the community comparison's own search (`community_comparison.search`) under a
+version-2 policy with the same budgets: a sustained and a burst search, then the stronger refined on the weighted
+objective, as a community server runs it. Weighted modeled DPS (half sustained, half burst), against the previous PvP
+builds replayed under 0.2.384's model:
+
+| Class | Score at 203 / 30 / 360 | New score | Change | Sustained DPS | Burst DPS |
+|---|---:|---:|---:|---:|---:|
+| Assassin | 8,843 | 14,230 | +60.9 % | 12,699 | 15,762 |
+| Chanter | 13,094 | 30,646 | +134.0 % | 30,259 | 31,032 |
+| Cleric | 5,470 | 8,063 | +47.4 % | 6,289 | 9,837 |
+| Gladiator | 6,372 | 17,486 | +174.4 % | 16,215 | 18,758 |
+| Ranger | 6,628 | 12,806 | +93.2 % | 11,854 | 13,759 |
+| Sorcerer | 7,514 | 10,486 | +39.5 % | 7,164 | 13,807 |
+| Spiritmaster | 16,498 | 48,410 | +193.4 % | 47,911 | 48,909 |
+| Templar | 7,829 | 15,427 | +97.1 % | 14,800 | 16,055 |
+
+The Spiritmaster's PvP gain is not the budgets: in the generic PvP model all its damage comes from Elemental Fusion,
+and the search now takes its *Changes to Charge Skill, dealing up to 200 % more damage*. The previous build with that
+option scores 49,494 at 203 / 30 / 360, more than the new one at the Spiritmaster's 305 Daevanion points. The
+previous Templar PvP build did not pass validation under 0.2.383's code: reading a saved priority added the PvE kit's
+essential actions to it, and the Templar's Punishing Strike is not in the PvP kit. A PvP build's priority now keeps to
+the PvP kit (`build_from_summary`, `presets.parse`); the Templar's replayed score above is with that fix.
+
+The canonical preset model version stays 0.3.13. The community server's policies carry a game-data fingerprint
+different from this client's, so the app's own community comparison refuses to run against it until the server's
+client is updated; a scope change then makes the server re-seed from its stored winners and these presets.
 
 ## Optimization and macro planning
 
@@ -1551,7 +1671,7 @@ the same 10,260 boss DPS with and without the echo; its stigma search ran withou
    differences.
 5. **Daevanion + skill points** – one integer program (PuLP with the
    in-process HiGHS solver): node choices with flow-based connectivity per
-   board, the 360-point budget, the 203 SP budget with the real price table,
+   board, the Daevanion budget, the skill-point budget with the real price table,
    and ordered "level ≥ k" indicators so specialization breakpoints
    (non-concave value jumps) are handled exactly.  The solve stops after
    120 s and often gets there, returning the best allocation found so far,
@@ -1652,11 +1772,11 @@ Personal character search can use its primary scenario or an equal-weight pair w
 
 Community comparison policies, generation and server evaluation use bundled class, hit-profile and common-loadout data. Local synchronized copies continue to supply personal planning. Their loader caches are separated, and comparison scope is restored after each call; user settings and storage remain available. Actual model/data mismatches still reject submission and identify the differing policy fields.
 
-The versioned canonical preset evaluator compares allocations within one class, combat mode and scoring scope. It uses a common median loadout and fixed example budgets of 203 Skill, 30 Stigma and 360 crystal-board Daevanion points. These are comparison resources, not verified game maxima. Over-budget submissions need a separate optimization under these resources; they are not silently trimmed into a different build.
+The versioned canonical preset evaluator compares allocations within one class, combat mode and scoring scope. It uses a common median loadout and, on a server with budget reports, the highest skill, stigma and crystal-board Daevanion points and bonus skill levels its contributors reported for the class (policy version 2); without reports, fixed example budgets of 203 Skill, 30 Stigma and 360 crystal-board Daevanion points (version 1). These are comparison resources, not verified game maxima. Over-budget submissions need a separate optimization under these resources; they are not silently trimmed into a different build.
 
 PvE weights the 180-second boss and dummy damage scenarios equally. PvP weights the 180-second stationary player proxy and 30-second burst proxy equally. The score is the arithmetic mean of the two modeled DPS values, not a percentile, user rating or win probability. Personal gear, Genus, HP reserves and trained skill constraints are not shared comparison inputs. Learned calibration is disabled.
 
-Bundled PvP examples run separate sustained and burst allocation searches, each with one optimization iteration and personal calibration disabled. Both allocations are reevaluated with the same weighted objective, and only the stronger example is published per class. Search objective, iteration count, score components and frozen common loadout are retained. This two-candidate search does not establish global optimality.
+Bundled PvP examples come from the community comparison's own search (`community_comparison.search`, 0.2.384) under a version-2 policy with the class's highest reported budgets: separate sustained and burst allocation searches, then the stronger refined on the weighted objective, each with one optimization iteration and personal calibration disabled. All three allocations are reevaluated with the same weighted objective, and only the strongest is published per class. Search objective, iteration count, score components and frozen common loadout are retained. This three-candidate search does not establish global optimality.
 
 The scope fingerprints the scoring-model revision (separate from capture/UI application versions), class data, hit profiles, common loadout, budgets, durations and weights. A different scope requires reevaluation. The best eligible evaluated candidate can become canonical; that does not establish a global optimum or a competitive PvP build. Mode-scoped storage records one current winner per comparison scope. Planner synchronizes bounded, validated common-loadout snapshots from the configured server and labels cached comparisons separately from examples. The server owns scoring; clients display its components and policy rather than substituting a score from a different local model.
 
