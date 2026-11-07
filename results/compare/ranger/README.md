@@ -55,7 +55,7 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 | 1 | gale_arrow › snare_shot › tempest_shot |
 | 2 | vaizel › burst_arrow › drill_dart › marking_shot |
 | 3 | bowbless › suppressing_arrow › ensnaring_trap › explosive |
-| 4 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 4 | vaizel › burst_arrow › drill_dart › marking_shot |
 
 Manual keys (press on cooldown, in this priority): deadshot
 

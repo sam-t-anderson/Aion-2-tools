@@ -58,10 +58,10 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 | 2 | blaze › cold_storm |
 | 3 | winters_shackles › bittercold_wind |
 | 4 | delayed_explosion › frost |
-| 5 | the same key as line 3, pressed again: its skills are tried twice a round |
-| 6 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 5 | winters_shackles › bittercold_wind |
+| 6 | blaze › cold_storm |
 | 7 | frost_burst › firestorm › ice_chain |
-| 8 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 8 | blaze › cold_storm |
 
 Manual keys (press on cooldown, in this priority): hellfire_c3 [sync_de]
 

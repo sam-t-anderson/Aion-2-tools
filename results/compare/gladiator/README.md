@@ -58,10 +58,10 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 | 1 | sword_aura_rampage › mocking_blade |
 | 2 | lunge › rage › overhead_slam › leaping_slam |
 | 3 | rending_blow › zikel › ruinous_blow |
-| 4 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 4 | lunge › rage › overhead_slam › leaping_slam |
 | 5 | aerial_snare › crushing_wave |
-| 6 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 7 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 6 | sword_aura_rampage › mocking_blade |
+| 7 | lunge › rage › overhead_slam › leaping_slam |
 | 8 | rush_strike › ankle_slice › forcedrest |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight

@@ -514,6 +514,10 @@ async function pageCharacter() {
       );
       st.v = v;
       st.hit = h;
+      // An import shows the character as imported. A finished optimization belongs to the import it ran on: kept, it
+      // was drawn over the next character imported, with that character's name (fixed in 0.2.386). A run still going
+      // stays, shown on its own character's page only (``renderOptState``).
+      if (S.character.opt && S.character.opt.status !== "running") S.character.opt = null;
       showChar();
     } catch (e) {
       $("#cview").innerHTML = `<div class="note">${esc(e.message)}</div>`;
@@ -615,7 +619,7 @@ async function pageCharacter() {
         (button.onclick = async () => {
           if (S.character.opt?.status === "running") return;
           const mode = button.dataset.optMode;
-          S.character.opt = { status: "running", mode, log: [], jobid: null };
+          S.character.opt = { status: "running", mode, log: [], jobid: null, key: v.key, name: v.name };
           renderOptState();
           try {
             const { job } = await api("/api/character/optimize", {
@@ -683,6 +687,14 @@ function renderOptState() {
     box = $("#optres");
   if (!o || !box) return;
   document.querySelectorAll("[data-opt-mode]").forEach((b) => (b.disabled = o.status === "running"));
+  if (o.key && o.key !== S.character.v?.key) {
+    // another character's run: never drawn over this one; its own page shows it
+    box.innerHTML =
+      o.status === "running"
+        ? `<p class="small muted"><span class="spinner"></span> Optimizing ${esc(o.name || "another character")}: open that character to follow it; a new optimization can start when it finishes.</p>`
+        : "";
+    return;
+  }
   if (o.status === "running") {
     const log = o.log || [];
     const last = log.length ? log[log.length - 1] : "starting…";

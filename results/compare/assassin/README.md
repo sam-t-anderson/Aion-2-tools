@@ -56,15 +56,15 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 |---:|---|
 | 1 | shadow_fall › swift › illusive_clone › heart_gore |
 | 2 | triniel › shadowstrike › storm_rampage › insignia_explosion |
-| 3 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 3 | shadow_fall › swift › illusive_clone › heart_gore |
 | 4 | ambush |
-| 5 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 6 | the same key as line 2, pressed again: its skills are tried twice a round |
-| 7 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 8 | the same key as line 2, pressed again: its skills are tried twice a round |
-| 9 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 5 | shadow_fall › swift › illusive_clone › heart_gore |
+| 6 | triniel › shadowstrike › storm_rampage › insignia_explosion |
+| 7 | shadow_fall › swift › illusive_clone › heart_gore |
+| 8 | triniel › shadowstrike › storm_rampage › insignia_explosion |
+| 9 | shadow_fall › swift › illusive_clone › heart_gore |
 | 10 | infiltrate › flash_slice › savage_roar |
-| 11 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 11 | shadow_fall › swift › illusive_clone › heart_gore |
 | 12 | whirlwind_slice › sfang |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight

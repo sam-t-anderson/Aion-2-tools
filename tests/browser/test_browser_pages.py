@@ -402,6 +402,41 @@ def test_my_characters_overview_shows_the_healing_recorded_in_its_own_fights(app
     page.locator("#cview", has_text="No recorded healing by this character yet").wait_for()
 
 
+def test_importing_another_character_after_an_optimization_shows_that_character(app_page, app_url):
+    """An optimization's result belongs to the character it ran on (0.2.386). It stayed on the page and was drawn over
+    the next character imported, under that character's name; the import now shows the character as imported."""
+    page = app_page
+    go(page, app_url, "#/settings")
+    first = character(page, 45)
+    second = {**first, "name": "Otherchar", "key": "nae-1101-Otherchar", "combat_power": 23456}
+    other = {**KNOWN, "character_id": "c2", "name": "Otherchar", "combat_power": 23456, "key": second["key"]}
+    page.route("**/api/characters", lambda route: route.fulfill(json=[KNOWN, other]))
+    page.route("**/api/character/import", lambda route: route.fulfill(
+        json={"job": "import-" + json.loads(route.request.post_data)["character_id"]}))
+    def done(view):                       # a handler of one argument: Playwright passes the request to a second
+        return lambda route: route.fulfill(json={"status": "done", "result": view, "log": []})
+    for job, view in (("import-c1", first), ("import-c2", second)):
+        page.route(f"**/api/jobs/{job}", done(view))
+    page.route(re.compile(r"/api/inventory\?character="), lambda route: route.fulfill(
+        json={"class": "sorcerer", "items": [], "genus": {}, "titles_owned": []}))
+    page.route("**/api/character/optimize", lambda route: route.fulfill(json={"job": "opt"}))
+    page.route("**/api/jobs/opt", lambda route: route.fulfill(json={"status": "done", "log": [], "result": {
+        "summary": {"gain": 0.1, "scenario": "boss"}, "optimized": {**first, "objective": None, "dps": {"boss": 77777}},
+        "diff": "a change"}}))
+    go(page, app_url, "#/character")
+    page.click('[data-known-character="0"]')
+    page.locator("#cview h2", has_text="Testsorc").wait_for()
+    page.click('[data-opt-mode="pve"]')
+    page.locator("#optres", has_text="77,777").wait_for()                     # the first character, optimized
+    assert page.evaluate("S.character.v.dps.boss") == 77777
+    page.click('[data-known-character="1"]')
+    page.locator("#cview h2", has_text="Otherchar").wait_for()
+    page.wait_for_timeout(800)                                               # as long as a redraw would take
+    assert page.evaluate("[S.character.v.name, S.character.v.dps.boss]") == ["Otherchar", 10000]
+    assert "77,777" not in page.locator("#cview").inner_text()
+    assert page.locator('[data-opt-mode="pve"]').is_enabled()
+
+
 def test_the_macro_window_shows_each_line_as_a_hotbar_key_with_its_skills(app_page, app_url):
     """The suggested macro is built from hotbar keys of up to four skills (0.2.371): each line shows its key's
     skills in the order the macro casts them (0.2.377) under the key's binding, and the hotbar shows each key as one
@@ -417,27 +452,23 @@ def test_the_macro_window_shows_each_line_as_a_hotbar_key_with_its_skills(app_pa
                      document.body.append(host); renderWindows(v, {win: 'macro'}, host); }""", view)
     lines = page.locator("#macro-host .macro-step")
     assert lines.count() == len(steps)
-    first = {}
-    for i, step in enumerate(steps):
+    for i, step in enumerate(steps):              # every line, a key already on an earlier line too
         line = lines.nth(i)
         assert line.locator(".macro-key-label kbd").inner_text() == step["binding"]
-        if first.setdefault(step["binding"], i + 1) < i + 1:     # a key on an earlier line too: named, not drawn again
-            assert f"The same key as line {first[step['binding']]}, pressed again" in line.inner_text()
-            continue
         assert line.locator(".macro-stack > div > b").all_inner_texts() == [s["name"] for s in step["stack"]]
     several = next(i for i, s in enumerate(steps) if len(s["stack"]) > 1)
     assert "cast first, skipped if it cannot be cast" in lines.nth(several).inner_text()
     assert "then this one, skipped if it cannot be cast" in lines.nth(several).inner_text()
     assert "put them on that key in the order listed" in page.locator("#macro-host .macro-instructions").inner_text()
-    # A key the search put on two lines (0.2.376): the later line names the line it repeats and draws no icons again,
-    # where a second full copy of the key read as a mistake; the copied text says so too.
+    # A key the search put on two lines: the later line shows the key's skills like any other line (0.2.386), with no
+    # note that it repeats one and no "again" on its key (0.2.376 named the line it repeated instead)
     again = {**view, "rotation": {**view["rotation"], "steps": steps[:several + 1] + [steps[several]] + steps[several + 1:]}}
     page.evaluate("v => renderWindows(v, {win: 'macro'}, document.getElementById('macro-host'))", again)
-    repeat = page.locator("#macro-host .macro-step").nth(several + 1)
-    assert "macro-repeat" in repeat.get_attribute("class") and repeat.locator(".hotbar-icon").count() == 0
-    assert f"The same key as line {several + 1}, pressed again" in repeat.inner_text()
-    assert repeat.locator(".macro-key-label").inner_text().endswith("again")
-    assert " › ".join(s["name"] for s in steps[several]["stack"]) in repeat.inner_text()
+    first, repeat = (page.locator("#macro-host .macro-step").nth(k) for k in (several, several + 1))
+    assert repeat.locator(".macro-stack > div > b").all_inner_texts() == [s["name"] for s in steps[several]["stack"]]
+    assert repeat.locator(".hotbar-icon").count() == first.locator(".hotbar-icon").count()
+    assert repeat.locator(".macro-key-label").inner_text() == first.locator(".macro-key-label").inner_text()
+    assert "pressed again" not in repeat.inner_text() and "tried twice" not in repeat.inner_text()
     page.evaluate("v => renderWindows(v, {win: 'hotbar'}, document.getElementById('macro-host'))", view)
     labels = page.locator("#macro-host .hotbar-slot.automatic small").all_inner_texts()
     assert any(label.endswith("skills, cast in order") for label in labels)

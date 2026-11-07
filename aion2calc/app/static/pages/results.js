@@ -361,46 +361,27 @@ function winMacro(v) {
   // A step of several skills is one hotbar key holding them all (0.2.371): the macro casts them from first to last,
   // skipping any that cannot be cast, then moves to the next line (0.2.377).
   const held = (s) => s.stack || [s];
-  // A key the search put on several lines is pressed once per line, so its skills are tried more often. A later
-  // line of that key names the line it repeats instead of drawing the key's skills again (0.2.376): drawn twice
-  // in full, it read as a mistake.
-  const firstLine = new Map();
-  r.steps.forEach((s, i) => {
-    if (!firstLine.has(s.binding)) firstLine.set(s.binding, i + 1);
-  });
-  const repeats = (s, i) => firstLine.get(s.binding) < i + 1;
+  // A key the search put on several lines is pressed once per line, so its skills are tried more often; every line
+  // shows the skills its key holds, a repeated key's too (being on two lines already says it is pressed twice).
   const steps = r.steps
     .map(
-      (
-        s,
-        i,
-      ) => `<div class="macro-step${repeats(s, i) ? " macro-repeat" : ""}"><strong class="macro-number">${i + 1}</strong><div class="macro-stack">${
-        repeats(s, i)
-          ? `<div><b>The same key as line ${firstLine.get(s.binding)}, pressed again</b><div class="small muted">${held(
-              s,
-            )
-              .map((h) => esc(h.name))
-              .join(
-                " › ",
-              )}: a key on two lines is pressed twice per round of the macro, so its skills are tried twice.</div></div>`
-          : held(s)
-              .map(
-                (h, j, all) =>
-                  `<div>${rotationIcon(h)}<b>${esc(h.name)}</b>${chainNote(h)}${all.length > 1 ? `<div class="small muted">${j ? "then this one" : "cast first"}, skipped if it cannot be cast</div>` : ""}</div>`,
-              )
-              .join("")
-      }</div><span class="macro-key-label">Hotbar key <kbd>${esc(s.binding)}</kbd>${repeats(s, i) ? " again" : ""}</span></div>
+      (s, i) =>
+        `<div class="macro-step"><strong class="macro-number">${i + 1}</strong><div class="macro-stack">${held(s)
+          .map(
+            (h, j, all) =>
+              `<div>${rotationIcon(h)}<b>${esc(h.name)}</b>${chainNote(h)}${all.length > 1 ? `<div class="small muted">${j ? "then this one" : "cast first"}, skipped if it cannot be cast</div>` : ""}</div>`,
+          )
+          .join("")}</div><span class="macro-key-label">Hotbar key <kbd>${esc(s.binding)}</kbd></span></div>
     ${i < r.steps.length - 1 ? '<div class="macro-delay"><span></span>Delay <b>10</b> ms<span></span></div>' : ""}`,
     )
     .join("");
   const copy =
     r.steps
-      .map((s, i) =>
-        repeats(s, i)
-          ? `${i + 1}. hotbar key ${s.binding} again (the same key as line ${firstLine.get(s.binding)}); delay 10 ms`
-          : `${i + 1}. hotbar key ${s.binding}: ${held(s)
-              .map((h) => `${h.name}${h.chain_of ? ` (${h.chain_of}’s chain: ${h.chain_of} again)` : ""}`)
-              .join(" > ")}; delay 10 ms`,
+      .map(
+        (s, i) =>
+          `${i + 1}. hotbar key ${s.binding}: ${held(s)
+            .map((h) => `${h.name}${h.chain_of ? ` (${h.chain_of}’s chain: ${h.chain_of} again)` : ""}`)
+            .join(" > ")}; delay 10 ms`,
       )
       .join("\n") +
     (r.manual.length
