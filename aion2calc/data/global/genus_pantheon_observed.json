@@ -55,7 +55,7 @@
   },
   "reconciliation": [
     "Confirms the five modelled genera (Cogni, Fera, Natura, Varian, Special) and the level-to-10 progression (Special observed at MAX).",
-    "Observed re-analysis cost scales with genus level (Special at Lv.10 costs 248 soul crystals / 62,000 kinah), so the modelled flat 'analysis_cost' is a base/early-level figure, not the current-level cost.",
+    "An analysis costs 4 soul crystals and 1,000 kinah per rolled slot plus a fee for locked slots (genus_insight.json 'analysis'): Cogni Lv.7 is 7 rolled slots (28 / 7,000), Special at Lv.10 is 3 rolled slots and 6 locks (12 + 236 = 248 soul crystals, 3,000 + 59,000 = 62,000 kinah).",
     "Pantheon showed nine deities; 'Destruction' (present in the API's DEITY_TYPES) was not on this board, so its deity proper name is still unobserved.",
     "Genus analysis lines include genus-scoped stats (e.g. 'Cogni Evasion', 'Fera Defense', 'Natura Critical Hit', 'Varian Attack') alongside shared stats, consistent with the modelled slot pools; exact per-slot grades are not readable from the screens."
   ]

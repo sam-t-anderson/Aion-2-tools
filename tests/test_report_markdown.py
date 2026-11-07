@@ -151,10 +151,13 @@ def test_trained_skill_reserves_genus_lines_and_point_budgets_are_reported(summa
     from aion2calc.scenarios import SCENARIOS
     plan, survival = hp_reserve(sorcerer)
     reserves = describe(sorcerer.cd, sorcerer.build, include_survival(sorcerer.cd, None, plan, summary["budgets"]))
-    genus = assess(prepare_genus({"Fera": {"level": 2, "lines": [{"slot": 1, "stat": "Fera Attack", "value": "30"},
-                                                                  {"slot": 2, "stat": "Max Attack", "value": "10"}]}},
-                                 "pve", {"mix": {"Fera": 3, "Natura": 1}}),
-                   sorcerer.build, SCENARIOS["boss"](sorcerer.loadout), sorcerer.policy)
+    from aion2calc.opt.genus import apply as apply_genus
+    lines = prepare_genus({"Fera": {"level": 3, "lines": [{"slot": 1, "stat": "Fera Attack", "value": "30"},
+                                                          {"slot": 2, "stat": "Max Attack", "value": "10"},
+                                                          {"slot": 3, "stat": "Power Shard Damage Bonus", "value": "12"}]}},
+                          "pve", {"mix": {"Fera": 3, "Natura": 1}})
+    # the report scores the lines on the loadout that carries them (report.run_report applies them first)
+    genus = assess(lines, sorcerer.build, SCENARIOS["boss"](apply_genus(sorcerer.loadout, lines)), sorcerer.policy)
     progression = {"note": "Remaining points are the selected budget minus observed spend.", "resources": [
         {"resource": "skill", "observed_spent": 180, "available_assumption": 203, "assumed_unspent": 23,
          "source": "Level-based example / observed minimum", "verified_maximum": None}]}
@@ -166,9 +169,11 @@ def test_trained_skill_reserves_genus_lines_and_point_budgets_are_reported(summa
     assert ("Reserve met." if reserves["met"] else "Reserve not met.") in text
     assert any(line.startswith("- Reserved supporting effect: Defiance · ") for line in text.splitlines())
     assert "Saved manual lines included." in text and "User-assumed enemy mix: Fera 75.0%, Natura 25.0%" in text
-    fera, max_attack = genus["lines"]
+    fera, max_attack, shard = genus["lines"]
     assert f"| Fera / 1 | Fera Attack | 30 | {fera['gain']:.2%} | Included |" in text
-    assert f"| Fera / 2 | Max Attack | 10 | — | {max_attack['reason']} |" in text
+    # Max Attack raises the top of the weapon roll since 0.2.386; Power Shard Damage Bonus stays unscored
+    assert max_attack["gain"] > 0 and f"| Fera / 2 | Max Attack | 10 | {max_attack['gain']:.2%} | Included |" in text
+    assert f"| Fera / 3 | Power Shard Damage Bonus | 12 | — | {shard['reason']} |" in text
     assert "| skill | 180 | 203 | 23 | Level-based example / observed minimum | Unknown |" in text
     assert "Stationary boss target." in text
     off = assess(prepare_genus({}, "pve", {"enabled": False}), sorcerer.build, SCENARIOS["boss"](sorcerer.loadout), sorcerer.policy)

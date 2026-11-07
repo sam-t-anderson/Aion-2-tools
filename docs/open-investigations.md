@@ -285,7 +285,7 @@ A Genus Insight guide for the global client (a video transcript) was compared wi
   - The model's crit rate matches the Sorcerers and Spiritmasters within a point. It is 11–36 points low for the Gladiators, Ranger, Chanters, Cleric and Assassin, and above the one Templar, who was tanking.
   - The recorded players' crit stats are unknown, so this is a lead, not a fit. Where the curve runs low, Critical Hit and Critical Damage Boost lines are undervalued.
 
-**Follow-ups:** the positional mix, Back Attack and the Front/Back Attack Critical Hit lines are in the model since 0.2.308; the crit curve, Max Attack, Power Shard Damage Bonus and the accuracy lines were checked against the archived logs and stay as they are ([checked 17 October](#hit-positions-crit-and-the-remaining-genus-lines-17-october)).
+**Follow-ups:** the positional mix, Back Attack and the Front/Back Attack Critical Hit lines are in the model since 0.2.308; the crit curve, Max Attack, Power Shard Damage Bonus and the accuracy lines were checked against the archived logs ([checked 17 October](#hit-positions-crit-and-the-remaining-genus-lines-17-october)). Since 0.2.386 Max Attack raises the top of the weapon roll and the accuracy lines are scored against each class's recorded parries ([methodology](methodology.md#parries-against-accuracy-02386)); the crit curve stays, checked against a 10,000-hit test ([7 November](#combat-formulas-from-the-web-7-november)).
 
 ## Hit positions, crit and the remaining Genus lines (17 October)
 
@@ -770,6 +770,57 @@ on; the server is recorded. Verteron's open-world ids are still unconfirmed: no 
   are the source for a current-build legality check; nothing is wired yet. The Max Attack line and the Power
   Shard Damage Bonus have no source still.
 
+
+## Combat formulas from the web (7 November)
+
+What the combat formulas look like by the Korean patch notes, the global client's text and the community's tests,
+where the archived recordings cannot say (Korean and Taiwanese sources read in their own language). What shipped
+from it is in the methodology's 0.2.386 sections; the rest is here until a source or a recording settles it.
+
+**Shipped in 0.2.386.** Evasion against Accuracy (a Taiwanese duel test, 12 pairings: 0.055–0.067 % evaded a point
+of Evasion above Accuracy, up to 50 %; the global client says 30 %, so the model caps it there); Defiance's break and
+Tenacity (5 s, 7 s with its specialization, 60 s cooldown less a second a level, unaffected by cooldown reduction;
+it does not remove Root or Paralysis); parries cost half a hit and never come from behind (the captures agree:
+none of 6,573 boss hits from behind was parried); the parry chance falls 0.067–0.10 points a point of Accuracy
+short of a content tier's threshold (players report about 1,100 Accuracy for Korea's Transcendence 10, 700–800 for
+global Transcendence stage 4). No general diminishing return on crowd control was found; Tenaciousness, Salvation
+and Barrier Spell share a 30 s lockout.
+
+**Korean rules not confirmed for global.** The Korean patch notes set, against players:
+
+- critical hits at ×1.25 and Double at ×1.5 (14 January 2026), where the model uses +50 % and ×2;
+- a 20 % floor on the boost-minus-tolerance multiplier (29 April 2026), where the model floors it at 10 %;
+- an 80 % cap on what Damage Tolerance takes off (1 July 2026).
+
+The global client's text shows older caps in places (Evasion at 30 % where Korea's and Taiwan's say 50 %), so global
+may run different rules; a recorded PvP fight with known stats on both sides would show which.
+
+**Not settled.**
+
+- *Block*: a shield block (Templar and Cleric) is rolled first, then a weapon block, each topping out at 50 % by the
+  client's text and players' reports; the chance falls with the attacker's Accuracy plus Block Penetration at 10 %
+  a hundred points by one claim and 50 % at a 400-point gap by another, both untested. What a block removes "varies
+  by gear grade" and no number is published. A Perfect Block (Korea, since 25 March 2026) can come from any side.
+- *Status Effect Chance against Resist*: early Korean posts assumed base + chance − resist, later observations
+  (a Stun landing against 180 % resist) point to base × (1 + chance − resist). Resist above 100 % is not immunity.
+- *PvP crit*: several Korean and Taiwanese players say a hit cannot crit while Critical Hit is at most the target's
+  Critical Hit Resist, and the chance rises about 10 % a hundred points above it, from 100-hit spot checks only.
+- *PvP Defense*: claims range from Defense / 10 to / 100.
+- *Level gap*: Taiwanese tests measured −5 % damage a level up to five levels above you, then about −1 % a level,
+  with crit and Accuracy lowered too; how it applies to bosses shown at levels 70–76 is not known.
+- *PvE Attack*: a Korean controlled test finds it adds PvE Attack × the skill's coefficient, not a flat amount as
+  the model does.
+
+**The crit curve checks out.** The logistic came from a Taiwanese post's three 100-hit dummy points; a Korean
+10,000-hit dummy test at 1,301 Critical Hit measured 91 % (the curve gives 88 % before its cap), the 80 % cap is
+official in Korea (a description fix of 1 July 2026), and boss fights on a Korean meter plateau at about 81 %
+(500–800 hits each). The curve stays; on it a Fire Temple boss implies about 450 Critical Hit Resist.
+
+**Data to check.** The global patch of 28 October 2026 reportedly cut Illusive Clone's cooldown from 90 s to 60 s,
+while the bundled class data still has 90 s. metabot.gg names other final bosses than the dungeon catalog for
+Cradle of Nihility (Afflicted Bakarma, not Solemn Valkan), Azure Breath Island (Awakened Alturadon, not Expanding
+Xyrepe) and Submerged Life Temple (Submerged Emon, not Singing Ellyde); there are no public logs of these dungeons
+to check against.
 
 ## Boss skill areas measured from the public recordings, 1 November (0.2.365)
 

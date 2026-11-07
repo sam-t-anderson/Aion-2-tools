@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from .kit.base import Build, ClassData
 from .model.character import daevanion_to_stats, load_loadout, loadout_stats
 from .model.stats import Stats
-from .sim.engine import Sim, SimConfig, SimResult, Target
+from .sim.engine import BOSS_PARRY, Sim, SimConfig, SimResult, Target
 
 #: MP the client does not list per class/level (assumption; see docs).
 BASE_MP_45 = 2500.0
@@ -47,6 +47,8 @@ def character_stats(build: Build, cd: ClassData, scenario: Scenario, kit_static:
     s.pvp = scenario.target.is_player
     if scenario.target.class_positions:
         s.positions = scenario.target.hit_positions(build.cls)
+    if scenario.target.class_parry and build.cls in BOSS_PARRY:
+        s.parry_rate, s.parry_accuracy = BOSS_PARRY[build.cls]
     return s
 
 

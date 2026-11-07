@@ -38,6 +38,15 @@ class HitContext:
     mult: float = 1.0
 
 
+def parry_chance(d: Derived, target) -> float:
+    """The chance a direct hit from the front or side is parried: the target's own, or on a boss the class's
+    recorded chance less PARRY_PER_ACCURACY for each point of Accuracy above its typical build's."""
+    if getattr(target, "class_parry", False) and d.parry_rate > 0:
+        from ..sim.engine import PARRY_CAP, PARRY_PER_ACCURACY
+        return max(0.0, min(PARRY_CAP, d.parry_rate - PARRY_PER_ACCURACY * (d.accuracy - d.parry_accuracy)))
+    return target.parry
+
+
 def _positions(d: Derived, target) -> tuple[float, float]:
     """(front, back) shares of direct hits: the class's recorded mix when the target asks for it."""
     if getattr(target, "class_positions", False) and d.positions:
@@ -106,8 +115,9 @@ def expected_hit(d: Derived, mods: dict, target, ctx: HitContext) -> float:
     w_avg_roll = (1 - p_d) * (1 - p_p) + 2.0 * p_d     # Double doubles the average roll
     w_max_roll = (1 - p_d) * p_p                        # Perfect uses the maximum roll
     parry = 0.0
-    if target.parry > 0 and not guaranteed and "noparry" not in ctx.tags:
-        parry = 0.5 * target.parry
+    chance = parry_chance(d, target)
+    if chance > 0 and not guaranteed and "noparry" not in ctx.tags:
+        parry = 0.5 * chance
 
     # Front / Back Attack Damage Boost is its own multiplicative bucket (it does not share the
     # Damage Boost bucket). Each position's hit is (roll x crit + Critical Attack) x its bucket.

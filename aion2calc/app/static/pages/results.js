@@ -486,8 +486,8 @@ function winOverview(v) {
         `<tr><td>${esc(k)}</td><td style="width:55%"><div class="bar"><i style="width:${(100 * x) / Math.max(...Object.values(v.shares))}%"></i><span>${pct(x)}</span></div></td></tr>`,
     )
     .join("");
-  // Healing share (0.2.368): the model has no heal amounts, so this is the character's recorded healing, pooled
-  // per skill from the fights saved on this computer; the damage share beside it is the model's.
+  // Healing share (0.2.368): the character's recorded healing, pooled per skill from the fights saved on this
+  // computer; the damage share beside it is the model's, and a healer's modelled healing sits above it (0.2.386).
   const heal = v.healing && v.healing.shares && Object.keys(v.healing.shares).length ? v.healing : null;
   const hmax = heal ? Math.max(...Object.values(heal.shares)) : 1;
   const hs = heal
@@ -499,13 +499,23 @@ function winOverview(v) {
         )
         .join("")
     : "";
+  // Modelled healing (0.2.386): a healer's heals at its own levels and Attack, as often as recorded healers heal.
+  const mh = v.modelled_healing && v.modelled_healing.per_minute ? v.modelled_healing : null;
+  const mhLine = mh
+    ? `<p class="small muted">Modelled: ${n0(mh.hps)} HPS in a boss fight (${mh.by_skill
+        .slice(0, 3)
+        .map((r) => `${esc(r.skill)} ${pct(r.share)}`)
+        .join(
+          ", ",
+        )}): each heal at this character's level times ${mh.multiplier.toFixed(2)} for its Attack, as often as recorded healers heal.</p>`
+    : "";
   const healBox =
-    v.healing === undefined
+    v.healing === undefined && !mh
       ? ""
-      : `<div><h4 class="gold small">HEALING SHARE</h4>${
+      : `<div><h4 class="gold small">HEALING SHARE</h4>${mhLine}${
           heal
             ? `<p class="small muted">Recorded: ${n0(heal.hps)} HPS over ${heal.fights} fight${heal.fights === 1 ? "" : "s"} (${n0(heal.seconds / 60)} min) in ${heal.recordings} recording${heal.recordings === 1 ? "" : "s"} saved on this computer.</p><table class="t">${hs}</table>`
-            : `<p class="small muted">No recorded healing by this character yet. Fights recorded with the live meter on this computer fill this in; the model simulates no healing amounts.</p>`
+            : `<p class="small muted">No recorded healing by this character yet. Fights recorded with the live meter on this computer fill this in${mh ? "" : "; the model simulates heal amounts for Clerics and Chanters only"}.</p>`
         }</div>`;
   return win(
     "Overview",
@@ -545,9 +555,9 @@ function worldPvpHTML(w) {
   const row = (label, x, y, fmt) =>
     `<tr><td>${label}</td><td class="r num">${fmt(x)}</td><td class="r num">${y == null ? "—" : fmt(y)}</td></tr>`;
   return `<section class="note" data-world-pvp><h4>World PvP</h4><div class="tablewrap"><table class="t small"><tr><th><span class="sr-only">Measure</span></th><th class="r">This build</th><th class="r">Typical build</th></tr>
-    ${row("Score (DPS × share of the fight survived)", w.score, t.score, n0)}${row("Damage on up to " + esc(w.assumptions?.enemies_in_reach ?? 3) + " players (DPS)", w.dps, t.dps, n0)}
-    ${row("Share of the fight survived", w.alive_share, t.alive_share, pct)}${row("Effective HP", w.effective_hp, t.effective_hp, n0)}${row("Hard crowd control (s per minute)", w.control_s_per_min, t.control_s_per_min, (x) => x.toFixed(1))}</table></div>
-    <p class="small muted">${esc(w.attackers)} attackers · ${pct(w.controlled)} of their time under your crowd control · damage taken ${pct(w.damage_taken)} of an undefended player's.</p><p class="small muted">${esc(w.note || "")}</p></section>`;
+    ${row("Score (DPS × share survived × share not controlled)", w.score, t.score, n0)}${row("Damage on up to " + esc(w.assumptions?.enemies_in_reach ?? 3) + " players (DPS)", w.dps, t.dps, n0)}
+    ${row("Share of the fight survived", w.alive_share, t.alive_share, pct)}${row("Share of it not crowd-controlled", w.acting_share, t.acting_share, pct)}${row("Effective HP (with shields and heals)", w.effective_hp, t.effective_hp, n0)}${row("Hard crowd control you deal (s per minute)", w.control_s_per_min, t.control_s_per_min, (x) => x.toFixed(1))}${row("Crowd control you take (share of the fight)", w.controlled_self, t.controlled_self, pct)}</table></div>
+    <p class="small muted">${esc(w.attackers)} attackers · ${pct(w.controlled)} of their time under your crowd control · damage taken ${pct(w.damage_taken)} of an undefended player's${w.evade_chance ? " · " + pct(w.evade_chance) + " of hits evaded" : ""} · Status Effect Resist ${pct(w.status_resist || 0)} · ${esc((w.defensives || []).length)} defensive effects counted.</p><p class="small muted">${esc(w.note || "")}</p></section>`;
 }
 function genusTargetsHTML(targets) {
   if (!targets) return "";

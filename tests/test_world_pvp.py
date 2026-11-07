@@ -89,22 +89,26 @@ def test_world_scenario_adds_median_gear_survival_once():
 def test_survival_rewards_defense_crowd_control_and_weighs_melee_harder():
     scen = pvp_world("gladiator_l45_global_median")
     b = typical_build("gladiator")
-    _, _, kit, stats = prepare(b, scen)
+    _, _, stats, _, inputs = W._run("gladiator", b, scen)
     ref = W.reference("gladiator", scen)
-    base = W.survival("gladiator", stats, 0.0, 180.0, ref)
+    # the typical build, with its own defensives, shields and heals, is the reference
+    base = W.survival("gladiator", stats, 0.0, 180.0, ref, **inputs)
     assert base["relative_ehp"] == pytest.approx(1.0)
     assert base["alive_share"] == pytest.approx(1 - 2 ** -(1.5 / 3))      # twice the attackers of a ranged class
     tough = stats.copy()
     tough.add({"hp": 3000.0, "defense": 2000.0})
-    assert W.survival("gladiator", tough, 0.0, 180.0, ref)["alive_share"] > base["alive_share"]
-    controlled = W.survival("gladiator", stats, 180.0, 180.0, ref)        # one enemy controlled at all times
+    assert W.survival("gladiator", tough, 0.0, 180.0, ref, **inputs)["alive_share"] > base["alive_share"]
+    controlled = W.survival("gladiator", stats, 180.0, 180.0, ref, **inputs)   # one enemy controlled at all times
     assert controlled["controlled"] == pytest.approx(1 / 3)
     assert controlled["alive_share"] > base["alive_share"]
-    capped = W.survival("gladiator", stats, 10_000.0, 180.0, ref)
+    capped = W.survival("gladiator", stats, 10_000.0, 180.0, ref, **inputs)
     assert capped["controlled"] == W.WORLD["control_cap"]
-    ranged = W.survival("sorcerer", *[prepare(typical_build("sorcerer"), pvp_world("sorcerer_l45_global_median"))[3]],
-                        0.0, 180.0, W.reference("sorcerer", pvp_world("sorcerer_l45_global_median")))
+    sorc = pvp_world("sorcerer_l45_global_median")
+    _, _, s_stats, _, s_inputs = W._run("sorcerer", typical_build("sorcerer"), sorc)
+    ranged = W.survival("sorcerer", s_stats, 0.0, 180.0, W.reference("sorcerer", sorc), **s_inputs)
     assert ranged["alive_share"] == pytest.approx(W.WORLD["typical_alive"])
+    # without its defensives the same build lives through less of the fight
+    assert W.survival("gladiator", stats, 0.0, 180.0, ref)["alive_share"] < base["alive_share"]
 
 
 def test_the_world_optimizer_values_defensive_nodes():

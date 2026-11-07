@@ -455,6 +455,11 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
         "sensitivity": sens, "links": links, "history": res.history,
         "runtime_s": time.time() - t0,
     }
+    from .kit.healing import modelled_healing
+    healing = modelled_healing(cls, opt._with_gear(build), cd, d)
+    if healing is not None:
+        # a healer's modelled healing a minute in a boss fight (0.2.386): its heals at this build's levels and Attack
+        summary["healing"] = healing
     summary["objective"] = objective_summary(objective, scenario_name, other_name, summary["dps"],
                                              {scenario_name: scen.config.duration, other_name: other.config.duration})
     from .opt.gear import per_unit
@@ -494,10 +499,12 @@ def run_report(cls: str, out_dir: str, scenario_name: str = "boss", daev_budget:
         world = assess_world(cls, build, scen, policy)
         typical = assess_world(cls, comm, baseline_scen, comm_rot.policy)
         summary["world_pvp"] = {**world, "typical_build": {k: typical[k] for k in
-                                                           ("score", "dps", "alive_share", "effective_hp", "control_s_per_min")}}
+                                                           ("score", "dps", "alive_share", "acting_share", "effective_hp",
+                                                            "control_s_per_min", "controlled_self")}}
         summary["objective"] = {"kind": "world", "weights": {scenario_name: 1.0}, "components": {scenario_name: world["dps"]},
                                 "score": world["score"], "durations": {scenario_name: scen.config.duration},
-                                "label": "World PvP score (DPS x share of the fight survived)", "note": world["note"]}
+                                "label": "World PvP score (DPS x share of the fight survived x share not controlled)",
+                                "note": world["note"]}
         summary["model_note"] = world["note"]
     (out / "build.json").write_text(json.dumps(summary, indent=1, default=str), encoding="utf-8")
 
