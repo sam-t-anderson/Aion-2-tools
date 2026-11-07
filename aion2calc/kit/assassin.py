@@ -334,8 +334,10 @@ def build_kit(build: Build, cd: ClassData, filler: str = "quick_slice") -> Kit:
 
     # Storm Rampage, usable only on a staggered boss: one train of presses a stagger (0.2.380), as every class's stagger
     # skill. Its Lv 16 option takes a second off every cooldown at each hit (Illusive Clone came back every 46 s against
-    # its 80 s cooldown, 0.2.368); its Lv 12 Multi-Hit lands four extra hits inside each hit's record, not the hits of a
-    # fifth that follow each one inside an Illusive Clone window (the clone's, as on every skill)
+    # its 53 s cooldown: 60 s since the global patch of 28 October 2026, less the recorded Assassin's 11.1 % Cooldown
+    # Reduction; 0.2.368 compared it with the 90 s before); its Lv 12 Multi-Hit lands four extra hits inside each hit's
+    # record, not the hits of a fifth that follow each one inside an Illusive Clone window (the clone's, as on every
+    # skill)
     add_stagger_skill(A, build, cd, L, SID["STORM"], "storm_rampage", hits=ASSUME["storm_rampage_hits"],
                       hit=ASSUME["storm_rampage_hit"], cast=TIMING["storm_rampage"])
 

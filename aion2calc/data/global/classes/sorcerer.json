@@ -34901,42 +34901,42 @@
  },
  "base_stats": {
   "1": {
-   "hp": 100,
+   "hp": 122,
    "defense": 10,
    "attack": 6
   },
   "10": {
-   "hp": 1010,
+   "hp": 1230,
    "defense": 100,
    "attack": 17
   },
   "20": {
-   "hp": 2040,
+   "hp": 2480,
    "defense": 200,
    "attack": 30
   },
   "30": {
-   "hp": 3090,
+   "hp": 3750,
    "defense": 300,
    "attack": 42
   },
   "45": {
-   "hp": 4702,
+   "hp": 5702,
    "defense": 450,
    "attack": 61
   },
   "60": {
-   "hp": 6360,
+   "hp": 7360,
    "defense": 600,
    "attack": 80
   },
   "80": {
-   "hp": 8640,
+   "hp": 9640,
    "defense": 800,
    "attack": 105
   },
   "100": {
-   "hp": 11000,
+   "hp": 12000,
    "defense": 1000,
    "attack": 130
   }
