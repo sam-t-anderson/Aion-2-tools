@@ -28,6 +28,9 @@ LABEL_MAP = {
     "Might": ("might", 1), "Precision": ("precision", 1), "MP": ("mp_max", 1),
     "Attack increase": ("attack_pct", 0.01), "Natural MP Regen": ("mp_regen", 1 / 3),
     "Combat Natural MP Regen": ("mp_regen", 1 / 3),
+    # Block against Accuracy (0.2.386)
+    "PvE Accuracy": ("pve_accuracy", 1), "PvP Accuracy": ("pvp_accuracy", 1),
+    "Block": ("block", 1), "PvP Block": ("pvp_block", 1),
 }
 
 #: Daevanion node stat keys (global client) -> (Stats field, scale)
@@ -42,17 +45,19 @@ DAEV_MAP = {
     "PvPDamageDefense": ("pvp_defense", 1), "PvPDecreaseDamage": ("pvp_tol", 1e-4),
     "PvPCriticalResist": ("pvp_crit_resist", 1),
     # the Ariel board (level 45, its own Daevanion Crystal: Ariel; 0.2.381): PvE and Boss Damage Boost (+1.5 % and
-    # +1 % a node) and Attack (+3). Its PvE and Boss Defense, Damage Tolerance, Accuracy and Evasion change nothing the
-    # model simulates (no incoming boss damage, no hit chance), so they are shown and not mapped.
+    # +1 % a node) and Attack (+3). Its PvE and Boss Defense, Damage Tolerance and Evasion change nothing the model
+    # simulates (no incoming boss damage, no evasion), so they are shown and not mapped.
     "PvEAmplifyDamage": ("amp_pve", 1e-4), "BossNpcAmplifyDamage": ("amp_boss", 1e-4),
     "PvEAddDamage": ("pve_atk", 1), "BossNpcAddDamage": ("boss_atk", 1),
+    # Accuracy against monsters (Ariel) and players (Azphel): it counts against a target's Block (0.2.386)
+    "PvEAccuracy": ("pve_accuracy", 1), "PvPAccuracy": ("pvp_accuracy", 1),
 }
 
 #: deity stat display names -> Stats field
 DEITY_MAP = {"Destruction [Zikel]": "destruction", "Death [Triniel]": "death",
              "Wisdom [Lumiel]": "wisdom", "Justice [Nezekan]": "justice",
              "Time [Siel]": "time", "Illusion [Kaisinel]": "illusion",
-             "Freedom [Vaizel]": "freedom"}
+             "Freedom [Vaizel]": "freedom", "Space [Israphel]": "space"}
 PRIMARY_MAP = {"Might": "might", "Precision": "precision"}
 
 

@@ -25,8 +25,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .stats import (CRIT_BASE, MULTI_HIT_ON_HIT, MULTIHIT_BONUS, MULTIHIT_FULL, PEN_FLAT, WEAPON_AMP_EFF,
-                    Derived, crit_chance)
+from .stats import (BLOCK_CUT, CRIT_BASE, MULTI_HIT_ON_HIT, MULTIHIT_BONUS, MULTIHIT_FULL, PEN_FLAT,
+                    WEAPON_AMP_EFF, Derived, block_chance, crit_chance)
 
 
 @dataclass
@@ -105,9 +105,14 @@ def expected_hit(d: Derived, mods: dict, target, ctx: HitContext) -> float:
     m_bonus = MULTI_HIT_ON_HIT if "multi" in ctx.tags or g(MULTIHIT_FULL, 0.0) > 0.0 else MULTIHIT_BONUS
     w_avg_roll = (1 - p_d) * (1 - p_p) + 2.0 * p_d     # Double doubles the average roll
     w_max_roll = (1 - p_d) * p_p                        # Perfect uses the maximum roll
+    # a parried (blocked) hit deals half: at the target's fixed parry chance, or with the chance its Block exceeds the
+    # attacker's Accuracy against it by (Block against Accuracy); never from behind (``parried`` below)
+    p_block = target.parry
+    if getattr(target, "block", 0.0) > 0:
+        p_block = max(p_block, block_chance(target.block, d.accuracy_against(target) + g("accuracy", 0.0)))
     parry = 0.0
-    if target.parry > 0 and not guaranteed and "noparry" not in ctx.tags:
-        parry = 0.5 * target.parry
+    if p_block > 0 and not guaranteed and "noparry" not in ctx.tags:
+        parry = BLOCK_CUT * p_block
 
     # Front / Back Attack Damage Boost is its own multiplicative bucket (it does not share the
     # Damage Boost bucket). Each position's hit is (roll x crit + Critical Attack) x its bucket.

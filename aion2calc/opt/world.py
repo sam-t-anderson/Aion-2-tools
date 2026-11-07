@@ -10,13 +10,14 @@ weighs that damage by the share of the fight you live through::
 
 Effective HP is your HP over the damage you take from a reference attacker (your class's typical build,
 the same hit for every build) through the damage formula your own hits use, so Defense, Critical Hit
-Resist, Critical Damage Tolerance and Damage Tolerance count. It is measured against your class's typical
-build: that build, played by a ranged class with no crowd control, lives through half the fight. Melee
-classes draw more attackers, so they survive less of it and every point of survival is worth more to them;
-hard crowd control takes the attackers' time away (up to a cap). Defensive stats and crowd control
-therefore score through survival, and the board solver values HP and Defense nodes.
+Resist, Critical Damage Tolerance and Damage Tolerance count, and Block: the share of its hits your Block and
+PvP Block parry against its Accuracy and PvP Accuracy (``model.stats.block_chance``). It is measured against
+your class's typical build: that build, played by a ranged class with no crowd control, lives through half
+the fight. Melee classes draw more attackers, so they survive less of it and every point of survival is
+worth more to them; hard crowd control takes the attackers' time away (up to a cap). Defensive stats and
+crowd control therefore score through survival, and the board solver values HP and Defense nodes.
 
-Every number in :data:`WORLD` is an assumption, returned with each result. Block, Evasion, Status Effect
+Every number in :data:`WORLD` is an assumption, returned with each result. Evasion, Status Effect
 Resist, healing, movement and player reactions are not modelled; shields are, for the Templar only
 (``survival``'s ``absorb_share``: what its presses and defensives absorb counts as the HP it stands in for).
 """
@@ -60,13 +61,15 @@ NOTE = ("World PvP proxy: area skills hit up to {enemies} enemies, and the last 
         "enemy is within {reach:g} m, so only skills that reach that far can be used. The score is the damage "
         "weighted by the share of the fight you survive, measured against your class's typical build: played "
         "by a ranged class without crowd control it survives {alive:.0%} of the fight. A melee class draws "
-        "{melee:g} attackers instead of {ranged:g}, effective HP comes from HP, Defense, Critical Hit Resist "
-        "and Damage Tolerance against your class's typical hit, and hard crowd control (Stun, Knockdown, "
-        "Airborne, Fear, Sleep, Frost) takes away up to {cap:.0%} of the attackers' time. Without recorded "
+        "{melee:g} attackers instead of {ranged:g}, effective HP comes from HP, Defense, Critical Hit Resist, "
+        "Damage Tolerance and Block against your class's typical hit (Block and PvP Block above its Accuracy and "
+        "PvP Accuracy parry 0.1 % of its hits a point, at most half, each for half), and hard crowd control "
+        "(Stun, Knockdown, Airborne, Fear, Sleep, Frost) takes away up to {cap:.0%} of the attackers' time. "
+        "Without recorded "
         "gear the loadout gets the median level-45 gear HP and Defense of official profiles. The Templar's shields "
         "count as the HP they absorb, as their tooltips state and the recordings measure them (Doom Shield 5 % and "
         "Poach's specialization 10 % of maximum HP a cast, Nezekan's Shield 41-50 %, Guarding Seal 21-30 % once a "
-        "minute below half HP). Block, Evasion, Status Effect Resist, healing, other classes' shields, movement "
+        "minute below half HP). Evasion, Status Effect Resist, healing, other classes' shields, movement "
         "and player reactions are not modelled. These are assumptions, not measurements.")
 
 
@@ -124,8 +127,10 @@ def _ehp(cls: str, stats, attacker, world: dict) -> tuple[float, float, float]:
     flat, coef = world["reference_hit"]
     ctx = HitContext(flat=flat, coef=coef, element=None, tags=(), mult=1.0)
     naked = Target(tolerance=0.0, is_boss=False, is_player=True)
+    # Block (and PvP Block) parries the reference attacker's hits with the chance it exceeds that build's Accuracy
+    # and PvP Accuracy by; its hits come from the front, as for every other term here
     you = Target(tolerance=d.tolerance, defense=d.defense, crit_resist=d.crit_resist,
-                 crit_dmg_tol=d.crit_dmg_tol, is_boss=False, is_player=True)
+                 crit_dmg_tol=d.crit_dmg_tol, block=d.block, is_boss=False, is_player=True)
     base = expected_hit(attacker, {}, naked, ctx)
     taken = expected_hit(attacker, {}, you, ctx) / base if base > 0 else 1.0
     return (d.hp / taken if taken > 0 else math.inf), taken, d.hp

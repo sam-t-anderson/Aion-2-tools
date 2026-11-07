@@ -48,6 +48,23 @@ PEN_FLAT = 0.1
 #: Combat Speed / Cooldown Reduction caps.
 CDR_CAP = 0.60
 
+#: Block against Accuracy (docs/methodology.md "Block against Accuracy"). A direct hit from the front or the side is
+#: blocked (a shield block or a parry: the game records both as PARRY) with the chance its target's Block exceeds the
+#: attacker's Accuracy by, 0.1 % a point (community tests: +19.7 % unblocked hits for +199 Accuracy, +6.9 % for +72,
+#: +6.1 % for +59, 600 hits a setting), and never more than half the hits: at least 50 % land unblocked however low
+#: the Accuracy. A hit from behind is never blocked. A blocked hit deals half its damage, a critical one too.
+#: Against monsters the attacker's Accuracy is Accuracy plus PvE Accuracy, against players Accuracy plus PvP
+#: Accuracy; against players the target's Block is Block plus PvP Block.
+BLOCK_PER_POINT = 0.001
+BLOCK_CAP = 0.50
+BLOCK_CUT = 0.50
+
+
+def block_chance(block: float, accuracy: float) -> float:
+    """Chance a direct hit from the front or the side is blocked: the target's Block over the attacker's Accuracy,
+    0.1 % a point, at most :data:`BLOCK_CAP`."""
+    return max(0.0, min(BLOCK_CAP, (float(block) - float(accuracy)) * BLOCK_PER_POINT))
+
 #: Factors learned from your own fights (``aion2calc.learn``); 1.0 = the community model.
 CALIBRATION = {"double": 1.0, "perfect": 1.0, "multihit": 1.0}
 
@@ -108,12 +125,17 @@ class Stats:
     pvp_tol: float = 0.0           # PvP Damage Tolerance
     pvp_defense: float = 0.0       # PvP Defense
     pvp_crit_resist: float = 0.0   # PvP Critical Hit Resist
-    block: float = 0.0             # carried, not scored (no verified Block / Evasion formula)
-    evasion: float = 0.0
+    block: float = 0.0             # Block: against an attacker's Accuracy (``block_chance``)
+    pvp_block: float = 0.0         # PvP Block: Block against players
+    evasion: float = 0.0           # carried, not scored (no verified Evasion formula)
     cc_resist: float = 0.0         # Status Effect Resist (carried, not scored)
     life: float = 0.0              # Life [Yustiel] points: HP increase
     constitution: float = 0.0      # Constitution points: HP increase
     dexterity: float = 0.0         # Dexterity points: Evasion / Block / Critical Hit Resist increase
+    space: float = 0.0             # Space [Israphel] points: Block increase (and Move Speed)
+    # Accuracy against a kind of target, on top of Accuracy (``block_chance``)
+    pve_accuracy: float = 0.0      # PvE Accuracy: against monsters
+    pvp_accuracy: float = 0.0      # PvP Accuracy: against players
     # deity / primary points (converted in ``derived``)
     might: float = 0.0
     precision: float = 0.0
@@ -176,6 +198,7 @@ class Stats:
             combat_speed=self.combat_speed + p * self.time,
             cdr=min(CDR_CAP, self.cdr + p * self.illusion),
             accuracy=self.accuracy * (1 + p * self.freedom),
+            pve_accuracy=self.pve_accuracy, pvp_accuracy=self.pvp_accuracy,
             mp_max=self.mp_max * (1 + self.mp_max_pct),
             mp_regen=self.mp_regen,
             mp_cost_red=self.mp_cost_red + p * self.wisdom,
@@ -185,14 +208,16 @@ class Stats:
     def defenses(self, base: dict) -> "Defenses":
         """Survival totals against player attackers: the class base (``ClassData.base_stats``) plus gear
         and boards, scaled by the percent increases the deity and primary points give (+0.1% a point,
-        per the official profile's own effect strings)."""
+        per the official profile's own effect strings). Block is raised by Dexterity's and Space
+        [Israphel]'s Block increase, and PvP Block adds to it against players."""
         p = STAT_POINT_PCT
         return Defenses(
             hp=(float(base.get("hp", 0.0)) + self.hp) * (1 + self.hp_pct + p * (self.life + self.constitution)),
             defense=(float(base.get("defense", 0.0)) + self.defense) * (1 + self.defense_pct + p * self.justice)
             + self.pvp_defense,
             crit_resist=self.crit_resist * (1 + p * self.dexterity) + self.pvp_crit_resist,
-            tolerance=self.dmg_tol + self.pvp_tol, crit_dmg_tol=self.crit_dmg_tol)
+            tolerance=self.dmg_tol + self.pvp_tol, crit_dmg_tol=self.crit_dmg_tol,
+            block=self.block * (1 + p * (self.dexterity + self.space)) + self.pvp_block)
 
 
 @dataclass
@@ -202,6 +227,7 @@ class Defenses:
     crit_resist: float
     tolerance: float
     crit_dmg_tol: float
+    block: float = 0.0
 
 
 @dataclass
@@ -234,6 +260,12 @@ class Derived:
     front_crit: float = 0.0
     back_crit: float = 0.0
     positions: tuple | None = None
+    pve_accuracy: float = 0.0      # on top of ``accuracy`` against monsters
+    pvp_accuracy: float = 0.0      # on top of ``accuracy`` against players
+
+    def accuracy_against(self, target) -> float:
+        """Accuracy against ``target``: Accuracy plus PvP Accuracy against a player, plus PvE Accuracy otherwise."""
+        return self.accuracy + (self.pvp_accuracy if getattr(target, "is_player", False) else self.pve_accuracy)
 
     def attack(self, perfect: bool = False, extra_pct: float = 0.0) -> float:
         w = self.weapon_max if perfect else 0.5 * (self.weapon_min + self.weapon_max)
