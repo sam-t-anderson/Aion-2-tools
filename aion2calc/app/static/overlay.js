@@ -858,8 +858,14 @@
           +(target.current_hp!=null?` Game internal HP ${kfmt(target.current_hp)}${target.max_hp?' / '+kfmt(target.max_hp):''} is on a larger, different scale than damage, so it is shown here as a percentage.`:'');
       const hp=showEnemyHp&&target.hp_pct!=null
         ? ` <span class="ovhp" title="${esc(hpTip)}">${Math.round(target.hp_pct*100)}%</span>` : '';
-      const ttk=showTtk&&target.ttk!=null&&isFinite(target.ttk)
-        ? ` <span class="ovttk">TTK ${fmtTtk(target.ttk)}</span>` : '';
+      // Estimated time-to-enrage (0.2.386): the boss's timer from the pull less the fight clock, shown with the
+      // time-to-kill; flagged when the kill estimate runs past it.
+      const en=showTtk&&target.enrage?target.enrage:null;
+      const enrage=!en?'':en.enraged
+        ? ` <span class="ovenrage late" title="Past this boss's ${fmtTtk(en.enrage_s)} enrage timer: it now attacks faster and harder">ENRAGED</span>`
+        : ` <span class="ovenrage${en.before_kill?' late':''}" title="This boss enrages ${fmtTtk(en.enrage_s)} after the pull${en.measured?' (seen in recorded fights)':''}${en.before_kill?'; at this pace the kill takes longer than that':''}">Enrage ${fmtTtk(en.enrage_in)}</span>`;
+      const ttk=(showTtk&&target.ttk!=null&&isFinite(target.ttk)
+        ? ` <span class="ovttk">TTK ${fmtTtk(target.ttk)}</span>` : '')+enrage;
       const gaugePct=showGauge&&target.break_gauge?Math.max(0,Math.min(100,Number(target.break_gauge.pct)||0)):null;
       const gaugeText=gaugePct==null?'':gaugePct<=5
         ? ` <span class="ovbreak broken" title="The break gauge is empty: the enemy is broken (staggered) and takes more damage until it refills">BROKEN</span>`

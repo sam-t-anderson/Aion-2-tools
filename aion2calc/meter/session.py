@@ -18,6 +18,7 @@ from .a2parser.lookup import (dungeon_final_bosses, effect_skill, has_skill, is_
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
 from .a2parser.engine import ARENA_MATCH_MS, NPC_SKILLS, _own_class_skill
 from .context import party_instance
+from .enrage import estimate as enrage_estimate
 
 
 #: A kept position: epoch, ms, entity, x, y, z, its MOVEMENT_SOURCES index, heading in tenths of a degree.
@@ -2392,6 +2393,9 @@ class CombatSession:
                 # The enemy's NPC code, so a bound raid plan can be matched and auto-played
                 # in the overlay for the fight you are in.
                 "mob_code": int(mob_code) if isinstance(mob_code, int) or (isinstance(mob_code, str) and mob_code.isdigit()) else None,
+                # Estimated time-to-enrage (0.2.386): the boss's timer from the pull less this target's fight clock,
+                # and whether the time-to-kill runs past it. None for a boss with no known timer.
+                "enrage": enrage_estimate(mob_code, target_secs, ttk) if not target.get("is_player") else None,
             }
         summary["current_target"] = current_target
         for _enemy in summary["enemies"]:   # drop internal recency bookkeeping from the output

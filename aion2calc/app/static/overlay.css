@@ -144,6 +144,8 @@ html.native-windows #ovbg { border-radius: 0; }
 .ovhpbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ov-hp-color, #e4808f); border-radius: 0 4px 4px 0; transition: width .2s linear;
   box-shadow: 0 0 8px rgba(228, 128, 143, .45); }
 .ovtarget .ovttk { color: var(--ov-ttk-text-color, #e3ad7f); font-weight: 700; margin-right: 4px; }
+.ovtarget .ovenrage { color: var(--ov-ttk-text-color, #e3ad7f); opacity: .85; margin-right: 4px; }
+.ovtarget .ovenrage.late { color: #ff6b6b; opacity: 1; font-weight: 700; }
 .ovtarget .ovalso { color: var(--ov-also-color, #c9a86a); font-weight: 600; font-size: .92em; }
 /* Drawn time-to-kill progress bar (shown with the TTK readout). Thinner than the
    HP bar so the two read as distinct. */

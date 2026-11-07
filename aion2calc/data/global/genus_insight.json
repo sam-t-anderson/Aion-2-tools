@@ -5,7 +5,7 @@
  "genera": {
   "Cogni": {
    "pets": 41,
-   "analysis_cost": "4 Soul Crystals + 1,000 Kina per analysis",
+   "analysis_cost": "4 Soul Crystals + 1,000 Kinah per rolled (unlocked, not locked) slot, plus a lock fee: 8, 16, 36, 76, 156, 236, 316 or 396 Soul Crystals and 250 Kinah per fee crystal for 1-8 locks",
    "levels": [
     {
      "level": 1,
@@ -127,7 +127,7 @@
   },
   "Fera": {
    "pets": 65,
-   "analysis_cost": "4 Soul Crystals + 1,000 Kina per analysis",
+   "analysis_cost": "4 Soul Crystals + 1,000 Kinah per rolled (unlocked, not locked) slot, plus a lock fee: 8, 16, 36, 76, 156, 236, 316 or 396 Soul Crystals and 250 Kinah per fee crystal for 1-8 locks",
    "levels": [
     {
      "level": 1,
@@ -249,7 +249,7 @@
   },
   "Natura": {
    "pets": 48,
-   "analysis_cost": "4 Soul Crystals + 1,000 Kina per analysis",
+   "analysis_cost": "4 Soul Crystals + 1,000 Kinah per rolled (unlocked, not locked) slot, plus a lock fee: 8, 16, 36, 76, 156, 236, 316 or 396 Soul Crystals and 250 Kinah per fee crystal for 1-8 locks",
    "levels": [
     {
      "level": 1,
@@ -371,7 +371,7 @@
   },
   "Varian": {
    "pets": 46,
-   "analysis_cost": "4 Soul Crystals + 1,000 Kina per analysis",
+   "analysis_cost": "4 Soul Crystals + 1,000 Kinah per rolled (unlocked, not locked) slot, plus a lock fee: 8, 16, 36, 76, 156, 236, 316 or 396 Soul Crystals and 250 Kinah per fee crystal for 1-8 locks",
    "levels": [
     {
      "level": 1,
@@ -493,7 +493,7 @@
   },
   "Special": {
    "pets": 6,
-   "analysis_cost": "4 Soul Crystals + 1,000 Kina per analysis",
+   "analysis_cost": "4 Soul Crystals + 1,000 Kinah per rolled (unlocked, not locked) slot, plus a lock fee: 8, 16, 36, 76, 156, 236, 316 or 396 Soul Crystals and 250 Kinah per fee crystal for 1-8 locks",
    "levels": [
     {
      "level": 1,
@@ -603,5 +603,40 @@
     4.8
    ]
   }
+ },
+ "analysis": {
+  "per_rolled_slot": {
+   "soul_crystals": 4,
+   "kinah": 1000,
+   "insight_exp": 100
+  },
+  "lock_fee_soul_crystals": [
+   8,
+   16,
+   36,
+   76,
+   156,
+   236,
+   316,
+   396
+  ],
+  "kinah_per_fee_crystal": 250,
+  "insight_exp_to_next": [
+   500,
+   1500,
+   3000,
+   5000,
+   10000,
+   20000,
+   40000,
+   70000,
+   100000
+  ],
+  "pet_exp": {
+   "collected": 500,
+   "insight_2": 250,
+   "insight_3": 250
+  },
+  "source": "Costs: ExitLag's Soul Crystal and Genus Insight guides (2026-10-20) for the lock fees, checked against in-game totals (Raid Relay via timesaver.gg, Space4Games 2026-10-07, mmoexp 2026-10-17, and the app's own observation in genus_pantheon_observed.json). Insight EXP: aion2.tools and Raid Relay (global client, 2026-10-30). The grade chances by level match NC's official Korean disclosure (probability.plaync.com, data version 20261103203502) and aion2.tools' global datamine at every level. Researched 2026-11-07 (0.2.386); no global patch note has changed Genus Insight."
  }
 }

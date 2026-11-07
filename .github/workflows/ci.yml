@@ -9,6 +9,14 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      assets_only:
+        # The asset refresh (asset-refresh.yml) changes catalogs and images only: the tests, the site and the
+        # app in a browser are what reads them. The packaging builds and the Windows desktop check cannot be
+        # changed by such a commit, and a macOS runner that never came (6 November) held its merge back.
+        description: "Asset refresh: run the tests, the site and the browser checks, not the builds"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -122,7 +130,9 @@ jobs:
     # with a real mouse (tools/overlay_drag_check.py, 0.2.374), with the game in front, also when Windows holds the
     # overlay's reads of the button back as it does under a game run as administrator. Not a step of the
     # release: a desktop session that misbehaves cannot hold a release back.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    if: >-
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository)
+      && !(github.event_name == 'workflow_dispatch' && inputs.assets_only)
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -157,6 +167,8 @@ jobs:
   build:
     name: Build (${{ matrix.name }})
     needs: [test, browser]
+    # an asset refresh's run (see the assets_only input) skips the builds: a skipped job counts as passed
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.assets_only) }}
     strategy:
       fail-fast: false
       matrix:

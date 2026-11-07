@@ -515,7 +515,7 @@ async function pageCharacter() {
       st.v = v;
       st.hit = h;
       // An import shows the character as imported. A finished optimization belongs to the import it ran on: kept, it
-      // was drawn over the next character imported, with that character's name (fixed in 0.2.386). A run still going
+      // was drawn over the next character imported, with that character's name (fixed in 0.2.387). A run still going
       // stays, shown on its own character's page only (``renderOptState``).
       if (S.character.opt && S.character.opt.status !== "running") S.character.opt = null;
       showChar();

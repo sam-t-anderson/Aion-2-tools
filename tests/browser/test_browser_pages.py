@@ -403,7 +403,7 @@ def test_my_characters_overview_shows_the_healing_recorded_in_its_own_fights(app
 
 
 def test_importing_another_character_after_an_optimization_shows_that_character(app_page, app_url):
-    """An optimization's result belongs to the character it ran on (0.2.386). It stayed on the page and was drawn over
+    """An optimization's result belongs to the character it ran on (0.2.387). It stayed on the page and was drawn over
     the next character imported, under that character's name; the import now shows the character as imported."""
     page = app_page
     go(page, app_url, "#/settings")
@@ -460,7 +460,7 @@ def test_the_macro_window_shows_each_line_as_a_hotbar_key_with_its_skills(app_pa
     assert "cast first, skipped if it cannot be cast" in lines.nth(several).inner_text()
     assert "then this one, skipped if it cannot be cast" in lines.nth(several).inner_text()
     assert "put them on that key in the order listed" in page.locator("#macro-host .macro-instructions").inner_text()
-    # A key the search put on two lines: the later line shows the key's skills like any other line (0.2.386), with no
+    # A key the search put on two lines: the later line shows the key's skills like any other line (0.2.387), with no
     # note that it repeats one and no "again" on its key (0.2.376 named the line it repeated instead)
     again = {**view, "rotation": {**view["rotation"], "steps": steps[:several + 1] + [steps[several]] + steps[several + 1:]}}
     page.evaluate("v => renderWindows(v, {win: 'macro'}, document.getElementById('macro-host'))", again)

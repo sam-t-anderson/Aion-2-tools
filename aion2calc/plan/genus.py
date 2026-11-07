@@ -27,13 +27,16 @@ DEFENSIVE = ("Defense", "Evasion", "Block", "Resist", "Tolerance", "HP", "MP", "
 GENUS_STATS = {"Attack": ("attack", 1), "Damage Boost": ("amp_all", 0.01), "Damage Amplification": ("amp_all", 0.01),
                "Critical Hit": ("crit", 1), "Accuracy": ("accuracy", 1), "Penetration": ("pen", 1)}
 MAIN = ("Cogni", "Fera", "Natura", "Varian")
-#: Offensive lines the damage model does not score yet, and why (docs/open-investigations.md).
+#: Lines only Genus Insight rolls -> (Stats field, scale), 0.2.386 (docs/methodology.md "Genus Insight lines"):
+#: Max Attack raises the top of the weapon's roll ("Max Attack of the weapon. Perfect scales with Max Attack", the
+#: client's text; the weapon's base range and each enchant step are labelled Max Attack too), so it adds half its
+#: value to an average hit and all of it to a Perfect one. PvE Accuracy is Accuracy against monsters only.
+GENUS_ONLY = {"Max Attack": ("weapon_max", 1), "PvE Accuracy": ("pve_accuracy", 1)}
+#: Offensive lines the damage model does not score, and why (docs/open-investigations.md).
 UNSCORED = {
-    "Max Attack": "Not modeled: whether it raises the top of the weapon roll or adds flat Attack is unverified",
-    "Power Shard Damage Bonus": "Not modeled: Power Shards are not simulated",
+    "Power Shard Damage Bonus": ("Not modeled: it adds only to Power Shard damage (\"Increases Damage when using "
+                                 "Power Shard\"), and no recorded hit has used a Power Shard"),
 }
-ACCURACY_REASON = ("Not scored: the model treats accuracy as met (parry and miss rates against Accuracy "
-                   "are not measured)")
 
 
 def unscored_reason(stat: str, stats: dict) -> str:
@@ -41,13 +44,26 @@ def unscored_reason(stat: str, stats: dict) -> str:
     stat = stat.strip()
     if stat in UNSCORED:
         return UNSCORED[stat]
-    if stat == "PvE Accuracy" or (stats and set(stats) == {"accuracy"}):
-        return ACCURACY_REASON
     return ""
 
 
 def data() -> dict:
     return read_json("global", "genus_insight.json")
+
+
+def analysis_cost(unlocked: int, locked: int = 0) -> dict:
+    """What one analysis costs with ``unlocked`` open slots of which ``locked`` are locked (0.2.386): 4 Soul
+    Crystals and 1,000 Kinah a rolled slot, plus the lock fee (``genus_insight.json`` "analysis"), and the Insight
+    EXP it gives (100 a rolled slot)."""
+    a = data()["analysis"]
+    unlocked, locked = max(0, min(int(unlocked), 9)), max(0, int(locked))
+    if locked > min(unlocked, len(a["lock_fee_soul_crystals"])):
+        raise ValueError("Lock at most the open slots, and at most eight")
+    rolled = unlocked - locked
+    fee = a["lock_fee_soul_crystals"][locked - 1] if locked else 0
+    per = a["per_rolled_slot"]
+    return {"rolled": rolled, "locked": locked, "soul_crystals": per["soul_crystals"] * rolled + fee,
+            "kinah": per["kinah"] * rolled + a["kinah_per_fee_crystal"] * fee, "insight_exp": per["insight_exp"] * rolled}
 
 
 def properties() -> dict:
@@ -155,8 +171,8 @@ def line_stats(stat: str, value, genus: str, mix: dict) -> dict:
                 val = v / 100 if pct else v * sc
                 return {f: val * mix.get(g, 0.0)}
             return {}
-    if stat in LABEL_MAP:
-        f, sc = LABEL_MAP[stat]
+    if stat in GENUS_ONLY or stat in LABEL_MAP:
+        f, sc = GENUS_ONLY.get(stat) or LABEL_MAP[stat]
         if pct and sc == 1:
             return {}
         return {f: v / 100 if pct else v * sc}

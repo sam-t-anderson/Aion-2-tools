@@ -571,3 +571,32 @@ def test_the_optimizer_chooses_the_stagger_skills_cooldown_effect():
     best, pol = opt.optimize_linked_specs(b, policy, groups=[(sid,)])
     assert sid + 50 in best.specs[sid]
     assert opt.evaluate(best, pol) > 1.03 * opt.evaluate(b, policy)
+
+
+def test_flash_slices_consecutive_use_gives_two_presses_a_cooldown():
+    """Flash Slice's level-12 specialization "+1 consecutive use": the recorded Assassin who took it pressed it twice
+    within a second 22 times in 124 gaps, which its 10 s cooldown alone never allows. The cooldown runs from the
+    first press; the second stays pressable until the cooldown ends."""
+    flash = 13050000
+    plain = _assassin(stigmas={}, bonus={flash: 12})
+    twice = _assassin(stigmas={}, specs={flash: (13050040,)}, bonus={flash: 12})
+    pol = ["flash_slice", "quick_slice"]
+    _, one, kit = _sim("assassin", pol, build=plain)
+    _, two, kit2 = _sim("assassin", pol, build=twice)
+    assert kit.actions["flash_slice"].uses == 1 and kit2.actions["flash_slice"].uses == 2
+    assert 1.8 * one.casts["flash_slice"] <= two.casts["flash_slice"] <= 2.0 * one.casts["flash_slice"] + 1
+    presses = [t for t, key in two.timeline if key == "flash_slice"]
+    gaps = [b - a for a, b in zip(presses, presses[1:])]
+    assert min(gaps) < 2.0 and max(gaps) >= kit2.actions["flash_slice"].cooldown * 0.5   # pairs, then the cooldown
+
+
+def test_an_action_with_two_uses_starts_its_cooldown_at_the_first_press():
+    from aion2calc.model.stats import Stats
+    acts = {"a": Action("a", "A", 1, 0.5, cooldown=10.0, uses=2, affected_by_cdr=False,
+                        on_cast=lambda sim, act: sim.hit("A", 100.0, 0.0)),
+            "f": Action("f", "F", 2, 0.5, is_filler=True, on_cast=lambda sim, act: sim.hit("F", 1.0, 0.0))}
+    sim = Sim(Stats().derived(), acts, ["a", "f"], Target(), SimConfig(duration=21.0))
+    res = sim.run()
+    times = [t for t, key in res.timeline if key == "a"]
+    assert len(times) == 6                       # 0, 0.5 | 10, 10.5 | 20, 20.5
+    assert times[1] - times[0] < 1.0 and 9.0 <= times[2] - times[0] <= 10.6

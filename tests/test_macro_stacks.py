@@ -164,7 +164,7 @@ def test_the_readme_lists_each_lines_key(tmp_path):
 
 def test_the_readme_lists_a_repeated_keys_skills_on_each_of_its_lines(tmp_path):
     """A key the search put on two lines is pressed twice per round: each line lists the skills its key holds, with no
-    note that it repeats an earlier line (0.2.386; 0.2.376 named the earlier line instead)."""
+    note that it repeats an earlier line (0.2.387; 0.2.376 named the earlier line instead)."""
     from aion2calc.report_md import write_markdown
     summary = copy.deepcopy(json.loads((ROOT / "results" / "sorcerer_l45" / "build.json").read_text(encoding="utf-8")))
     summary["macro"].update(model_version=MODEL_VERSION, auto_attack="flame_arrow",

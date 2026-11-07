@@ -112,7 +112,15 @@ def test_the_templars_shields_raise_its_effective_hp_in_world_pvp():
     assert shielded["shield_hp"] > 0 and shielded["effective_hp"] > bare["effective_hp"]
     assert shielded["alive_share"] > bare["alive_share"]
     assessed = W.assess("templar", build, scen, list(kit.policy))
-    assert assessed["shield_share"] > 0 and "shields count as the HP they absorb" in assessed["note"]
+    assert assessed["shield_share"] > 0 and "shields and heals as the HP they absorb or restore" in assessed["note"]
+    # 0.2.386: Doom Shield's presses carry their shield into World PvP too (the generic player-target kit had none)
+    cd, b, pkit, _ = prepare(build, scen)
+    W.world_kit("templar", b, cd, pkit)
+    assert pkit.actions["doom_shield"].absorb == pytest.approx(0.05)
+    _, _, _, res, inputs = W._run("templar", build, scen, list(kit.policy))
+    assert res.casts.get("doom_shield", 0) > 0
+    assert inputs["absorb_share"] == pytest.approx(defensive_absorb_share(b, res.duration) + res.absorb_share)
+    assert res.absorb_share >= 0.05 * res.casts["doom_shield"] - 1e-9
 
 
 # ------------------------------------------------------------------ 1d 37 step

@@ -7,4 +7,12 @@ def spec_options(cd, build):
 
 
 def build_kit(build, cd, filler=None):
-    return generic_build_kit(build, cd, filler=filler, pvp=True)
+    kit = generic_build_kit(build, cd, filler=filler, pvp=True)
+    if build.cls == "assassin":
+        # Defiance's level-8 chain, Storm Slice: Defiance breaks the crowd control players land (kit.assassin)
+        from .assassin import storm_slice
+        action = storm_slice(build, cd)
+        if action is not None:
+            kit.actions[action.key] = action
+            kit.policy = [action.key] + [e for e in kit.policy if e != action.key]
+    return kit

@@ -55,7 +55,7 @@ def prepare(state: dict, mode: str, options: dict | None = None) -> dict:
                 reason = unscored_reason(line["stat"], values)
             elif not values:
                 reason = "Unsupported damage effect or defensive effect"
-            elif mode == "pvp" and set(values) <= {"amp_pve", "pve_atk", "amp_boss", "boss_atk"}:
+            elif mode == "pvp" and set(values) <= {"amp_pve", "pve_atk", "amp_boss", "boss_atk", "pve_accuracy"}:
                 values = {}
                 reason = "PvE/boss effect does not apply to this player target"
             elif mode == "pve" and set(values) <= {"amp_pvp", "pvp_atk"}:

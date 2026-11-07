@@ -181,6 +181,12 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
           f"the {100 * fight['inactive_share']:.0f}% of a recorded boss fight this class's players spend pressing nothing or "
           "dodging (the log server's public uploads). The table above is the rotation's own DPS, which the optimizer "
           "compares builds by; a parse on the log server is a whole fight's.")
+    heal = s.get("healing")
+    if heal and heal.get("per_minute"):
+        top = ", ".join(f"{r['skill']} {100 * r['share']:.0f} %" for r in heal["by_skill"][:3])
+        w(f"\n**Healing:** {heal['per_minute']:,.0f} a minute in a boss fight ({heal['hps']:,.0f} HPS; {top}): each heal at "
+          f"this build's level times {heal['multiplier']:.2f} for its Attack (1 + Attack / 2,000, measured from recorded "
+          "heals), as often as the recorded healers heal and with as much landing on missing HP.")
     gain = s["dps"][scen] / base["community_optimized_rotation"] - 1
     w(f"\nThe optimized build is **{100 * gain:+.1f}%** over the typical top global build played with the same "
       f"rotation optimizer, and **{100 * (s['dps'][scen] / base['community_naive'] - 1):+.1f}%** over that build "
