@@ -2007,6 +2007,28 @@ next line, and each key is on one line (the editor takes 20): held, the macro cy
 comes round again each cycle (0.2.388, below; a key had sat on several lines so that its skills were tried more
 often).
 
+**Each key on one line (0.2.388).** The player holds the macro key and the macro cycles through its lines, so every
+key comes round again each cycle. From 0.2.376 to 0.2.387 the search could put a key on several lines so that its
+skills were tried more often (the bundled Assassin's first key sat on six of its twelve lines); the planner now keeps
+each key on its first line (macro model 6), and a chain step whose parent is on the macro has no line of its own. A
+macro saved under model 5 shows each key once and no estimate until optimized again. The bundled PvE builds' macros,
+planned again, play this share of the ideal priority list (before: as last planned, under 0.2.384's model):
+
+| Class | Keys on several lines | Each key once | One skill per line |
+|---|---:|---:|---:|
+| Assassin | 95.0 % (5 keys, 12 lines) | 91.9 % (5 keys) | 81.6 % |
+| Chanter | 85.5 % (5 keys, 11 lines) | 78.4 % (3 keys) | 94.4 % |
+| Cleric | 91.3 % (3 keys, 5 lines) | 90.8 % (3 keys) | 71.8 % |
+| Gladiator | 90.8 % (5 keys, 8 lines) | 83.0 % (4 keys) | 70.9 % |
+| Ranger | 98.6 % (3 keys, 4 lines) | 98.6 % (4 keys) | 86.2 % |
+| Sorcerer | 96.4 % (4 keys, 8 lines) | 96.6 % (3 keys) | 95.6 % |
+| Spiritmaster | 96.2 % (4 keys, 7 lines) | 94.9 % (4 keys) | 81.5 % |
+| Templar | 93.2 % (3 keys, 6 lines) | 92.1 % (3 keys) | 95.8 % |
+
+The Chanter and the Gladiator lose the most: their top skills came round two or three times a cycle. The layout of
+one skill per line keeps more skills on manual keys, which the simulation presses on cooldown, so it reads higher
+where the keys read lower.
+
 **A key's skills in order (0.2.377).** From 0.2.371 to 0.2.376 the simulation had a key cast only the first of its
 skills that was ready, as a priority list, before the macro moved to the next line; the game's macro casts them all,
 first to last (macro model 5). A key on the line straight after its own then looked as if it cast more of its skills,
@@ -2044,6 +2066,9 @@ comparison, as the 0.2.371–0.2.376 simulation had them:
 
 The Templar's macro is four keys on six lines, each of the first two keys pressed twice a round: Shield Rush, Shield
 Smite, Noble Armor and Judgment; Taunt, Annihilate and Warding Strike; Executing Blade and Pummel; Doom Shield.
+*Since 0.2.388 the bundled Templar's macro is three keys on three lines: Empyrean Lord's Punishment, Noble Armor,
+Poach and Taunt; Shield Smite, Shield Rush and Warding Strike; Judgment, Debilitating Smash, Annihilate and Doom
+Shield.*
 Punishment is charged by hand. A chain step has no key of its own: a macro step for it is its parent added again, and
 the parent's key presses the chain step while the chain is open and the parent otherwise, so the simulation presses
 whichever the key would for a step of either (0.2.323; a step for the chain step had pressed nothing until another
