@@ -1,3 +1,9 @@
+## Each macro key on one line (0.2.388)
+
+**Every hotbar key is on the macro once.** You hold the macro key and the macro cycles through its lines, so a key comes round again every cycle; the planner no longer puts a key on several lines to try its skills more often. The macro you see, copy and enter is the one the simulation scores, and the bundled builds' macros are planned again this way. A macro saved by an earlier version shows each key once and asks you to optimize again for its estimate.
+
+**A build's README keeps Block out of the rolls to chase.** Block counts in World PvP's survival, not in damage, and 0.2.387 had listed it among an item's random rolls at no damage.
+
 ## Illusive Clone every 60 seconds, Block, and every macro line's skills (0.2.387)
 
 **The Assassin's Illusive Clone comes back every 60 seconds.** The global patch of 28 October cut its cooldown from 90 to 60 seconds, as the official patch notes say, and the calculator still had 90. The clone is now up half as often again: a typical Assassin's boss DPS rises 2 %, and the bundled Assassin build's 6 %. The same patch raised Heightened Sixth Sense's HP (1,000, 2,000 and 4,000 at levels 5, 10 and 20) and every class's base HP (at level 45, 6,202 for the Gladiator and the Templar, 5,702 for the others); the bundled class data has them too, read from the game client by metabot.gg. The bundled Assassin build was found with the 90-second clone, and its listed DPS is the old one until it is searched again.

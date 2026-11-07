@@ -2003,7 +2003,9 @@ The in-game **Skill Macro** plan (`opt/macro.py`) is simulated as the game runs 
 the hotbar keys on its lines in order and loops, manual presses come first, and the basic auto-attack, on the left
 mouse button held beside it, fires whenever nothing on the macro can be cast. A hotbar key holds up to four skills,
 and the macro casts them from first to last, each that can be cast, skipping one that cannot, before it moves to the
-next line; a key may sit on several lines (the editor takes 20) so that its skills are tried more often.
+next line, and each key is on one line (the editor takes 20): held, the macro cycles through its lines, so every key
+comes round again each cycle (0.2.388, below; a key had sat on several lines so that its skills were tried more
+often).
 
 **A key's skills in order (0.2.377).** From 0.2.371 to 0.2.376 the simulation had a key cast only the first of its
 skills that was ready, as a priority list, before the macro moved to the next line; the game's macro casts them all,
@@ -2022,9 +2024,9 @@ and the macro may also give it lines of its own, never shared with other skills:
 even while another skill is ready, as the one-skill-per-line layouts did, which a geared Sorcerer short of MP needs
 (Flame Arrow restores it). A layout scores its simulated DPS less 0.5 % for each such manual key and 0.05 % for each
 line past the first, so the macro stays easy to set up. The search starts from the priority list in keys of three,
-from keys that put one of the top four skills first on a key the macro presses every other line, and from the
-one-skill-per-line layouts. From each of them in turn, best first, it moves, reorders, merges and repeats keys and
-lines while that improves, within 2,500 simulations in all (15–110 s on the test machine). The one-skill-per-line
+from keys that put one of the top four skills first on the first key, and from the one-skill-per-line layouts. From
+each of them in turn, best first, it moves, reorders and merges keys and lines (it also repeated keys until 0.2.388)
+while that improves, within 2,500 simulations in all (15–110 s on the test machine). The one-skill-per-line
 layout is kept as the alternative. On the bundled builds the macros play this share of the ideal priority list (an
 ideal list is a rotation optimizer's, which a macro can beat), with keys as the game's macro casts them and, for
 comparison, as the 0.2.371–0.2.376 simulation had them:
@@ -2044,8 +2046,9 @@ The Templar's macro is four keys on six lines, each of the first two keys presse
 Smite, Noble Armor and Judgment; Taunt, Annihilate and Warding Strike; Executing Blade and Pummel; Doom Shield.
 Punishment is charged by hand. A chain step has no key of its own: a macro step for it is its parent added again, and
 the parent's key presses the chain step while the chain is open and the parent otherwise, so the simulation presses
-whichever the key would for a step of either, and the planner tries each layout with and without its chain steps
-(0.2.323; a step for the chain step had pressed nothing until another step opened the chain). Skills requiring charge
+whichever the key would for a step of either (0.2.323; a step for the chain step had pressed nothing until another
+step opened the chain); since 0.2.388 a chain step whose parent is on the macro has no line of its own, which would
+be the parent's key a second time. Skills requiring charge
 are kept on manual keys because the game macro only taps them; the macro is not assumed to hold a charge. The
 suggested macro binding is Right-click; the app does not change game bindings.
 
