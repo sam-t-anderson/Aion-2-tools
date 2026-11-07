@@ -49,21 +49,18 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `cold_shock`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, each once: held, the macro cycles through them. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | summon_fire › enhance › ancient_spirit › summon_earth |
-| 2 | dimensional_control › elemental_fusion › summon_water |
-| 3 | summon_wind › jointstrike_curse › combustion |
-| 4 | dimensional_control › elemental_fusion › summon_water |
-| 5 | summon_fire › enhance › ancient_spirit › summon_earth |
-| 6 | soul_cry › rapid_scattershot › seize_magic |
-| 7 | dimensional_control › elemental_fusion › summon_water |
+| 1 | summon_wind › enhance › ancient_spirit › summon_earth |
+| 2 | elemental_fusion › dimensional_control › summon_fire › combustion |
+| 3 | jointstrike_curse › soul_cry › rapid_scattershot › seize_magic |
+| 4 | summon_water |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **96.2%** of the ideal priority list.
+Simulated: this layout reaches **94.9%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro summon_fire → summon_water → summon_wind → jointstrike_curse → summon_earth → rapid_scattershot → combustion → cold_shock; manual: enhance, ancient_spirit, dimensional_control, elemental_fusion, soul_cry, seize_magic. Simulated: **81.5%** of the ideal priority list.
 

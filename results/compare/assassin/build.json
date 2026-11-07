@@ -15434,78 +15434,36 @@
   "quick_slice"
  ],
  "macro": {
-  "model_version": 5,
+  "model_version": 6,
   "steps": [
    [
     "shadow_fall",
+    "storm_rampage"
+   ],
+   [
     "swift",
     "illusive_clone",
-    "heart_gore"
+    "shadowstrike"
    ],
    [
-    "triniel",
-    "shadowstrike",
-    "storm_rampage",
-    "insignia_explosion"
-   ],
-   [
-    "shadow_fall",
-    "swift",
-    "illusive_clone",
-    "heart_gore"
-   ],
-   [
-    "ambush"
-   ],
-   [
-    "shadow_fall",
-    "swift",
-    "illusive_clone",
-    "heart_gore"
-   ],
-   [
-    "triniel",
-    "shadowstrike",
-    "storm_rampage",
-    "insignia_explosion"
-   ],
-   [
-    "shadow_fall",
-    "swift",
-    "illusive_clone",
-    "heart_gore"
-   ],
-   [
-    "triniel",
-    "shadowstrike",
-    "storm_rampage",
-    "insignia_explosion"
-   ],
-   [
-    "shadow_fall",
-    "swift",
-    "illusive_clone",
-    "heart_gore"
-   ],
-   [
+    "insignia_explosion",
     "infiltrate",
+    "triniel"
+   ],
+   [
+    "savage_roar",
+    "ambush",
+    "whirlwind_slice"
+   ],
+   [
+    "heart_gore",
     "flash_slice",
-    "savage_roar"
-   ],
-   [
-    "shadow_fall",
-    "swift",
-    "illusive_clone",
-    "heart_gore"
-   ],
-   [
-    "whirlwind_slice",
     "sfang"
    ]
   ],
   "manual": [],
-  "dps_macro": 25489.75319412851,
-  "dps_priority": 26845.133196714578,
+  "dps_macro": 26065.886219133976,
+  "dps_priority": 28376.399381376727,
   "alt_steps": [
    "shadow_fall",
    "heart_gore",
@@ -15525,7 +15483,7 @@
    "sfang",
    "triniel"
   ],
-  "dps_alt": 21834.054094250685,
+  "dps_alt": 23158.126931278213,
   "auto_attack": "quick_slice",
   "chains": {}
  },

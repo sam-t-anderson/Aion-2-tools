@@ -9654,37 +9654,28 @@
   "earths_retribution"
  ],
  "macro": {
-  "model_version": 5,
+  "model_version": 6,
   "steps": [
    [
+    "epunish",
     "condemnation",
-    "lightning_strike_scattershot",
     "divine_aura"
    ],
    [
-    "epunish",
-    "prayamp"
-   ],
-   [
-    "condemnation",
+    "chain_of_torment",
     "lightning_strike_scattershot",
-    "divine_aura"
-   ],
-   [
-    "epunish",
     "prayamp"
    ],
    [
     "powerburst",
-    "debilitating_mark",
-    "chain_of_torment"
+    "debilitating_mark"
    ]
   ],
   "manual": [
    "bolt"
   ],
-  "dps_macro": 27111.516998652838,
-  "dps_priority": 29700.19700683863,
+  "dps_macro": 26961.108815984127,
+  "dps_priority": 29698.229033677413,
   "alt_steps": [
    "lightning_strike_scattershot",
    "debilitating_mark",
@@ -9699,7 +9690,7 @@
    "powerburst",
    "bolt"
   ],
-  "dps_alt": 21337.72167589585,
+  "dps_alt": 21335.378876013347,
   "auto_attack": "earths_retribution",
   "chains": {
    "thunder_and_lightning": "earths_retribution"

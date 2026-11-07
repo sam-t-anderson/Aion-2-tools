@@ -11886,49 +11886,33 @@
   "cold_shock"
  ],
  "macro": {
-  "model_version": 5,
+  "model_version": 6,
   "steps": [
    [
-    "summon_fire",
+    "summon_wind",
     "enhance",
     "ancient_spirit",
     "summon_earth"
    ],
    [
-    "dimensional_control",
     "elemental_fusion",
-    "summon_water"
-   ],
-   [
-    "summon_wind",
-    "jointstrike_curse",
+    "dimensional_control",
+    "summon_fire",
     "combustion"
    ],
    [
-    "dimensional_control",
-    "elemental_fusion",
-    "summon_water"
-   ],
-   [
-    "summon_fire",
-    "enhance",
-    "ancient_spirit",
-    "summon_earth"
-   ],
-   [
+    "jointstrike_curse",
     "soul_cry",
     "rapid_scattershot",
     "seize_magic"
    ],
    [
-    "dimensional_control",
-    "elemental_fusion",
     "summon_water"
    ]
   ],
   "manual": [],
-  "dps_macro": 16555.28151097513,
-  "dps_priority": 17205.28583987181,
+  "dps_macro": 16176.781695904463,
+  "dps_priority": 17048.618874704433,
   "alt_steps": [
    "summon_fire",
    "summon_water",
@@ -11947,7 +11931,7 @@
    "soul_cry",
    "seize_magic"
   ],
-  "dps_alt": 14024.766704031603,
+  "dps_alt": 13889.221467872794,
   "auto_attack": "cold_shock",
   "chains": {}
  },
