@@ -48,14 +48,14 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `snipe`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, each once: held, the macro cycles through them. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | gale_arrow › snare_shot › tempest_shot |
-| 2 | vaizel › burst_arrow › drill_dart › marking_shot |
-| 3 | bowbless › suppressing_arrow › ensnaring_trap › explosive |
-| 4 | vaizel › burst_arrow › drill_dart › marking_shot |
+| 1 | drill_dart › marking_shot |
+| 2 | gale_arrow › vaizel › suppressing_arrow |
+| 3 | snare_shot › bowbless › tempest_shot |
+| 4 | burst_arrow › explosive › ensnaring_trap |
 
 Manual keys (press on cooldown, in this priority): deadshot
 

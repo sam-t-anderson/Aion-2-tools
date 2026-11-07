@@ -211,10 +211,10 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
           "the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.\n")
     w("Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to "
       "four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the "
-      "next line. Then Settings → Key Settings → General → Skill Macro: add "
-      "the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms "
-      "delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key "
-      "presses its chain step while the chain is open, in the macro too.\n")
+      "next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to "
+      "bottom, each once: held, the macro cycles through them. Skill Queue (스킬 예약) **ON**, 10 ms delay on every "
+      "line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain "
+      "step while the chain is open, in the macro too.\n")
     w("| Line | Hotbar key holds (cast in this order) |")
     w("|---:|---|")
     # a chain step is no skill of its own: its parent's key pressed again while the chain is open
@@ -224,8 +224,15 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         parent = chains.get(str(entry).split(" [", 1)[0])
         return f"{entry} ({how.format(parent)})" if parent else str(entry)
     by_hand = "{0}'s key while its chain is open"
-    # a key on several lines shows its skills on each of them: being listed twice says it is pressed twice a round
-    for i, st in enumerate(m["steps"], 1):
+    # each hotbar key on one line (0.2.388): held, the macro cycles through its lines, so a key comes round again each
+    # cycle. A macro planned before kept a key on several lines, and a chain step's own line is its parent's key
+    def line_key(st):
+        if isinstance(st, list):
+            return tuple(st)
+        name = str(st).split(" [", 1)[0]
+        return (chains.get(name, name),)
+    lines = [st for n, st in enumerate(m["steps"]) if line_key(st) not in {line_key(x) for x in m["steps"][:n]}]
+    for i, st in enumerate(lines, 1):
         held = st if isinstance(st, list) else [st]
         own = isinstance(st, list) and held == [m.get("auto_attack")]   # the basic attack's own line (0.2.371)
         w(f"| {i} | {' › '.join(named(x, 'chain of {0}: add {0} again') for x in held)}"

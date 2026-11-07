@@ -46,19 +46,17 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `earths_retribution`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, each once: held, the macro cycles through them. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | condemnation › lightning_strike_scattershot › divine_aura |
-| 2 | epunish › prayamp |
-| 3 | condemnation › lightning_strike_scattershot › divine_aura |
-| 4 | epunish › prayamp |
-| 5 | powerburst › debilitating_mark › chain_of_torment |
+| 1 | epunish › condemnation › divine_aura |
+| 2 | chain_of_torment › lightning_strike_scattershot › prayamp |
+| 3 | powerburst › debilitating_mark |
 
 Manual keys (press on cooldown, in this priority): bolt
 
-Simulated: this layout reaches **91.3%** of the ideal priority list.
+Simulated: this layout reaches **90.8%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro lightning_strike_scattershot → debilitating_mark → divine_aura → chain_of_torment → condemnation → earths_retribution; manual: prayamp, epunish, powerburst, bolt. Simulated: **71.8%** of the ideal priority list.
 
