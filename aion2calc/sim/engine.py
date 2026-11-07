@@ -80,8 +80,6 @@ class Target:
     weapon_tol: float = 0.0
     defense: float = 0.0
     parry: float = 0.0             # chance a non-back, non-guaranteed hit is parried (-50%)
-    block: float = 0.0             # the target's Block: hits from the front and side are parried with the chance it
-                                   # exceeds the attacker's Accuracy by (``model.stats.block_chance``); 0 = Accuracy met
     frontal: bool = True           # without positions: every direct hit from the front (False: behind)
     positions: tuple | None = None  # (front, back) shares of direct hits; the rest land from the side
     class_positions: bool = False  # each class's recorded mix on bosses (BOSS_POSITIONS) instead

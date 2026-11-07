@@ -32,12 +32,8 @@ UNSCORED = {
     "Max Attack": "Not modeled: whether it raises the top of the weapon roll or adds flat Attack is unverified",
     "Power Shard Damage Bonus": "Not modeled: Power Shards are not simulated",
 }
-ACCURACY_REASON = ("Not scored: the boss scenario assumes your Accuracy meets the boss's Block, as the recordings "
-                   "show for most players (short of it a boss parries 0.1 % of your hits from the front and side a "
-                   "point, at most half, each for half its damage)")
-BLOCK_REASON = ("Not scored for damage: Block parries an attacker's hits from the front and side when it exceeds the "
-                "attacker's Accuracy (0.1 % a point, at most half, each for half); it counts in World PvP's survival, "
-                "and no source gives monsters' Accuracy")
+ACCURACY_REASON = ("Not scored: the model treats accuracy as met (parry and miss rates against Accuracy "
+                   "are not measured)")
 
 
 def unscored_reason(stat: str, stats: dict) -> str:
@@ -45,10 +41,8 @@ def unscored_reason(stat: str, stats: dict) -> str:
     stat = stat.strip()
     if stat in UNSCORED:
         return UNSCORED[stat]
-    if stat == "PvE Accuracy" or (stats and set(stats) <= {"accuracy", "pve_accuracy"}):
+    if stat == "PvE Accuracy" or (stats and set(stats) == {"accuracy"}):
         return ACCURACY_REASON
-    if stat.endswith("Block"):
-        return BLOCK_REASON
     return ""
 
 

@@ -55,15 +55,15 @@ def test_every_class_has_the_ariel_board(cls):
 
 def test_the_ariel_boards_damage_stats_count():
     """The whole board gives PvE Damage Boost +6 %, Boss Damage Boost +4 %, PvE and Boss Attack +72 and Critical Hit +40
-    (with Critical Hit Resist, HP and MP), and PvE Accuracy +120, which counts against a boss's Block (0.2.386); its PvE
-    and Boss Defense, Damage Tolerance and Evasion change nothing the model simulates and are not mapped."""
+    (with Critical Hit Resist, HP and MP); its PvE and Boss Defense, Damage Tolerance, Accuracy and Evasion change
+    nothing the model simulates and are not mapped."""
     from aion2calc.model.character import daevanion_to_stats
     from aion2calc.run import simulate
     cd = ClassData("sorcerer")
     full = {n["id"] for n in board(cd, ARIEL)["nodes"] if n["type"] != "Start"}
     assert daevanion_to_stats(cd.daevanion_stats(full)) == pytest.approx(
         {"amp_pve": 0.06, "amp_boss": 0.04, "pve_atk": 72, "boss_atk": 72, "crit": 40, "crit_resist": 40,
-         "hp": 400, "mp_max": 200, "pve_accuracy": 120})
+         "hp": 400, "mp_max": 200})
     b = typical_build("sorcerer")
     with_board = b.copy()
     with_board.daevanion |= full

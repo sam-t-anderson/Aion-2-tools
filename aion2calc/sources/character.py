@@ -33,15 +33,11 @@ OFFICIAL_IDS = {
     "PvPDamageDefense": ("pvp_defense", 1), "PvPCriticalResist": ("pvp_crit_resist", 1),
     "Block": ("block", 1), "Evasion": ("evasion", 1), "ArmorEvasion": ("evasion", 1),
     "AbnormalResistance": ("cc_resist", 0.01),
-    # Block against Accuracy (0.2.386): the Accuracy that counts against monsters and against players, and Block
-    # against players (the Daevanion boards' ids; PvP Block's by the same naming)
-    "PvEAccuracy": ("pve_accuracy", 1), "PvPAccuracy": ("pvp_accuracy", 1), "PvPBlock": ("pvp_block", 1),
 }
 #: primary/deity totals on the profile (they already include gear and arcana)
 PROFILE_STATS = {"STR": "might", "AGI": "precision", "Justice": "justice", "Freedom": "freedom",
                  "Illusion": "illusion", "Time": "time", "Destruction": "destruction", "Death": "death",
-                 "Wisdom": "wisdom", "CON": "constitution", "DEX": "dexterity", "Life": "life",
-                 "Space": "space"}
+                 "Wisdom": "wisdom", "CON": "constitution", "DEX": "dexterity", "Life": "life"}
 #: these ids are part of the profile totals; counting them on items would double count
 SKIP_ON_ITEMS = {"STR", "DEX", "INT", "CON", "AGI", "WIS", "Justice", "Freedom", "Illusion", "Life", "Time",
                  "Destruction", "Death", "Wisdom", "Destiny", "Space"}

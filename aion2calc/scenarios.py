@@ -12,22 +12,14 @@ def dummy(loadout: str = "sorcerer_l45_global_median", duration: float = 180.0) 
                     config=SimConfig(duration=duration))
 
 
-#: Bosses' Block as community tests put it: the Accuracy (plus PvE Accuracy) at which a boss stops parrying hits from
-#: the front and the side (docs/methodology.md "Block against Accuracy"). The boss scenario assumes it met, as the
-#: recordings show for most players (bosses parried under 1 % of most classes' hits), unless it is given a Block.
-BOSS_BLOCK = {"Transcendence 10 and Expedition (Hard)": 1100.0, "Abyssal Forge: Ludra (KR)": 1400.0}
-
-
-def boss(loadout: str = "sorcerer_l45_global_median", duration: float = 180.0, block: float = 0.0) -> Scenario:
+def boss(loadout: str = "sorcerer_l45_global_median", duration: float = 180.0) -> Scenario:
     """Dungeon boss: 30% Damage Tolerance, HP falls linearly, three 8 s stagger windows; each
     class's direct hits land from the front, behind and the side in its recorded shares, and the
-    party takes damage, so a healer heals at the recorded rate. ``block`` is the boss's Block
-    (:data:`BOSS_BLOCK`): hits from the front and the side are parried with the chance it exceeds the
-    character's Accuracy by; 0 assumes the Accuracy met."""
+    party takes damage, so a healer heals at the recorded rate."""
     windows = tuple((s, s + 8.0) for s in (40.0, 100.0, 160.0) if s < duration)
     return Scenario(loadout=loadout,
                     target=Target(tolerance=0.30, hp_model="linear", stagger_windows=windows,
-                                  class_positions=True, party_damage=True, block=float(block)),
+                                  class_positions=True, party_damage=True),
                     config=SimConfig(duration=duration))
 
 
