@@ -20,12 +20,15 @@ Every class's defensives count since 0.2.386 (``kit.defensives``): its passives'
 Resist and PvP Damage Tolerance, its timed buffs for the share of the fight they are up, its shields and heals as
 the HP they absorb or restore (the healers' from ``kit.healing``, the lifesteal options at their recorded share of
 maximum HP), immunity as the damage it keeps off, and Evasion above the attacker's Accuracy (0.06 % a point, up to
-30 %). The crowd control your attackers land takes your time away: each lands the classes' typical rotation's
-(8.6 s a minute), less your Status Effect Resist, less what Defiance breaks and its Tenacity and the immunity
-stigmas keep off. ``score`` is then world DPS x the share of the fight you survive x the share you can act.
+30 %). Since 0.2.387 Block counts too: Block (raised by Dexterity and Space, plus PvP Block) above the attacker's
+Accuracy (plus PvP Accuracy) parries 0.1 % of its hits a point, at most half, each for half
+(``model.damage.block_chance``). The crowd control your attackers land takes your time away: each lands the
+classes' typical rotation's (8.6 s a minute), less your Status Effect Resist, less what Defiance breaks and its
+Tenacity and the immunity stigmas keep off. ``score`` is then world DPS x the share of the fight you survive x the
+share you can act.
 
-Every number in :data:`WORLD` is an assumption, returned with each result. Block (no source gives what a block
-removes), movement and player reactions are not modelled.
+Every number in :data:`WORLD` is an assumption, returned with each result. A shield user's second block roll, the
+heals on Block, movement and player reactions are not modelled.
 """
 from __future__ import annotations
 
@@ -35,9 +38,9 @@ import math
 from dataclasses import replace
 
 from ..kit.defensives import Defensives, defensives as class_defensives, lifesteal_share, shield_on_press
-from ..model.damage import HitContext, expected_hit
+from ..model.damage import HitContext, block_chance, expected_hit
 from ..run import Scenario, prepare
-from ..sim.engine import Sim, Target
+from ..sim.engine import PARRY_CAP, PARRY_PER_ACCURACY, Sim, Target
 from .pipeline import Optimizer
 from .rotation import materialize, optimize_rotation
 from .statweights import stat_weights
@@ -81,9 +84,11 @@ NOTE = ("World PvP proxy: area skills hit up to {enemies} enemies, and the last 
         "defensive passives, buffs, shields and heals count as their tooltips state at the build's levels (shields "
         "and heals as the HP they absorb or restore, timed effects for the share of the fight they are up, the "
         "lifesteal options at the share of maximum HP the recorded heals show), and Evasion above the attacker's "
-        "Accuracy evades {evade:.2%} of hits a point, up to {evade_cap:.0%}. Each attacker lands {in_ctl:g} s of hard "
+        "Accuracy evades {evade:.2%} of hits a point, up to {evade_cap:.0%}; Block and PvP Block above its Accuracy "
+        "and PvP Accuracy parry {block:.1%} of the hits that land a point, up to {block_cap:.0%}, each for half. "
+        "Each attacker lands {in_ctl:g} s of hard "
         "crowd control a minute, less your Status Effect Resist and what Defiance and immunity keep off, and you "
-        "act only while not controlled. Block, movement and player reactions are not modelled. These are "
+        "act only while not controlled. Movement and player reactions are not modelled. These are "
         "assumptions, not measurements.")
 
 
@@ -108,7 +113,7 @@ def note(world: dict = WORLD) -> str:
                        cycle=f"{world['cycle_s']:g}", reach=world["reach_m"], alive=world["typical_alive"],
                        melee=world["attackers"]["melee"], ranged=world["attackers"]["ranged"],
                        cap=world["control_cap"], evade=world["evasion_per_point"], evade_cap=world["evasion_cap"],
-                       in_ctl=world["incoming_control_s"])
+                       in_ctl=world["incoming_control_s"], block=PARRY_PER_ACCURACY, block_cap=PARRY_CAP)
 
 
 def survival_medians() -> dict:
@@ -142,8 +147,10 @@ def _ehp(cls: str, stats, attacker, world: dict) -> tuple[float, float, float]:
     flat, coef = world["reference_hit"]
     ctx = HitContext(flat=flat, coef=coef, element=None, tags=(), mult=1.0)
     naked = Target(tolerance=0.0, is_boss=False, is_player=True)
+    # Block (with PvP Block) parries the reference attacker's hits with the chance it exceeds its Accuracy (with PvP
+    # Accuracy) by, each for half (0.2.387); its hits come from the front, as for every other term here
     you = Target(tolerance=d.tolerance, defense=d.defense, crit_resist=d.crit_resist,
-                 crit_dmg_tol=d.crit_dmg_tol, is_boss=False, is_player=True)
+                 crit_dmg_tol=d.crit_dmg_tol, block=d.block, is_boss=False, is_player=True)
     base = expected_hit(attacker, {}, naked, ctx)
     taken = expected_hit(attacker, {}, you, ctx) / base if base > 0 else 1.0
     return (d.hp / taken if taken > 0 else math.inf), taken, d.hp
@@ -246,7 +253,8 @@ def _effective(cls: str, stats, attacker, world: dict, absorb_share: float = 0.0
     healed = max(0.0, d.heal_share + heal_share) * hp + d.heal_hp + heal_hp
     total = plain + ((shield_hp + healed) / taken_eff if taken_eff > 0 else 0.0)
     return {"effective_hp": total, "effective_hp_without_shields": plain, "max_hp": hp, "damage_taken": taken_eff,
-            "evade_chance": evade, "damage_kept_off": d.reduction, "shield_hp": shield_hp, "healed_hp": healed,
+            "evade_chance": evade, "block_chance": block_chance(st.defenses({}).block, attacker.accuracy),
+            "damage_kept_off": d.reduction, "shield_hp": shield_hp, "healed_hp": healed,
             "status_resist": min(1.0, d.status_resist + max(0.0, getattr(st, "cc_resist", 0.0)))}
 
 
@@ -282,7 +290,8 @@ def survival(cls: str, stats, control_s: float, duration: float, ref: tuple, wor
             "shield_share": absorb_share + d.shield_share, "shield_hp": e["shield_hp"], "healed_hp": e["healed_hp"],
             "heal_share": d.heal_share + heal_share, "typical_effective_hp": typical,
             "relative_ehp": total / typical if typical > 0 else None, "damage_taken": e["damage_taken"],
-            "evade_chance": e["evade_chance"], "damage_kept_off": e["damage_kept_off"],
+            "evade_chance": e["evade_chance"], "block_chance": e["block_chance"],
+            "damage_kept_off": e["damage_kept_off"],
             "status_resist": e["status_resist"], "attackers": attackers,
             "control_s_per_min": 60 * control_s / duration if duration else 0.0, "controlled": controlled,
             "alive_share": 1 - math.exp(-x), "control_landing": landing, "controlled_self": taken_control,

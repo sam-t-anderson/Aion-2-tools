@@ -786,6 +786,10 @@ short of a content tier's threshold (players report about 1,100 Accuracy for Kor
 global Transcendence stage 4). No general diminishing return on crowd control was found; Tenaciousness, Salvation
 and Barrier Spell share a 30 s lockout.
 
+**Shipped in 0.2.387.** Illusive Clone's cooldown, 60 s since the global patch of 28 October as the official notes
+say (it was a data-to-check item here), and Block against Accuracy at 0.1 % a point, which also sets how Accuracy
+lowers a boss's parries (methodology, "The 28 October patch" and "Block against Accuracy").
+
 **Korean rules not confirmed for global.** The Korean patch notes set, against players:
 
 - critical hits at ×1.25 and Double at ×1.5 (14 January 2026), where the model uses +50 % and ×2;
@@ -798,9 +802,11 @@ may run different rules; a recorded PvP fight with known stats on both sides wou
 **Not settled.**
 
 - *Block*: a shield block (Templar and Cleric) is rolled first, then a weapon block, each topping out at 50 % by the
-  client's text and players' reports; the chance falls with the attacker's Accuracy plus Block Penetration at 10 %
-  a hundred points by one claim and 50 % at a 400-point gap by another, both untested. What a block removes "varies
-  by gear grade" and no number is published. A Perfect Block (Korea, since 25 March 2026) can come from any side.
+  client's text and players' reports. The weapon roll is modelled since 0.2.387 at 10 % a hundred points of Block
+  above the attacker's Accuracy, which a Korean test of 600 hits a setting measured against a boss (methodology,
+  "Block against Accuracy"); the shield's second roll ("50 % at a 400-point gap" by one claim, untested) is not.
+  What a block removes "varies by gear grade" and no number is published (the tests found half on bosses). A
+  Perfect Block (Korea, since 25 March 2026) can come from any side.
 - *Status Effect Chance against Resist*: early Korean posts assumed base + chance − resist, later observations
   (a Stun landing against 180 % resist) point to base × (1 + chance − resist). Resist above 100 % is not immunity.
 - *PvP crit*: several Korean and Taiwanese players say a hit cannot crit while Critical Hit is at most the target's
@@ -816,8 +822,7 @@ may run different rules; a recorded PvP fight with known stats on both sides wou
 official in Korea (a description fix of 1 July 2026), and boss fights on a Korean meter plateau at about 81 %
 (500–800 hits each). The curve stays; on it a Fire Temple boss implies about 450 Critical Hit Resist.
 
-**Data to check.** The global patch of 28 October 2026 reportedly cut Illusive Clone's cooldown from 90 s to 60 s,
-while the bundled class data still has 90 s. metabot.gg names other final bosses than the dungeon catalog for
+**Data to check.** metabot.gg names other final bosses than the dungeon catalog for
 Cradle of Nihility (Afflicted Bakarma, not Solemn Valkan), Azure Breath Island (Awakened Alturadon, not Expanding
 Xyrepe) and Submerged Life Temple (Submerged Emon, not Singing Ellyde); there are no public logs of these dungeons
 to check against.

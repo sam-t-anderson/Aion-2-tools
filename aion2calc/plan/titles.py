@@ -29,8 +29,9 @@ ROLE_SLOTS = {"Offensive": "Attack", "Defensive": "Defense", "Utility": "Etc"}
 #: Equip-bonus stats that cut the damage the character takes, per kind of fight. Damage Tolerance lowers the
 #: attacker's damage boost (the damage model's boost bucket, ``1 + boosts - tolerance``), so +3 % takes about 3 %
 #: off a boss's hits. Every Defense title carries only defensive bonuses (Defense, Block, Evasion, resists and
-#: these), so none adds damage and the slot is ranked by this cut instead (0.2.371); the other defensive stats have
-#: no formula in the model and are not ranked.
+#: these), so none adds damage and the slot is ranked by this cut instead (0.2.371). Block counts only against an
+#: attacker's Accuracy, which a title slot does not know (World PvP's survival counts it, 0.2.387), and Defense and
+#: Evasion have no formula here, so they are not ranked.
 GUARD = {"pve": ("Damage Tolerance", "PvE Damage Tolerance", "Boss Damage Tolerance"),
          "pvp": ("Damage Tolerance", "PvP Damage Tolerance")}
 

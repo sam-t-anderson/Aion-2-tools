@@ -52,8 +52,8 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 |---:|---|
 | 1 | condemnation › lightning_strike_scattershot › divine_aura |
 | 2 | epunish › prayamp |
-| 3 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 4 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 3 | condemnation › lightning_strike_scattershot › divine_aura |
+| 4 | epunish › prayamp |
 | 5 | powerburst › debilitating_mark › chain_of_torment |
 
 Manual keys (press on cooldown, in this priority): bolt

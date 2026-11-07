@@ -206,13 +206,14 @@ def test_heart_gore_comes_back_on_a_crit_and_has_no_cooldown_under_illusive_clon
     traced = replace(scen, config=replace(scen.config, record_damage=True))
     _, res, kit = _sim("assassin", ["illusive_clone", "heart_gore", "quick_slice"], build=clone, derived=crit,
                        scen=traced)
-    assert kit.actions["illusive_clone"].cooldown == 90.0 and res.casts["illusive_clone"] >= 2   # 120 s
+    # 60 s since the global patch of 28 October 2026 (90 s before): it comes back twice in the 120 s fight
+    assert kit.actions["illusive_clone"].cooldown == 60.0 and res.casts["illusive_clone"] >= 3
     assert res.casts["heart_gore"] > 1.4 * base.casts["heart_gore"]
     windows = [(t, t + 20.0) for t, key in res.timeline if key == "illusive_clone"]             # Lv 20: 20 s
     inside = sum(d for t, d in res.damage_events if any(lo <= t < hi for lo, hi in windows))
     clone_damage = res.damage_by["Illusive Clone"] + res.damage_by["Clone Attack"]
     assert 0.18 < clone_damage / inside < 0.23                            # a fifth of the damage in its windows
-    assert 0.05 < clone_damage / res.total < 0.12                         # for 20 s in 90
+    assert 0.05 < clone_damage / res.total < 0.12                         # for 20 s in 60
     assert res.damage_by["Clone Attack"] > 0                              # the Lv 20 extra hits on crits
 
 
@@ -340,7 +341,9 @@ def test_storm_rampage_fires_in_the_stagger_windows_and_pulls_every_cooldown_in(
     its Lv 12 Multi-Hit too: the option lands four extra hits inside each hit's record, 20 % more (the damage model's
     certain Multi-Hit since 0.2.382), where the kit doubled the hits (the hits of a fifth that follow each one in an
     Illusive Clone window are the clone's, on every skill). With its Lv 16 option each hit takes a second off every
-    cooldown: the recorded Assassin's Illusive Clone came back every 46 s against its 80 s cooldown."""
+    cooldown: the recorded Assassin's Illusive Clone came back every 46 s against its 53 s cooldown (60 s since the
+    global patch of 28 October 2026, less the player's 11.1 % Cooldown Reduction; 0.2.368 compared it with 80 s, from
+    the 90 s the bundled data still had)."""
     from aion2calc.model.stats import MULTI_HIT_ON_HIT, MULTIHIT_BONUS
     storm, iclone = 13340000, 13310000
     scen = boss("assassin_l45_global_median")
@@ -358,7 +361,11 @@ def test_storm_rampage_fires_in_the_stagger_windows_and_pulls_every_cooldown_in(
         pytest.approx((1 + MULTI_HIT_ON_HIT) / (1 + sim.base.multihit * MULTIHIT_BONUS), rel=1e-6)
     first_a = [t for t, key in a.timeline if key == "illusive_clone"]
     first_b = [t for t, key in b.timeline if key == "illusive_clone"]
-    assert first_b[1] < first_a[1] - 15.0 and first_b[2] < first_a[2] - 30.0   # 19 s off its cooldown per stagger
+    train = [t for t, key in b.timeline if key == "storm_rampage"]
+    # 19 s off its cooldown per stagger: less than that is left of the clone's 60 s when the first train lands, so the
+    # clone is pressed as soon as the train ends, and the later windows come earlier too
+    assert train[0] < first_b[1] < train[0] + 4.0 < first_a[1]
+    assert first_b[2] < first_a[2] - 5.0
     assert "Storm Rampage" not in _sim("assassin", pol, build=full)[1].damage_by      # a dummy never staggers
 
 

@@ -56,9 +56,9 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 |---:|---|
 | 1 | judgment › taunt › noble |
 | 2 | elp › shield_rush › annihilate › warding_strike |
-| 3 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 4 | the same key as line 2, pressed again: its skills are tried twice a round |
-| 5 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 3 | judgment › taunt › noble |
+| 4 | elp › shield_rush › annihilate › warding_strike |
+| 5 | judgment › taunt › noble |
 | 6 | poach › debilitating_smash › shield_smite › doom |
 
 Manual keys (press on cooldown, in this priority): punishment

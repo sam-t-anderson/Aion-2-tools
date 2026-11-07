@@ -361,46 +361,27 @@ function winMacro(v) {
   // A step of several skills is one hotbar key holding them all (0.2.371): the macro casts them from first to last,
   // skipping any that cannot be cast, then moves to the next line (0.2.377).
   const held = (s) => s.stack || [s];
-  // A key the search put on several lines is pressed once per line, so its skills are tried more often. A later
-  // line of that key names the line it repeats instead of drawing the key's skills again (0.2.376): drawn twice
-  // in full, it read as a mistake.
-  const firstLine = new Map();
-  r.steps.forEach((s, i) => {
-    if (!firstLine.has(s.binding)) firstLine.set(s.binding, i + 1);
-  });
-  const repeats = (s, i) => firstLine.get(s.binding) < i + 1;
+  // A key the search put on several lines is pressed once per line, so its skills are tried more often; every line
+  // shows the skills its key holds, a repeated key's too (being on two lines already says it is pressed twice).
   const steps = r.steps
     .map(
-      (
-        s,
-        i,
-      ) => `<div class="macro-step${repeats(s, i) ? " macro-repeat" : ""}"><strong class="macro-number">${i + 1}</strong><div class="macro-stack">${
-        repeats(s, i)
-          ? `<div><b>The same key as line ${firstLine.get(s.binding)}, pressed again</b><div class="small muted">${held(
-              s,
-            )
-              .map((h) => esc(h.name))
-              .join(
-                " › ",
-              )}: a key on two lines is pressed twice per round of the macro, so its skills are tried twice.</div></div>`
-          : held(s)
-              .map(
-                (h, j, all) =>
-                  `<div>${rotationIcon(h)}<b>${esc(h.name)}</b>${chainNote(h)}${all.length > 1 ? `<div class="small muted">${j ? "then this one" : "cast first"}, skipped if it cannot be cast</div>` : ""}</div>`,
-              )
-              .join("")
-      }</div><span class="macro-key-label">Hotbar key <kbd>${esc(s.binding)}</kbd>${repeats(s, i) ? " again" : ""}</span></div>
+      (s, i) =>
+        `<div class="macro-step"><strong class="macro-number">${i + 1}</strong><div class="macro-stack">${held(s)
+          .map(
+            (h, j, all) =>
+              `<div>${rotationIcon(h)}<b>${esc(h.name)}</b>${chainNote(h)}${all.length > 1 ? `<div class="small muted">${j ? "then this one" : "cast first"}, skipped if it cannot be cast</div>` : ""}</div>`,
+          )
+          .join("")}</div><span class="macro-key-label">Hotbar key <kbd>${esc(s.binding)}</kbd></span></div>
     ${i < r.steps.length - 1 ? '<div class="macro-delay"><span></span>Delay <b>10</b> ms<span></span></div>' : ""}`,
     )
     .join("");
   const copy =
     r.steps
-      .map((s, i) =>
-        repeats(s, i)
-          ? `${i + 1}. hotbar key ${s.binding} again (the same key as line ${firstLine.get(s.binding)}); delay 10 ms`
-          : `${i + 1}. hotbar key ${s.binding}: ${held(s)
-              .map((h) => `${h.name}${h.chain_of ? ` (${h.chain_of}’s chain: ${h.chain_of} again)` : ""}`)
-              .join(" > ")}; delay 10 ms`,
+      .map(
+        (s, i) =>
+          `${i + 1}. hotbar key ${s.binding}: ${held(s)
+            .map((h) => `${h.name}${h.chain_of ? ` (${h.chain_of}’s chain: ${h.chain_of} again)` : ""}`)
+            .join(" > ")}; delay 10 ms`,
       )
       .join("\n") +
     (r.manual.length
@@ -557,7 +538,7 @@ function worldPvpHTML(w) {
   return `<section class="note" data-world-pvp><h4>World PvP</h4><div class="tablewrap"><table class="t small"><tr><th><span class="sr-only">Measure</span></th><th class="r">This build</th><th class="r">Typical build</th></tr>
     ${row("Score (DPS × share survived × share not controlled)", w.score, t.score, n0)}${row("Damage on up to " + esc(w.assumptions?.enemies_in_reach ?? 3) + " players (DPS)", w.dps, t.dps, n0)}
     ${row("Share of the fight survived", w.alive_share, t.alive_share, pct)}${row("Share of it not crowd-controlled", w.acting_share, t.acting_share, pct)}${row("Effective HP (with shields and heals)", w.effective_hp, t.effective_hp, n0)}${row("Hard crowd control you deal (s per minute)", w.control_s_per_min, t.control_s_per_min, (x) => x.toFixed(1))}${row("Crowd control you take (share of the fight)", w.controlled_self, t.controlled_self, pct)}</table></div>
-    <p class="small muted">${esc(w.attackers)} attackers · ${pct(w.controlled)} of their time under your crowd control · damage taken ${pct(w.damage_taken)} of an undefended player's${w.evade_chance ? " · " + pct(w.evade_chance) + " of hits evaded" : ""} · Status Effect Resist ${pct(w.status_resist || 0)} · ${esc((w.defensives || []).length)} defensive effects counted.</p><p class="small muted">${esc(w.note || "")}</p></section>`;
+    <p class="small muted">${esc(w.attackers)} attackers · ${pct(w.controlled)} of their time under your crowd control · damage taken ${pct(w.damage_taken)} of an undefended player's${w.evade_chance ? " · " + pct(w.evade_chance) + " of hits evaded" : ""}${w.block_chance ? " · " + pct(w.block_chance) + " of the rest blocked (half damage)" : ""} · Status Effect Resist ${pct(w.status_resist || 0)} · ${esc((w.defensives || []).length)} defensive effects counted.</p><p class="small muted">${esc(w.note || "")}</p></section>`;
 }
 function genusTargetsHTML(targets) {
   if (!targets) return "";

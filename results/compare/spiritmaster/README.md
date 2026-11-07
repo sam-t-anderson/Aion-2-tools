@@ -56,10 +56,10 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 | 1 | summon_fire › enhance › ancient_spirit › summon_earth |
 | 2 | dimensional_control › elemental_fusion › summon_water |
 | 3 | summon_wind › jointstrike_curse › combustion |
-| 4 | the same key as line 2, pressed again: its skills are tried twice a round |
-| 5 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 4 | dimensional_control › elemental_fusion › summon_water |
+| 5 | summon_fire › enhance › ancient_spirit › summon_earth |
 | 6 | soul_cry › rapid_scattershot › seize_magic |
-| 7 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 7 | dimensional_control › elemental_fusion › summon_water |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 

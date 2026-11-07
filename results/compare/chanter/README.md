@@ -54,15 +54,15 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 |---:|---|
 | 1 | undefeated › spinning_strike › marchutan › dark_crush |
 | 2 | stormpower › impactful_crush |
-| 3 | the same key as line 1, pressed again: its skills are tried twice a round |
+| 3 | undefeated › spinning_strike › marchutan › dark_crush |
 | 4 | incandescent_blow › wave_blow › gust_rampage |
 | 5 | rushing_smash |
 | 6 | tremor_crush › heat_wave_blow |
-| 7 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 8 | the same key as line 2, pressed again: its skills are tried twice a round |
-| 9 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 10 | the same key as line 2, pressed again: its skills are tried twice a round |
-| 11 | the same key as line 5, pressed again: its skills are tried twice a round |
+| 7 | undefeated › spinning_strike › marchutan › dark_crush |
+| 8 | stormpower › impactful_crush |
+| 9 | undefeated › spinning_strike › marchutan › dark_crush |
+| 10 | stormpower › impactful_crush |
+| 11 | rushing_smash |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 

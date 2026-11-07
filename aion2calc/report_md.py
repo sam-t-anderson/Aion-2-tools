@@ -224,15 +224,10 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         parent = chains.get(str(entry).split(" [", 1)[0])
         return f"{entry} ({how.format(parent)})" if parent else str(entry)
     by_hand = "{0}'s key while its chain is open"
-    first: dict = {}          # a key on several lines: each later line names the line it repeats (0.2.376)
-    again_text = "the same key as line {0}, pressed again: its skills are tried twice a round"
+    # a key on several lines shows its skills on each of them: being listed twice says it is pressed twice a round
     for i, st in enumerate(m["steps"], 1):
         held = st if isinstance(st, list) else [st]
         own = isinstance(st, list) and held == [m.get("auto_attack")]   # the basic attack's own line (0.2.371)
-        again = first.setdefault(tuple(held), i)
-        if again < i:
-            w(f"| {i} | {again_text.format(again)} |")
-            continue
         w(f"| {i} | {' › '.join(named(x, 'chain of {0}: add {0} again') for x in held)}"
           f"{' (the basic attack, on the left mouse button)' if own else ''} |")
     w("\nManual keys (press on cooldown, in this priority): " + (", ".join(named(e, by_hand) for e in m["manual"]) or

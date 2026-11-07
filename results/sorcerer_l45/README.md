@@ -57,11 +57,11 @@ Each line is a hotbar key: put its skills on that key in the order listed, the f
 | 1 | delayed_explosion › cold_storm |
 | 2 | element_enhancement › blaze › wish |
 | 3 | flame_scattershot › bittercold_wind |
-| 4 | the same key as line 2, pressed again: its skills are tried twice a round |
-| 5 | the same key as line 1, pressed again: its skills are tried twice a round |
-| 6 | the same key as line 2, pressed again: its skills are tried twice a round |
+| 4 | element_enhancement › blaze › wish |
+| 5 | delayed_explosion › cold_storm |
+| 6 | element_enhancement › blaze › wish |
 | 7 | winters_shackles › frost_burst › firestorm › frost |
-| 8 | the same key as line 3, pressed again: its skills are tried twice a round |
+| 8 | flame_scattershot › bittercold_wind |
 
 Manual keys (press on cooldown, in this priority): fire_wall, hellfire_c3
 
