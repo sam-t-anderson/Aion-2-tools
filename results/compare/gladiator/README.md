@@ -51,22 +51,18 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `keen_strike`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, each once: held, the macro cycles through them. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | sword_aura_rampage › mocking_blade |
-| 2 | lunge › rage › overhead_slam › leaping_slam |
-| 3 | rending_blow › zikel › ruinous_blow |
-| 4 | lunge › rage › overhead_slam › leaping_slam |
-| 5 | aerial_snare › crushing_wave |
-| 6 | sword_aura_rampage › mocking_blade |
-| 7 | lunge › rage › overhead_slam › leaping_slam |
-| 8 | rush_strike › ankle_slice › forcedrest |
+| 1 | rage › leaping_slam › aerial_snare › zikel |
+| 2 | rush_strike › lunge › overhead_slam › ruinous_blow |
+| 3 | ankle_slice › rending_blow |
+| 4 | mocking_blade › sword_aura_rampage › forcedrest › crushing_wave |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **90.8%** of the ideal priority list.
+Simulated: this layout reaches **83.0%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro leaping_slam → rage → overhead_slam → aerial_snare → forcedrest → zikel → ruinous_blow → rush_strike → ankle_slice → lunge → mocking_blade → rending_blow → crushing_wave → keen_strike → sword_aura_rampage. Simulated: **70.9%** of the ideal priority list.
 
