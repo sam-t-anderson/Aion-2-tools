@@ -42,8 +42,8 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    # Covers the refresh plus waiting on the dispatched CI run before auto-merging.
-    timeout-minutes: 30
+    # Covers the refresh plus up to three rounds of the dispatched CI run (each with two reruns) before merging.
+    timeout-minutes: 120
     env:
       GH_TOKEN: ${{ github.token }}
       OBSERVED_BUILD: ${{ inputs.observed_build || '' }}
@@ -72,35 +72,84 @@ jobs:
           extra=()
           if [ "$REFRESH_EXISTING" = true ]; then extra+=(--refresh-existing); fi
           python tools/refresh_assets.py --observed-build "$OBSERVED_BUILD" "${extra[@]}"
-      - name: Publish, run CI, and auto-merge when it passes
+      - name: Publish, run CI, and merge when it passes
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add aion2calc/app/static/build-catalog.json aion2calc/app/static/crafting-catalog.json aion2calc/app/static/crafting-success.json aion2calc/app/static/game-assets* aion2calc/meter/a2parser/data/i18n/npc-portraits docs/generated/asset-catalog-audit.json
-          if git diff --cached --quiet; then echo 'No asset changes; nothing to publish.'; exit 0; fi
-          git commit -m 'Refresh source-ID game assets and catalog audit'
-          git push origin automation/asset-refresh
-          sha=$(git rev-parse HEAD)
+          if ! git diff --cached --quiet; then git commit -m 'Refresh source-ID game assets and catalog audit'; fi
           pr=$(gh pr list --head automation/asset-refresh --state open --json number --jq '.[0].number')
+          if git diff --quiet origin/main HEAD; then
+            # Nothing differs from main: no new collection, and any earlier one is merged already.
+            if [ -n "$pr" ]; then gh pr close "$pr" --delete-branch --comment 'Main already holds these assets.'; fi
+            echo 'No asset changes; nothing to publish.'; exit 0
+          fi
+          # A collection an earlier run left unmerged (its CI did not pass) is published again with this one,
+          # so a refresh never waits on a person.
+          git push origin automation/asset-refresh
           if [ -z "$pr" ]; then
             pr=$(gh pr create --base main --head automation/asset-refresh \
               --title 'Refresh game assets from published source IDs' \
-              --body 'Automated image/reference collection from published source IDs (see docs/generated/asset-catalog-audit.json for source hashes, unknown IDs, removals and role changes). Auto-merges once CI passes; a CI failure leaves it open to review. Source collection context is not a verified game-build mapping.' \
+              --body 'Automated image/reference collection from published source IDs (see docs/generated/asset-catalog-audit.json for source hashes, unknown IDs, removals and role changes). Merges itself once the tests, the site and the browser checks pass on it; a failure that two reruns do not clear leaves it open, and the next refresh tries again. Source collection context is not a verified game-build mapping.' \
               | sed 's#.*/##')
           fi
-          # GITHUB_TOKEN pushes do not trigger CI recursively, so dispatch it explicitly.
-          # The workflow_dispatch run executes the real tests + builds (the parallel
-          # pull_request run only skips same-repo PRs), so wait on that run and merge when
-          # it passes. A CI failure fails this job and leaves the PR open — nothing
-          # unvalidated is ever merged.
-          gh workflow run ci.yml --ref automation/asset-refresh
-          run=''
-          for _ in $(seq 1 24); do
-            run=$(gh run list --workflow=ci.yml --branch automation/asset-refresh --event workflow_dispatch \
-              --limit 20 --json databaseId,headSha --jq "[.[] | select(.headSha==\"$sha\")][0].databaseId // empty")
-            if [ -n "$run" ]; then break; fi
-            sleep 5
+
+          # GITHUB_TOKEN pushes do not trigger CI, so dispatch it. assets_only runs the checks that read
+          # catalogs and images (tests and lint, the site, the app in a browser) and skips the packaging
+          # builds and the desktop check, which such a commit cannot change: on 6 November a macOS runner that
+          # never came failed the run and the merge waited on a person. A failed or cancelled job is rerun
+          # twice before the run counts as failed. Nothing unvalidated is ever merged.
+          checks_pass() {
+            local sha run attempt
+            sha=$(git rev-parse HEAD)
+            gh workflow run ci.yml --ref automation/asset-refresh -f assets_only=true
+            run=''
+            for _ in $(seq 1 36); do
+              run=$(gh run list --workflow=ci.yml --branch automation/asset-refresh --event workflow_dispatch \
+                --limit 20 --json databaseId,headSha --jq "[.[] | select(.headSha==\"$sha\")][0].databaseId // empty")
+              if [ -n "$run" ]; then break; fi
+              sleep 5
+            done
+            if [ -z "$run" ]; then echo "::error::the dispatched CI run for $sha did not appear"; return 1; fi
+            for attempt in 1 2 3; do
+              if gh run watch "$run" --exit-status > /dev/null; then return 0; fi
+              if [ "$(gh pr view "$pr" --json headRefOid --jq .headRefOid)" != "$sha" ]; then
+                echo "::warning::automation/asset-refresh moved on during CI; the next refresh merges it"
+                exit 0
+              fi
+              if [ "$attempt" = 3 ]; then break; fi
+              echo "::warning::CI run $run did not pass (attempt $attempt); rerunning its failed and cancelled jobs"
+              gh run rerun "$run" --failed
+              sleep 20
+            done
+            return 1
+          }
+
+          for cycle in 1 2 3; do
+            if ! checks_pass; then
+              echo "::error::CI did not pass on the asset refresh after two reruns; the PR stays open and the next refresh tries again"
+              exit 1
+            fi
+            state=''
+            for _ in $(seq 1 18); do
+              state=$(gh pr view "$pr" --json mergeStateStatus --jq .mergeStateStatus)
+              case "$state" in
+                CLEAN|HAS_HOOKS|UNSTABLE) gh pr merge "$pr" --squash --delete-branch; exit 0 ;;
+                BEHIND|DIRTY) break ;;
+                *) sleep 10 ;;          # BLOCKED or UNKNOWN while the checks settle
+              esac
+            done
+            if [ "$state" = DIRTY ]; then
+              echo "::error::the asset refresh conflicts with main; the PR stays open"; exit 1
+            fi
+            if [ "$state" != BEHIND ]; then
+              gh pr merge "$pr" --squash --delete-branch && exit 0
+              echo "::error::the PR could not be merged ($state)"; exit 1
+            fi
+            # main moved during CI and the branch must be up to date: bring main in and test again
+            git fetch origin main
+            git merge --no-edit origin/main
+            git push origin automation/asset-refresh
           done
-          if [ -z "$run" ]; then echo '::error::dispatched CI run for this commit did not appear'; exit 1; fi
-          gh run watch "$run" --exit-status
-          gh pr merge "$pr" --squash --delete-branch
+          echo "::error::main kept moving during three rounds of CI; the next refresh tries again"
+          exit 1
