@@ -194,6 +194,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
         on_hit_cd, on_cast_cd, resets, buffs = [], [], [], []
         dur_buff = None
         chain = False
+        uses = 1                              # "+N consecutive use(s)": presses one cooldown allows
         more = less = 0.0
         if s["kind"] == "stigma":
             active_specs = [x["text"] for x in s.get("specs", []) if x["unlock"] <= lvl]
@@ -232,6 +233,8 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
                 mult *= 1 + float(m.group(1)) / 100
             elif m := re.search(r"(\d+)% more damage", t, re.I):
                 mult *= 1 + float(m.group(1)) / 100
+            elif m := re.match(r"\+(\d+) consecutive uses?", t):
+                uses += int(m.group(1))               # Flash Slice's level-12 "+1": two presses a cooldown
             elif re.search(r"[Aa]dds \[.+?\] Chain Skill", t):
                 chain = True                          # a follow-up hit the generic model otherwise drops
             elif re.search(r"[Ee]xtra damage on hit", t):
@@ -321,7 +324,7 @@ def build_kit(build: Build, cd: ClassData, filler: str | None = None, *, pvp: bo
                         skill_speed=skill_speed, on_cast=on_cast, is_filler=is_filler,
                         requires_charge=bool(re.search(r"\bCharge (?:Levels|Skill)\b", tip)
                                              or any("Changes to Charge Skill" in t for t in active_specs)),
-                        targets=targets_of(tip, v), reach=reach_of(tip),
+                        targets=targets_of(tip, v), reach=reach_of(tip), uses=uses,
                         control=control_of(s["name"], tip, v, active_specs))
         if not pairs and not buff_stats:
             utility.add(key)                  # crowd control only: offered to the rotation search, not the default

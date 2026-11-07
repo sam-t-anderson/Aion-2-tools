@@ -181,6 +181,9 @@ class OptResult:
 
 
 class Optimizer:
+    #: Stigmas the stigma search leaves out: the purely defensive ones, which add no damage
+    excluded_stigmas = DEFENSIVE_STIGMAS
+
     def __init__(self, cls: str, scenario: Scenario, daev_budget: int = 360,
                  stigma_points: int | None = None, sp_budget: int | None = None,
                  search_duration: float | None = None, verbose: bool = True, gear_bonus: dict | None = None,
@@ -519,7 +522,7 @@ class Optimizer:
     def optimize_stigmas(self, build: Build, policy: list) -> Build:
         cd = self.cd
         cands = [s["id"] for s in cd.skills.values()
-                 if s["kind"] == "stigma" and (s["name"] not in DEFENSIVE_STIGMAS or s["id"] in self.min_stigmas)]
+                 if s["kind"] == "stigma" and (s["name"] not in self.excluded_stigmas or s["id"] in self.min_stigmas)]
         slots = self.stigma_slots
         if not slots:
             self.log("stigma search skipped: no stigma slot is open at this level, or no stigma point to fill one")

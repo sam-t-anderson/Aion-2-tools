@@ -289,3 +289,29 @@ def test_latest_hp_falls_back_to_largest_when_never_seen_at_full():
                             "timestamp_ms": ts, "epoch": 0})
     _, maximum = s._latest_hp(eid, {0})
     assert maximum == 120000
+
+
+def test_a_timed_boss_shows_its_estimated_time_to_enrage():
+    # 0.2.386: Ultimate Berk (Krao Cave, Conquest) enrages 300 s after the pull. Six seconds in, with the HP
+    # falling 10,000 a second and 50,000 left, the kill (5 s) comes well before the enrage (294 s).
+    from aion2calc.meter.enrage import enrage_timer, estimate
+    assert enrage_timer(2300171)["enrage_s"] == 300 and enrage_timer("2300171")["boss"] == "Ultimate Berk"
+    assert enrage_timer(999999999) is None and enrage_timer(None) is None
+    assert estimate(2300171, 250.0, 60.0) == {"enrage_s": 300, "enrage_in": 50.0, "enraged": False, "before_kill": True,
+                                              "confidence": enrage_timer(2300171)["confidence"],
+                                              "measured": enrage_timer(2300171)["measured"]}
+    assert estimate(2300171, 320.0, 10.0)["enraged"] is True and estimate(2300171, 320.0)["enrage_in"] == 0.0
+    s, engine = _session()
+    engine.spawn_info = {9001: {"mobCode": 2300171}}
+    engine.telemetry = [
+        {"kind": "hp", "entity": 9001, "current": 100000, "max": 100000, "timestamp_ms": 1000},
+        {"kind": "hp", "entity": 9001, "current": 50000, "max": 100000, "timestamp_ms": 6000},
+    ]
+    s.observe(engine, [_hit(5001, 9001, 1000, 1000), _hit(5001, 9001, 6000, 1000)], timestamp_ms=6000)
+    target = s.snapshot(scope="auto", segment_id=None)["current_target"]
+    assert target["mob_code"] == 2300171 and target["enrage"]["enrage_s"] == 300
+    assert target["enrage"]["enrage_in"] == 294.0 and target["enrage"]["before_kill"] is False
+    # an enemy with no known timer shows none
+    s2, engine2 = _session()
+    s2.observe(engine2, [_hit(5001, 9001, 1000, 1000)], timestamp_ms=1000)
+    assert s2.snapshot(scope="auto", segment_id=None)["current_target"]["enrage"] is None

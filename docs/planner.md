@@ -84,8 +84,10 @@ Enter lines on the Gear & Advice page, one per slot: `Varian | 7 | 4 | Varian Da
 The roll targets value every line a slot can roll at the midpoint of its best grade, on the boss
 scenario. Front and Back Attack lines (the flat ones, the Damage Boosts and the Critical Hits) count
 only on the share of your class's hits from that side, as recorded in boss fights: the Assassin lands
-70% of its boss hits from behind, the Templar 48% from the front. Max Attack, Power Shard Damage
-Bonus and the accuracy lines are listed with the reason they are not scored.
+70% of its boss hits from behind, the Templar 48% from the front. Max Attack raises the top of
+your weapon's roll (half its value on an average hit, all of it on a Perfect one), and the accuracy
+lines lower the boss's parries, which cost your class's recorded share of its front and side hits
+(0.2.386). Power Shard Damage Bonus is listed with the reason it is not scored.
 
 ### Two caveats
 

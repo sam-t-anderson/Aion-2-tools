@@ -105,6 +105,42 @@ WEAVE = {
 }
 
 
+#: Storm Slice (13330000), the chain skill Defiance's level-8 specialization adds. It is not in the bundled client
+#: data; aion2.gg's read of the EU/NA client 2.0.10.0 and aion2.app's of 28 October 2026 agree at every level:
+#: the flat damage below (by Defiance's level) plus 133 % of Attack to up to 4 enemies within 4 m and a 3 s Stun,
+#: instant, no MP, open for 3 s after Defiance, its own cooldown 120 s at level 1 and 2 s less a level (twice
+#: Defiance's). docs/methodology.md "The Assassin's Flash Slice and Storm Slice".
+STORM_SLICE_FLAT = (518, 616, 714, 811, 909, 1027, 1125, 1197, 1248, 1320, 1392, 1464, 1536, 1588, 1639, 1691,
+                    1743, 1795, 1847, 1899, 1951, 2002, 2054, 2106, 2158, 2210, 2262, 2314, 2366, 2417, 2469, 2521,
+                    2573, 2625, 2677, 2729, 2781, 2832, 2884, 2936)
+STORM_SLICE_COEF = 1.33
+STORM_SLICE_SID = 13330000
+
+
+def storm_slice(build: Build, cd: ClassData, cast: float = 0.5) -> Action | None:
+    """Storm Slice as an action, when the build takes Defiance's level-8 specialization; None otherwise.
+
+    Defiance can be pressed only while crowd-controlled, so the chain belongs to the player-target kits, whose
+    opponents control you at least once a Defiance cooldown (``opt.world``'s incoming crowd control); a boss fight
+    gives it no opening, and none of the log server's boss fights shows a Storm Slice hit. It is pressed once its
+    own cooldown allows, every other Defiance."""
+    sid = SID["DEFI"]
+    level = build.effective_levels(cd).get(sid, 0)
+    spec = next((x for x in cd.skills[sid].get("specs") or () if x["id"] == sid + 10), None)
+    if spec is None or (sid + 10) not in set(build.specs.get(sid, ())) or level < spec["unlock"]:
+        return None
+    flat = float(STORM_SLICE_FLAT[min(level, len(STORM_SLICE_FLAT)) - 1])
+    cooldown = max(1.0, 120.0 - 2.0 * (level - 1))
+
+    def on_cast(sim, a):
+        k = min(a.targets, sim.target.aoe_targets) if sim.target.aoe_targets > 1 else 1
+        sim.control(a.control * k)
+        sim.hit("Storm Slice", flat, STORM_SLICE_COEF, mult=float(k))
+
+    return Action("storm_slice", "Storm Slice", STORM_SLICE_SID, cast, cooldown=cooldown, affected_by_cdr=False,
+                  targets=4, reach=4.0, control=3.0, on_cast=on_cast)
+
+
 def build_kit(build: Build, cd: ClassData, filler: str = "quick_slice") -> Kit:
     L = build.effective_levels(cd)
     specs = {sid: set(v) for sid, v in build.specs.items()}
@@ -303,10 +339,13 @@ def build_kit(build: Build, cd: ClassData, filler: str = "quick_slice") -> Kit:
     A["whirlwind_slice"] = Action("whirlwind_slice", "Whirlwind Slice", SID["WHIRL"], TIMING["whirlwind_slice"],
                                   cooldown=cd.cd(SID["WHIRL"], lv("WHIRL")), on_cast=whirl_cast)
 
-    # Flash Slice
+    # Flash Slice. Its level-12 specialization "+1 consecutive use" makes two presses a cooldown: the recorded
+    # Assassin who took it pressed it a second time within a second 22 times in 124 gaps (and within 4 s 35 times),
+    # where its 10 s cooldown alone allows none (docs/methodology.md "The Assassin's Flash Slice and Storm Slice").
     fl_f, fl_c = dmg("FLASH")
     A["flash_slice"] = Action("flash_slice", "Flash Slice", SID["FLASH"], TIMING["flash_slice"],
                               cooldown=cd.cd(SID["FLASH"], lv("FLASH")), mp=cd.mp(SID["FLASH"], lv("FLASH")),
+                              uses=2 if has("FLASH", 4) else 1,
                               on_cast=lambda sim, a: sim.hit("Flash Slice", fl_f, fl_c))
 
     # Infiltrate (Back; Dark Strike chain)

@@ -5,7 +5,7 @@ import pytest
 from aion2calc.model.character import parse_bonus_text
 from aion2calc.model.damage import HitContext, crit_probability, expected_hit
 from aion2calc.model.stats import Stats, crit_chance
-from aion2calc.plan.genus import ACCURACY_REASON, line_stats, unscored_reason
+from aion2calc.plan.genus import line_stats, unscored_reason
 from aion2calc.sim.engine import BOSS_POSITIONS, Target
 
 
@@ -98,17 +98,42 @@ def test_the_boss_scenario_uses_each_classes_recorded_mix():
 
 
 def test_genus_lines_without_a_damage_model_say_why():
-    assert unscored_reason("Max Attack", {}).startswith("Not modeled")
     assert unscored_reason("Power Shard Damage Bonus", {}).startswith("Not modeled")
-    assert unscored_reason("PvE Accuracy", {}) == ACCURACY_REASON
-    assert unscored_reason("Accuracy Bonus", line_stats("Accuracy Bonus", "30", "Cogni", {})) == ACCURACY_REASON
-    for stat in ("Back Attack", "Front Attack Critical Hit", "Back Attack Damage Boost", "Critical Hit"):
+    # since 0.2.386 Max Attack raises the top of the weapon roll and the Accuracy lines lower the boss's parries
+    for stat in ("Max Attack", "PvE Accuracy", "Accuracy Bonus", "Back Attack", "Front Attack Critical Hit",
+                 "Back Attack Damage Boost", "Critical Hit"):
         assert unscored_reason(stat, line_stats(stat, "2%" if "Boost" in stat else "30", "Varian", {})) == ""
+    assert line_stats("Max Attack", "15", "Special", {}) == {"weapon_max": 15.0}
+    assert line_stats("PvE Accuracy", "40", "Special", {}) == {"pve_accuracy": 40.0}
+    assert line_stats("Cogni Accuracy", "20", "Cogni", {"Cogni": 0.5}) == {"accuracy": 10.0}
     from aion2calc.opt.genus import prepare
     plan = prepare({"Special": {"level": 3, "lines": [
         {"slot": 1, "stat": "Max Attack", "value": "15"},
+        {"slot": 2, "stat": "PvE Accuracy", "value": "40"},
         {"slot": 3, "stat": "Back Attack Critical Hit", "value": "30"}]}}, "pve")
     reasons = {row["stat"]: row["reason"] for row in plan["lines"]}
-    assert reasons["Max Attack"].startswith("Not modeled")
-    assert reasons["Back Attack Critical Hit"] == ""
-    assert plan["stats"] == {"back_crit": 30.0}
+    assert reasons == {"Max Attack": "", "PvE Accuracy": "", "Back Attack Critical Hit": ""}
+    assert plan["stats"] == {"weapon_max": 15.0, "pve_accuracy": 40.0, "back_crit": 30.0}
+    pvp = prepare({"Special": {"level": 2, "lines": [{"slot": 2, "stat": "PvE Accuracy", "value": "40"}]}}, "pvp")
+    assert pvp["stats"] == {} and "does not apply" in pvp["lines"][0]["reason"]
+
+
+def test_genus_analysis_costs_match_the_in_game_totals():
+    """0.2.386: 4 Soul Crystals and 1,000 Kinah a rolled slot, plus a lock fee; the observed totals fit."""
+    import json
+    from aion2calc.paths import data_file
+    from aion2calc.plan.genus import analysis_cost
+    assert analysis_cost(7) == {"rolled": 7, "locked": 0, "soul_crystals": 28, "kinah": 7000, "insight_exp": 700}
+    assert analysis_cost(9, 6)["soul_crystals"] == 248 and analysis_cost(9, 6)["kinah"] == 62000   # Special Lv.10
+    assert analysis_cost(5, 4)["soul_crystals"] == 80 and analysis_cost(5, 4)["kinah"] == 20000    # Space4Games
+    assert analysis_cost(9, 5)["soul_crystals"] == 172 and analysis_cost(9, 5)["kinah"] == 43000   # mmoexp
+    obs = json.loads(data_file("global", "genus_pantheon_observed.json").read_text(encoding="utf-8"))
+    for g in obs["genus_insight"]["genera"]:
+        if g["name"] == "Special":
+            continue                                   # 6 of its 9 slots locked (the fee fits; the count is not recorded)
+        paid = g["analyze_cost"]
+        # no locks: every open slot rolls (the Fera's four honor tokens stand in for one slot's soul crystals)
+        assert paid["soul_crystals"] + paid.get("honor_tokens", 0) == analysis_cost(g["level"])["soul_crystals"]
+        assert paid["kinah"] == analysis_cost(g["level"])["kinah"]
+    with pytest.raises(ValueError):
+        analysis_cost(3, 4)

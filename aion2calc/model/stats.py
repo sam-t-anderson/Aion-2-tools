@@ -93,6 +93,7 @@ class Stats:
     combat_speed: float = 0.0
     cdr: float = 0.0
     accuracy: float = 0.0
+    pve_accuracy: float = 0.0      # PvE Accuracy (Genus Insight): Accuracy against monsters only
     mp_max: float = 0.0
     mp_max_pct: float = 0.0
     mp_regen: float = 0.0          # natural MP regen per second
@@ -130,12 +131,16 @@ class Stats:
     #: (front, back) shares of direct hits on the target, from the class's recorded mix when the
     #: scenario asks for it (``run.character_stats``); None = the target's own positions
     positions: tuple | None = None
+    #: the chance a boss parries this character's hits from the front or side at ``parry_accuracy``
+    #: (``sim.engine.BOSS_PARRY``, set by ``run.character_stats`` when the scenario asks for it)
+    parry_rate: float = 0.0
+    parry_accuracy: float = 0.0
 
     def add(self, other: "Stats | dict") -> "Stats":
         items = other.items() if isinstance(other, dict) else (
             (f.name, getattr(other, f.name)) for f in fields(other))
         for k, v in items:
-            if k in ("level", "pvp", "positions"):
+            if k in ("level", "pvp", "positions", "parry_rate", "parry_accuracy"):
                 continue
             if k == "skill_bonus":
                 for sid, lv in (v or {}).items():
@@ -172,10 +177,10 @@ class Stats:
             flat_add=(self.pvp_atk if self.pvp else self.pve_atk + self.boss_atk) + PEN_FLAT * self.pen,
             front_atk=self.front_atk, back_atk=self.back_atk,
             front_crit=self.front_crit * crit_scale, back_crit=self.back_crit * crit_scale,
-            positions=self.positions,
+            positions=self.positions, parry_rate=self.parry_rate, parry_accuracy=self.parry_accuracy,
             combat_speed=self.combat_speed + p * self.time,
             cdr=min(CDR_CAP, self.cdr + p * self.illusion),
-            accuracy=self.accuracy * (1 + p * self.freedom),
+            accuracy=self.accuracy * (1 + p * self.freedom) + (0.0 if self.pvp else self.pve_accuracy),
             mp_max=self.mp_max * (1 + self.mp_max_pct),
             mp_regen=self.mp_regen,
             mp_cost_red=self.mp_cost_red + p * self.wisdom,
@@ -234,6 +239,8 @@ class Derived:
     front_crit: float = 0.0
     back_crit: float = 0.0
     positions: tuple | None = None
+    parry_rate: float = 0.0
+    parry_accuracy: float = 0.0
 
     def attack(self, perfect: bool = False, extra_pct: float = 0.0) -> float:
         w = self.weapon_max if perfect else 0.5 * (self.weapon_min + self.weapon_max)

@@ -465,9 +465,10 @@ about 30 % of the fight, so each point of effective HP adds more), crowd control
 melee classes keep their gap closers and ranged skills for the out-of-reach windows. The Gladiator's World
 PvP build takes Assault Strike, Fracturing Rush, Wrath Wave and Blade Toss, Mocking Blade's and Ankle Slice's
 Knockdown specializations, every HP node and most Defense nodes (HP is its best stat); the Sorcerer's
-leans on its area skills and takes every HP node too. Block, Evasion, Status Effect Resist, crowd-control
-immunity, healing, shields other than the Templar's ([0.2.363](#shields-in-the-survival-models-02363)), movement and player reactions are not modelled; these are assumptions, not
-measurements, and are shown with every result.
+leans on its area skills and takes every HP node too. Since 0.2.386 every class's defensive skills, its heals,
+the crowd control it takes, Status Effect Resist and Evasion count too
+([0.2.386](#every-classs-defensives-in-world-pvp-02386)); Block, movement and player reactions are not modelled.
+These are assumptions, not measurements, and are shown with every result.
 
 ### Bundled builds regenerated (0.2.311)
 
@@ -1654,6 +1655,203 @@ the PvP kit (`build_from_summary`, `presets.parse`); the Templar's replayed scor
 The canonical preset model version stays 0.3.13. The community server's policies carry a game-data fingerprint
 different from this client's, so the app's own community comparison refuses to run against it until the server's
 client is updated; a scope change then makes the server re-seed from its stored winners and these presets.
+
+### Heal amounts from the recorded heals (0.2.386)
+
+**A heal restores its tooltip's value at the skill's level times (1 + Attack / 2,000).** Each healer's recorded
+heals on the log server were set against the tooltip's mid value at the healer's own skill level (the official
+profile's, which the uploads carry), with the healer's Attack as the app's import of the same profile computes it
+(Genus Insight, pets and buffs are not on the profile):
+
+* the ratio is the same for two heals of one healer (Radiant Recovery's over Healing Light's 0.91–1.12 for 30
+  Clerics), so a heal scales by a multiplier of the healer, not by an added value;
+* the multiplier grows with Attack: 1 + Attack / 1,914 over 68 Cleric rows (Healing Light, Radiant Recovery,
+  Absolution; recorded over predicted 0.96–1.06 between the quartiles), 1 + Attack / 1,993 over 38 Chanter rows
+  (Recuperation). `kit/healing.py` uses the round 2,000 both sit on.
+
+The game reports what a heal restored, at most the HP its target was missing, so a heal over time's recorded ticks
+sit below the formula (Light of Regeneration's median at 0.55–0.70 of it) while their tenth largest match it
+(6,843 recorded against 6,440 predicted, 8,431 against 8,274). What healers do in a boss fight is therefore kept as
+recorded: per heal skill, the recorded healing over the healer's predicted full value of one application, in
+applications a minute, pooled over 335 Cleric-minutes and 334 Chanter-minutes of boss fights in 20 recordings
+(6 November 2026; a fight several party members uploaded counts once):
+
+| Class | Heal | Full-value applications a minute | On the caster |
+|---|---|---:|---:|
+| Cleric | Light of Regeneration (a tick every 2 s for 30 s on everyone in range) | 59.1 | 20 % |
+| Cleric | Radiant Benediction (passive, a heal on landing an attack, once in 5 s) | 36.4 | 20 % |
+| Cleric | Radiant Recovery | 15.2 | 20 % |
+| Cleric | Healing Light (the caster and the party member lowest on HP) | 11.5 | 50 % |
+| Cleric | Benevolence (stigma, when slotted) | 32.3 | 20 % |
+| Cleric | Absolution (stigma, when slotted) | 1.0 | 20 % |
+| Chanter | Recuperation (a heal, then a tick every 2 s for 8 s) | 32.0 | 1/6 |
+
+A healer build's modelled healing is these rates times its own heal values: its skill levels and its Attack. The
+report and My Character show it beside the recorded Healing share (HPS in a boss fight, the top heals and the
+Attack multiplier); World PvP counts the part that heals the caster. A different party, a different fight or more
+damage taken change both the rate and how much lands on missing HP. The other classes' heals are their potions and
+a few self-heals ([World PvP](#every-classs-defensives-in-world-pvp-02386)).
+
+### The Assassin's Flash Slice and Storm Slice (0.2.386)
+
+**Flash Slice's level-12 specialization gives two presses a cooldown.** Its "+1 consecutive use" reads "Can be used
+up to 2 consecutive times" in the client's tooltip. The recorded Assassin who took it pressed Flash Slice a second
+time within a second 22 times in 124 gaps between presses (within 4 s 35 times), where the 10 s cooldown alone
+allows none. The simulation's `Action.uses` lets a cooldown hold several presses: the cooldown runs from the first,
+and the rest stay pressable until it ends. The player-target kits read every "+N consecutive use" option the same
+way.
+
+**Storm Slice is Defiance's level-8 chain.** It is not in the bundled client data; aion2.gg's read of the EU/NA
+client 2.0.10.0 and aion2.app's of 28 October 2026 agree at all 40 levels: 518 + 133 % of Attack at level 1
+(1,320 at 10, 1,899 at 20, 2,936 at 40) to up to 4 enemies within 4 m and a 3 s Stun, instant, no MP, open for
+3 s after Defiance, with its own cooldown of 120 s at level 1 and 2 s less a level, twice Defiance's (a Korean patch
+of 3 December 2025 tied it to Defiance's level). Defiance can only be pressed while crowd-controlled, so Storm Slice
+is an action of the player-target kits (`kit.assassin.storm_slice`), pressed once its own cooldown allows, every
+other Defiance: at Defiance level 10 it adds 0.6 % to a typical Assassin's duel DPS and 1.6 % in World PvP, plus 6 s
+of Stun on every enemy it reaches. A boss gives Defiance no opening, and none of the log server's boss fights shows
+a Storm Slice hit. Whether cooldown reduction shortens it, and its animation lock, are not known.
+
+### Every class's defensives in World PvP (0.2.386)
+
+World PvP ([0.2.310](#world-pvp-02310)) counted the Templar's shields and nothing else from any class's skills.
+`kit/defensives.py` now reads every class's defensive skills from their tooltips at the build's levels:
+
+* **Always on**: the passives' HP, Max HP, Defense, Critical Hit Resist and PvP Damage Tolerance (Enhance Health,
+  Survival Stance, Blessing of Life, Heightened Sixth Sense, Vigilant Eye, Warm Benediction, Immortal Veil, Robe of
+  Cold, Spirit Protection, Ironclad Defense, Attack Preparation), and the auras the Chanter and the Cleric leave on
+  (Undefeated Mantra, Light of Protection).
+* **Timed**, for the share of the fight they are up, pressed on cooldown: Second Skin, Arctic Armor, Mother
+  Nature's Breath, Yustiel's Power, Enhance: Spirit's Benediction, Warding Strike's Warding, Leaping Slam's and
+  Tenaciousness's tolerance, Noble Armor's Max HP, Jointstrike: Curse's 10 % less damage. Effects that trigger when
+  struck (Block Pain), when crowd-controlled (Survival Willpower, Defiance's specialization) or below half HP (the
+  Noble Protective Shield) count once a cooldown, as the pressure assumed keeps you struck, controlled and low:
+  the rule Guarding Seal has followed since 0.2.363, so these are the most they can give.
+* **Shields** count as the HP they absorb, once a cooldown (Steel Barrier, Impeding Authority, Yustiel's Power,
+  Divine Barrier) or on every press that carries one: Doom Shield, Poach's, Grapple's, Ambush Kick's and Siphon's.
+  The player-target kits had none of these, so the Templar's Doom Shield and Poach shields never reached World PvP
+  although its note said they did; they do now (`opt.world.world_kit`).
+* **Heals** count as the HP they restore: the healers' own share of their heals
+  ([above](#heal-amounts-from-the-recorded-heals-02386)), Warding Strike's, Blood Absorption's, Sprint Mantra's,
+  Spirit Communion's, the Wind Spirit's, Noble Armor's, Defiance's specialization's and the heals at 10 % HP
+  (Revitalization Contract), at their tooltips' values, and the lifesteal options at their recorded share of
+  maximum HP. A healer's heal presses take their recorded share of the fight (Cleric 3.5 %, Chanter 1.1 %).
+* **Immunity** (Salvation, Tenaciousness, Hibernation) counts as the damage it keeps off and the crowd control it
+  stops.
+
+**The recorded self-heals bear the tooltips out.** In 219 recordings of the log server's boss fights (October and
+November 2026; a fight several players uploaded counts once), each class's own heals, shields recorded as heals
+among them, against what the tooltips say:
+
+| Effect | Recorded | Tooltip |
+|---|---|---|
+| Doom Shield, Poach's specialization | 5.0 %, 10.0 % of maximum HP (medians) | 5 %, 10 % |
+| Steel Barrier | 20.6 % median, 30 % at the tenth largest; 1.3 a minute | 16 % at level 1 to 35 % at 20; every 60 s |
+| Guarding Seal | 31 % median, 0.4 a minute | 21 % plus 1 % a level, once a minute below half HP |
+| Divine Barrier (Protection Circle) | 4.4 % median; 3.5 a minute on the Chanter | 3.1–5 %, every 10 stacks (the recorded rate is used) |
+| Revitalization Contract | 44–55 % median by class, 0.2–0.3 a minute | 35 % at level 1 to 54 % at 20, at most once a minute |
+| Defiance's "Restores 20 % HP" | 22 % median, 0.1–0.3 a minute | 20 % |
+| Blood Absorption | 23.4 heals a minute (each two records 0.08 s apart: the flat part and the Max HP part) by 74 Gladiators | 50 % a landed attack, once a second: 30 a minute at most |
+| Sprint Mantra (the Chanter's own) | 9.3 a minute at 1.4 % of maximum HP | 15 % a landed attack, once a second: 9 a minute |
+| "Absorbs 500, 500% HP" (the Rampage and Scattershot options) | 5.3–5.4 % of maximum HP (medians, every class) | the unit is not stated |
+| "Absorbs 70, 70% HP" (Quick Slice's, Onslaught's, Snipe's chains) | 0.7 % | |
+
+So an "Absorbs N" option restores N hundredths of a percent of maximum HP a press (`lifesteal_share`), settling the
+unit the client leaves out. Heals at full HP leave no record, which is why the boss-fight rates sit at or below
+what the tooltips allow; under World PvP's pressure they fire as often as the tooltips allow.
+
+**Crowd control you take.** Each attacker lands the hard crowd control a typical PvP rotation inflicts: 8.6 s a
+minute, the mean of the eight classes' typical builds on one target (0 for the Cleric to 20 for the Templar). Status
+Effect Resist (Survival Willpower's and Revitalization Contract's 17–55 %, the profile's own) lowers what lands, as
+does Evasion. Defiance, pressed when controlled once its cooldown allows, cuts one short (half of a 2.5 s control
+saved) and keeps it off for its Tenacity's 5 s (7 with its specialization), as the immunity stigmas do for theirs.
+You act only while not controlled: `score = world DPS × survived × (1 − controlled) × (1 − healing time)`. No source
+found a general diminishing-return rule for crowd control; the immunity skills share a 30 s lockout.
+
+**Evasion.** A Taiwanese duel test (12 pairings of 60–150 swings, 21 May 2026) measured 0.055–0.067 % evaded a point
+of Evasion above the attacker's Accuracy, up to 50 %; the global client's text caps Evasion at 30 %. The model
+evades 0.06 % a point up to 30 %, with Evasion and Accuracy as gear, boards, Genus lines and skills add them (the
+characters' base values are not on the profile and are taken as equal), so a typical build evades nothing and
+Evasion lines and stigmas count once they rise above the attacker's Accuracy. An evaded hit deals no damage and
+lands no crowd control.
+
+**Not modelled.** Block: a shield block (Templar, Cleric) and a weapon block (every class) each top out at 50 % by
+the client's text and players' reports, but how fast the chance falls with the attacker's Accuracy is disputed and
+what a block removes "varies by gear grade" with no published numbers; the heals on Block and on Evasion are listed
+and not counted. Options that multiply a passive for a while ("x1.5 [Ironclad Defense]"), death prevention (Barrier
+Spell), Arctic Armor's damage split to MP, movement and player reactions are not modelled either.
+
+**What it changes.** The typical builds score as before relative to themselves (the reference is the typical build
+with its own defensives over the same fight), but defensive levels, specializations and stigmas now count. On a
+typical build: Survival Stance +5 levels +7 % for the Gladiator, Survival Willpower +5 levels +6 %, Steel Barrier at
+stigma level 10 +21 % for the Sorcerer, Impeding Authority +13 % for the Chanter, Defiance at level 10 with its
+20 % HP specialization +31 % for the Assassin (with Storm Slice instead, +7 %). The World PvP stigma search now takes
+the defensive stigmas the damage searches leave out.
+
+### Parries against Accuracy (0.2.386)
+
+A boss parries hits from the front and the side, never from behind: in eight captures of October 2026, parried
+direct hits by class, out of the hits that were not from behind:
+
+| Class | Parried | Players |
+|---|---:|---:|
+| Assassin | 1.81 % of 3,656 | most at 0, one at 9.2 % |
+| Chanter | 0.04 % of 7,118 | all at 0 |
+| Cleric | 0.12 % of 5,123 | all at 0 |
+| Gladiator | 0.04 % of 16,152 | one at 0.26 % |
+| Ranger | 0.95 % of 7,124 | 0–1.5 % |
+| Sorcerer | 1.04 % of 5,696 | one at 4.1 % |
+| Spiritmaster | 3.53 % of 2,268 | one at 9.9 % |
+| Templar | 0.60 % of 3,162 | 0 |
+
+A parried hit deals half (0.41–0.49 of the same skill's unparried hits in the same captures). Most players are
+never parried and a few often, as a threshold would make it: players report the Accuracy that ends parries for each
+tier of content (about 700–800 for global Transcendence stage 4), and estimate the chance falls 0.067–0.10
+percentage points a point of Accuracy short of it. The boss scenario now parries each class's hits from the front
+and side at its recorded rate, at the Accuracy of its typical build on median gear, less 0.067 percentage points
+for each point of Accuracy above that (`sim.engine.BOSS_PARRY`, `PARRY_PER_ACCURACY`): the typical builds lose
+0–0.9 % of their boss DPS (the Spiritmaster 0.9 %, the Sorcerer, Ranger and Assassin about 0.25 %), and +40
+Accuracy wins back 0.7 % for a Spiritmaster and nothing for a Chanter. Misses are not modelled: no record decodes
+one, and the developers said every attack connects unless evaded, blocked or parried.
+
+### Genus Insight lines and costs (0.2.386)
+
+* **Grade chances verified.** NC publishes Genus Insight's probabilities for the Korean service
+  (probability.plaync.com, data version 20261103203502); its grade table by Insight level matches the bundled one at
+  every level, as does aion2.tools' global datamine.
+* **Line pools verified for global.** Korea's line table is a different one (Damage Boost in slots 3 and 9, other
+  ranges); the global pools the app uses agree with aion2.tools' datamine on 2,048 of 2,062 rows and every line the
+  in-game observation records fits them (14 of them are impossible under Korea's). The other 14 rows, the Special
+  genus's Rare percentage lines in slots 4 and 7, roll 0.25–0.75 %: aion2.tools shows the raw 25–75, which the
+  bundled 0.3–0.8 had rounded. They are corrected.
+* **Costs.** An analysis costs 4 Soul Crystals and 1,000 Kinah a rolled slot, plus a fee for locked slots (8, 16, 36,
+  76, 156, 236, 316 or 396 Soul Crystals and 250 Kinah a fee crystal for 1–8 locks), and gives 100 Insight EXP a
+  rolled slot (`plan.genus.analysis_cost`). Every in-game total found fits: the bundled observation's 28 / 7,000
+  (7 slots), 24 / 6,000 (6) and the Special board's 248 / 62,000 (3 rolled slots and 6 locks), Space4Games' 80 /
+  20,000 (5 slots, 4 locked) and mmoexp's 172 / 43,000 (9 slots, 5 locked). Insight levels take 500, 1,500, 3,000,
+  5,000, 10,000, 20,000, 40,000, 70,000 and 100,000 EXP.
+* **Max Attack raises the top of the weapon's roll**: the client's text reads "Max Attack of the weapon. Perfect
+  scales with Max Attack", and labels the weapon's base range and each enchant step "Max Attack". A Korean test
+  measured a removed 50 Max Attack at −0.87 % against −1.46 % for 50 Attack Bonus. It now adds to the weapon's
+  maximum: half its value on an average hit, all of it on a Perfect one.
+* **The accuracy lines are scored** against the boss's parries ([above](#parries-against-accuracy-02386)): Accuracy
+  Bonus, PvE Accuracy (against monsters only) and the genus Accuracy lines.
+* **Power Shard Damage Bonus stays unscored**: by the client's text it only adds to the damage of Power Shards
+  (consumables of +5 % or +10 % damage, one spent an attack), and no recorded hit has carried the power-shard bit.
+
+### Estimated time-to-enrage (0.2.386)
+
+The live meter's target card carries the boss's enrage timer and the seconds left before it
+(`meter/enrage.py`, `data/global/boss_enrage.json`): 71 bosses by 352 NPC codes, seconds from the pull. The dungeon
+final bosses enrage at 300 s (metabot.gg's read of the global client, build 0.0.4387.0, and guides agree),
+Conquest Hard at 240 s (the official patch notes of 21 and 28 October 2026), the raids at 480–600 s; Exploration
+tiers and mini-bosses have none. In 4,040 boss attempts on the log server, split into single pulls at the boss's
+HP resets (the server joins a failed pull to the next, so some "kills" read 328–602 s), no boss with a timer was
+killed more than about 2 s after it, and five timers are seen in fights that failed just after them with the boss
+nearly dead (Ultimate Berk Hard at 248 and 260 s, Transcendent Bakarma Hard at 246 and 258 s, Divine Auldor, Talisra
+of the Void at stages 3 and 4).
+The countdown runs on the target's fight clock, the time-to-kill's, and the overlay shows it beside the
+time-to-kill, red when the kill estimate runs past it or the boss has enraged. Most wipes before the timer are a
+boss's HP checks (Berk's stagger check at half HP), not the enrage.
 
 ## Optimization and macro planning
 

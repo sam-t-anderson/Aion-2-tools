@@ -14,12 +14,13 @@ def dummy(loadout: str = "sorcerer_l45_global_median", duration: float = 180.0) 
 
 def boss(loadout: str = "sorcerer_l45_global_median", duration: float = 180.0) -> Scenario:
     """Dungeon boss: 30% Damage Tolerance, HP falls linearly, three 8 s stagger windows; each
-    class's direct hits land from the front, behind and the side in its recorded shares, and the
+    class's direct hits land from the front, behind and the side in its recorded shares, the boss
+    parries its hits from the front and side at its recorded rate (less with more Accuracy), and the
     party takes damage, so a healer heals at the recorded rate."""
     windows = tuple((s, s + 8.0) for s in (40.0, 100.0, 160.0) if s < duration)
     return Scenario(loadout=loadout,
                     target=Target(tolerance=0.30, hp_model="linear", stagger_windows=windows,
-                                  class_positions=True, party_damage=True),
+                                  class_positions=True, class_parry=True, party_damage=True),
                     config=SimConfig(duration=duration))
 
 

@@ -519,6 +519,16 @@ def _recorded_healing(imp) -> dict | None:
         return None
 
 
+def _modelled_healing(imp, cd, build) -> dict | None:
+    """A healer's modelled healing a minute in a boss fight from its own levels and Attack (0.2.386), beside the
+    recorded share."""
+    from ..kit.healing import modelled_healing
+    try:
+        return modelled_healing(imp.cls, build, cd, loadout_stats(imp.loadout).derived())
+    except Exception:                      # noqa: BLE001 - the overview never fails on the model
+        return None
+
+
 def character_view(imp, evaluation: dict | None = None) -> dict:
     """An imported character in the same windows as the planner, plus its real gear details."""
     cd = ClassData(imp.cls)
@@ -572,4 +582,5 @@ def character_view(imp, evaluation: dict | None = None) -> dict:
         "stats": (evaluation or {}).get("stats"), "weights": weights[:12], "policy": (evaluation or {}).get("policy"),
         "shares": (evaluation or {}).get("shares"),
         "healing": _recorded_healing(imp),
+        "modelled_healing": _modelled_healing(imp, cd, build),
     }

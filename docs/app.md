@@ -415,6 +415,14 @@ Two overlay readouts are off by default under **Settings → Live meter overlay*
 - **Show a strip of your skills on cooldown.** Your skills on cooldown appear as icons that count down, soonest ready first. A skill lights up as it comes off cooldown and stays lit for three seconds; an open chain-skill window shows first with a green ring. The strip uses the cooldown the game sends with each of your casts, so your cooldown reduction is already included and there is nothing to set up. Choose the shortest cooldown shown (3 seconds by default, so fillers stay out), how many icons (8) and where the strip sits (below the meter, or above the player rows). It only knows skills you have used since Start, and when a proc resets a cooldown the strip catches up on your next cast.
 - **Show the current target's break (stagger) gauge.** Bosses and elites carry a break gauge. The boss card shows what is left (*Break 63%*, or *BROKEN* while the enemy is staggered) with a bar beneath the HP and kill-progress bars.
 
+### Time to enrage
+
+With the time-to-kill shown (**Settings → Live meter overlay**), a boss with a known enrage timer shows how long is
+left before it enrages beside it: *Enrage 3m14s*, counted on the fight clock the time-to-kill uses, from the first
+hit of the pull. It turns red when the time-to-kill runs past it, and reads *ENRAGED* once the timer has passed. The
+dungeon final bosses enrage 5 minutes after the pull, Conquest Hard after 4, the raids after 8 to 10; Exploration
+tiers and mini-bosses have no timer. 71 bosses are known ([methodology](methodology.md#estimated-time-to-enrage-02386)).
+
 ### Odyle Energy
 
 Your character's Odyle Energy shows beside the game's Odyle Energy icon on the overlay, under the ping, and on the Live Meter page, under the ping line: the total you can spend, then its regular and bonus parts, such as *Odyle Energy 145 (40 + 105 bonus)*. It is the game's own count, sent when you enter the world, at every zone load and whenever it changes. The reading follows the 15 the regular energy regains every three hours and what each claimed reward cube spends (80 in every claim recorded so far, taken from the regular energy first and then from the bonus). Until the first of these records arrives the line stays hidden. A meter started inside a zone shows it at the next change or zone load. A zone load keeps it, and logging in on another character replaces it. **Settings → Live meter overlay → Show your Odyle Energy** (on by default) hides it in both places.

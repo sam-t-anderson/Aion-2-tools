@@ -54,6 +54,20 @@ BOSS_POSITIONS = {
     "gladiator": (0.31, 0.51), "ranger": (0.34, 0.35), "sorcerer": (0.43, 0.30),
     "spiritmaster": (0.29, 0.34), "templar": (0.48, 0.31),
 }
+#: The chance a boss parries a class's direct hits from the front or the side, measured in the archived captures
+#: (8 recordings, October 2026; methodology.md "Parries against Accuracy"): a parried hit deals half (0.41-0.49
+#: of the unparried hit in the same captures) and a hit from behind is never parried. The rate holds at the
+#: Accuracy of the class's typical build on median gear (the second number, in the model's own Accuracy, which
+#: counts what gear, boards and Genus lines add); each point above it lowers the chance by PARRY_PER_ACCURACY.
+BOSS_PARRY: dict[str, tuple[float, float]] = {
+    "assassin": (0.0181, 324.0), "chanter": (0.0004, 452.0), "cleric": (0.0012, 477.0),
+    "gladiator": (0.0004, 477.0), "ranger": (0.0095, 477.0), "sorcerer": (0.0104, 477.0),
+    "spiritmaster": (0.0353, 324.0), "templar": (0.0060, 426.0),
+}
+#: Parry chance one point of Accuracy takes away (0.067 percentage points: the community's Accuracy-against-Block
+#: estimate, the same slope a Taiwanese duel test measured for Evasion against Accuracy), and the most it reaches.
+PARRY_PER_ACCURACY = 0.00067
+PARRY_CAP = 0.5
 #: The share of a boss fight each class's recorded players spend pressing nothing (idle) or pressing Dodge,
 #: by the rules of methodology.md (a press holds the time to the player's next press, up to 1.5 s; the mean
 #: over the players of the class in the log server's public boss fights of 60 s or more with cast records,
@@ -83,6 +97,7 @@ class Target:
     frontal: bool = True           # without positions: every direct hit from the front (False: behind)
     positions: tuple | None = None  # (front, back) shares of direct hits; the rest land from the side
     class_positions: bool = False  # each class's recorded mix on bosses (BOSS_POSITIONS) instead
+    class_parry: bool = False      # each class's recorded parry chance on bosses (BOSS_PARRY), against its Accuracy
     stagger_windows: tuple = ()    # ((start, end), ...) seconds
     stagger_crit: bool = True      # a staggered boss takes critical hits (measured 0.2.368: 89–98 % of the hits inside a
                                    # stagger crit against 50 % outside, every skill alike)
@@ -203,6 +218,8 @@ class Action:
                                    # tooltip states it (Doom Shield 5 %, Poach's level-12 specialization 10 %)
     absorb_each: bool = False      # the shield is a share of each recipient's own maximum HP (Nezekan's Shield);
                                    # the caster's share alone is counted
+    uses: int = 1                  # presses one cooldown allows: "+1 consecutive use" (Flash Slice's level-12
+                                   # specialization) is 2; the cooldown runs from the first, the rest stay pressable
 
     def group(self) -> str:
         return self.cd_group or self.key
@@ -240,6 +257,7 @@ class Sim:
         self.events: list[_Event] = []
         self._seq = itertools.count()
         self.ready: dict[str, float] = {}
+        self.extra_uses: dict[str, int] = {}   # presses left of a cooldown that allows several (Action.uses)
         # The share of the time heals take while the party takes damage, spread evenly over every other
         # action: what a heal at an unknown moment costs on average, so no build gains by where its heals fall.
         self.heal_share = min(0.5, sum((a.cast / max(0.2, 1.0 + derived.combat_speed) + self.cfg.latency) / a.cooldown
@@ -564,7 +582,7 @@ class Sim:
             end = self.t + self.action_time(a)
             if any(self.t < stop-EPS and end > start+EPS for start, stop in self.action_blocks):
                 return False
-        if self.ready.get(a.group(), 0.0) > self.t + EPS:
+        if self.ready.get(a.group(), 0.0) > self.t + EPS and self.extra_uses.get(a.group(), 0) <= 0:
             return False
         if self.mp + EPS < self.mp_cost(a):
             return False
@@ -599,8 +617,13 @@ class Sim:
         self.absorb_share += a.absorb
         self.timeline.append((self.t, a.key))
         if a.cooldown > 0:
-            cd = a.cooldown * (1.0 - (self.base.cdr if a.affected_by_cdr else 0.0))
-            self.ready[a.group()] = self.t + cd
+            g = a.group()
+            if self.ready.get(g, 0.0) > self.t + EPS and self.extra_uses.get(g, 0) > 0:
+                self.extra_uses[g] -= 1             # a consecutive use: the cooldown runs from the first press
+            else:
+                cd = a.cooldown * (1.0 - (self.base.cdr if a.affected_by_cdr else 0.0))
+                self.ready[g] = self.t + cd
+                self.extra_uses[g] = a.uses - 1
         dur = self.action_time(a)
         if a.on_cast:
             a.on_cast(self, a)
