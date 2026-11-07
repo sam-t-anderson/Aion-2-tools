@@ -38,9 +38,21 @@ class HitContext:
     mult: float = 1.0
 
 
+def block_chance(block: float, accuracy: float) -> float:
+    """The chance a direct hit from the front or side is blocked, a shield block or a parry (the game records both as
+    a parry): PARRY_PER_ACCURACY a point of the target's Block above the attacker's Accuracy, at most PARRY_CAP
+    (0.2.387, docs/methodology.md "Block against Accuracy")."""
+    from ..sim.engine import PARRY_CAP, PARRY_PER_ACCURACY
+    return max(0.0, min(PARRY_CAP, PARRY_PER_ACCURACY * (float(block) - float(accuracy))))
+
+
 def parry_chance(d: Derived, target) -> float:
-    """The chance a direct hit from the front or side is parried: the target's own, or on a boss the class's
-    recorded chance less PARRY_PER_ACCURACY for each point of Accuracy above its typical build's."""
+    """The chance a direct hit from the front or side is parried: with the target's own Block (a player's, or one
+    given to a boss), its chance against the attacker's Accuracy (:func:`block_chance`); on a boss the class's
+    recorded chance less PARRY_PER_ACCURACY for each point of Accuracy above its typical build's; else the target's
+    fixed chance."""
+    if getattr(target, "block", 0.0) > 0:
+        return max(target.parry, block_chance(target.block, d.accuracy))
     if getattr(target, "class_parry", False) and d.parry_rate > 0:
         from ..sim.engine import PARRY_CAP, PARRY_PER_ACCURACY
         return max(0.0, min(PARRY_CAP, d.parry_rate - PARRY_PER_ACCURACY * (d.accuracy - d.parry_accuracy)))

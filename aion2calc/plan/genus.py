@@ -37,13 +37,20 @@ UNSCORED = {
     "Power Shard Damage Bonus": ("Not modeled: it adds only to Power Shard damage (\"Increases Damage when using "
                                  "Power Shard\"), and no recorded hit has used a Power Shard"),
 }
+#: Block lines (0.2.387): Block parries an attacker's hits when it exceeds the attacker's Accuracy, which World PvP's
+#: survival counts; no source gives monsters' Accuracy, and the advice scores damage.
+BLOCK_REASON = ("Not scored for damage: Block parries an attacker's hits from the front and side when it exceeds "
+                "the attacker's Accuracy (0.1 % a point, at most half, each for half); it counts in World PvP's "
+                "survival, and no source gives monsters' Accuracy")
 
 
 def unscored_reason(stat: str, stats: dict) -> str:
-    """Why an offensive line gets no damage score ('' when it is scored)."""
+    """Why a line gets no damage score ('' when it is scored)."""
     stat = stat.strip()
     if stat in UNSCORED:
         return UNSCORED[stat]
+    if stat.endswith("Block"):
+        return BLOCK_REASON
     return ""
 
 

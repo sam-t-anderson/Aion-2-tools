@@ -151,6 +151,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--scenario", default="boss", choices=["boss", "dummy", "pvp", "pvp_world"])
     s.add_argument("--loadout")
     s.add_argument("--crit-midpoint", type=float)
+    s.add_argument("--target-block", type=float, default=None,
+                   help="the target's Block, in place of the class's recorded boss parries: hits from the front and "
+                        "side are parried (half damage) 0.1%% a point it exceeds your Accuracy by, at most 50%% "
+                        "(players report about 1,100 for Transcendence 10, 700-800 for global Transcendence stage 4)")
 
     c = sub.add_parser("compare", help="optimize several classes and rank DPS")
     c.add_argument("classes", nargs="+")
@@ -354,6 +358,9 @@ def main(argv: list[str] | None = None) -> int:
         from .run import simulate
         from .scenarios import SCENARIOS, typical_build
         scen = SCENARIOS[args.scenario](args.loadout or f"{args.cls}_l45_global_median")
+        if args.target_block is not None:
+            from dataclasses import replace
+            scen = replace(scen, target=replace(scen.target, block=max(0.0, args.target_block)))
         if args.build:
             from .opt.rotation import materialize
             from .report import build_from_summary

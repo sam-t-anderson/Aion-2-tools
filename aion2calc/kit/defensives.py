@@ -19,9 +19,10 @@ build's levels (``data/global/classes/<class>.json``):
 * **Crowd control.** Status Effect Resist lowers the share of the crowd control aimed at you that lands; Defiance
   breaks it and its Tenacity keeps it off, as the immunity stigmas do.
 
-Heals on Block and on Evasion are listed but not counted: no source gives the Block formula, and the Evasion this
-model can see rarely exceeds an attacker's Accuracy. Options that multiply a passive ("x1.5 [Ironclad Defense]
-effect for the duration"), death prevention (Barrier Spell) and damage split to MP (Arctic Armor's Magic
+Heals on Block and on Evasion are listed but not counted: a heal per block or evade needs how often the attackers
+hit, which the model does not keep (the Block and Evasion themselves count, ``opt.world``, 0.2.387), and the
+Evasion this model can see rarely exceeds an attacker's Accuracy. Options that multiply a passive ("x1.5 [Ironclad
+Defense] effect for the duration"), death prevention (Barrier Spell) and damage split to MP (Arctic Armor's Magic
 Displacement) are not counted either.
 """
 from __future__ import annotations

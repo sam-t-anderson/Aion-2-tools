@@ -176,8 +176,9 @@ opens.
 damage tolerances), so none adds damage and the slot's *best in slot* said only *No title for this slot adds damage*.
 It now ranks them by the damage they take off: a title's PvE, Boss and plain Damage Tolerance (PvP and plain in a PvP
 fight) lower the attacker's damage boost, so *−4.5% damage taken* is about 4.5 % off a boss's hits. The best one you
-own shows above them, and *Top changes* names it when it beats the one you wear. Defense, Block and Evasion have no
-formula in the model and are not ranked.
+own shows above them, and *Top changes* names it when it beats the one you wear. Block counts only against an
+attacker's Accuracy, which a title slot does not know (World PvP's survival counts it since 0.2.387), and
+Defense and Evasion have no formula here, so none of them ranks a title.
 
 **The next goal is an upgrade (0.2.371).** A goal item counts good rolls at +15, so against the rolls of what you wear
 an item of a far lower item level could gain too: 0.2.370 offered an item level 43 Pauldrons as the next goal over the

@@ -93,7 +93,8 @@ class Stats:
     combat_speed: float = 0.0
     cdr: float = 0.0
     accuracy: float = 0.0
-    pve_accuracy: float = 0.0      # PvE Accuracy (Genus Insight): Accuracy against monsters only
+    pve_accuracy: float = 0.0      # PvE Accuracy (Genus Insight, the Ariel board): Accuracy against monsters only
+    pvp_accuracy: float = 0.0      # PvP Accuracy (the Azphel board): Accuracy against players only (0.2.387)
     mp_max: float = 0.0
     mp_max_pct: float = 0.0
     mp_regen: float = 0.0          # natural MP regen per second
@@ -109,12 +110,14 @@ class Stats:
     pvp_tol: float = 0.0           # PvP Damage Tolerance
     pvp_defense: float = 0.0       # PvP Defense
     pvp_crit_resist: float = 0.0   # PvP Critical Hit Resist
-    block: float = 0.0             # carried, not scored (no verified Block / Evasion formula)
+    block: float = 0.0             # Block: parries hits above the attacker's Accuracy (``model.damage.block_chance``)
+    pvp_block: float = 0.0         # PvP Block: Block against players (0.2.387)
     evasion: float = 0.0
     cc_resist: float = 0.0         # Status Effect Resist (carried, not scored)
     life: float = 0.0              # Life [Yustiel] points: HP increase
     constitution: float = 0.0      # Constitution points: HP increase
     dexterity: float = 0.0         # Dexterity points: Evasion / Block / Critical Hit Resist increase
+    space: float = 0.0             # Space [Israphel] points: Block increase (and Move Speed)
     # deity / primary points (converted in ``derived``)
     might: float = 0.0
     precision: float = 0.0
@@ -180,7 +183,7 @@ class Stats:
             positions=self.positions, parry_rate=self.parry_rate, parry_accuracy=self.parry_accuracy,
             combat_speed=self.combat_speed + p * self.time,
             cdr=min(CDR_CAP, self.cdr + p * self.illusion),
-            accuracy=self.accuracy * (1 + p * self.freedom) + (0.0 if self.pvp else self.pve_accuracy),
+            accuracy=self.accuracy * (1 + p * self.freedom) + (self.pvp_accuracy if self.pvp else self.pve_accuracy),
             mp_max=self.mp_max * (1 + self.mp_max_pct),
             mp_regen=self.mp_regen,
             mp_cost_red=self.mp_cost_red + p * self.wisdom,
@@ -190,14 +193,16 @@ class Stats:
     def defenses(self, base: dict) -> "Defenses":
         """Survival totals against player attackers: the class base (``ClassData.base_stats``) plus gear
         and boards, scaled by the percent increases the deity and primary points give (+0.1% a point,
-        per the official profile's own effect strings)."""
+        per the official profile's own effect strings). Block is raised by Dexterity's and Space [Israphel]'s
+        Block increase, and PvP Block adds to it against players (0.2.387)."""
         p = STAT_POINT_PCT
         return Defenses(
             hp=(float(base.get("hp", 0.0)) + self.hp) * (1 + self.hp_pct + p * (self.life + self.constitution)),
             defense=(float(base.get("defense", 0.0)) + self.defense) * (1 + self.defense_pct + p * self.justice)
             + self.pvp_defense,
             crit_resist=self.crit_resist * (1 + p * self.dexterity) + self.pvp_crit_resist,
-            tolerance=self.dmg_tol + self.pvp_tol, crit_dmg_tol=self.crit_dmg_tol)
+            tolerance=self.dmg_tol + self.pvp_tol, crit_dmg_tol=self.crit_dmg_tol,
+            block=self.block * (1 + p * (self.dexterity + self.space)) + self.pvp_block)
 
 
 @dataclass
@@ -207,6 +212,7 @@ class Defenses:
     crit_resist: float
     tolerance: float
     crit_dmg_tol: float
+    block: float = 0.0
 
 
 @dataclass

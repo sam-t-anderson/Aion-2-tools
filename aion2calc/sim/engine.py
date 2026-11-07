@@ -64,9 +64,12 @@ BOSS_PARRY: dict[str, tuple[float, float]] = {
     "gladiator": (0.0004, 477.0), "ranger": (0.0095, 477.0), "sorcerer": (0.0104, 477.0),
     "spiritmaster": (0.0353, 324.0), "templar": (0.0060, 426.0),
 }
-#: Parry chance one point of Accuracy takes away (0.067 percentage points: the community's Accuracy-against-Block
-#: estimate, the same slope a Taiwanese duel test measured for Evasion against Accuracy), and the most it reaches.
-PARRY_PER_ACCURACY = 0.00067
+#: Parry (block) chance one point of the target's Block above the attacker's Accuracy gives, or one point of Accuracy
+#: takes away, and the most it reaches: 0.1 percentage points (0.2.387, methodology.md "Block against Accuracy": a
+#: Korean test against a Transcendence 10 boss, 600 hits a setting, measured +19.7, +6.9 and +6.1 % unparried hits
+#: for +199, +72 and +59 Accuracy, which 0.1 points a point and a Block of about 1,100 reproduce; 0.2.386 took the
+#: community's 0.067 low estimate) and half the hits ("at least 50 % of the attacks hit, however low the Accuracy").
+PARRY_PER_ACCURACY = 0.001
 PARRY_CAP = 0.5
 #: The share of a boss fight each class's recorded players spend pressing nothing (idle) or pressing Dodge,
 #: by the rules of methodology.md (a press holds the time to the player's next press, up to 1.5 s; the mean
@@ -98,6 +101,8 @@ class Target:
     positions: tuple | None = None  # (front, back) shares of direct hits; the rest land from the side
     class_positions: bool = False  # each class's recorded mix on bosses (BOSS_POSITIONS) instead
     class_parry: bool = False      # each class's recorded parry chance on bosses (BOSS_PARRY), against its Accuracy
+    block: float = 0.0             # the target's own Block (a player's; a boss given one): front and side hits are
+                                   # parried with ``model.damage.block_chance`` against the attacker's Accuracy
     stagger_windows: tuple = ()    # ((start, end), ...) seconds
     stagger_crit: bool = True      # a staggered boss takes critical hits (measured 0.2.368: 89–98 % of the hits inside a
                                    # stagger crit against 50 % outside, every skill alike)

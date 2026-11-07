@@ -154,12 +154,13 @@ efficiency, crit curve capped at 80 %; its multi-hit 12.5 % gave way to the reco
   global client (metabot "Stats explained"; KR later raised deity stats to
   0.2 %).  Might/Destruction → Attack %, Precision/Death → Crit %, Wisdom →
   Double + MP cost, Justice → Perfect, Time → Combat Speed, Illusion → Cooldown.
-* **Parry**: insufficient Accuracy turns hits into parries (−50 %).  Hits from
-  behind are never parried (none of 6,573 recorded boss hits from behind was),
-  nor are guaranteed crits and "ignores Block and Evasion" skills.  The
-  simulator assumes the Accuracy threshold is met, so the scenarios have no
-  parries and Accuracy is a threshold stat, not a DPS stat.  Recorded bosses
-  parried under 1 % of most classes' hits and 2.4–3.8 % of the casters'.
+* **Parry (Block)**: a hit from the front or the side is parried (−50 %) with
+  the chance the target's Block exceeds the attacker's Accuracy by, 0.1 % a
+  point and at most half the hits ([Block against Accuracy](#block-against-accuracy-02387));
+  a boss parries each class at its recorded rate, less 0.1 % a point of
+  Accuracy above its typical build's ([Parries against Accuracy](#parries-against-accuracy-02386)).
+  Hits from behind are never parried (none of 6,573 recorded boss hits from
+  behind was), nor are guaranteed crits and "ignores Block and Evasion" skills.
 
 ## Simulation and scenarios
 
@@ -466,7 +467,8 @@ PvP build takes Assault Strike, Fracturing Rush, Wrath Wave and Blade Toss, Mock
 Knockdown specializations, every HP node and most Defense nodes (HP is its best stat); the Sorcerer's
 leans on its area skills and takes every HP node too. Since 0.2.386 every class's defensive skills, its heals,
 the crowd control it takes, Status Effect Resist and Evasion count too
-([0.2.386](#every-classs-defensives-in-world-pvp-02386)); Block, movement and player reactions are not modelled.
+([0.2.386](#every-classs-defensives-in-world-pvp-02386)), and Block since [0.2.387](#block-against-accuracy-02387);
+movement and player reactions are not modelled.
 These are assumptions, not measurements, and are shown with every result.
 
 ### Bundled builds regenerated (0.2.311)
@@ -1782,7 +1784,10 @@ lands no crowd control.
 the client's text and players' reports, but how fast the chance falls with the attacker's Accuracy is disputed and
 what a block removes "varies by gear grade" with no published numbers; the heals on Block and on Evasion are listed
 and not counted. Options that multiply a passive for a while ("x1.5 [Ironclad Defense]"), death prevention (Barrier
-Spell), Arctic Armor's damage split to MP, movement and player reactions are not modelled either.
+Spell), Arctic Armor's damage split to MP, movement and player reactions are not modelled either. *Since
+[0.2.387](#block-against-accuracy-02387) Block counts: one roll, 0.1 % a point of Block (raised by Dexterity and
+Space, plus PvP Block) above the attacker's Accuracy and PvP Accuracy, at most half, each blocked hit halved; a shield
+user's second roll, the cut by gear grade and the heals on Block stay out.*
 
 **What it changes.** The typical builds score as before relative to themselves (the reference is the typical build
 with its own defensives over the same fight), but defensive levels, specializations and stigmas now count. On a
@@ -1815,7 +1820,10 @@ and side at its recorded rate, at the Accuracy of its typical build on median ge
 for each point of Accuracy above that (`sim.engine.BOSS_PARRY`, `PARRY_PER_ACCURACY`): the typical builds lose
 0–0.9 % of their boss DPS (the Spiritmaster 0.9 %, the Sorcerer, Ranger and Assassin about 0.25 %), and +40
 Accuracy wins back 0.7 % for a Spiritmaster and nothing for a Chanter. Misses are not modelled: no record decodes
-one, and the developers said every attack connects unless evaded, blocked or parried.
+one, and the developers said every attack connects unless evaded, blocked or parried. *Since
+[0.2.387](#block-against-accuracy-02387) the chance falls 0.10 points a point, the slope a Korean test measured
+against a Transcendence 10 boss; the recorded rates hold at the typical builds' Accuracy as before, and +40 Accuracy
+wins back 0.9 % for a Spiritmaster (the Sorcerer's 0.3 % and the Chanter's nothing do not move).*
 
 ### Genus Insight lines and costs (0.2.386)
 
@@ -1887,9 +1895,9 @@ into the user data overlay, which every reader prefers.
 **What it changes.** With 60 s the typical Assassin's boss DPS rises 2.1 % (8,892 → 9,082; Illusive Clone at its
 Lv 9), and the bundled Assassin preset's (Illusive Clone 20) 5.9 % in the boss scenario (26,845 → 28,430) and 9.4 % on
 the dummy (25,531 → 27,941). That preset was searched with 90 s and is not searched again here: its README and
-`build.json` still give 26,845. The base HP counts in World PvP's effective HP, not in damage; Heightened Sixth
-Sense's HP counts nowhere yet (the kit does not simulate the passive's HP). Every class's data fingerprint moves, so
-the community comparison's server re-scores once its client is updated.
+`build.json` still give 26,845. The base HP and Heightened Sixth Sense's HP count in World PvP's effective HP (the
+passive's since [0.2.386](#every-classs-defensives-in-world-pvp-02386)), not in damage. Every class's data fingerprint
+moves, so the community comparison's server re-scores once its client is updated.
 
 **The recordings, read again.** The Assassin of [0.2.368](#the-assassin-from-the-log-servers-uploads-02368) and
 [0.2.383](#illusive-clones-echo-of-a-fifth-02383) uploaded from 28 October, after the patch: its Illusive Clone
@@ -1898,6 +1906,55 @@ took from the bundled 90 s. The clone came back about 7 s early in the median, n
 off every cooldown a hit) and Triniel's Dagger's tenth account for that. In the boss scenario a pull now takes all
 that is left of the cooldown when the first train lands: the clone comes back right after it, 12 s early, where with
 90 s it came back 19 s early (the kit's test, `test_storm_rampage_fires_in_the_stagger_windows_and_pulls_every_cooldown_in`).
+
+### Block against Accuracy (0.2.387)
+
+[0.2.386](#parries-against-accuracy-02386) made a boss parry each class's hits at its recorded rate, lowered by
+Accuracy at 0.067 points a point (the low end of the community's estimates), and left a player's own Block out of
+World PvP, since how fast the chance falls with Accuracy was disputed. Korean players' tests settle it:
+
+* **0.1 % a point.** Against a Transcendence 10 boss, 600 hits a setting from the front, +199 Accuracy (756 → 955)
+  landed 19.7 % more hits unparried, +72 6.9 % and +59 6.1 % ("명중 100당 약 10%";
+  [game.savetip.co.kr](https://game.savetip.co.kr/aion2-accuracy-efficiency-guide/), 28 July 2026). A Block of about
+  1,100, the threshold players report for that tier, and 0.1 points a point give 19.9, 7.2 and 5.9 %; 0.067 would
+  give 13, 5 and 4.
+* **At most half the hits.** "최소 50%의 공격은 적중" (at least half the attacks hit, however high the Block; the same
+  page) and "명중이 0일때에도 명중률은 50%" ([Inven, "명중학 개론"](https://www.inven.co.kr/board/aion2/6444/846),
+  19 December 2025).
+* **Half the damage, never from behind**, as the captures show: "막기 발생 시: 데미지가 50% 반감" (savetip; a critical,
+  Double or Perfect hit is still one) and "정면에서만 발동 … 후방은 막기가 발동하지 않음" (Inven).
+* **What moves it**, by metabot's glossary of the client (build 0.0.4387.0): Block "Increases Parry Chance and Shield
+  Block Chance" and is "Affected by target's Accuracy and Block Penetration"; PvP Block does the same against
+  players; PvE Accuracy and PvP Accuracy add to Accuracy against monsters and against players; Dexterity and Space
+  [Israphel] raise Block by 0.1 % a point.
+
+**What the model does now.**
+
+* **One slope.** `PARRY_PER_ACCURACY` is 0.1 points for a boss's recorded parries against Accuracy and for Block
+  against Accuracy alike, up to `PARRY_CAP`, 50 %. The recorded rates hold at the typical builds' Accuracy, so the
+  typical builds' boss DPS does not move; a build with more Accuracy is parried less, +40 winning back 0.9 % for a
+  Spiritmaster where it won back 0.7 %.
+* **A Block of its own.** A target with a Block (`Target.block`) parries hits from the front and the side with
+  `model.damage.block_chance`, (Block − Accuracy) × 0.1 %, between 0 and 50 %, each for half; never from behind, never
+  a guaranteed crit. A player in World PvP has one; `python -m aion2calc simulate --target-block` gives one to a boss
+  in place of the class's recorded rate (about 1,100 for Korea's Transcendence 10, 700–800 for global Transcendence
+  stage 4, as players report): against 1,100 the typical Templar, at 426 Accuracy, loses 15 %.
+* **Accuracy by target.** Accuracy (raised by Freedom) plus PvE Accuracy against monsters, as since 0.2.386, plus PvP
+  Accuracy against players; the Ariel board's PvE Accuracy and the Azphel board's PvP Accuracy are now read, and
+  PvE and PvP Accuracy, Block and PvP Block from gear and titles.
+* **World PvP.** Your Block, raised by Dexterity's and Space's 0.1 % a point, plus PvP Block, against the reference
+  attacker's Accuracy and PvP Accuracy: the hits that land are parried with that chance, so effective HP rises by
+  1 / (1 − ½ × the chance), a third at the cap, beside the share Evasion keeps off. The passives that add Block
+  (Crossguard, Empyrean Lords' Benediction) count with it. The typical builds carry no Block above the reference
+  Accuracy, so their scores do not move; an imported character's Block counts.
+* **Genus Insight's Block lines** say why they score no damage: Block counts against an attacker's Accuracy, and no
+  source gives monsters' Accuracy.
+
+**Still open.** A shield user's second roll (a shield block, then a weapon block, each up to 50 % by the client's
+text and players' reports; one calculator claims shield users block twice as often, its page unreadable); how the cut
+varies with gear grade (metabot says it does; the tests found half on bosses); the Perfect Block Korea added in March,
+from any side; the heals on Block, which need how often the attackers hit; monsters' Accuracy, so Block cannot score
+against them; and the official profile's PvP Block id, read as `PvPBlock` after the boards' `PvPAccuracy`.
 
 ## Optimization and macro planning
 
