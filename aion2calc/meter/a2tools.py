@@ -4,10 +4,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from .a2parser.engine import MeterEngine
-from .a2parser.lookup import skill_name
+from .a2parser.lookup import JOB_CLASS_KEYS, skill_name
 from .a2parser.models import SpecialDamage
 
-CLASS_KEYS = {"elementalist": "spiritmaster"}
+CLASS_KEYS = JOB_CLASS_KEYS           # the Elementalist is the Spiritmaster, the Fighter the Brawler
 
 
 def _class_key(value: str) -> str | None:

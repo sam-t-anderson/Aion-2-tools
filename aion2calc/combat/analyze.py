@@ -227,10 +227,19 @@ def vs_top(enc: dict) -> dict:
     if not p.exists():
         return {}
     top = json.loads(p.read_text(encoding="utf-8"))["skills"]
-    cd = ClassData(cls)
+    try:
+        cd = ClassData(cls)
+
+        def name_of(code):
+            return cd.skills[code]["name"] if code in cd.skills else None
+    except (OSError, ValueError):     # a class with no class data yet (the Brawler): the meter's skill names
+        from ..meter.a2parser.lookup import has_skill, skill_name
+
+        def name_of(code):
+            return skill_name(code) if isinstance(code, int) and has_skill(code) else None
     agg: dict = {}
     for v in top.values():
-        name = cd.skills[v["code"]]["name"] if v.get("code") in cd.skills else None
+        name = name_of(v.get("code"))
         if name:
             a = agg.setdefault(name, {"share": 0.0, "hpm": 0.0})
             a["share"] += v["mean_share"]

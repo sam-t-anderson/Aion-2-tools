@@ -40,6 +40,13 @@ def _class_of(skill_ids: list[int]) -> str | None:
         n = sum(1 for s in skill_ids if s in ids)
         if n > hits:
             best, hits = cls, n
+    if best is None:     # a class with no class data yet (the Brawler): its skill ids' class prefix
+        from ..meter.a2parser.lookup import class_key_of, job_from_skill
+        from .a2log import UNMODELLED_CLASSES
+        keys = [class_key_of(job_from_skill(int(s))) for s in skill_ids
+                if isinstance(s, int) and not isinstance(s, bool) or isinstance(s, str) and s.isdigit()]
+        keys = [k for k in keys if k in UNMODELLED_CLASSES]
+        best = max(set(keys), key=keys.count) if keys else None
     return best
 
 
@@ -55,6 +62,10 @@ def _english(cls: str | None, sid, fallback: str) -> str:
             sk = ClassData(cls).skills.get(int(sid))
             if sk:
                 return sk["name"]
+        except (OSError, ValueError):       # no class data yet (the Brawler): the meter's English skill names
+            from ..meter.a2parser.lookup import has_skill, skill_name
+            if str(sid).isdigit() and has_skill(int(sid)):
+                return skill_name(int(sid))
         except Exception:
             pass
     return fallback

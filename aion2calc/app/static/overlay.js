@@ -680,7 +680,7 @@
   // classes. A class colour the user chose in Settings → Combat colours (or a palette
   // they applied there) wins, and "Use class colors" off still gives every row the
   // neutral gold, exactly as the shared A2CombatReview.color() decides.
-  const OVERLAY_CLASS_COLORS={sorcerer:"#3a86c8",assassin:"#4caf6e",templar:"#c9772b",ranger:"#b9962a",chanter:"#b84f9e",gladiator:"#c8474f",spiritmaster:"#7a63d8",cleric:"#3fb4b0"};
+  const OVERLAY_CLASS_COLORS={sorcerer:"#3a86c8",assassin:"#4caf6e",templar:"#c9772b",ranger:"#b9962a",chanter:"#b84f9e",gladiator:"#c8474f",spiritmaster:"#7a63d8",cleric:"#3fb4b0",brawler:"#7f9a3a"};
   function barColor(cls){
     const key=String(cls||'').toLowerCase();
     let pref; try{pref=JSON.parse(localStorage.getItem("a2-combat-colors"))||{};}catch(_){pref={};}

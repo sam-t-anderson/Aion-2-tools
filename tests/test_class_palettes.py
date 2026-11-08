@@ -1,6 +1,6 @@
 """The class-colour palette presets (app customization presets in
-combat-review.js) must stay well-formed: every inline palette assigns all eight
-classes a six-digit hex colour, so applying one can never leave a class
+combat-review.js) must stay well-formed: every inline palette assigns all nine
+classes (the Brawler since 0.2.390) a six-digit hex colour, so applying one can never leave a class
 uncoloured. Extracted from the JS the same way the bundled overlay-preset test
 reads pages/settings.js."""
 import pathlib
@@ -10,7 +10,7 @@ SRC = (pathlib.Path(__file__).resolve().parents[1]
        / "aion2calc" / "app" / "static" / "combat-review.js").read_text(encoding="utf-8")
 
 CLASSES = {"gladiator", "templar", "assassin", "ranger",
-           "sorcerer", "spiritmaster", "cleric", "chanter"}
+           "sorcerer", "spiritmaster", "cleric", "chanter", "brawler"}
 
 
 def test_default_palette_reuses_defaults():
