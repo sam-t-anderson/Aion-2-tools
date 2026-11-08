@@ -831,5 +831,16 @@
  "Uploaded on or before": "この日以前にアップロード",
  "your logs": "あなたのログ",
  "the legion's logs": "レギオンのログ",
- "Filter {0} by boss": "{0}をボスで絞り込む"
+ "Filter {0} by boss": "{0}をボスで絞り込む",
+ "Top parses": "トップパース",
+ "Loading your top parses…": "トップパースを読み込み中…",
+ "The community server doesn't list top parses yet.": "コミュニティサーバーはまだトップパースに対応していません。",
+ "No ranked boss fights in your logs yet. Your best run on each boss shows here, with its parse against every public run of your class.": "ランキング対象のボス戦はまだログにありません。各ボスでのあなたの最高記録が、同じクラスのすべての公開記録に対するパースとともにここに表示されます。",
+ "Your best DPS on each boss and difficulty for each of your characters, from the logs in this account (any visibility), in ranking-eligible PvE fights. The parse compares it with every ranked public run of the same boss, game version and difficulty by the same class: 100 is above them all.": "このアカウントのログ（公開範囲を問わず）から、ランキング対象のPvE戦闘で、各キャラクターの各ボス・難易度での最高DPSを表示します。パースは、同じボス・ゲームバージョン・難易度の同じクラスによるランキング対象のすべての公開記録と比較したものです。100はすべてを上回ります。",
+ "Parse {0}, rank {1} of {2} ranked runs of this class on this encounter": "パース {0}、この戦闘におけるこのクラスのランキング対象 {2} 件中 {1} 位",
+ "Provisional: fewer than 5 runs.": "暫定：記録が5件未満です。",
+ "No parse yet: no other ranked run of this class on this encounter": "パースはまだありません：この戦闘でこのクラスの他のランキング対象記録がありません",
+ "Best of {0} ranked run": "ランキング対象 {0} 件中の最高",
+ "Best of {0} ranked runs": "ランキング対象 {0} 件中の最高",
+ "The best {0} by DPS are shown.": "DPS上位 {0} 件を表示しています。"
 }

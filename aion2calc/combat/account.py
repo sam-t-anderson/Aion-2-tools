@@ -31,7 +31,7 @@ DEFAULT_SITE = "https://sam-t-anderson.github.io/Aion-2-tools/"
 
 #: what the app's pages may ask the server through ``request`` (everything else has a function here)
 _ALLOWED = {
-    "GET": re.compile(r"/api/v1/(account|account/(logs|sessions|activity|passkeys|signin/lookup)"
+    "GET": re.compile(r"/api/v1/(account|account/(logs|top-parses|sessions|activity|passkeys|signin/lookup)"
                       r"|legions|legions/mine|legions/lg_[0-9a-f]{12}(/logs)?)"),
     "POST": re.compile(r"/api/v1/(account/(logs/[A-Za-z0-9]{6,16}/(visibility|title|delete|detach)|sessions/revoke|name"
                        r"|signin/(approve|deny)|link|passkeys/remove|discord/unlink|delete)"
