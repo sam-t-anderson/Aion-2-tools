@@ -1,4 +1,5 @@
-/* The optional account, for the desktop app and the website: My logs, Legions, and Sign-in & security.
+/* The optional account, for the desktop app and the website: My logs (with the account's top parses, 0.2.391),
+   Legions, and Sign-in & security.
    The page hands in `io`: how to reach the server (the app asks its own local server, which keeps the
    credential; the website sends its session), what to show when signed out, and what only it can do.
    Everything the server says is escaped before it is shown. */
@@ -136,7 +137,7 @@
   }
 
   function mount(root, io, opts = {}) {
-    const st = { tab: opts.tab || "logs", mine: fresh(null), shared: fresh(null), legion: opts.legion || null, invite: opts.invite || null, me: null, flash: "" };
+    const st = { tab: opts.tab || "logs", mine: fresh(null), shared: fresh(null), legion: opts.legion || null, invite: opts.invite || null, me: null, flash: "", top: null };
     const call = (method, path, body) => io.call(method, path, body);
     const flash = (text) => {
       st.flash = text;
@@ -181,6 +182,7 @@
     }
 
     async function act(work, done) {
+      st.top = null; // a log changed: its parses are asked for again
       try {
         const result = await work();
         if (done) flash(typeof done === "function" ? done(result) : done);
@@ -193,8 +195,9 @@
     // ------------------------------------------------------------ my logs
     async function renderLogs(el) {
       const f = st.mine;
+      const top = topParses(); // asked for first, so the top parses load alongside the list
       const r = await call("GET", "/api/v1/account/logs?" + listQuery(f));
-      el.innerHTML = `<div class="row">${filterRow(f, tr("your logs"))}${io.logTools ? io.logTools() : ""}<span class="small muted">${esc(many(r.total || 0, "{0} log", "{0} logs"))}</span></div>
+      el.innerHTML = `<section class="acct-top" data-top-parses aria-live="polite"></section><div class="row">${filterRow(f, tr("your logs"))}${io.logTools ? io.logTools() : ""}<span class="small muted">${esc(many(r.total || 0, "{0} log", "{0} logs"))}</span></div>
         ${r.logs.length ? `<table class="t acct-logs"><thead><tr><th>${esc(tr("Description"))}</th><th>${esc(tr("Character"))}</th><th>${esc(tr("Uploaded"))}</th><th class="r">${esc(tr("Duration"))}</th><th>${esc(tr("Visibility"))}</th><th>${esc(tr("Edit"))}</th><th>${esc(tr("Delete"))}</th></tr></thead><tbody>
         ${r.logs.map((l, i) => `<tr><td><a href="${esc(io.logHref(l))}"${io.logTarget || ""}>${esc(l.title || l.boss || l.id)}</a>${l.held ? ` <span class="chip">${esc(tr("under review"))}</span>` : ""}<div class="small muted" translate="no">${esc(l.boss || "")}</div></td>
           <td translate="no">${esc(l.uploader || "—")}</td><td>${when(l.created_at)}</td><td class="r">${length(l.duration)}</td>
@@ -228,6 +231,62 @@
           }),
       );
       if (io.afterLogs) io.afterLogs(el, render);
+      renderTopParses(el.querySelector("[data-top-parses]"), top).catch((e) => {
+        if (e && e.signedOut) render();
+      });
+    }
+
+    // ------------------------------------------------------------ top parses (0.2.391)
+    // The account's best run on each boss and difficulty for each of its characters (log server 0.2.170), with the
+    // parse the rankings give it: WCL-style colours, gold for the bracket's best run, provisional under five runs.
+    // Asked for once (st.top holds the request) and again after a change to the account's logs (act).
+    const parseTier = (p, rank) =>
+      rank === 1 || p >= 100 ? "gold" : p >= 99 ? "pink" : p >= 95 ? "orange" : p >= 75 ? "purple" : p >= 50 ? "blue" : p >= 25 ? "green" : "grey";
+    const parseCell = (p) => {
+      if (p.parse === null || p.parse === undefined)
+        return `<span class="parse q-none" title="${esc(tr("No parse yet: no other ranked run of this class on this encounter"))}">·</span>`;
+      const title =
+        tr("Parse {0}, rank {1} of {2} ranked runs of this class on this encounter", p.parse, p.parse_rank ?? "—", p.parse_runs) +
+        (p.provisional ? " " + tr("Provisional: fewer than 5 runs.") : "");
+      return `<span class="parse q-${parseTier(p.parse, p.parse_rank)}${p.provisional ? " provisional" : ""}" title="${esc(title)}">${Math.round(p.parse)}</span>`;
+    };
+    const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : "—");
+    const topParses = () =>
+      st.top ||
+      (st.top = call("GET", "/api/v1/account/top-parses").catch((e) => {
+        if (e && e.signedOut) {
+          st.top = null;
+          throw e;
+        }
+        return { error: e };
+      }));
+    async function renderTopParses(el, pending) {
+      if (!el) return;
+      const head = `<h3>${esc(tr("Top parses"))}</h3>`;
+      el.innerHTML = head + `<p class="small muted">${esc(tr("Loading your top parses…"))}</p>`;
+      const found = await pending;
+      if (!el.isConnected) return;
+      if (found.error) {
+        const missing = /not found|404|does not send that request/i.test(String((found.error && found.error.message) || ""));
+        el.innerHTML = head + `<p class="small muted">${esc(missing ? tr("The community server doesn't list top parses yet.") : plain(found.error.message))}</p>`;
+        return;
+      }
+      const rows = found.parses || [];
+      el.innerHTML =
+        head +
+        (rows.length
+          ? `<table class="t acct-parses"><thead><tr><th>${esc(tr("Boss"))}</th><th>${esc(tr("Difficulty"))}</th><th>${esc(tr("Character"))}</th><th>${esc(tr("Class"))}</th><th class="r">${esc(tr("DPS"))}</th><th class="r">${esc(tr("Parse"))}</th><th>${esc(tr("Date"))}</th><th>${esc(tr("Log"))}</th></tr></thead><tbody>
+          ${rows
+            .map(
+              (p) => `<tr><td translate="no">${esc(p.boss || "—")}</td><td>${esc(cap(p.difficulty))}</td>
+            <td><span translate="no">${esc(p.character || "—")}</span> <span class="small muted" translate="no">${esc(world(p.server))}</span></td>
+            <td>${esc(cap(p.class))}</td><td class="r" title="${esc(many(p.attempts || 1, "Best of {0} ranked run", "Best of {0} ranked runs"))}">${Math.round(+p.dps || 0).toLocaleString("en-US")}</td>
+            <td class="r">${parseCell(p)}</td><td>${when(p.uploaded_at)}</td>
+            <td><a href="${esc(io.logHref({ id: p.log, url: p.url, segment: p.segment }))}"${io.logTarget || ""}>${esc(tr("Open"))}</a></td></tr>`,
+            )
+            .join("")}</tbody></table>${found.truncated ? `<p class="small muted">${esc(tr("The best {0} by DPS are shown.", rows.length))}</p>` : ""}`
+          : `<p class="small acct-top-empty">${esc(tr("No ranked boss fights in your logs yet. Your best run on each boss shows here, with its parse against every public run of your class."))}</p>`) +
+        `<p class="small muted">${esc(tr("Your best DPS on each boss and difficulty for each of your characters, from the logs in this account (any visibility), in ranking-eligible PvE fights. The parse compares it with every ranked public run of the same boss, game version and difficulty by the same class: 100 is above them all."))}</p>`;
     }
 
     // ------------------------------------------------------------ legions

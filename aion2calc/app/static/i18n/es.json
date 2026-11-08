@@ -831,5 +831,16 @@
  "Uploaded on or before": "Subido hasta este día",
  "your logs": "tus registros",
  "the legion's logs": "los registros de la legión",
- "Filter {0} by boss": "Filtrar {0} por jefe"
+ "Filter {0} by boss": "Filtrar {0} por jefe",
+ "Top parses": "Mejores parses",
+ "Loading your top parses…": "Cargando tus mejores parses…",
+ "The community server doesn't list top parses yet.": "El servidor de la comunidad aún no muestra los mejores parses.",
+ "No ranked boss fights in your logs yet. Your best run on each boss shows here, with its parse against every public run of your class.": "Aún no hay combates de jefe clasificados en tus logs. Aquí aparece tu mejor intento contra cada jefe, con su parse frente a todos los intentos públicos de tu clase.",
+ "Your best DPS on each boss and difficulty for each of your characters, from the logs in this account (any visibility), in ranking-eligible PvE fights. The parse compares it with every ranked public run of the same boss, game version and difficulty by the same class: 100 is above them all.": "Tu mejor DPS en cada jefe y dificultad para cada uno de tus personajes, de los logs de esta cuenta (cualquier visibilidad), en combates JcE aptos para la clasificación. El parse lo compara con cada intento público clasificado del mismo jefe, versión del juego y dificultad de la misma clase: 100 está por encima de todos.",
+ "Parse {0}, rank {1} of {2} ranked runs of this class on this encounter": "Parse {0}, puesto {1} de {2} intentos clasificados de esta clase en este combate",
+ "Provisional: fewer than 5 runs.": "Provisional: menos de 5 intentos.",
+ "No parse yet: no other ranked run of this class on this encounter": "Aún sin parse: no hay otro intento clasificado de esta clase en este combate",
+ "Best of {0} ranked run": "Mejor de {0} intento clasificado",
+ "Best of {0} ranked runs": "Mejor de {0} intentos clasificados",
+ "The best {0} by DPS are shown.": "Se muestran los {0} mejores por DPS."
 }

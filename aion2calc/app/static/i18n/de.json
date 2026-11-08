@@ -831,5 +831,16 @@
  "Uploaded on or before": "Hochgeladen bis zu diesem Tag",
  "your logs": "deine Logs",
  "the legion's logs": "die Logs der Legion",
- "Filter {0} by boss": "{0} nach Boss filtern"
+ "Filter {0} by boss": "{0} nach Boss filtern",
+ "Top parses": "Beste Parses",
+ "Loading your top parses…": "Deine besten Parses werden geladen…",
+ "The community server doesn't list top parses yet.": "Der Community-Server listet noch keine besten Parses auf.",
+ "No ranked boss fights in your logs yet. Your best run on each boss shows here, with its parse against every public run of your class.": "Noch keine gewerteten Bosskämpfe in deinen Logs. Hier erscheint dein bester Lauf gegen jeden Boss, mit seinem Parse gegen alle öffentlichen Läufe deiner Klasse.",
+ "Your best DPS on each boss and difficulty for each of your characters, from the logs in this account (any visibility), in ranking-eligible PvE fights. The parse compares it with every ranked public run of the same boss, game version and difficulty by the same class: 100 is above them all.": "Dein bester DPS auf jedem Boss und jeder Schwierigkeit für jeden deiner Charaktere, aus den Logs dieses Kontos (jede Sichtbarkeit), in wertbaren PvE-Kämpfen. Der Parse vergleicht ihn mit jedem gewerteten öffentlichen Lauf desselben Bosses, derselben Spielversion und Schwierigkeit derselben Klasse: 100 liegt über allen.",
+ "Parse {0}, rank {1} of {2} ranked runs of this class on this encounter": "Parse {0}, Rang {1} von {2} gewerteten Läufen dieser Klasse in diesem Kampf",
+ "Provisional: fewer than 5 runs.": "Vorläufig: weniger als 5 Läufe.",
+ "No parse yet: no other ranked run of this class on this encounter": "Noch kein Parse: kein anderer gewerteter Lauf dieser Klasse in diesem Kampf",
+ "Best of {0} ranked run": "Bester aus {0} gewertetem Lauf",
+ "Best of {0} ranked runs": "Bester aus {0} gewerteten Läufen",
+ "The best {0} by DPS are shown.": "Gezeigt werden die besten {0} nach DPS."
 }
