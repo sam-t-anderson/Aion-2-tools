@@ -1,3 +1,7 @@
+## Top parses gets its own tab, sorted, filtered and paged (0.2.392)
+
+**Top parses gets its own tab, sorted, filtered and paged.** Your top parses moved out of My logs into a tab of their own, beside it on the account page and in the menu under your name, with a link of its own. Click a column's header to sort by it and again to reverse it. The Boss, Difficulty, Class and Character menus narrow the list, each showing how many parses a choice has, and Reset clears them. Previous and Next go through the pages, 25, 50 or 100 a page, a choice this browser remembers. Log server 0.2.171 does the sorting and filtering; against 0.2.170 the tab does it itself on the whole list.
+
 ## Your top parses on My logs (0.2.391)
 
 **Your top parses on My logs.** Above the list of your uploads, My logs now shows your best run on each boss and difficulty for each of your characters: the boss, difficulty, character and server, class, DPS, its parse in the leaderboard's colours and the day it was uploaded, with a link that opens the log on that encounter. Your characters are the ones you have claimed and the recording player of each of your logs, and private logs count too, since only you see the table. Only ranking-eligible PvE fights count. The parse is the one the rankings give: your run against every ranked public run of the same boss, game version and difficulty by your class (gold for the bracket's best, provisional under five runs). It needs log server 0.2.170; an older server says it does not list top parses yet.
