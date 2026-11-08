@@ -50,28 +50,21 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `quick_slice`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, each once: held, the macro cycles through them. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | shadow_fall › swift › illusive_clone › heart_gore |
-| 2 | triniel › shadowstrike › storm_rampage › insignia_explosion |
-| 3 | shadow_fall › swift › illusive_clone › heart_gore |
-| 4 | ambush |
-| 5 | shadow_fall › swift › illusive_clone › heart_gore |
-| 6 | triniel › shadowstrike › storm_rampage › insignia_explosion |
-| 7 | shadow_fall › swift › illusive_clone › heart_gore |
-| 8 | triniel › shadowstrike › storm_rampage › insignia_explosion |
-| 9 | shadow_fall › swift › illusive_clone › heart_gore |
-| 10 | infiltrate › flash_slice › savage_roar |
-| 11 | shadow_fall › swift › illusive_clone › heart_gore |
-| 12 | whirlwind_slice › sfang |
+| 1 | shadow_fall › storm_rampage |
+| 2 | swift › illusive_clone › shadowstrike |
+| 3 | insignia_explosion › infiltrate › triniel |
+| 4 | savage_roar › ambush › whirlwind_slice |
+| 5 | heart_gore › flash_slice › sfang |
 
 Manual keys (press on cooldown, in this priority): none — hold the macro key for the whole fight
 
-Simulated: this layout reaches **95.0%** of the ideal priority list.
+Simulated: this layout reaches **91.9%** of the ideal priority list.
 
-**Alternative — one skill per macro line**: macro shadow_fall → heart_gore → insignia_explosion → ambush → storm_rampage → shadowstrike → infiltrate → savage_roar → whirlwind_slice → flash_slice → quick_slice; manual: swift, illusive_clone, sfang, triniel. Simulated: **81.3%** of the ideal priority list.
+**Alternative — one skill per macro line**: macro shadow_fall → heart_gore → insignia_explosion → ambush → storm_rampage → shadowstrike → infiltrate → savage_roar → whirlwind_slice → flash_slice → quick_slice; manual: swift, illusive_clone, sfang, triniel. Simulated: **81.6%** of the ideal priority list.
 
 ### Opener (first 30 s of the simulated fight)
 

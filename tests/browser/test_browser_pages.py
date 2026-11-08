@@ -452,7 +452,7 @@ def test_the_macro_window_shows_each_line_as_a_hotbar_key_with_its_skills(app_pa
                      document.body.append(host); renderWindows(v, {win: 'macro'}, host); }""", view)
     lines = page.locator("#macro-host .macro-step")
     assert lines.count() == len(steps)
-    for i, step in enumerate(steps):              # every line, a key already on an earlier line too
+    for i, step in enumerate(steps):              # every line, each key once
         line = lines.nth(i)
         assert line.locator(".macro-key-label kbd").inner_text() == step["binding"]
         assert line.locator(".macro-stack > div > b").all_inner_texts() == [s["name"] for s in step["stack"]]
@@ -460,15 +460,16 @@ def test_the_macro_window_shows_each_line_as_a_hotbar_key_with_its_skills(app_pa
     assert "cast first, skipped if it cannot be cast" in lines.nth(several).inner_text()
     assert "then this one, skipped if it cannot be cast" in lines.nth(several).inner_text()
     assert "put them on that key in the order listed" in page.locator("#macro-host .macro-instructions").inner_text()
-    # A key the search put on two lines: the later line shows the key's skills like any other line (0.2.387), with no
-    # note that it repeats one and no "again" on its key (0.2.376 named the line it repeated instead)
+    # Each key is on one line (0.2.388): held, the macro cycles through its lines. A macro saved with a key on two lines
+    # shows the key once, on its first line, and copies it once (0.2.376 named the line it repeated, 0.2.387 drew it again)
     again = {**view, "rotation": {**view["rotation"], "steps": steps[:several + 1] + [steps[several]] + steps[several + 1:]}}
     page.evaluate("v => renderWindows(v, {win: 'macro'}, document.getElementById('macro-host'))", again)
-    first, repeat = (page.locator("#macro-host .macro-step").nth(k) for k in (several, several + 1))
-    assert repeat.locator(".macro-stack > div > b").all_inner_texts() == [s["name"] for s in steps[several]["stack"]]
-    assert repeat.locator(".hotbar-icon").count() == first.locator(".hotbar-icon").count()
-    assert repeat.locator(".macro-key-label").inner_text() == first.locator(".macro-key-label").inner_text()
-    assert "pressed again" not in repeat.inner_text() and "tried twice" not in repeat.inner_text()
+    shown = page.locator("#macro-host .macro-step")
+    assert shown.count() == len(steps)
+    assert [shown.nth(i).locator(".macro-key-label kbd").inner_text() for i in range(len(steps))] == \
+        [s["binding"] for s in steps]
+    assert "pressed again" not in page.locator("#macro-host").inner_text()
+    assert "each once: held, the macro cycles through them" in page.locator("#macro-host .macro-instructions").inner_text()
     page.evaluate("v => renderWindows(v, {win: 'hotbar'}, document.getElementById('macro-host'))", view)
     labels = page.locator("#macro-host .hotbar-slot.automatic small").all_inner_texts()
     assert any(label.endswith("skills, cast in order") for label in labels)

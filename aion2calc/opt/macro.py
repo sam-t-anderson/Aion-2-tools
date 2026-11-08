@@ -8,8 +8,8 @@ one that cannot, then moves to the next line (0.2.377: the planner had a key cas
 the first of its skills that was ready before the macro moved on, so a key repeated on
 the next line looked as if it cast more of them). Since 0.2.371 the planner builds the
 macro from such keys (:func:`plan_macro`, searched by simulation): a key holds up to four
-skills on one macro line, and a key on several lines has its skills tried that many times
-a round. The basic auto-attack stays on the held left mouse button and fires whenever
+skills on one macro line, and each key is on one line only (0.2.388): held, the macro cycles
+through its lines, so every key comes round again each cycle. The basic auto-attack stays on the held left mouse button and fires whenever
 nothing on the macro can be cast; where pressing it more often plays better (a Sorcerer short
 of MP), the macro also gives it a line of its own. Charge skills stay on their
 own keys (a macro only taps them), and a long-cooldown skill may too when
@@ -24,8 +24,9 @@ from dataclasses import dataclass
 from ..sim.engine import Sim
 from .rotation import CONDITIONS
 
-MODEL_VERSION = 5          # 4: macro lines are hotbar keys holding up to four skills (0.2.371); 5: the macro casts a
-                           # key's skills in order, first to last, before the next line (0.2.377)
+MODEL_VERSION = 6          # 4: macro lines are hotbar keys holding up to four skills (0.2.371); 5: the macro casts a
+                           # key's skills in order, first to last, before the next line (0.2.377); 6: each key on
+                           # one line only (0.2.388)
 STACK = 4                  # skills one hotbar key holds; the macro casts them in order, skipping those not ready
 MACRO_LINES = 20           # lines the in-game macro editor takes
 MANUAL_MIN_CD = 30.0       # besides charge skills, only a skill with at least this cooldown goes on its own key
@@ -137,10 +138,12 @@ def _flat(run, derived, kit, policy: list, macro_cd_limit: float) -> list:
         else:
             manual.append(e)
     import itertools
-    # A macro step for a parent skill presses its chain step too while the chain is open (MacroPolicy),
-    # so each layout is also tried without its chain steps: a second step for the same key can help
-    # (the Templar's Pummel) or crowd the macro (the Cleric's Earth's Retribution).
+    # A macro step for a parent skill presses its chain step too while the chain is open (MacroPolicy), and a
+    # key goes on one macro line only (0.2.388): a chain step whose parent is on the macro gets no line of its
+    # own, which would be the parent's key a second time (and needs no manual press either).
     chained = {k for k, a in kit.actions.items() if a.chain_of}
+    steps = [s for s in steps if s not in chained or kit.actions[s].chain_of not in steps]
+    manual = [e for e in manual if keyf(e) not in chained or kit.actions[keyf(e)].chain_of not in steps]
 
     def arrange(manual, steps):
         best_steps, best = steps, run(MacroPolicy(manual, steps))
@@ -156,13 +159,6 @@ def _flat(run, derived, kit, policy: list, macro_cd_limit: float) -> list:
         return best_steps, manual, best
 
     split = arrange(manual, steps)
-    lean_steps = [s for s in steps if s not in chained]
-    # a chain step whose parent is in the macro needs no manual press either
-    lean_manual = [e for e in manual if keyf(e) not in chained or kit.actions[keyf(e)].chain_of not in lean_steps]
-    if (lean_steps, lean_manual) != (steps, manual):
-        lean = arrange(lean_manual, lean_steps)
-        if lean[2] > split[2]:
-            split = lean
     # Even the larger macro needs manual charge skills: a macro only taps them.
     charged = [e for e in policy if kit.actions[keyf(e)].requires_charge]
     automatic = [keyf(e) for e in policy if not kit.actions[keyf(e)].requires_charge]
@@ -181,26 +177,22 @@ def _flat(run, derived, kit, policy: list, macro_cd_limit: float) -> list:
                     one, one_v, improved = cand, v, True
         return one, charged, one_v
 
-    single = improve(order)
-    if any(k in chained for k in order):
-        lean = improve([k for k in order if k not in chained])
-        if lean[2] > single[2]:
-            single = lean
+    single = improve([k for k in order if k not in chained or kit.actions[k].chain_of not in order])
     return [single, split]
 
 
 def _stacked(run, kit, policy: list, auto: str | None, flat: list, evals: int, seed: int = 7):
     """Hotbar keys (up to :data:`STACK` skills each, in the order the macro casts them, a no-cooldown filler last),
-    the macro's lines (a key may sit on several, so its skills are tried more often) and the manual keys, found by
-    simulation.
+    the macro's lines (each key on one line: held, the macro cycles through them, 0.2.388) and the manual keys,
+    found by simulation.
 
     Every skill of the priority list is on one key or on a manual key, never on two keys; a chain step rides its
     parent's key, and the auto-attack stays on the left mouse button. Charge skills are always manual; another
     skill only with a cooldown of at least :data:`MANUAL_MIN_CD`. Layouts are compared on simulated DPS less
     :data:`MANUAL_COST` per extra manual key and :data:`LINE_COST` per further line. The search starts from the
-    priority list in keys of three, from keys that put one of the top four skills first on a key the macro presses
-    every other line, and from the one-skill-per-line layouts (``flat``), then moves, swaps, merges and repeats keys
-    and lines while that improves, within ``evals`` simulations. Returns ``(lines, manual, dps)``: each line is
+    priority list in keys of three, from keys that put one of the top four skills first on the first key, and from
+    the one-skill-per-line layouts (``flat``), then moves, swaps and merges keys and lines while that improves,
+    within ``evals`` simulations. Returns ``(lines, manual, dps)``: each line is
     the tuple of its key's skills."""
     import random
     keyf = lambda e: e[0] if isinstance(e, tuple) else e
@@ -226,19 +218,16 @@ def _stacked(run, kit, policy: list, auto: str | None, flat: list, evals: int, s
     rank = {k: i for i, k in enumerate(order)}
 
     def norm(keys, lines, manual):
-        """A canonical layout: fillers last on each key, no empty key, keys numbered by first line, and no key on two
-        lines in a row, the loop's last and first included (0.2.377, 0.2.378). The game's macro casts a key's skills
-        before the next line, so the second line finds them cooling down, and a skill without a cooldown runs again
-        anyway each time the held macro comes back to its key. The simulation only drew a line's worth of priority
-        from such a pair, which a player's macro would not show, and a Sorcerer reported one as a mistake."""
+        """A canonical layout: fillers last on each key, no empty key, keys numbered by first line, and each key on
+        its first line only (0.2.388). The player holds the macro and it cycles through its lines, so a key comes
+        round again each cycle; from 0.2.376 the search put a key on several lines to try its skills more often, and
+        a key on two lines in a row (0.2.377, 0.2.378) cast nothing more, its skills cooling down from the line
+        before."""
         keys = [[k for k in key if k not in filler] + [k for k in key if k in filler] for key in keys]
         used = [i for i in dict.fromkeys(lines) if keys[i]]
         remap = {old: new for new, old in enumerate(used)}
         keys = tuple(tuple(keys[i]) for i in used)
-        lines = [remap[i] for i in lines if i in remap]
-        lines = [x for n, x in enumerate(lines) if n == 0 or x != lines[n - 1]]
-        while len(lines) > 1 and lines[-1] == lines[0]:
-            lines.pop()
+        lines = list(dict.fromkeys(remap[i] for i in lines if i in remap))
         return keys, tuple(lines), tuple(sorted(manual, key=rank.get))
 
     cache: dict = {}
@@ -256,7 +245,7 @@ def _stacked(run, kit, policy: list, auto: str | None, flat: list, evals: int, s
         return (all(len(key) <= STACK and sum(k in filler for k in key) <= 1 and (len(key) == 1 or not solo & set(key))
                     for key in keys)
                 and len(placed) == len(set(placed)) and set(placed) | filler >= set(order) - filler
-                and 0 < len(lines) <= MACRO_LINES and set(manual) <= may_be_manual)
+                and 0 < len(lines) <= MACRO_LINES and len(set(lines)) == len(lines) and set(manual) <= may_be_manual)
 
     core = [k for k in order if k not in filler]
     fills = [k for k in order if k in filler]
@@ -266,7 +255,7 @@ def _stacked(run, kit, policy: list, auto: str | None, flat: list, evals: int, s
         for at in range(len(chunks)) if f else [0]:
             keys = [list(c) + ([f] if f and i == at else []) for i, c in enumerate(chunks)]
             seeds.append(norm(keys, list(range(len(keys))), ()))
-    for top in core[:4]:                                           # one top skill first on every other line
+    for top in core[:4]:                                           # one top skill first on the first key
         rest = [k for k in core if k != top]
         head = [top] + rest[:STACK - 2] + fills[:1]
         tail = rest[STACK - 2:]
@@ -354,14 +343,7 @@ def _stacked(run, kit, policy: list, auto: str | None, flat: list, evals: int, s
                 m2.remove(sk)
                 k2[i].insert(0, sk)
                 add(k2, l2, m2)
-        for p in range(len(lines) + 1):                            # repeat a key on another line
-            for i in range(len(keys)):
-                add(*(lambda k2, l2, m2: (k2, l2[:p] + [i] + l2[p:], m2))(*cp()))
         for p in range(len(lines)):
-            if lines.count(lines[p]) > 1:                          # drop a repeated line
-                k2, l2, m2 = cp()
-                del l2[p]
-                add(k2, l2, m2)
             if p + 1 < len(lines):                                 # swap two lines
                 k2, l2, m2 = cp()
                 l2[p], l2[p + 1] = l2[p + 1], l2[p]

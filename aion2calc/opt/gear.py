@@ -51,6 +51,8 @@ def roll_priorities(pu: dict, items: dict | None = None) -> dict[str, list[dict]
             if r["stat"] not in LABEL_MAP:
                 continue
             field, scale = LABEL_MAP[r["stat"]]
+            if field in ("block", "pvp_block"):         # survival in World PvP, never damage (0.2.387)
+                continue
             avg, pct = _avg_range(r["range"])
             if pct and scale == 1:
                 continue

@@ -22,7 +22,7 @@ Damage objective subject to the saved HP and trained-skill reserves. Balanced us
 
 **Whole fight:** 18,114 DPS on the boss scenario, the same rotation stretched over the 35% of a recorded boss fight this class's players spend pressing nothing or dodging (the log server's public uploads). The table above is the rotation's own DPS, which the optimizer compares builds by; a parse on the log server is a whole fight's.
 
-The optimized build is **+13.2%** over the typical top global build played with the same rotation optimizer, and **+39.3%** over that build played with the default priority. *Typical top global build* = average skill levels, the four most-picked damage stigmas and the most-picked Daevanion nodes of the top tracked global L45 players of this class (metabot.gg live data), given the best legal specializations for its levels (specs are not published).
+The optimized build is **+13.2%** over the typical top global build played with the same rotation optimizer, and **+39.3%** over that build played with the default priority. *Typical top global build* = average skill levels, the four most-picked damage stigmas and the most-picked Daevanion nodes of the top tracked global L45 players of this class (metabot.gg live data), fitted to this build's skill and stigma points (spare points raise its most-levelled skills and stigmas first) and given the best legal specializations for its levels (specs are not published).
 
 ## Rotation (priority list)
 
@@ -50,22 +50,19 @@ Use the highest skill that is ready; the last entry is the filler.
 
 **Left mouse button** is the basic auto-attack: `flame_arrow`. Hold it for continuous attacks; the Skill Macro below goes on the **right mouse button** (or another held key). Weave both together.
 
-Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, a key listed twice added twice. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
+Each line is a hotbar key: put its skills on that key in the order listed, the first lowest (a key holds up to four). The macro casts a key's skills from first to last, skipping any that cannot be cast, then moves to the next line. Then Settings → Key Settings → General → Skill Macro: add the keys as macro lines from top to bottom, each once: held, the macro cycles through them. Skill Queue (스킬 예약) **ON**, 10 ms delay on every line, hold the macro key; manual presses always take priority over the macro. A skill's key presses its chain step while the chain is open, in the macro too.
 
 | Line | Hotbar key holds (cast in this order) |
 |---:|---|
-| 1 | fire_wall › element_enhancement › wish › flame_scattershot |
-| 2 | blaze › cold_storm |
-| 3 | winters_shackles › bittercold_wind |
-| 4 | delayed_explosion › frost |
-| 5 | winters_shackles › bittercold_wind |
-| 6 | blaze › cold_storm |
-| 7 | frost_burst › firestorm › ice_chain |
-| 8 | blaze › cold_storm |
+| 1 | wish › frost_burst › cold_storm |
+| 2 | fire_wall › element_enhancement |
+| 3 | firestorm › winters_shackles › bittercold_wind |
+| 4 | flame_scattershot › ice_chain |
+| 5 | delayed_explosion › frost › blaze |
 
 Manual keys (press on cooldown, in this priority): hellfire_c3 [sync_de]
 
-Simulated: this layout reaches **98.3%** of the ideal priority list.
+Simulated: this layout reaches **97.6%** of the ideal priority list.
 
 **Alternative — one skill per macro line**: macro firestorm → bittercold_wind → flame_scattershot → blaze → frost_burst → ice_chain → flame_arrow; manual: winters_shackles [sync_de], fire_wall, wish, element_enhancement, cold_storm, delayed_explosion, hellfire_c3 [sync_de], frost. Simulated: **90.2%** of the ideal priority list.
 

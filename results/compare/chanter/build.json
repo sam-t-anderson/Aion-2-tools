@@ -5586,63 +5586,30 @@
   "onslaught"
  ],
  "macro": {
-  "model_version": 5,
+  "model_version": 6,
   "steps": [
    [
     "undefeated",
-    "spinning_strike",
-    "marchutan",
-    "dark_crush"
-   ],
-   [
     "stormpower",
-    "impactful_crush"
+    "spinning_strike",
+    "marchutan"
    ],
    [
-    "undefeated",
-    "spinning_strike",
-    "marchutan",
-    "dark_crush"
+    "gust_rampage",
+    "dark_crush",
+    "heat_wave_blow",
+    "rushing_smash"
    ],
    [
     "incandescent_blow",
+    "impactful_crush",
     "wave_blow",
-    "gust_rampage"
-   ],
-   [
-    "rushing_smash"
-   ],
-   [
-    "tremor_crush",
-    "heat_wave_blow"
-   ],
-   [
-    "undefeated",
-    "spinning_strike",
-    "marchutan",
-    "dark_crush"
-   ],
-   [
-    "stormpower",
-    "impactful_crush"
-   ],
-   [
-    "undefeated",
-    "spinning_strike",
-    "marchutan",
-    "dark_crush"
-   ],
-   [
-    "stormpower",
-    "impactful_crush"
-   ],
-   [
-    "rushing_smash"
+    "tremor_crush"
    ]
   ],
   "manual": [],
-  "dps_macro": 32158.852119748666,
-  "dps_priority": 37593.54352735207,
+  "dps_macro": 29485.28248472251,
+  "dps_priority": 37592.79831188762,
   "alt_steps": [
    "impactful_crush",
    "wave_blow",
@@ -5660,7 +5627,7 @@
    "marchutan",
    "incandescent_blow"
   ],
-  "dps_alt": 35494.47921235632,
+  "dps_alt": 35493.825285596125,
   "auto_attack": "onslaught",
   "chains": {}
  },

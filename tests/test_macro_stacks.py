@@ -75,6 +75,7 @@ def plan(templar):
 def test_the_templars_macro_is_built_from_hotbar_keys(templar, plan):
     _, kit, _ = templar
     keys = list(dict.fromkeys(plan.macro_steps))
+    assert keys == list(plan.macro_steps)                           # each key on one line (0.2.388)
     assert keys and all(isinstance(k, tuple) and 1 <= len(k) <= STACK for k in keys)
     placed = [s for k in keys for s in k]
     assert len(placed) == len(set(placed))                           # a skill sits on one key only
@@ -95,7 +96,7 @@ def test_the_templars_macro_is_built_from_hotbar_keys(templar, plan):
 
 def test_the_plan_saves_and_shows_its_keys(templar, plan):
     doc = json.loads(json.dumps(describe_plan(plan)))
-    assert doc["model_version"] == MODEL_VERSION == 5
+    assert doc["model_version"] == MODEL_VERSION == 6
     assert all(isinstance(st, list) for st in doc["steps"]) and doc["steps"] == [list(k) for k in plan.macro_steps]
     view = views.rotation_view(ClassData("templar"), Build("templar"), {},
                                {"scenario": "boss", "policy": list(templar[1].policy), "macro": doc})
@@ -106,7 +107,7 @@ def test_the_plan_saves_and_shows_its_keys(templar, plan):
         assert (st["binding"] == "LMB") == ([s["key"] for s in st["stack"]] == ["vicious_strike"])
     lines = {tuple(st) for st in doc["steps"]}
     keys = {st["binding"] for st in steps}
-    assert len(keys) == len(lines)                                   # a key on two lines keeps its one binding
+    assert len(keys) == len(lines) == len(doc["steps"])              # each key on one line, with its own binding
     stacks = [s for s in view["hotbar"]["slots"] if s.get("stack")]
     assert sorted(s["binding"] for s in stacks) == sorted(keys - {"LMB"})
     assert next(s for s in view["hotbar"]["slots"] if s["key"] == "punishment")["manual"]
@@ -125,21 +126,21 @@ def test_the_basic_attack_may_keep_a_line_of_its_own(templar):
     assert all(line == ("vicious_strike",) for line in lines if "vicious_strike" in line)
 
 
-def test_no_key_sits_on_two_lines_in_a_row(templar):
-    """A key on the line straight after its own casts nothing more (0.2.377): its skills cool down from the line
-    before, and one without a cooldown runs again anyway each time the held macro comes back to the key (0.2.378).
-    A stand-in simulation that pays for every such pair, the loop's last and first lines included, gets none, not even
-    of the basic attack's own line, always ready."""
+def test_no_key_sits_on_two_lines(templar):
+    """Each key is on one line (0.2.388): the player holds the macro and it cycles through its lines, so a key comes
+    round again each cycle. From 0.2.376 the search put a key on several lines to try its skills more often, and a key
+    on the line straight after its own cast nothing more (0.2.377, 0.2.378). A stand-in simulation that pays for every
+    repeated key, the basic attack's own line included, gets none."""
     _, kit, _ = templar
 
-    def pairs(lines):
+    def repeats(lines):
         lines = [tuple(line) for line in lines]
-        return [a for a, b in zip(lines, lines[1:] + lines[:1]) if a == b] if len(lines) > 1 else []
+        return len(lines) - len(set(lines))
 
     def run(pol):
-        return 100.0 * (1 + 0.01 * len(pairs(pol.steps)) + 0.05 * (("vicious_strike",) in map(tuple, pol.steps)))
+        return 100.0 * (1 + 0.01 * repeats(pol.steps) + 0.05 * (("vicious_strike",) in map(tuple, pol.steps)))
     lines, _, _ = _stacked(run, kit, list(kit.policy), "vicious_strike", [], evals=3000)
-    assert ("vicious_strike",) in lines and not pairs(lines)
+    assert ("vicious_strike",) in lines and not repeats(lines)
 
 
 def test_a_saved_one_skill_per_line_macro_still_shows():
@@ -158,18 +159,18 @@ def test_the_readme_lists_each_lines_key(tmp_path):
     text = Path(write_markdown(summary, str(tmp_path), None)).read_text(encoding="utf-8")
     assert "| 1 | blaze › frost |" in text and "| 2 | hellfire |" in text
     assert "| 3 | flame_arrow (the basic attack, on the left mouse button) |" in text
-    assert "Hotbar key holds (cast in this order)" in text and "a key listed twice added twice" in text
+    assert "Hotbar key holds (cast in this order)" in text and "each once: held, the macro cycles through them" in text
     assert "The macro casts a key's skills from first to last, skipping any that cannot be cast" in text
 
 
-def test_the_readme_lists_a_repeated_keys_skills_on_each_of_its_lines(tmp_path):
-    """A key the search put on two lines is pressed twice per round: each line lists the skills its key holds, with no
-    note that it repeats an earlier line (0.2.387; 0.2.376 named the earlier line instead)."""
+def test_the_readme_lists_each_key_once(tmp_path):
+    """Each key is on one line (0.2.388): a macro saved with a key on two lines lists the key once, on its first line,
+    with no note that it repeats (0.2.376 named the earlier line, 0.2.387 listed its skills again)."""
     from aion2calc.report_md import write_markdown
     summary = copy.deepcopy(json.loads((ROOT / "results" / "sorcerer_l45" / "build.json").read_text(encoding="utf-8")))
     summary["macro"].update(model_version=MODEL_VERSION, auto_attack="flame_arrow",
                             steps=[["blaze"], ["cold_storm", "firestorm", "frost"], ["cold_storm", "firestorm", "frost"]])
     text = Path(write_markdown(summary, str(tmp_path), None)).read_text(encoding="utf-8")
-    assert "| 2 | cold_storm › firestorm › frost |" in text
-    assert "| 3 | cold_storm › firestorm › frost |" in text
+    assert "| 1 | blaze |" in text and "| 2 | cold_storm › firestorm › frost |" in text
+    assert "| 3 | cold_storm" not in text and text.count("cold_storm › firestorm › frost") == 1
     assert "pressed again" not in text and "tried twice" not in text
