@@ -128,3 +128,42 @@ def test_performance_mode_polls_once_a_second_and_holds_still_between_polls(app_
     assert page.evaluate("""() => [...document.querySelectorAll('#ov .ovhd, #ov .ovname, #ov .ovbar i')].every(e => {
         const s = getComputedStyle(e); return s.animationName === 'none' && parseFloat(s.transitionDuration) === 0; })""")
     assert not page.evaluate("document.querySelector('#ov').classList.contains('ov-ticking')")   # no live tick
+
+
+def test_the_damage_filters_follow_the_app_save_and_name_themselves(app_page, app_url):
+    """Boss damage only and Player (PvP) damage only (0.2.390) sit in the Options under the toolbar, beside Combine
+    pets: the boxes follow the filters the app's reading says it applied, a click saves the setting, the clock names
+    the filter in short, and rows the filter left empty say what it left out."""
+    import json
+    from apphelpers import until
+    page = app_page
+    meter = json.loads(json.dumps(FIGHT))
+    meter["targets"] = ["boss"]
+    saved = []
+
+    def ui(route):
+        if route.request.method != "POST":
+            return route.fallback()
+        body = json.loads(route.request.post_data or "{}")
+        saved.append(body)
+        route.fulfill(json=body)
+    open_overlay(page, app_url, 340, meter, overlay_boss_only=True)
+    page.route("**/api/ui", ui)                       # the saves stop here; the settings still come from the app
+    page.click("#ovsettings")
+    assert page.locator("#ovbossonly").is_checked() and not page.locator("#ovpvponly").is_checked()
+    assert page.locator("#ovbossonly").is_visible() and page.locator("#ovpvponly").is_visible()
+    page.wait_for_function("document.querySelector('#ovclock .ovclkfilter')?.textContent === 'Boss only'")
+    page.click("#ovpvponly")
+    assert until(page, lambda: saved) == [{"overlay_pvp_only": True}]
+    meter["targets"] = ["boss", "player"]
+    page.wait_for_function("document.querySelector('#ovclock .ovclkfilter')?.textContent === 'Bosses + PvP'")
+    assert page.locator("#ovbossonly").is_checked() and page.locator("#ovpvponly").is_checked()
+    # a fight with no damage the filters keep: the rows say what they left out
+    meter["snapshot"]["players"] = [{**p, "damage": 0, "dps": 0, "healing": 500, "hps": 10} for p in meter["snapshot"]["players"]]
+    page.wait_for_function("document.querySelector('#ovcontent').textContent.includes("
+                           "'No damage to bosses or players in this combat (Boss and player damage only).')")
+    # the app no longer applies a filter: both boxes clear, and the clock drops its note
+    meter["targets"] = []
+    meter["snapshot"]["players"] = FIGHT["snapshot"]["players"]
+    page.wait_for_function("!document.querySelector('#ovbossonly').checked && !document.querySelector('#ovpvponly').checked")
+    page.wait_for_function("!document.querySelector('#ovclock .ovclkfilter')")

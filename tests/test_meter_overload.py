@@ -14,7 +14,7 @@ class _StubSession:
         self.clock_inputs = None
         self._grouping = None
 
-    def snapshot(self, scope, segment_id, enemy_id, combine_pets):
+    def snapshot(self, scope, segment_id, enemy_id, combine_pets, targets=None):
         self.calls += 1
         return {"players": [], "call": self.calls}
 

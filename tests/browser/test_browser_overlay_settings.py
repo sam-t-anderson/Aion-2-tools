@@ -242,3 +242,20 @@ def test_the_background_mode_and_the_row_effects_save_as_chosen(app_page, app_ur
         assert [page.input_value(s) for s in ("#ov-bgmode", "#ov-cos-me", "#ov-cos-top")] == ["top", "rainbow", "gold"]
     finally:
         put_back(page, {"overlay_bg_mode": "card", "overlay_me_cosmetic": "none", "overlay_top_cosmetic": "none"})
+
+
+def test_the_overlays_damage_filters_save_from_settings(app_page, app_url):
+    """Settings → Overlay holds the overlay's damage filters too (0.2.390): Boss damage only and Player (PvP) damage
+    only, saved as the overlay saves them."""
+    page = app_page
+    open_settings(page, app_url, "overlay")
+    assert not page.locator("#ov-bossonly").is_checked() and not page.locator("#ov-pvponly").is_checked()
+    try:
+        assert posted(page, lambda: page.check("#ov-bossonly")) == {"overlay_boss_only": True}
+        assert posted(page, lambda: page.check("#ov-pvponly")) == {"overlay_pvp_only": True}
+        open_settings(page, app_url, "overlay")
+        assert page.locator("#ov-bossonly").is_checked() and page.locator("#ov-pvponly").is_checked()
+        saved = page.evaluate("() => api('/api/ui')")
+        assert saved["overlay_boss_only"] is True and saved["overlay_pvp_only"] is True
+    finally:
+        put_back(page, {"overlay_boss_only": False, "overlay_pvp_only": False})
