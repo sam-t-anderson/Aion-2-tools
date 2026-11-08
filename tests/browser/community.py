@@ -35,6 +35,38 @@ KILLS = [
     {"server": 2102, "server_name": "Zikel", "boss": "Testboss Beta", "map_id": 1000, "killed_at": NOW - 900, "reports": 1},
 ]
 
+# The Abyss PvP heat map (log server 0.2.168): three squares with PvP over the last 24 hours, the ground recordings
+# have covered around them and one recorded boss.
+HEAT = {"map_id": 20, "zone": "Abyss", "region": None, "available": True, "window_seconds": 86400, "cell_size": 2000,
+        "windows": [{"seconds": 1800, "uploaders": 1, "fights": 1}, {"seconds": 7200, "uploaders": 2, "fights": 3},
+                    {"seconds": 21600, "uploaders": 2, "fights": 5}, {"seconds": 86400, "uploaders": 4, "fights": 9},
+                    {"seconds": 604800, "uploaders": 6, "fights": 30}],
+        "fights": 9, "uploaders": 4, "hits": 57, "kills": 3, "hidden_cells": 1,
+        "cells": [[2, -2, 31, 2], [3, -2, 20, 1], [2, -1, 6, 0]],
+        "footprint": [[x, y] for x in range(0, 6) for y in range(-4, 2)],
+        "landmarks": [{"npc_id": "2600089", "name": "Testboss Gamma", "x": 9000, "y": -1000, "logs": 2}],
+        "bounds": {"x": [0, 12000], "y": [-8000, 4000]}, "generated_at": NOW, "refresh_seconds": 900,
+        "min_uploaders": 3, "min_cell_uploaders": 2, "note": "Test heat map.", "matchup": None,
+        # log server 0.2.169: a map per Abyss pair, all of them listed with each one's window and last week's counts
+        "matchups": [{"id": "nae-1", "region": "nae", "pair": 1, "label": "Israphel vs Zikel",
+                      "servers": [{"id": "2101", "name": "Israphel", "faction": "Asmodian"},
+                                  {"id": "2102", "name": "Zikel", "faction": "Asmodian"}],
+                      "available": True, "window_seconds": 86400, "uploaders_7d": 6, "fights_7d": 30},
+                     {"id": "nae-2", "region": "nae", "pair": 2, "label": "Siel vs Nezekan",
+                      "servers": [{"id": "1101", "name": "Siel", "faction": "Elyos"},
+                                  {"id": "1102", "name": "Nezekan", "faction": "Elyos"}],
+                      "available": False, "window_seconds": None, "uploaders_7d": 1, "fights_7d": 2}]}
+
+
+def _heat(q):
+    """The pooled map, Israphel vs Zikel's (the same squares) or Siel vs Nezekan's (too few uploaders)."""
+    cell, matchup = int(q.get("cell", ["2000"])[0]), q.get("matchup", ["all"])[0]
+    listed = {m["id"]: m for m in HEAT["matchups"]}
+    if matchup == "nae-2":
+        return {**HEAT, "cell_size": cell, "matchup": listed["nae-2"], "available": False, "window_seconds": None,
+                "fights": 0, "uploaders": 0, "hits": 0, "kills": 0, "hidden_cells": 0, "cells": [],
+                "windows": [{**w, "uploaders": min(w["uploaders"], 1), "fights": min(w["fights"], 2)} for w in HEAT["windows"]]}
+    return {**HEAT, "cell_size": cell, "matchup": listed.get(matchup)}
 
 # A featured encounter (log server 0.2.145): two phases, a legion that cleared it and a party still on the mini boss.
 FEATURED_ID = "fe_0123456789"
@@ -306,6 +338,7 @@ ANSWERS = {
                                       "excluded_unranked_encounter_uploads": 0, "truncated": False, "note": ""},
     "/api/v1/records": lambda q: {"records": [], "total": 0},
     "/api/v1/boss-status": lambda q: {"groups": [], "truncated": False, "generated_at": time.time(), "history_limit": 20, "note": ""},
+    "/api/v1/pvp-heat": _heat,
     "/api/v1/boss-kills": lambda q: {"kills": KILLS, "truncated": False, "generated_at": NOW, "window_seconds": 172800,
                                      "merge_seconds": 600, "note": ""},
     "/api/v1/plans": _plans,

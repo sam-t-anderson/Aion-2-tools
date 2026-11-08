@@ -139,6 +139,37 @@ function advPath(a) {
   );
 }
 
+// One skill option as an arcana card lists it: the skill's icon with the option's level, beside the skill's name.
+const arcanaOption = (name, lv, id) =>
+  `<div class="sk" title="${esc(name)} +${lv}"><div class="icon sm"><img src="${icon(SKILL_ICON(id))}" alt=""><span class="lv">+${lv}</span></div><div class="small">${esc(name)}</div></div>`;
+
+// A card you have, under YOURS: its keep / replace row, then what the card itself holds (0.2.389): its deity stat,
+// any other stats, its skill options at their levels, and how many of its option levels they fill. Advice saved
+// before 0.2.389 has only the skill options.
+function arcanaOwned(o, ids) {
+  const keep = o.verdict === "keep";
+  const skills = Object.entries(o.skills || {});
+  const where = o.equipped === true ? "equipped" : o.equipped === false ? "in your inventory" : "";
+  const facts = [
+    o.grade || "",
+    o.options && o.options.of ? `${o.options.used} of ${o.options.of} option levels` : "",
+    where,
+  ].filter(Boolean);
+  return `<div class="owned ${keep ? "ok" : "bad"}">${itemIcon(o, "xs")}<span class="small">${esc(o.name)} +${o.enchant ?? 0}</span>
+      <span class="small">${sp(o.gain)}</span><span class="chip ${keep ? "gold" : ""}">${keep ? "keep" : "replace"}</span></div>
+      <div class="mine" data-arcana-mine>${o.deity ? `<div class="deity" title="${o.deity.source === "catalog" ? "the variant's stat at this grade (catalog)" : "this card's stat"}">${esc(arcanaDeityText(o.deity))}</div>` : ""}
+      ${(o.stats || []).length ? `<div class="small muted">${o.stats.map(([l, v]) => esc(`${l} ${v}`)).join(", ")}</div>` : ""}
+      ${skills.length ? `<div class="opts">${skills.map(([k, lv]) => arcanaOption(k, lv, (o.skill_ids || {})[k] || ids[k])).join("")}</div>` : '<div class="small faint">No skill options</div>'}
+      ${facts.length ? `<div class="small faint">${esc(facts.join(" · "))}</div>` : ""}</div>`;
+}
+
+// The copy-as-text line of a card you have.
+function arcanaOwnedText(o) {
+  const skills = Object.entries(o.skills || {}).map(([k, lv]) => `${k} +${lv}`);
+  const deity = o.deity ? `, ${arcanaDeityText(o.deity)}` : "";
+  return `  yours: ${o.name} +${o.enchant ?? 0}${deity} — ${skills.join(", ") || "no skill options"} (${sp(o.gain)}, ${o.verdict === "keep" ? "keep" : "replace"})`;
+}
+
 function advArcana(a) {
   const order = ["Arcana Chalice", "Arcana Parchment", "Arcana Compass", "Arcana Bell", "Arcana Mirror"];
   const cards = order
@@ -147,20 +178,11 @@ function advArcana(a) {
       const x = a.arcana.slots[slot],
         v = x.variant || {};
       const prio = a.arcana.priority.indexOf(slot) + 1;
+      const ids = x.skill_ids || {};
       const opts = Object.entries(x.ideal.skills)
-        .map(
-          ([k, lv]) =>
-            `<div class="sk" title="${esc(k)} +${lv}"><div class="icon sm"><img src="${icon(SKILL_ICON(x.skill_ids[k]))}" alt=""><span class="lv">+${lv}</span></div><div class="small">${esc(k)}</div></div>`,
-        )
+        .map(([k, lv]) => arcanaOption(k, lv, ids[k]))
         .join("");
-      const owned = x.owned
-        .map(
-          (
-            o,
-          ) => `<div class="owned ${o.verdict === "keep" ? "ok" : "bad"}">${itemIcon(o, "xs")}<span class="small">${esc(o.name)} +${o.enchant}</span>
-      <span class="small">${sp(o.gain)}</span><span class="chip ${o.verdict === "keep" ? "gold" : ""}">${o.verdict === "keep" ? "keep" : "replace"}</span></div>`,
-        )
-        .join("");
+      const owned = (x.owned || []).map((o) => arcanaOwned(o, ids)).join("");
       return `<div class="acard" data-grade="${esc(v.grade || "Unique")}"><div class="t">${esc(slot.replace("Arcana ", ""))}<span class="prio">#${prio}</span></div>
       ${itemIcon({ ...v, enchant: 5 }, "xl")}<div class="gname">${esc(v.name || "")}</div>
       <div class="deity">${esc(v.deity || "")} +${v.points ?? ""}</div>
@@ -179,9 +201,12 @@ function advArcana(a) {
         .filter((s) => a.arcana.slots[s])
         .map((s) => {
           const x = a.arcana.slots[s];
-          return `${s}: ${x.variant?.name} — ${Object.entries(x.ideal.skills)
+          const head = `${s}: ${x.variant?.name}${x.variant?.deity ? ` (${x.variant.deity} +${x.variant.points ?? ""})` : ""} — ${Object.entries(
+            x.ideal.skills,
+          )
             .map(([k, l]) => k + " +" + l)
             .join(", ")}`;
+          return [head, ...(x.owned || []).map(arcanaOwnedText)].join("\n");
         })
         .join("\n"),
     },

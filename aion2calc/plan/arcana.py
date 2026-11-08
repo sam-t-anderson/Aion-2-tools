@@ -17,10 +17,92 @@ from ..paths import read_json
 from . import items as I
 from .context import PROFILE_DEITY, PlanContext
 
-BASE_ROLLS = {"Common": 1, "Rare": 2, "Legend": 3, "Unique": 4}
+#: the third grade is "Legend" in the game's data and "Epic" in the catalog (its slugs end in "-legend")
+BASE_ROLLS = {"Common": 1, "Rare": 2, "Legend": 3, "Epic": 3, "Legendary": 3, "Unique": 4}
 #: An arcana enhances to +5; every step adds one skill option (a Unique +5 holds nine).
 ARCANA_MAX_ENHANCE = 5
 TIMING = ("time", "illusion")
+#: a grade's other names, for finding a card's variant in the catalog
+_GRADE_ALIASES = {"Legend": ("Epic", "Legendary"), "Epic": ("Legend", "Legendary"), "Legendary": ("Epic", "Legend")}
+
+
+def _deity_label(text) -> str | None:
+    """The deity stat a card carries, as the catalog labels it ("Time [Siel]"), from that label or from the official
+    API's stat id or name ("Time", "Destiny")."""
+    key = str(text or "").strip().casefold()
+    if not key:
+        return None
+    for label in I.DEITY_LABELS:
+        if key in (label.casefold(), label.split(" [")[0].casefold()):
+            return label
+    return None
+
+
+def _points(text) -> float:
+    nums = I._numbers(str(text if text is not None else ""))
+    return nums[0] if nums else 0.0
+
+
+def _catalog_variant(e: dict) -> dict | None:
+    """The catalog entry of a card's variant at the card's grade: a card read from the official page is matched by
+    name, which the catalog shares across grades."""
+    conn = store.connect()
+    by_slug = store.item(conn, e["slug"]) if e.get("slug") else None
+    grade = e.get("grade")
+    if by_slug and (e.get("source") != "equipped" or not grade or by_slug.get("grade") == grade):
+        return by_slug
+    name = e.get("name") or (by_slug or {}).get("name")
+    if not name:
+        return by_slug
+    want = (grade, *_GRADE_ALIASES.get(grade or "", ()))
+    for (slug,) in conn.execute("SELECT slug FROM items WHERE lower(name)=lower(?) ORDER BY item_level DESC",
+                                (name,)).fetchall():
+        it = store.item(conn, slug)
+        if it and (not grade or it.get("grade") in want):
+            return it
+    return None if grade else by_slug
+
+
+def card_deity(e: dict) -> dict | None:
+    """The deity stat an arcana card carries: ``{"label": "Time [Siel]", "points": 20.0, "source": ...}``.
+
+    ``source`` is ``"card"`` when the card's own stats say it (an imported card's main stats; the official API names
+    it by its type, "Time") and ``"catalog"`` when it is its variant's fixed stat at the card's grade (a card added
+    from the catalog, or one imported before 0.2.389). None when neither knows it."""
+    for x in e.get("main_stats") or []:
+        label = _deity_label(x.get("name")) or _deity_label(x.get("id"))
+        if label:
+            return {"label": label, "points": _points(x.get("value")) + _points(x.get("extra")), "source": "card"}
+    fields = {f: label for label, f in I.DEITY_LABELS.items() if f}
+    mine = [(fields[f], v) for f, v in (e.get("deity") or {}).items() if f in fields and v]
+    if len(mine) == 1:
+        return {"label": mine[0][0], "points": float(mine[0][1]), "source": "card"}
+    it = _catalog_variant(e)
+    for label, value in ((it or {}).get("fixed") or {}).items():
+        if label in I.DEITY_LABELS:
+            return {"label": label, "points": _points(value), "source": "catalog"}
+    return None
+
+
+def card_stats(e: dict) -> list[list]:
+    """A card's other stats as the official page lists them (``[[label, value], …]``): its main stats besides the
+    deity stat, then its random rolls. An arcana card usually has none."""
+    out = []
+    for x in e.get("main_stats") or []:
+        if _deity_label(x.get("name")) or _deity_label(x.get("id")):
+            continue
+        label = x.get("name") or x.get("id")
+        if label and x.get("value") not in (None, ""):
+            extra = f" (+{x['extra']})" if x.get("extra") not in (None, "", "0", 0) else ""
+            out.append([str(label), f"{x['value']}{extra}"])
+    # an imported item keeps its rolls as the page shows them ("rolls_text"); one added from the catalog keeps the
+    # values set on the Gear page ("rolls"), its "rolls_text" being one line of text
+    pairs = e.get("rolls_text") if e.get("source") == "equipped" else e.get("rolls")
+    for p in pairs if isinstance(pairs, list) else []:
+        if isinstance(p, (list, tuple)) and len(p) == 2 and p[0] and p[1] not in (None, ""):
+            value = f"+{p[1]:g}" if isinstance(p[1], (int, float)) and not isinstance(p[1], bool) else str(p[1])
+            out.append([str(p[0]), value])
+    return out
 
 
 def skill_level_values(ctx: PlanContext, skills: set[str], max_level: int = 4) -> dict[str, list[float]]:
@@ -173,10 +255,16 @@ def plan_arcana(ctx: PlanContext, inv: dict | None = None, enhance: int = ARCANA
                 lv[nm] = lv.get(nm, 0) + int(n)
             r = BASE_ROLLS.get(e.get("grade") or "", 4) + int(e.get("enchant") or 0)
             have = _value(lv, values)
+            same_grade = _expected(chances, values, r, cap)
+            # what the card itself holds (0.2.389): its deity stat, any other stats, and how many of its option
+            # levels its skill options fill
             mine.append({"name": e.get("name"), "grade": e.get("grade"), "enchant": e.get("enchant"), "icon": e.get("icon"),
                          "equipped": e.get("source") == "equipped", "skills": lv, "gain": have,
-                         "expected_same_grade": _expected(chances, values, r, cap),
-                         "verdict": "keep" if have >= _expected(chances, values, r, cap) else
+                         "deity": card_deity(e), "stats": card_stats(e),
+                         "options": {"used": sum(lv.values()), "of": r},
+                         "skill_ids": {nm: (cd_.by_name.get(nm) or {}).get("id") for nm in lv},
+                         "expected_same_grade": same_grade,
+                         "verdict": "keep" if have >= same_grade else
                          "below average for its grade and level: replace when a better roll comes"})
         sid = {nm: (cd_.by_name.get(nm) or {}).get("id") for nm in chances}
         out[slot] = {"skill_ids": sid,

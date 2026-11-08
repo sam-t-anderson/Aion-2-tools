@@ -11,3 +11,24 @@
 /* The interactive map loads only when asked (maps.js): until then this notice stands in its place. */
 .map-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:260px;padding:24px;text-align:center}
 .map-gate p{max-width:62ch;margin:0}
+
+/* The Abyss PvP heat map (maps.js, 0.2.389): one hue by PvP hits, dark to light on the dark theme and light to
+   dark on the light one (the near-zero end recedes toward the surface); the ground recordings have covered is a
+   recessive neutral, kills a dot in text ink with a surface ring, the bosses a diamond. */
+.heat-panel{--heat-1:#184f95;--heat-2:#256abf;--heat-3:#3987e5;--heat-4:#6da7ec;--heat-5:#9ec5f4;--heat-ground:#1f2940;--heat-surface:#0f1524}
+@media (prefers-color-scheme: light){:root:not([data-theme=dark]) .heat-panel{--heat-1:#9ec5f4;--heat-2:#6da7ec;--heat-3:#3987e5;--heat-4:#256abf;--heat-5:#184f95;--heat-ground:#e6dfcf;--heat-surface:#fffcf5}}
+:root[data-theme=light] .heat-panel{--heat-1:#9ec5f4;--heat-2:#6da7ec;--heat-3:#3987e5;--heat-4:#256abf;--heat-5:#184f95;--heat-ground:#e6dfcf;--heat-surface:#fffcf5}
+.heat-panel{margin-top:14px}
+.heat-panel label{max-width:100%}.heat-panel select{max-width:100%;min-width:0}
+.heat-frame{position:relative;margin-top:10px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--heat-surface)}
+.heat-frame canvas{display:block;max-width:100%;touch-action:none}
+.heat-tip{position:absolute;z-index:2;pointer-events:none;padding:6px 8px;border-radius:6px;background:var(--panel2);border:1px solid var(--line2);box-shadow:0 4px 14px var(--shadow);font-size:12px;line-height:1.45;max-width:260px;color:var(--text)}
+.heat-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:8px}
+.heat-swatch{display:inline-block;width:18px;height:12px;border-radius:2px}
+.heat-key{display:inline-flex;align-items:center;gap:6px;margin-left:14px}
+.heat-key::before{content:"";display:inline-block;flex:none}
+.heat-key-kill::before{width:8px;height:8px;border-radius:50%;background:var(--text);box-shadow:0 0 0 2px var(--heat-surface)}
+.heat-key-ground::before{width:18px;height:12px;border-radius:2px;background:var(--heat-ground);border:1px solid var(--line)}
+.heat-key-boss::before{width:7px;height:7px;transform:rotate(45deg);border:2px solid var(--text);background:var(--heat-surface)}
+.heat-table{margin-top:10px}
+.heat-table table{margin-top:6px}

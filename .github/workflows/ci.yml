@@ -82,7 +82,9 @@ jobs:
     # phone width, with axe-core: a missing file, a script error, a page that scrolls sideways on a
     # phone or a serious accessibility problem fails the job (tools/site_smoke.py).
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
+    # Ubuntu 24.04, not ubuntu-latest: from November 2026 that is 26.04, where Playwright 1.56 has no Chromium
+    # ("Playwright does not support chromium on ubuntu26.04-x64").
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -104,7 +106,9 @@ jobs:
     # navigation, the Live Meter page, and every page opening without an error, under one main heading and
     # with no serious axe-core finding in either theme. The "Tests and lint" job skips these (no browser).
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ubuntu-latest
+    # Ubuntu 24.04, not ubuntu-latest: from November 2026 that is 26.04, where Playwright 1.56 has no Chromium
+    # ("Playwright does not support chromium on ubuntu26.04-x64").
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

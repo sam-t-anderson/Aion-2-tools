@@ -501,6 +501,43 @@ def test_gear_and_advice_arcana_cards_keep_their_option_names_apart(app_page, ap
     assert cards.evaluate_all(clashes) == []
 
 
+def test_gear_and_advice_shows_what_each_arcana_card_you_have_holds(app_page, app_url):
+    """Under YOURS a card you have showed only its name, level and keep / replace. It now shows its deity stat, its
+    skill options at their levels laid out as the target options are, and how many of its option levels they fill
+    (0.2.389); the copied text has them. A card in advice kept before 0.2.389 shows its skill options alone."""
+    kept = copy.deepcopy(KEPT)
+    chalice = kept["arcana"]["slots"]["Arcana Chalice"]
+    chalice["owned"] = [
+        {"name": "Chalice of Vigor", "grade": "Unique", "enchant": 3, "icon": None, "equipped": True,
+         "skills": {"Flame Arrow": 2, "Hellfire": 1, "Robe of Flame": 4}, "gain": 0.017, "verdict": "keep",
+         "deity": {"label": "Time [Siel]", "points": 20.0, "source": "card"}, "stats": [["HP", "+100"]],
+         "options": {"used": 7, "of": 7}, "skill_ids": {"Flame Arrow": 15210000, "Hellfire": 15060000, "Robe of Flame": 15740000}},
+        {"name": "Chalice of Magic", "grade": "Rare", "enchant": 1, "icon": None, "skills": {"Blaze": 1}, "gain": 0.004,
+         "verdict": "below average for its grade and level: replace when a better roll comes"}]
+    page = app_page
+    gear(page, last={**KEPT_LAST, "advice": kept})
+    go(page, app_url, "#/gear")
+    card = page.locator("#gout .acard").first
+    card.wait_for()
+    mine = card.locator("[data-arcana-mine]")
+    assert mine.count() == 2
+    first, second = mine.nth(0), mine.nth(1)
+    assert first.locator(".deity").inner_text() == "Time [Siel] +20"
+    assert [t.split() for t in first.locator(".sk").all_inner_texts()] == [
+        ["+2", "Flame", "Arrow"], ["+1", "Hellfire"], ["+4", "Robe", "of", "Flame"]]
+    assert "15210000" in first.locator(".sk img").first.get_attribute("src")
+    assert "HP +100" in first.inner_text() and "Unique · 7 of 7 option levels · equipped" in first.inner_text()
+    assert second.locator(".deity").count() == 0 and second.locator(".sk").all_inner_texts()[0].split() == ["+1", "Blaze"]
+    assert "15050000" in second.locator(".sk img").first.get_attribute("src")         # from the slot's pool ids
+    rows = card.locator(".owned")
+    assert rows.nth(0).locator(".small").all_inner_texts() == ["Chalice of Vigor +3", "+1.7%"]
+    assert rows.nth(0).locator(".chip").inner_text() == "keep" and rows.nth(1).locator(".chip").inner_text() == "replace"
+    text = page.evaluate("() => window.__copy['adv-arcana']")
+    assert "Arcana Chalice: Chalice of Vigor (Time [Siel] +20) — " in text
+    assert "  yours: Chalice of Vigor +3, Time [Siel] +20 — Flame Arrow +2, Hellfire +1, Robe of Flame +4 (+1.7%, keep)" in text
+    assert "  yours: Chalice of Magic +1 — Blaze +1 (+0.4%, replace)" in text
+
+
 def test_gear_and_advice_ranks_defense_titles_and_says_when_to_keep_the_worn_item(app_page, app_url):
     """Every Defense title is purely defensive, so the slot said only "No title for this slot adds damage"; it is
     ranked by the damage its titles take off a boss's hits (0.2.371), the best one owned first. A slot whose worn

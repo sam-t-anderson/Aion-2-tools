@@ -129,6 +129,14 @@ pantheon deities and the genus insight grids. The
 model is calibrated from the character's fights when there are enough. Details:
 [planner.md](planner.md).
 
+**Your arcana cards' own stats (0.2.389).** Each Arcana card lists, under **YOURS**, the cards you have for
+that slot with keep or replace, and now what each card holds: its deity stat at its value (*Time [Siel] +20*),
+any other stats it carries, its skill options at their levels with the skills' icons (as the target options
+are shown), and its grade with how many of its option levels the options fill (*Unique · 7 of 7 option
+levels · equipped*). An equipped card's deity stat is its own, read from the official page; a card added
+from the catalog, or imported before 0.2.389, shows its variant's stat at its grade from the catalog. The
+copied text and the advice's markdown list them too, and My Character's Arcana cards show the deity stat.
+
 A goal item and a reroll step name the rolls to chase (0.2.328): the stats of the item's roll pool
 worth the most to your damage, as many as the item rolls, shown on the Next goal and Best in slot
 cards, on the upgrade path's step (*reroll Ring of X toward Critical Hit +30 – +50*) and in the copied
@@ -1096,6 +1104,17 @@ Under the embedded map, **Farming routes** lists ordered waypoint loops for the 
 Gathering-node routes (ore, gems, logs, herbs, Odyle) and mob-farming loops are not listed because no source publishes their positions under terms that allow reuse; the panel links the guides that describe them instead. A zone with no permitted source at all (the starter zones) says so and shows no route. Rebuild the catalog with `python -m aion2calc routes-build` (see `docs/cli.md`).
 
 **Maps** embeds the provider-supported InteractiveMap.app viewer for Verteron, Altgard, Poeta and Ishalgen. The provider's page is heavy (10–14 MB, with its own advertising and tracking scripts), so it loads only when you press **Load the interactive map**; tick **Load the map automatically** to skip the button on this computer or browser. Use its marker filters, zoom and route controls, or **Open provider** if embedding/storage restrictions prevent use. Shugo.GG/A2DB links provide additional regional references. This online view does not transfer application profiles, combat logs or credentials; account/checklist state and data belong to the provider. It does not classify encounters or verify marker/build applicability.
+
+### Abyss PvP heat map
+
+Below the embedded map, **Abyss PvP heat map** shows where players fight players in the Abyss, for each server matchup, from the PvP in public Live Meter logs on the community server (log server 0.2.169, `GET /api/v1/pvp-heat`). It refreshes itself every 15 minutes while the page is open (**Refresh** asks at once; the server computes a new map at most every 15 minutes).
+
+- **Matchup.** NC pairs a region's servers for the Abyss (the two servers of a pair share one Abyss, and since 28 October they can be of one faction, such as Israphel vs Zikel in NA East). **Matchup** lists every pair of NC's latest *Server Matchmaking* notice by region, each with the window its map covers or *too few uploaders yet*, and **Every server, pooled** last. A matchup's map holds its two servers' recordings since the pairs took effect. The first visit opens the matchup with the most uploaders last week; your choice is kept on this computer or browser.
+
+- **Squares.** Each square is coloured by the PvP hits recorded in it: a hit between two players, where its target was, counted once a second per target. One hue, light to dark (dark to light on the dark theme) on a log scale from one hit to the busiest square. A dot marks a square with a kill. Choose **Normal**, **Fine** or **Coarse** squares (2,000, 1,000 or 4,000 game units); the choice is kept on this computer or browser.
+- **The window.** The map covers the shortest of the last 30 minutes, 2 hours, 6 hours, 24 hours or 7 days that holds fights from at least three uploaders, and the line above it says which, with the fights, uploaders, hits and kills in it. A square only one uploader recorded fights in is left out (the line says how many), so the map never shows where one player was. With fewer than three uploaders in 7 days it says so instead.
+- **The base map.** No licensed Abyss map lines up with the game's coordinates, so the grey ground is everywhere recordings on the Abyss have been (two uploaders' at least), and a diamond marks each boss recorded there. Positions are the game's world coordinates, north up as the movement replay draws them; hover a square for its hits, kills and coordinates, or open **The squares as a table** for the 25 busiest.
+- The ground and the bosses are drawn from every server's recordings, as every pair's Abyss has the same ground. Players hidden by their holders are left out, and no names are kept.
 
 **Crafting** provides a dated Gamers4Life recipe snapshot with profession/faction search, mastery gates, materials, normal/combo product icons and listed fees. Enter the number of planned completed crafts. Optionally expand source-linked same-faction intermediates without combo outcomes. Each branch rounds to whole crafts; surplus is not credited. Owned quantities subtract from final material rows only. Export the plan as JSON.
 
