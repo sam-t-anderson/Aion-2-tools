@@ -797,6 +797,9 @@ details.note[open] > summary { margin-bottom: 6px; }
 .acct-page h3 { color: var(--gold); margin: 18px 0 8px; }
 .acct-page h4 { margin: 16px 0 6px; }
 .acct-page details.note { margin-top: 10px; }
+/* My logs' top parses (account-view.js, 0.2.391): above the list, the best run on each boss with its parse. */
+.acct-page .acct-top { margin-bottom: 14px; }
+.acct-page .acct-top h3 { margin-top: 4px; }
 .acct-code { font-family: ui-monospace, Consolas, monospace; font-size: 34px; letter-spacing: 6px; color: var(--gold); margin: 8px 0; }
 
 /* The language (i18n.js): the page stays hidden for the moment its catalog loads, rather than flashing in English. */

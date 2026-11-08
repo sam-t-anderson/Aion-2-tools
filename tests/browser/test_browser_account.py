@@ -209,3 +209,75 @@ def test_the_leader_shows_the_legion_on_the_featured_encounter_pages(browser, ap
     finally:
         close_context(context)
     assert not watch.unexpected(), watch.unexpected()
+
+
+TOP = {"parses": [
+    {"character": "Seren", "server": "2102", "class": "sorcerer", "boss": "Gatekeeper Testlord", "boss_key": "npc:2390001",
+     "encounter_type": "expedition", "game_patch": "version:product:2.0.10.0", "difficulty": "normal", "dps": 12345.6,
+     "parse": 96.4, "parse_rank": 2, "parse_runs": 40, "provisional": False, "attempts": 3, "log": "log_1", "segment": 2,
+     "duration": 120.0, "uploaded_at": 1793000000, "visibility": "public", "url": "http://logs.test/l/log_1"},
+    {"character": "Seren", "server": "2102", "class": "sorcerer", "boss": "Watcher Testling", "boss_key": "npc:2390002",
+     "encounter_type": "expedition", "game_patch": "version:product:2.0.10.0", "difficulty": "hard", "dps": 9000.0,
+     "parse": None, "parse_rank": None, "parse_runs": 1, "provisional": False, "attempts": 1, "log": "log_2", "segment": 0,
+     "duration": 60.0, "uploaded_at": 1793000500, "visibility": "private", "url": "http://logs.test/l/log_2?t=view"}],
+    "total": 2, "truncated": False, "characters": 1, "note": ""}
+
+
+def test_my_logs_show_the_accounts_top_parses(browser, app_url):
+    """Top parses (0.2.391): the account's best run on each boss and difficulty with the rankings' parse, linked to its
+    encounter. They are asked for before the list and once per visit: filtering the list does not ask again."""
+    context = open_context(browser, app_url)
+    page, watch = watched_page(context, app_url)
+    asked = []
+
+    def lists(path):
+        if path.startswith("/api/v1/account/logs?"):
+            return {"logs": [LOG], "total": 1, "page": 1, "limit": 50}
+        return TOP if path == "/api/v1/account/top-parses" else None
+    _signed_in(page, asked, lists)
+    try:
+        go(page, app_url, "#/account/logs")
+        page.wait_for_selector("table.acct-parses")
+        assert asked.index("/api/v1/account/top-parses") < asked.index("/api/v1/account/logs?page=1&limit=50")
+        assert page.locator("[data-top-parses] h3").inner_text() == "Top parses"
+        rows = page.locator("table.acct-parses tbody tr")
+        assert rows.count() == 2
+        cells = [c.strip() for c in rows.first.locator("td").all_inner_texts()]
+        assert cells[:6] == ["Gatekeeper Testlord", "Normal", "Seren Zikel", "Sorcerer", "12,346", "96"]
+        parse = rows.first.locator(".parse")
+        assert "q-orange" in parse.get_attribute("class") and "rank 2 of 40" in parse.get_attribute("title")
+        assert rows.first.locator("td.r").first.get_attribute("title") == "Best of 3 ranked runs"
+        assert rows.first.locator("a").get_attribute("href") == "#/combat-log/shared/log_1?segment=2"
+        lone = rows.nth(1).locator(".parse")
+        assert lone.inner_text() == "·" and "q-none" in lone.get_attribute("class")
+        # filtering the list redraws it without asking for the parses again
+        page.fill("[data-boss]", "Berk")
+        page.click("[data-filter]")
+        page.wait_for_selector("[data-clear]")
+        page.wait_for_selector("table.acct-parses")
+        assert asked.count("/api/v1/account/top-parses") == 1
+    finally:
+        close_context(context)
+    assert not watch.unexpected(), watch.unexpected()
+
+
+def test_top_parses_wait_for_a_server_that_lists_them(browser, app_url):
+    """A log server before 0.2.170 has no top parses: the section says so and the list is unaffected."""
+    context = open_context(browser, app_url)
+    page, watch = watched_page(context, app_url)
+    asked = []
+
+    def lists(path):
+        if path.startswith("/api/v1/account/logs?"):
+            return {"logs": [LOG], "total": 1, "page": 1, "limit": 50}
+        return {"error": "not found"} if path == "/api/v1/account/top-parses" else None
+    _signed_in(page, asked, lists)
+    try:
+        go(page, app_url, "#/account/logs")
+        page.wait_for_selector("table.acct-logs")
+        page.locator("[data-top-parses]").filter(has_text="doesn't list top parses yet").wait_for()
+        assert page.locator("[data-top-parses]").inner_text().endswith("The community server doesn't list top parses yet.")
+        assert not page.locator("table.acct-parses").count()
+    finally:
+        close_context(context)
+    assert not watch.unexpected(), watch.unexpected()
