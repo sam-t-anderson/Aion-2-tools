@@ -294,6 +294,8 @@
     // Layout
     maxPlayers=clampInt(ui.overlay_max_players,1,24,8);
     onlyInCombat=ui.overlay_only_in_combat===true;
+    if($("#ovbossonly")&&!$("#ovbossonly").disabled)$("#ovbossonly").checked=ui.overlay_boss_only===true;
+    if($("#ovpvponly")&&!$("#ovpvponly").disabled)$("#ovpvponly").checked=ui.overlay_pvp_only===true;
     autoExpand=ui.overlay_auto_expand===true;
     document.documentElement.style.setProperty('--ov-width',radarMode?'232px':(userWidth??clampInt(ui.overlay_width,260,800,340))+'px');
     const h=userHeight??clampInt(ui.overlay_height,0,800,0);
@@ -390,6 +392,17 @@
     catch(e){message.textContent=e.message;}
     finally{input.disabled=false;}
   };
+  // The damage filters (0.2.390): saved settings, so every overlay window (and RTSS) follows them and they last;
+  // the app applies them to the views that follow the latest fight.
+  for(const [id,key] of [["#ovbossonly","overlay_boss_only"],["#ovpvponly","overlay_pvp_only"]]){
+    const input=$(id); if(!input)continue;
+    input.onchange=async()=>{
+      const message=$("#ovpetstatus"); input.disabled=true;
+      try{const response=await fetch("/api/ui",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({[key]:input.checked})});if(!response.ok)throw Error("Could not change the damage filter");await response.json();message.textContent="";await pollMeter();}
+      catch(e){message.textContent=e.message;input.checked=!input.checked;}
+      finally{input.disabled=false;}
+    };
+  }
   slider.value = Math.round(op * 100);
   function nativeCall(name, ...args) {
     const api = nativeReady && window.pywebview?.api;
@@ -610,6 +623,11 @@
     const dur = Math.max(1, Number(p?.duration) || 1);
     return { plan: p, time: t % dur, live: false, dur };
   }
+  // What the damage filters keep, as the status line and the copied text say it; "" with no filter.
+  function filterLabel(s){
+    const t=Array.isArray(s&&s.targets)?s.targets:[];
+    return t.includes("boss")&&t.includes("player")?"Boss and player damage only":t.includes("boss")?"Boss damage only":t.includes("player")?"Player damage only":"";
+  }
   function renderParty() {
     // The separate Party-DPS overlay: raid-wide aggregates, not per-player rows.
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
@@ -618,7 +636,8 @@
     const totalHps=players.reduce((n,p)=>n+(Number(p.hps)||0),0);
     const totalTaken=players.reduce((n,p)=>n+(Number(p.dtps)||0),0);
     const total=players.reduce((n,p)=>n+(Number(p.damage)||0),0);
-    setText($("#ovstatus"),`Party · ${snap.boss||(s.running?"recording":"idle")} · ${players.length} players`);
+    const filtered=filterLabel(s);
+    setText($("#ovstatus"),`Party · ${snap.boss||(s.running?"recording":"idle")} · ${players.length} players${filtered?" · "+filtered:""}`);
     $("#ovstatus").title=$("#ovstatus").textContent;
     const stat=(label,val,unit)=>`<div class="ovpstat"><span class="ovplabel">${label}</span><span class="ovpval">${kfmt(val)}${unit||''}</span></div>`;
     viewContent("party", players.length
@@ -740,6 +759,11 @@
     if(tickets){setHtml($('#ovnightmare'),nightmareLine(tickets));$('#ovnightmare').title='Your Nightmare tickets, as the game sent them: the regular tickets, then the bonus ones, spent one at a time, the regular first';}
     document.querySelectorAll("[data-metric]").forEach(b=>{b.classList.toggle("on",b.dataset.metric===metric);b.setAttribute("aria-pressed",String(b.dataset.metric===metric));});
     if(!$("#ovcombine").disabled) $("#ovcombine").checked=s.combine_pets!==false;
+    const filtered=filterLabel(s), targets=Array.isArray(s.targets)?s.targets:null;
+    if(targets){
+      if($("#ovbossonly")&&!$("#ovbossonly").disabled)$("#ovbossonly").checked=targets.includes("boss");
+      if($("#ovpvponly")&&!$("#ovpvponly").disabled)$("#ovpvponly").checked=targets.includes("player");
+    }
     const amount=p=>Number(metric==="hps"?p.healing:metric==="taken"?p.incoming?.damage:p.damage)||0;
     const rate=p=>Number(metric==="hps"?p.hps:metric==="taken"?p.dtps:p.dps)||0;
     const total=players.reduce((n,p)=>n+amount(p),0), mx=Math.max(...players.map(rate),1);
@@ -769,10 +793,10 @@
     }).join("");
     const duration=metric==="dps"?snap.duration:snap.recorded_duration;
     // Plain-text leaderboard of the current view, ready to paste into chat/Discord.
-    copyText=`${label} · ${snap.boss||'combat'} · ${(Number(duration)||0).toFixed(0)}s\n`+
+    copyText=`${label}${filtered&&metric==="dps"?" · "+filtered:""} · ${snap.boss||'combat'} · ${(Number(duration)||0).toFixed(0)}s\n`+
       ranked.map((p,i)=>`${i+1}. ${displayName(p)}  ${kfmt(rate(p))}/s  (${Math.round(100*amount(p)/(total||1))}%)`).join("\n")+
       `\n— Aion 2 Calc`;
-    let status = cleared ? "New fight · waiting for combat" : `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}`;
+    let status = cleared ? "New fight · waiting for combat" : `Latest combat · ${snap.paused && metric==="dps" ? "Paused DPS · " : ""}${snap.boss || (s.running ? "recording" : "idle")} · ${(Number(duration) || 0).toFixed(0)}s · ${kfmt(players.reduce((n,p)=>n+rate(p),0))} ${label}${filtered && metric==="dps" ? " · "+filtered : ""}`;
     // During a big fight the decoder can fall behind the packet backlog; show it is
     // catching up (and how deep the queue is) so the live view does not look frozen.
     if (snap.decode_backlog && snap.decode_backlog.catching_up) status += ` · ⏳ catching up (${snap.decode_backlog.queue_depth})`;
@@ -799,7 +823,8 @@
     // Reset after battle: once combat has been idle past the delay, clear the live
     // view to a ready state (the data is kept; a selected segment still shows it).
     const over=snap.battle_over===true;
-    const empty = s.error || (cleared ? "New fight — waiting for the first hit." : over ? "Ready — waiting for the next fight." : players.length?`No recorded ${metric==='hps'?'healing':metric==='taken'?'incoming damage':'outgoing damage'} in this combat.`:snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app."));
+    const filteredOut=metric==="dps"&&filtered?`No ${filtered==="Boss damage only"?"damage to bosses":filtered==="Player damage only"?"damage to players":"damage to bosses or players"} in this combat (${filtered}).`:"";
+    const empty = s.error || (cleared ? "New fight — waiting for the first hit." : over ? "Ready — waiting for the next fight." : players.length?(filteredOut||`No recorded ${metric==='hps'?'healing':metric==='taken'?'incoming damage':'outgoing damage'} in this combat.`):snap.warning || (s.running ? "Waiting for combat data…" : "No fight yet. Start the meter in the app."));
     // The rows are rebuilt only when their structure changed: who is listed, in which order, with which classes,
     // effects, open panels and names. A poll that only moved the numbers (every poll of a live fight) writes the
     // rates, totals, shares and bar widths into the rows that are already there, so a row's animated effect runs
@@ -933,7 +958,9 @@
         const live=!!s.running&&!snap.paused, partyRate=players.reduce((n,p)=>n+rate(p),0);
         const short=metric==="hps"?"HPS":metric==="taken"?"DTPS":"DPS";
         const behind=snap.decode_backlog&&snap.decode_backlog.catching_up?`<span class="ovclknote">catching up (${esc(snap.decode_backlog.queue_depth)})</span>`:'';
-        setHtml(clk,`<i class="ovclkbar${live?' on':snap.paused?' paused':''}" aria-hidden="true"></i><span class="ovclktime">${clockText(duration)}</span>${snap.paused&&metric==="dps"?'<span class="ovclknote">Paused</span>':''}${behind}${s.error?`<span class="ovclknote ovclkerr" title="${esc(s.error)}">Capture stopped</span>`:''}<span class="ovclkparty">Party ${short} <b>${kfmt(partyRate)}</b></span>`);
+        // The damage filters, named in short where the compact layout has room (its status line is folded away).
+        const only=metric==="dps"&&filtered?`<span class="ovclknote ovclkfilter" title="${esc(filtered)}">${filtered==="Boss damage only"?"Boss only":filtered==="Player damage only"?"PvP only":"Bosses + PvP"}</span>`:'';
+        setHtml(clk,`<i class="ovclkbar${live?' on':snap.paused?' paused':''}" aria-hidden="true"></i><span class="ovclktime">${clockText(duration)}</span>${snap.paused&&metric==="dps"?'<span class="ovclknote">Paused</span>':''}${only}${behind}${s.error?`<span class="ovclknote ovclkerr" title="${esc(s.error)}">Capture stopped</span>`:''}<span class="ovclkparty">Party ${short} <b>${kfmt(partyRate)}</b></span>`);
         clk.title=status;
       }
     }

@@ -12,7 +12,7 @@
   <div class="ovhd"><div class="ovtabs" role="tablist" aria-label="Overlay view">
     <button id="meter-tab" role="tab" data-tab="meter" aria-controls="ovcontent" aria-selected="true" class="on">Meter</button>
     <button id="plan-tab" role="tab" data-tab="plan" aria-controls="ovcontent" aria-selected="false">Plan</button>
-  </div><span id="ovviewtitle" class="ovviewtitle" hidden></span><button id="ovlock" title="Freeze the overlay in place for a screenshot">Lock</button><button id="ovsplit" title="Start a new fight — the next combat event begins a fresh encounter (same as Split now in the app)">New</button><button id="ovcopy" title="Copy the current meter as text, to paste in chat or Discord">Copy</button><button id="ovsettings" type="button" title="Overlay options: opacity and pet grouping" aria-expanded="false">Options</button><button id="ovhide" title="Hide overlay">Hide</button><button id="ovcapture" title="Start or stop capturing combat (same as Start/Stop in the app)">Start</button></div>
+  </div><span id="ovviewtitle" class="ovviewtitle" hidden></span><button id="ovlock" title="Freeze the overlay in place for a screenshot">Lock</button><button id="ovsplit" title="Start a new fight — the next combat event begins a fresh encounter (same as Split now in the app)">New</button><button id="ovcopy" title="Copy the current meter as text, to paste in chat or Discord">Copy</button><button id="ovsettings" type="button" title="Overlay options: opacity, pet grouping and damage filters" aria-expanded="false">Options</button><button id="ovhide" title="Hide overlay">Hide</button><button id="ovcapture" title="Start or stop capturing combat (same as Start/Stop in the app)">Start</button></div>
   <div id="ovmetrics" class="ovtabs ovmetrics" role="group" aria-label="Meter metric">
     <button type="button" data-metric="dps" aria-pressed="true" class="on">DPS</button>
     <button type="button" data-metric="hps" aria-pressed="false">HPS</button>
@@ -20,7 +20,7 @@
     <span class="ovsub" id="ovstatus"></span>
   </div>
   <div id="ovconnection" class="ovconnection" role="alert" hidden><span id="ovreason"></span> <button id="ovretry" type="button">Retry</button></div>
-  <div class="ovoptions"><label title="Group recorded pet damage and healing into the linked owner"><input id="ovcombine" type="checkbox" checked> Combine pets with owner</label><span id="ovpetstatus" role="status"></span></div>
+  <div class="ovoptions"><label title="Group recorded pet damage and healing into the linked owner"><input id="ovcombine" type="checkbox" checked> Combine pets with owner</label><label title="Count only the damage dealt to bosses: dungeon bosses, mini-bosses, field and world bosses. Damage to trash mobs and, in the open world (the Abyss), to other players is left out"><input id="ovbossonly" type="checkbox"> Boss damage only</label><label title="Count only the damage dealt to other players (PvP), leaving out damage to monsters. With Boss damage only also on, damage to bosses counts too"><input id="ovpvponly" type="checkbox"> Player (PvP) damage only</label><span id="ovpetstatus" role="status"></span></div>
   <div id="ovping" class="ovping" role="status">Ping: waiting for samples</div>
   <div id="ovlines" class="ovlines"><div id="ovodyle" class="ovodyle" role="status" hidden></div>
   <div id="ovshugo" class="ovodyle ovshugo" role="status" hidden></div>

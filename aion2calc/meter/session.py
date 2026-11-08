@@ -75,6 +75,16 @@ ARENA_MATCHES_KEPT = 64
 #: How long after a fight's last record its arena round may end and still be the fight's: the killing blow comes
 #: first, the round's result with or just after the loser's 0 HP (within 0.2 s in the 31 October recording).
 ARENA_ROUND_SLACK_MS = 3_000
+#: The overlay's damage filters (0.2.390): ``boss`` keeps the damage dealt to bosses, mini-bosses, field and
+#: world bosses, ``player`` the damage dealt to other players. Both keep both; neither keeps everything.
+TARGET_FILTERS = ("boss", "player")
+
+
+def target_filter(targets) -> frozenset:
+    """The known filters among ``targets`` (any iterable of names; None or empty for no filter)."""
+    return frozenset(t for t in (targets or ()) if t in TARGET_FILTERS)
+
+
 #: Each special-damage flag and the per-hit counter it feeds in a player's row.
 _SPECIAL_COUNTS = ((SpecialDamage.CRITICAL, "crit"), (SpecialDamage.BACK, "back"), (SpecialDamage.FRONTAL, "front"),
                    (SpecialDamage.DOUBLE, "double"), (SpecialDamage.PERFECT, "perfect"), (SpecialDamage.PARRY, "parry"))
@@ -1135,6 +1145,16 @@ class CombatSession:
             return None
         return code
 
+    @staticmethod
+    def _boss_target(identity, actor_id):
+        """Whether an enemy counts for the overlay's boss filter: a catalog boss (dungeon, field and world
+        bosses), an NPC the curated overrides give a boss role (a mini-boss the catalog does not flag), or one
+        that carries a break gauge, which bosses and elites have and trash does not."""
+        spawn = identity["spawns"].get(actor_id) or {}
+        code = spawn.get("mobCode")
+        info = npc_info(code) if code else {}
+        return bool(info.get("isBoss") or info.get("role") or spawn.get("breakGauge"))
+
     def name(self, epoch, actor_id, enemy=False):
         identity = self.identities[epoch]
         if actor_id in identity["names"] and not self._spawned_npc(identity, actor_id):
@@ -1743,8 +1763,27 @@ class CombatSession:
             rereg_name[canon] = stats[canon]["display"]
         return self_ids, rereg, rereg_name
 
-    def _summary(self, groups, scope, enemy_id=None, combine_pets=True, allowed_for=None, merge_epochs=False):
+    def _summary(self, groups, scope, enemy_id=None, combine_pets=True, allowed_for=None, merge_epochs=False,
+                 targets=None):
         allowed_for = allowed_for or self._allowances(scope)
+        # The overlay's damage filters (``TARGET_FILTERS``): the players' damage, DPS and its clock count only
+        # the hits on the kinds of enemy kept. The enemies, healing and damage taken are not filtered.
+        targets = target_filter(targets)
+        bosses = {}
+
+        def kept(record, group, identity):
+            """Whether an outgoing hit passes the damage filters."""
+            if not targets:
+                return True
+            if "player" in targets and self._pvp_damage(record, allowed_for(record)):
+                return True          # another player, or a player's summon: the hits a fight is typed PvP by
+            if "boss" in targets:
+                key = (group["epoch"], record.event.target_id)
+                found = bosses.get(key)
+                if found is None:
+                    found = bosses[key] = self._boss_target(identity, record.event.target_id)
+                return found
+            return False
         # The live view may merge the trailing groups of one continuing run that a
         # mid-fight self zone-transition (a mechanic teleport/phase) split into new
         # epochs. Within one run an actor ID is the same entity, so key by the ID
@@ -1772,14 +1811,24 @@ class CombatSession:
         self_ids, rereg, rereg_name = self._correlate_identities(groups, allowed_for, self_ids)
         players, enemies = {}, {}
         row_actors = {}
-        durations = 0
+        # The DPS clock: the seconds with outgoing damage, shared by every player. A filtered view counts the
+        # seconds with kept damage only (the time spent on trash or on players is no boss time); the enemies'
+        # own rates keep the whole clock.
+        durations = all_durations = 0
         for group in groups:
             first = group["damage_start"] if group["damage_start"] is not None else group["start"]
-            buckets = {int((record.event.timestamp_ms-first)//1000) for record in group["records"]
-                       if isinstance(record.event,DamageEvent)
-                       and record.event.actor_id in allowed_for(record)
-                       and record.event.target_id not in allowed_for(record)}
-            durations += max(1,len(buckets))
+            identity = self.identities[group["epoch"]]
+            buckets, kept_buckets = set(), set()
+            for record in group["records"]:
+                event = record.event
+                if (isinstance(event, DamageEvent) and event.actor_id in allowed_for(record)
+                        and event.target_id not in allowed_for(record)):
+                    second = int((event.timestamp_ms - first) // 1000)
+                    buckets.add(second)
+                    if targets and kept(record, group, identity):
+                        kept_buckets.add(second)
+            all_durations += max(1, len(buckets))
+            durations += len(kept_buckets) if targets else max(1, len(buckets))
         # Latest activity per actor and overall, so the live view can fold a summon that has
         # gone quiet (de-spawned) into its owner when pets are shown separately. "Now" is the
         # newest event in view; a pet idle PET_DESPAWN_IDLE_MS past it reads as gone. First-seen
@@ -1920,6 +1969,7 @@ class CombatSession:
                             "mob_code": identity["spawns"].get(event.target_id, {}).get("mobCode"),
                             "is_player": group["pvp"] or (event.target_id in identity["names"]
                                                           and not self._spawned_npc(identity, event.target_id)),
+                            "is_boss": self._boss_target(identity, event.target_id),
                             "owner": identity["owners"].get(event.target_id), "players": {},
                             "last_ms": 0, "players_last": {}}
                     enemy["damage"] += damage; enemy["hits"] += 1
@@ -1933,7 +1983,7 @@ class CombatSession:
                     # being hit now, not whichever accumulated the most damage earlier.
                     enemy["last_ms"] = max(enemy["last_ms"], event.timestamp_ms)
                     enemy["players_last"][str(event.actor_id)] = event.timestamp_ms
-                    if enemy_id and target_key != enemy_id:
+                    if enemy_id and target_key != enemy_id or not kept(record, group, identity):
                         continue
                     row = player(identity, epoch, event.actor_id, resolved)
                     row["class"] = row["class"] or class_key_of(job_from_skill(event.skill_code))
@@ -1989,7 +2039,7 @@ class CombatSession:
             values = [points.get(index, 0) for index in range(max(points, default=-1) + 1)]
             row["timeline"] = {"per_second": values, "rolling10": [sum(values[max(0,i-9):i+1]) / min(i+1,10) for i in range(len(values))]}
         for enemy in enemies.values():
-            enemy["dps"] = enemy["damage"] / max(1, durations)
+            enemy["dps"] = enemy["damage"] / max(1, all_durations)
         self._row_actors = row_actors                     # read by player_detail right after this summary
         return {"players": sorted(players.values(), key=lambda row: (-row["damage"], -row["incoming"]["damage"], row["key"])),
                 "enemies": sorted(enemies.values(), key=lambda row: -row["damage"]), "duration": durations,
@@ -2130,14 +2180,15 @@ class CombatSession:
             chosen = self._since_boss_pull(chosen, self._live_boss_reset_ms, allowed_for)
         return groups, chosen, True
 
-    def player_detail(self, key, scope="party", segment_id=None, combine_pets=True):
+    def player_detail(self, key, scope="party", segment_id=None, combine_pets=True, targets=None):
         """One player of the shown view in depth, for the overlay's player panel (0.2.364): the row as the
         snapshot gives it (totals, rates, the special-hit shares and each skill's), the seconds they were
-        dealing damage, and the buffs on them with their uptime, from the effect records of the fight."""
+        dealing damage, and the buffs on them with their uptime, from the effect records of the fight.
+        ``targets`` are the overlay's damage filters, as the snapshot it opened from had them."""
         from ..combat.actions import _family, _merged_seconds
         allowed_for = self._allowances(scope)
         _, chosen, merge = self._chosen_groups(scope, segment_id, allowed_for)
-        summary = self._summary(chosen, scope, None, combine_pets, allowed_for, merge)
+        summary = self._summary(chosen, scope, None, combine_pets, allowed_for, merge, targets)
         row = next((r for r in summary["players"] if r["key"] == key), None)
         if row is None:
             return None
@@ -2203,13 +2254,15 @@ class CombatSession:
         out.sort(key=lambda r: -r["seconds"])
         return out[:16]
 
-    def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True):
+    def snapshot(self, scope="party", segment_id=None, enemy_id=None, combine_pets=True, targets=None):
+        """The shown view's reading. ``targets`` are the overlay's damage filters (``TARGET_FILTERS``)."""
+        filters = target_filter(targets)
         allowed_for = self._allowances(scope)
         groups, chosen, merge = self._chosen_groups(scope, segment_id, allowed_for)
-        summary = self._summary(chosen, scope, None, combine_pets, allowed_for, merge)
+        summary = self._summary(chosen, scope, None, combine_pets, allowed_for, merge, filters)
         if enemy_id is not None:
             if any(row["key"] == enemy_id for row in summary["enemies"]):
-                summary = self._summary(chosen, scope, enemy_id, combine_pets, allowed_for, merge)
+                summary = self._summary(chosen, scope, enemy_id, combine_pets, allowed_for, merge, filters)
             else:
                 enemy_id = None  # A previous encounter's filter must not hide a new pull.
         segments = [{"id": group["id"], "label": f"Combat {index + 1}", "start": group["start"],
@@ -2222,6 +2275,7 @@ class CombatSession:
         summary["viewing_historical"] = bool(segment_id not in (None, "all") and chosen and chosen[-1]["id"] != groups[-1]["id"])
         summary["selected_enemy"] = enemy_id
         summary["combine_pets"] = combine_pets
+        summary["targets"] = sorted(filters)
         summary["wipe_splits"] = self.wipe_splits
         summary["boss_kills"] = self.boss_kills
         epochs = {g["epoch"] for g in chosen}
@@ -2300,18 +2354,21 @@ class CombatSession:
                                 "damage": row["damage"], "dps": row["dps"]}
         summary["contribution"] = contribution
         current_target = None
-        if summary["enemies"]:
+        # With the damage filters on, the target card follows only the kinds of enemy they keep.
+        candidates = [e for e in summary["enemies"]
+                      if not filters or "boss" in filters and e.get("is_boss") or "player" in filters and e.get("is_player")]
+        if candidates:
             target = None
             if local_id is not None:
                 # The enemy the local player hit most recently (then by total damage),
                 # so the readout follows a target switch instead of sticking to a
                 # just-killed mob with the highest accumulated damage.
-                hit = [e for e in summary["enemies"] if e["players"].get(str(local_id), 0) > 0]
+                hit = [e for e in candidates if e["players"].get(str(local_id), 0) > 0]
                 if hit:
                     target = max(hit, key=lambda e: (e.get("players_last", {}).get(str(local_id), 0),
                                                       e["players"].get(str(local_id), 0)))
             # Fall back to the most recently damaged enemy overall, else the top one.
-            target = target or max(summary["enemies"], key=lambda e: e.get("last_ms", 0)) or summary["enemies"][0]
+            target = target or max(candidates, key=lambda e: e.get("last_ms", 0)) or candidates[0]
             try:
                 entity = int(target["id"])
             except (TypeError, ValueError):
@@ -2377,7 +2434,7 @@ class CombatSession:
             primary_last = _recency(target)
             if primary_last:
                 primary_bucket = int(primary_last // 1000)
-                cohort = [e for e in summary["enemies"]
+                cohort = [e for e in candidates
                           if e is not target and not e.get("is_player")
                           and _recency(e) and int(_recency(e) // 1000) == primary_bucket]
                 also_targets = [e["name"] for e in sorted(cohort, key=lambda e: -_recency(e))][:3]

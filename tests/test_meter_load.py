@@ -145,7 +145,7 @@ class _CountingSession:
     clock_inputs = None
     _grouping = None
 
-    def snapshot(self, scope, segment_id, enemy_id, combine_pets):
+    def snapshot(self, scope, segment_id, enemy_id, combine_pets, targets=None):
         _CountingSession.computed.append(threading.current_thread().name)
         return {"players": [], "reading": len(_CountingSession.computed)}
 
@@ -184,10 +184,10 @@ def test_snapshot_recomputes_off_the_lock_and_serves_the_last_reading():
 class _SlowSession(_CountingSession):
     release = threading.Event()
 
-    def snapshot(self, scope, segment_id, enemy_id, combine_pets):
+    def snapshot(self, scope, segment_id, enemy_id, combine_pets, targets=None):
         if _CountingSession.computed:
             _SlowSession.release.wait(5)   # every reading after the first waits for the test
-        return super().snapshot(scope, segment_id, enemy_id, combine_pets)
+        return super().snapshot(scope, segment_id, enemy_id, combine_pets, targets)
 
 
 def test_a_recompute_for_a_previous_session_is_discarded():

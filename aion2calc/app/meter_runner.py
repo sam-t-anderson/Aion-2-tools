@@ -16,7 +16,7 @@ from pathlib import Path
 from ..meter import CombatEvent, Meter, load_decoder, replay_source
 from ..meter.a2parser.engine import MeterEngine as PacketMeterEngine
 from ..meter.a2parser.capture import capture_packets
-from ..meter.session import CombatSession, NoIdentifiedPlayerData
+from ..meter.session import CombatSession, NoIdentifiedPlayerData, target_filter
 from ..meter.a2parser.capture_stats import FIELDS as PCAP_FIELDS, FLAGS as PCAP_FLAGS
 from ..combat.quality import LIFETIME_COUNTERS, TIMED_LOSS_COUNTERS
 
@@ -195,6 +195,12 @@ class Runner:
         self.capture_metadata = None
         self.scope = "auto"
         self.combine_pets = True
+        #: The overlay's damage filters (Boss damage only / Player damage only, 0.2.390), from the settings: the
+        #: views that follow the latest fight (the overlay windows, RTSS) count only the hits they keep.
+        self.overlay_targets: frozenset = frozenset()
+        #: The fight a storage rollover took off the live session, shown in the latest view until the
+        #: continuation has combat of its own (see ``_rollover_session`` and ``_carried_view``).
+        self._carry = None
         self.segment_id = None
         self.enemy_id = None
         self.saved_log = None
@@ -229,6 +235,7 @@ class Runner:
             self._previous_engine = self.packet_engine
             self.packet_engine = None
             self._snap_cache = None          # never show the previous session's snapshot
+            self._carry = None
             self._community_rank = {}        # a prior session's standings must not leak in
             self._fight_upload_at, self._fight_upload_key, self._fight_upload_kills, self._fight_upload_busy = float("-inf"), None, 0, False
             self._field_bosses, self._field_bosses_at = None, float("-inf")   # re-identified by the new capture
@@ -718,10 +725,12 @@ class Runner:
             # once. Building and writing the part's document -- seconds for a big part -- happens
             # on a worker (``_flush_parts``): a forced mid-fight rollover used to run it on the
             # decoder thread, which froze the meter for as long as it took.
+            shown = self.session
             detached = copy.deepcopy(self.session)
             detached.capture_evidence["storage_boundary"] = True
             detached.finish_run("storage_rollover", complete=False)
             self._next_part(detached)
+            self._carry_over(shown)
             self.diagnostics.pop("archive_deferred", None)
             self._rollover_retry_at = 0.0
         self._last_checkpoint = time.monotonic()
@@ -751,6 +760,61 @@ class Runner:
         self.session_file = f"session-{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}.a2log.json"
         self.segment_id = self.enemy_id = None
         self._unsaved_parts.append(part)
+
+    def _carry_over(self, shown) -> None:
+        """Keep the fight a storage rollover took off the live session on screen (0.2.390). A rollover the
+        session deferred through combat fires as soon as a final boss's death closes the run, so the kill
+        itself moved into the closed part and the overlay, reading the fresh continuation, went blank the
+        moment the boss died. ``shown`` is the live session as it stood (the continuation replaced it, so
+        nothing changes it any more); the latest view reads it until ``_carried_view`` sees new combat. A
+        run the rollover found closed (a final boss's death, a zone change) ends the carry when the next run
+        opens, as the live view itself moves on then; an open run, at the next outgoing hit. Caller holds
+        ``self.lock``."""
+        session = self.session
+        self._carry = {"session": shown, "continuation": session, "generation": self._capture_generation,
+                       "run": session.run, "closed": session.run_closed,
+                       "outgoing": dict(getattr(session, "_last_outgoing", {})), "readings": {}}
+
+    def _carry_holds(self) -> bool:
+        """Whether the carried fight is still the latest view; drops it once it is not. Caller holds ``self.lock``."""
+        carry = self._carry
+        if carry is None:
+            return False
+        session = self.session
+        moved_on = (carry["generation"] != self._capture_generation or session is not carry["continuation"]
+                    or (session.run != carry["run"] if carry["closed"]
+                        else getattr(session, "_last_outgoing", {}).get(self.scope) != carry["outgoing"].get(self.scope)))
+        if moved_on:
+            self._carry = None
+            return False
+        return True
+
+    def _carried_view(self, key, targets):
+        """The carried fight's reading for the view ``key`` (computed once per view from the carried session),
+        with its wall-clock fields brought up to date: the latest fight, or a fight of the carried part the
+        Live Meter page picked from its list. None for the whole session and a fight of the new part, which
+        read the live session as before, and once new combat has taken over. Caller holds ``self.lock``."""
+        if key[1] == "all" or not self._carry_holds():
+            return None
+        carry = self._carry
+        if key not in carry["readings"]:
+            shown = carry["session"]
+            segment_id = None if key[1] == "__latest__" else key[1]
+            snap = shown.snapshot(self.scope, segment_id, key[2], self.combine_pets, targets)
+            mine = segment_id is None or snap.get("selected_segment") == segment_id
+            carry["readings"][key] = (snap, shown.clock_inputs) if mine else None
+        reading = carry["readings"][key]
+        if reading is None:
+            return None
+        snap, clock = reading
+        self.session.refresh_clock(snap, clock)
+        return snap
+
+    def _view_key(self, follow_latest: bool):
+        """``(damage filters, view key)`` of the live view a request reads (see ``_live_snapshot``)."""
+        targets = self.overlay_targets if follow_latest else frozenset()
+        return targets, (self.scope, "__latest__" if follow_latest else self.segment_id,
+                         None if follow_latest else self.enemy_id, self.combine_pets, targets)
 
     def _recent_outgoing(self, window_ms: int) -> bool:
         """Whether the selected scope landed outgoing damage within ``window_ms`` (tracked by the
@@ -1049,8 +1113,10 @@ class Runner:
         caller holds it). The cache only serves the live display; save/export/upload call the
         session directly. A cache entry is ``(view key, taken at, reading, state signature, clock
         inputs)``."""
-        key = (self.scope, "__latest__" if follow_latest else self.segment_id,
-               None if follow_latest else self.enemy_id, self.combine_pets)
+        targets, key = self._view_key(follow_latest)
+        carried = self._carried_view(key, targets)
+        if carried is not None:
+            return carried
         now = time.monotonic()
         cached = self._snap_cache
         if cached is not None and cached[0] == key:
@@ -1077,7 +1143,7 @@ class Runner:
         # The first reading of a view (a fresh capture, a changed selection): compute it now.
         started = time.monotonic()
         snap = self.session.snapshot(self.scope, None if follow_latest else self.segment_id,
-                                     None if follow_latest else self.enemy_id, self.combine_pets)
+                                     None if follow_latest else self.enemy_id, self.combine_pets, targets)
         self._last_snap_cost = time.monotonic() - started
         self._snap_cache = (key, time.monotonic(), snap, self.session.state_signature(), self.session.clock_inputs)
         return snap
@@ -1096,18 +1162,20 @@ class Runner:
         except Exception:   # noqa: BLE001 - a view that cannot be detached is recomputed in place next time
             return False
         args = (key, source, self._capture_generation, detached, source.state_signature(), self.scope,
-                None if follow_latest else self.segment_id, None if follow_latest else self.enemy_id, self.combine_pets)
+                None if follow_latest else self.segment_id, None if follow_latest else self.enemy_id, self.combine_pets,
+                key[4])
         self._snap_thread = threading.Thread(target=self._compute_snapshot, args=args, daemon=True, name="live-snapshot")
         self._snap_thread.start()
         return True
 
-    def _compute_snapshot(self, key, source, generation, session, signature, scope, segment_id, enemy_id, combine_pets) -> None:
+    def _compute_snapshot(self, key, source, generation, session, signature, scope, segment_id, enemy_id, combine_pets,
+                          targets=frozenset()) -> None:
         # ``source`` is the live session the copy was taken from, held so it cannot be freed and
         # its identity reused by a continuation; the reading is kept only while it is still live.
         # ``signature`` is the live state the copy was taken in: the reading stands for that state.
         started = time.monotonic()
         try:
-            snap = session.snapshot(scope, segment_id, enemy_id, combine_pets)
+            snap = session.snapshot(scope, segment_id, enemy_id, combine_pets, targets)
         except Exception as exc:   # noqa: BLE001 - the live view keeps its last reading
             self.diagnostics["snapshot_error"] = f"{type(exc).__name__}: {exc}"[:300]
             return
@@ -1180,8 +1248,12 @@ class Runner:
         try:
             if self.packet_engine is None or not isinstance(self.session, CombatSession):
                 return None
-            return self.session.player_detail(str(key), self.scope, None if follow_latest else self.segment_id,
-                                              self.combine_pets)
+            targets, view = self._view_key(follow_latest)
+            session = self.session
+            if self._carried_view(view, targets) is not None:
+                session = self._carry["session"]          # the view still shows the carried fight
+            return session.player_detail(str(key), self.scope, None if follow_latest else self.segment_id,
+                                         self.combine_pets, targets)
         finally:
             self.lock.release()
 
@@ -1272,7 +1344,8 @@ class Runner:
                 self.enemy_id = snap.get("selected_enemy")
             if compact:
                 result = {"running": self.running, "finalizing": finalizing, "error": self.error,
-                          "combine_pets": self.combine_pets, "snapshot": snap}
+                          "combine_pets": self.combine_pets, "snapshot": snap,
+                          "targets": sorted(self.overlay_targets) if follow_latest else []}
                 self._status_cache[(True, follow_latest)] = result
                 return result
             current = dict(self.session.runs[self.session.run])
@@ -1602,6 +1675,8 @@ class Runner:
         self.session.max_records = min(500, max(0, int(ui.get("meter_max_records", 20) or 0)))
         self.session.dummy_record_seconds = min(3600, max(5, int(ui.get("meter_dummy_record_seconds", 60) or 60)))
         self.save_records = bool(ui.get("meter_save_records", True))
+        self.overlay_targets = target_filter(name for name, key in (("boss", "overlay_boss_only"), ("player", "overlay_pvp_only"))
+                                             if ui.get(key) is True)
         self._apply_packet_recording(ui.get("meter_record_packets") is True)
 
     @staticmethod
@@ -1666,6 +1741,7 @@ class Runner:
     def split_now(self) -> dict:
         with self.lock:
             self.session.split_now()
+            self._carry = None          # New: the latest view waits for the next fight, not the carried one
             self.segment_id = None
         return self.status()
 
@@ -1680,6 +1756,7 @@ class Runner:
             self.session = CombatSession()
             self.meter = Meter()
             self._snap_cache = None
+            self._carry = None
             self.capture_metadata = None
             self.archive_id = uuid.uuid4().hex
             self.archive_part = 1
