@@ -265,7 +265,8 @@ window.A2Session = (function () {
     href: (tab) => page() + (tab === "signin" ? "" : "#" + tab),
     logHref(l) {
       const view = (String(l.url || "").match(/[?&]t=([A-Za-z0-9_-]+)/) || [])[1];
-      return "log.html?id=" + encodeURIComponent(l.id) + (view ? "&t=" + encodeURIComponent(view) : "");
+      const segment = Number.isInteger(l.segment) ? "&segment=" + l.segment : ""; // a top parse opens on its encounter
+      return "log.html?id=" + encodeURIComponent(l.id) + segment + (view ? "&t=" + encodeURIComponent(view) : "");
     },
     inviteLink: (token) => page() + "#a2invite=" + token,
     // the desktop app holds the upload credentials a claim needs, so the website names it

@@ -68,6 +68,8 @@ class FakeServer:
                     return self._answer(200, {"added": len(body["tokens"])})
                 if path in ("/api/v1/account/logs", "/api/v1/legions/mine", "/api/v1/account/signout"):
                     return self._answer(200, {"logs": [], "legions": [], "signed_out": 1})
+                if path == "/api/v1/account/top-parses":
+                    return self._answer(200, {"parses": [], "total": 0, "truncated": False})
                 return self._answer(404, {"error": "not found"})
 
             def do_GET(self):
@@ -118,6 +120,7 @@ def test_the_pages_reach_only_the_account_and_legion_routes(server):
     account.register(None)
     assert account.request("GET", "/api/v1/legions/mine")["legions"] == []
     assert account.request("GET", "/api/v1/account/logs?page=1&limit=50")["logs"] == []
+    assert account.request("GET", "/api/v1/account/top-parses")["parses"] == []          # My logs' top parses (0.2.391)
     for method, path in (("GET", "/api/v1/logs/abcdef12/raw"), ("POST", "/api/v1/account/register"),
                          ("GET", "/api/v1/account/logs?x=\nHost: evil"), ("DELETE", "/api/v1/account"),
                          ("GET", "https://evil.example/api/v1/account"), ("POST", "/api/v1/account/ticket")):

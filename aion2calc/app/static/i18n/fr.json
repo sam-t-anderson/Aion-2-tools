@@ -831,5 +831,16 @@
  "Uploaded on or before": "Téléversé jusqu'à ce jour",
  "your logs": "vos logs",
  "the legion's logs": "les logs de la légion",
- "Filter {0} by boss": "Filtrer {0} par boss"
+ "Filter {0} by boss": "Filtrer {0} par boss",
+ "Top parses": "Meilleurs parses",
+ "Loading your top parses…": "Chargement de vos meilleurs parses…",
+ "The community server doesn't list top parses yet.": "Le serveur communautaire ne liste pas encore les meilleurs parses.",
+ "No ranked boss fights in your logs yet. Your best run on each boss shows here, with its parse against every public run of your class.": "Aucun combat de boss classé dans vos logs pour l'instant. Votre meilleur passage sur chaque boss s'affiche ici, avec son parse face à tous les passages publics de votre classe.",
+ "Your best DPS on each boss and difficulty for each of your characters, from the logs in this account (any visibility), in ranking-eligible PvE fights. The parse compares it with every ranked public run of the same boss, game version and difficulty by the same class: 100 is above them all.": "Votre meilleur DPS sur chaque boss et difficulté pour chacun de vos personnages, à partir des logs de ce compte (toute visibilité), dans les combats JcE éligibles au classement. Le parse le compare à chaque passage public classé du même boss, de la même version du jeu et de la même difficulté pour la même classe : 100 est au-dessus de tous.",
+ "Parse {0}, rank {1} of {2} ranked runs of this class on this encounter": "Parse {0}, rang {1} sur {2} passages classés de cette classe sur ce combat",
+ "Provisional: fewer than 5 runs.": "Provisoire : moins de 5 passages.",
+ "No parse yet: no other ranked run of this class on this encounter": "Pas encore de parse : aucun autre passage classé de cette classe sur ce combat",
+ "Best of {0} ranked run": "Meilleur de {0} passage classé",
+ "Best of {0} ranked runs": "Meilleur de {0} passages classés",
+ "The best {0} by DPS are shown.": "Les {0} meilleurs par DPS sont affichés."
 }
