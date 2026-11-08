@@ -129,6 +129,14 @@ pantheon deities and the genus insight grids. The
 model is calibrated from the character's fights when there are enough. Details:
 [planner.md](planner.md).
 
+**Your arcana cards' own stats (0.2.389).** Each Arcana card lists, under **YOURS**, the cards you have for
+that slot with keep or replace, and now what each card holds: its deity stat at its value (*Time [Siel] +20*),
+any other stats it carries, its skill options at their levels with the skills' icons (as the target options
+are shown), and its grade with how many of its option levels the options fill (*Unique · 7 of 7 option
+levels · equipped*). An equipped card's deity stat is its own, read from the official page; a card added
+from the catalog, or imported before 0.2.389, shows its variant's stat at its grade from the catalog. The
+copied text and the advice's markdown list them too, and My Character's Arcana cards show the deity stat.
+
 A goal item and a reroll step name the rolls to chase (0.2.328): the stats of the item's roll pool
 worth the most to your damage, as many as the item rolls, shown on the Next goal and Best in slot
 cards, on the upgrade path's step (*reroll Ring of X toward Critical Hit +30 – +50*) and in the copied

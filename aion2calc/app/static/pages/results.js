@@ -210,6 +210,11 @@ function winEquipment(v) {
   );
 }
 
+// An arcana card's deity stat as the game shows it: "Time [Siel] +20" (0.2.389).
+function arcanaDeityText(d) {
+  return d && d.label ? `${d.label} +${+(+d.points || 0).toFixed(1)}` : "";
+}
+
 function winArcana(v) {
   const ex = v.extras || {};
   let body = "";
@@ -218,7 +223,7 @@ function winArcana(v) {
       .map(
         (a) => `<div class="card" data-grade="${esc(a.grade)}">
       <div class="icon" style="margin:0 auto 6px">${a.icon ? `<img src="${icon(a.icon)}">` : ""}<span class="lv">+${a.enchant || 0}</span></div>
-      <div class="gname">${esc(a.name)}</div>${(a.skills || []).map(([k, lv]) => `<span class="chip">${esc(k)} +${lv}</span>`).join("")}
+      <div class="gname">${esc(a.name)}</div>${a.deity ? `<div class="small gold" data-arcana-deity>${esc(arcanaDeityText(a.deity))}</div>` : ""}${(a.skills || []).map(([k, lv]) => `<span class="chip">${esc(k)} +${lv}</span>`).join("")}
       <div class="small muted">${(a.stats || []).map((s) => esc(s.label + " " + s.text)).join(", ")}</div></div>`,
       )
       .join("")}</div>`;
@@ -262,7 +267,16 @@ function winArcana(v) {
       "Arcana",
       "Chalice, Parchment, Compass roll active skills · Bell, Mirror roll passives",
       body || '<div class="empty">No arcana data</div>',
-      { key: "arcana", copy: (ex.arcana || []).map((a) => `${a.slot}: ${a.tie ? "either" : a.pick}`).join("\n") },
+      {
+        key: "arcana",
+        copy: [
+          ...(v.arcana_items || []).map(
+            (a) =>
+              `${a.slot}: ${a.name} +${a.enchant || 0}${a.deity ? ", " + arcanaDeityText(a.deity) : ""}${(a.skills || []).length ? " — " + a.skills.map(([k, lv]) => `${k} +${lv}`).join(", ") : ""}`,
+          ),
+          ...(ex.arcana || []).map((a) => `${a.slot}: ${a.tie ? "either" : a.pick}`),
+        ].join("\n"),
+      },
     ) + (deity.length ? win("Deity & primary stats", "", statGrid(deity, "Totals")) : "")
   );
 }
