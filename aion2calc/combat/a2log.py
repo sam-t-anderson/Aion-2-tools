@@ -21,7 +21,7 @@ number of players and segments::
                    "hp": [[0.0, 1437663], [1.5, 1400000]]}]}
 
 Times are seconds from the segment start. ``class`` is one of the class keys
-below (the in-game name "Elementalist" is accepted for spiritmaster).
+below (the in-game names "Elementalist" and "Fighter" are accepted for spiritmaster and brawler).
 """
 from __future__ import annotations
 
@@ -37,7 +37,11 @@ def combat_mode(doc, segment=None):
     kind = (segment or {}).get("encounter_type") or doc.get("meta", {}).get("encounter_type")
     return "pvp" if kind in PVP_TYPES else "pve"
 CLASSES = ("gladiator", "templar", "assassin", "ranger", "sorcerer", "spiritmaster", "cleric", "chanter")
-CLASS_ALIASES = {"elementalist": "spiritmaster", "brawler": "brawler"}
+#: classes a log may name that the calculator does not model yet: the Brawler (the client's Fighter) is out in
+#: Korea and Taiwan, and the global client has its skills without their names or values (docs/methodology.md
+#: "The Brawler")
+UNMODELLED_CLASSES = ("brawler",)
+CLASS_ALIASES = {"elementalist": "spiritmaster", "fighter": "brawler"}
 #: optional players[].stats keys (percent values as numbers)
 PLAYER_STATS = ("critical_hit", "attack", "double_pct", "perfect_pct", "multihit_pct", "combat_speed_pct",
                 "cooldown_pct", "accuracy")
@@ -189,7 +193,7 @@ def class_key(c) -> str | None:
         return None
     k = re.sub(r"[^a-z]", "", str(c).lower())
     k = CLASS_ALIASES.get(k, k)
-    return k if k in CLASSES or k == "brawler" else None
+    return k if k in CLASSES or k in UNMODELLED_CLASSES else None
 
 
 def _int(value, low=0, high=2**53 - 1) -> bool:

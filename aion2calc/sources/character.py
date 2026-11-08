@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 from ..kit.base import Build, ClassData, stigma_points_to_reach
 from ..model.character import LABEL_MAP, parse_bonus_text
+from ..combat.a2log import UNMODELLED_CLASSES
 from .official import CLASS_KEYS, key_of
 
 #: official stat id -> (Stats field, scale for plain numbers); "%" values divide by 100
@@ -136,6 +137,10 @@ def faction_of(profile: dict) -> str | None:
 def from_profile(ch: dict) -> ImportedCharacter:
     p = ch["profile"]
     cls = CLASS_KEYS.get(p.get("className"), (p.get("className") or "").lower())
+    if cls in UNMODELLED_CLASSES:
+        raise ValueError(f"{p.get('characterName') or 'This character'} is a Brawler. The calculator models the eight "
+                         "classes out in the global game: the Brawler's skills are in the global client without "
+                         "their names or values, so its builds cannot be scored until the class comes out there.")
     cd = ClassData(cls)
     warnings = []
     if cd.raw.get("base_stats_source") == "bundled fallback":

@@ -1,6 +1,6 @@
 """The overlay's restyle is cosmetic: the markup, ids, settings hooks and behaviour stay.
 
-Pins the pieces the new look depends on — the eight-class overlay palette (a user's own
+Pins the pieces the new look depends on — the nine-class overlay palette (the Brawler's since 0.2.390) (a user's own
 class colour still wins), the boss-panel wrapping spans, the light number defaults the
 settings page and the Default (gold) preset must agree on — and that nothing the
 stylesheet used to expose for the layout settings went missing."""
@@ -11,7 +11,7 @@ STATIC = Path(__file__).resolve().parents[1] / "aion2calc" / "app" / "static"
 CSS = (STATIC / "overlay.css").read_text(encoding="utf-8")
 JS = (STATIC / "overlay.js").read_text(encoding="utf-8")
 REVIEW = (STATIC / "combat-review.js").read_text(encoding="utf-8")
-CLASSES = {"gladiator", "templar", "assassin", "ranger", "sorcerer", "spiritmaster", "cleric", "chanter"}
+CLASSES = {"gladiator", "templar", "assassin", "ranger", "sorcerer", "spiritmaster", "cleric", "chanter", "brawler"}
 
 
 def _palette(src, name):
@@ -23,7 +23,7 @@ def _palette(src, name):
 def test_every_class_has_an_overlay_tint_and_the_review_palette_matches():
     overlay = _palette(JS, "OVERLAY_CLASS_COLORS")
     assert set(overlay) == CLASSES
-    assert len(set(overlay.values())) == 8                      # all distinct
+    assert len(set(overlay.values())) == len(CLASSES)           # all distinct
     assert _palette(REVIEW, r"\"Overlay \(cool\)\"") == overlay   # the app-wide palette is the same set
 
 

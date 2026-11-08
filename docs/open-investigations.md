@@ -827,6 +827,26 @@ Cradle of Nihility (Afflicted Bakarma, not Solemn Valkan), Azure Breath Island (
 Xyrepe) and Submerged Life Temple (Submerged Emon, not Singing Ellyde); there are no public logs of these dungeons
 to check against.
 
+## The Brawler for the global release (8 November)
+
+The Brawler (the client's Fighter) is recognised since 0.2.390 but not modelled (methodology, "The Brawler"). What
+the global release has to settle before it can be:
+
+- **Its skills' values.** The global client has the class's 35 skills without names, descriptions or values
+  (DBAion2 shows `???`), and metabot.gg has no page for it. When it does, `python -m aion2calc refresh --only brawler`
+  writes the class data, and the bundled Korean reference (`data/kr/a2dil/brawler.json`) checks the result. No
+  Korean or Taiwanese source checked publishes the values a level: the official guidebooks describe each skill
+  without numbers, and the Korean guides (Inven, cielui.com) give rotations, cooldown targets and usage shares.
+  The same goes for gamers4.life, which reads the global client.
+- **Rage and Rampage.** How fast Rage builds, what Rampage costs a second, and what each Rampage variant changes
+  over its normal skill need a kit of their own. The Korean dummy minutes stay in Rampage 80–100 % of the time.
+- **Base stats and the Daevanion boards.** The global client has the class's six boards (DBAion2's Daevanion data
+  lists them); its base HP, Defense and Attack a level are not published anywhere checked.
+- **Recorded fights.** Its boss hit positions, parry rate and idle share (`BOSS_POSITIONS`, `BOSS_PARRY`,
+  `FIGHT_INACTIVE`) come from recordings, as the other classes' did; there are none of a global Brawler yet.
+- **The class icon.** The overlay and the logs draw the class icons metabot.gg publishes; the Brawler has none there
+  yet, so it shows its colour without an icon.
+
 ## Boss skill areas measured from the public recordings, 1 November (0.2.365)
 
 **What was looked for outside the game.** No published source gives the shape or reach of a boss's skills. metabot.gg's monster pages (the global client's data) list each boss's skills with their names, cast times, the status effects they apply and the telegraph's warning time, nothing about an area, and its skill pages carry the same fields; the Korean fan databases and the dungeon guides that were checked describe mechanics in words without sizes, and the official site publishes none. The game's own records carry a cast's aim point and the caster's facing but no telegraph record (above), so the area has to be measured from where the hits landed.
