@@ -1391,7 +1391,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_show_cooldowns", "overlay_show_break_gauge", "overlay_show_odyle",
                               "overlay_show_shugo_keys", "overlay_show_nightmare_tickets", "character_auto_open", "character_auto_refresh",
                               "meter_reset_after_battle", "meter_reset_on_boss_start", "meter_show_dummy_parse", "overlay_show_combat_power",
-                              "overlay_only_in_combat", "overlay_auto_expand",
+                              "overlay_only_in_combat", "overlay_auto_expand", "overlay_boss_only", "overlay_pvp_only",
                               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
                               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
@@ -1481,7 +1481,7 @@ class Handler(BaseHTTPRequestHandler):
                     sync_companions()
                 except Exception:
                     traceback.print_exc()
-            if any(k.startswith("meter_") for k in body):
+            if any(k.startswith("meter_") or k in ("overlay_boss_only", "overlay_pvp_only") for k in body):
                 try:
                     from .meter_runner import runner
                     runner().apply_record_settings()
@@ -2028,6 +2028,9 @@ def ui_settings() -> dict:
                 "pettracker_path": "",
                 "overlay_max_players": 8, "overlay_width": 340, "overlay_height": 0, "overlay_row_height": 22,
                 "overlay_only_in_combat": False, "overlay_auto_expand": False,
+                # The overlay's damage filters (0.2.390): only the damage dealt to bosses, mini-bosses, field and
+                # world bosses; only the damage dealt to other players. Both on keep both. Off by default.
+                "overlay_boss_only": False, "overlay_pvp_only": False,
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
                 "overlay_resizable": False, "overlay_snap_edge": False, "overlay_expand_up": False,
                 "overlay_always_visible": True, "overlay_remember_position": True,

@@ -401,7 +401,10 @@ async function pageMeter() {
         if (result.native) return result.already_open ? "Overlay is already open." : "Overlay opened.";
         st.nativeOverlayUnavailable = true;
       } catch (e) {
-        /* Browser fallback remains available. */
+        // No answer at all (fetch's TypeError): a window opened now would show the browser's "127.0.0.1 refused to
+        // connect" page, not the overlay (0.2.390). Any answer from the app keeps the browser fallback.
+        if (e instanceof TypeError)
+          return "Aion 2 Calc did not answer, so the overlay was not opened. Try again in a moment.";
       }
     }
     st.overlayPopup = window.open("/overlay", "a2overlay", "width=300,height=430");
