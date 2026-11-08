@@ -35,6 +35,18 @@ KILLS = [
     {"server": 2102, "server_name": "Zikel", "boss": "Testboss Beta", "map_id": 1000, "killed_at": NOW - 900, "reports": 1},
 ]
 
+# The Abyss PvP heat map (log server 0.2.168): three squares with PvP over the last 24 hours, the ground recordings
+# have covered around them and one recorded boss.
+HEAT = {"map_id": 20, "zone": "Abyss", "region": None, "available": True, "window_seconds": 86400, "cell_size": 2000,
+        "windows": [{"seconds": 1800, "uploaders": 1, "fights": 1}, {"seconds": 7200, "uploaders": 2, "fights": 3},
+                    {"seconds": 21600, "uploaders": 2, "fights": 5}, {"seconds": 86400, "uploaders": 4, "fights": 9},
+                    {"seconds": 604800, "uploaders": 6, "fights": 30}],
+        "fights": 9, "uploaders": 4, "hits": 57, "kills": 3, "hidden_cells": 1,
+        "cells": [[2, -2, 31, 2], [3, -2, 20, 1], [2, -1, 6, 0]],
+        "footprint": [[x, y] for x in range(0, 6) for y in range(-4, 2)],
+        "landmarks": [{"npc_id": "2600089", "name": "Testboss Gamma", "x": 9000, "y": -1000, "logs": 2}],
+        "bounds": {"x": [0, 12000], "y": [-8000, 4000]}, "generated_at": NOW, "refresh_seconds": 900,
+        "min_uploaders": 3, "min_cell_uploaders": 2, "note": "Test heat map."}
 
 # A featured encounter (log server 0.2.145): two phases, a legion that cleared it and a party still on the mini boss.
 FEATURED_ID = "fe_0123456789"
@@ -306,6 +318,7 @@ ANSWERS = {
                                       "excluded_unranked_encounter_uploads": 0, "truncated": False, "note": ""},
     "/api/v1/records": lambda q: {"records": [], "total": 0},
     "/api/v1/boss-status": lambda q: {"groups": [], "truncated": False, "generated_at": time.time(), "history_limit": 20, "note": ""},
+    "/api/v1/pvp-heat": lambda q: {**HEAT, "cell_size": int(q.get("cell", ["2000"])[0])},
     "/api/v1/boss-kills": lambda q: {"kills": KILLS, "truncated": False, "generated_at": NOW, "window_seconds": 172800,
                                      "merge_seconds": 600, "note": ""},
     "/api/v1/plans": _plans,

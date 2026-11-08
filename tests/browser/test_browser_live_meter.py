@@ -77,6 +77,69 @@ def test_the_maps_page_loads_the_provider_only_when_asked(app_page, app_url):
     assert until(page, lambda: asked)
 
 
+
+def test_the_maps_page_draws_the_abyss_pvp_heat_map(app_page, app_url, community):
+    """The log server's heat map (0.2.389): its window, fights and squares, a table of the busiest squares, a square's
+    hits and kills under the pointer, and the square size asked again and remembered."""
+    page = app_page
+    page.route("https://interactivemap.app/**", lambda r: r.abort())
+    since = len(community.requests)
+    go(page, app_url, "#/maps")
+    assert community.reached(page, "/api/v1/pvp-heat?map=20&cell=2000", since)
+    status = page.locator("[data-heat-status]")
+    status.filter(has_text="Last 24 hours").wait_for()
+    text = status.text_content()
+    assert "9 fights from 4 uploaders, 57 PvP hits and 3 kills in 3 squares" in text
+    assert "1 square only one uploader recorded is left out" in text
+    canvas = page.locator("[data-heat-canvas]")
+    assert canvas.is_visible() and "3 squares with PvP over the last 24 hours, the busiest with 31 hits" in canvas.get_attribute("aria-label")
+    legend = page.locator("[data-heat-legend]").text_content()
+    assert "PvP hits per square" in legend and "31" in legend and "a square with a kill" in legend and "a recorded boss" in legend
+    # the canvas is drawn: the busiest square is in the ramp's brightest step on the dark theme
+    canvas.scroll_into_view_if_needed()
+    box = canvas.bounding_box()
+    s = (box["height"] - 24) / 12000                          # bounds 12,000 units each way, 12 px of padding a side
+    ox = round((box["width"] - (12000 * s + 24)) / 2)
+    x, y = box["x"] + ox + 12 + 5000 * s, box["y"] + 12 + (4000 + 3000) * s     # the middle of square (2, -2)
+    colour = page.evaluate("""([x, y]) => { const c = document.querySelector('[data-heat-canvas]'), r = c.getBoundingClientRect(),
+        d = window.devicePixelRatio || 1, p = c.getContext('2d').getImageData(Math.round((x - r.left + 18) * d), Math.round((y - r.top + 18) * d), 1, 1).data;
+        return [p[0], p[1], p[2]]; }""", [x, y])
+    assert colour == [0x9e, 0xc5, 0xf4]
+    # under the pointer: the square's hits and kills, and where it is
+    page.mouse.move(x, y)
+    tip = page.locator("[data-heat-tip]")
+    tip.wait_for(state="visible")
+    assert tip.text_content() == "31 PvP hits2 killsx 4,000 to 6,000 · y -4,000 to -2,000"
+    page.mouse.move(box["x"] + 2, box["y"] + 2)
+    tip.wait_for(state="hidden")
+    # the busiest squares as a table
+    page.locator("[data-heat-table] summary").click()
+    first = page.locator("[data-heat-rows] tbody tr").first.locator("td")
+    assert first.all_text_contents() == ["4,000 to 6,000", "-4,000 to -2,000", "31", "2"]
+    # another square size asks again, and is kept for the next visit
+    since = len(community.requests)
+    page.select_option("[data-heat-cell]", "4000")
+    assert community.reached(page, "/api/v1/pvp-heat?map=20&cell=4000", since)
+    assert page.evaluate("localStorage.getItem('aion2.maps.heatCell')") == "4000"
+    go(page, app_url, "#/maps")
+    assert page.locator("[data-heat-cell]").input_value() == "4000"
+
+
+def test_the_heat_map_says_when_too_few_uploaders_recorded_abyss_pvp(app_page, app_url):
+    page = app_page
+    page.route("https://interactivemap.app/**", lambda r: r.abort())
+    from community import HEAT
+    sparse = {**HEAT, "available": False, "window_seconds": None, "fights": 0, "uploaders": 0, "hits": 0, "kills": 0,
+              "hidden_cells": 0, "cells": [], "windows": [{**w, "uploaders": min(w["uploaders"], 2)} for w in HEAT["windows"]]}
+    page.route("**/api/community?path=%2Fapi%2Fv1%2Fpvp-heat*", lambda r: r.fulfill(json=sparse))
+    go(page, app_url, "#/maps")
+    status = page.locator("[data-heat-status]")
+    status.filter(has_text="Not enough recorded Abyss PvP yet").wait_for()
+    assert "at least 3 uploaders within 7 days, and has 2 uploaders" in status.text_content()
+    assert "Meanwhile the map shows the ground recordings have covered." in status.text_content()
+    assert page.locator("[data-heat-canvas]").is_visible() and page.locator("[data-heat-table]").is_hidden()
+    assert "no PvP squares" in page.locator("[data-heat-canvas]").get_attribute("aria-label")
+
 def meter_says(page, snapshot: dict = None, **status) -> None:
     """The app's meter status (GET /api/meter, which the page polls) with these fields set."""
     def answer(route):
