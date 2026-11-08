@@ -159,7 +159,7 @@
    canvas.setAttribute('aria-label',data.available&&data.cells.length?`Abyss PvP heat map: ${plural(data.cells.length,'square','squares')} with PvP over ${HEAT_WINDOWS[data.window_seconds]||'the window shown'}, the busiest with ${plural(max,'hit','hits')}. The table below lists them.`:'The ground recordings have covered in the Abyss, with no PvP squares to show.');
   }
   function describe(){
-   const when=new Date((data.generated_at||Date.now()/1000)*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+   const when=whenAt((data.generated_at||Date.now()/1000)*1000);
    if(data.available){
     status.textContent=`${HEAT_WINDOWS[data.window_seconds]?HEAT_WINDOWS[data.window_seconds].replace(/^the l/,'L'):'Recent fights'}: ${plural(data.fights,'fight','fights')} from ${plural(data.uploaders,'uploader','uploaders')}, ${plural(data.hits,'PvP hit','PvP hits')} and ${plural(data.kills,'kill','kills')} in ${plural(data.cells.length,'square','squares')}${data.hidden_cells?` (${plural(data.hidden_cells,'square','squares')} only one uploader recorded ${data.hidden_cells===1?'is':'are'} left out)`:''}. Updated ${when}.`;
    }else{
