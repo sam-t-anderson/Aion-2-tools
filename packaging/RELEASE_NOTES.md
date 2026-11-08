@@ -1,3 +1,13 @@
+## The movement replay in real seconds, deaths and revives, summons on their owner's side, boss clones, dashes and wedges (0.2.393)
+
+**Movement replay.** Play now runs the fight in real seconds, with a **Speed** choice from 0.25× to 8× that is remembered. A token unseen for 20 seconds leaves the replay (a player or a boss after a minute), so an expired summon or a dead add no longer stays faded to the end. A player's death shows a ✕ where they fell and a greyed token until revived; both are listed beside the arena and ticked on the slider.
+
+**Summons follow their owner.** A party Spiritmaster's spirits are pets in their owner's colour, never enemies that *appeared*, and their strikes the meter records on their own Spiritmaster are no longer damage taken. An enemy player's summons in PvP stay enemies, and a summon nothing places on either side belongs to neither.
+
+**Boss adds and clones.** An enemy that is no one's summon and strikes the party during a boss fight is the boss's add or clone, drawn in the boss's red and named *Clone* when the game gives it no name. Where it struck a player, such as Ferocious Horn Nuakum's leaping clone, which sends no position, is ringed and listed.
+
+**Dashes, trails and wedges.** With log server 0.2.172 the replay also draws the newly measured boss areas: a dash along the boss's path, a trail that lingers behind it, and wedges with the safe gaps between them left open. **Open in Raid Planner** takes them too, and older catalogs draw as before.
+
 ## Top parses gets its own tab, sorted, filtered and paged (0.2.392)
 
 **Top parses gets its own tab, sorted, filtered and paged.** Your top parses moved out of My logs into a tab of their own, beside it on the account page and in the menu under your name, with a link of its own. Click a column's header to sort by it and again to reverse it. The Boss, Difficulty, Class and Character menus narrow the list, each showing how many parses a choice has, and Reset clears them. Previous and Next go through the pages, 25, 50 or 100 a page, a choice this browser remembers. Log server 0.2.171 does the sorting and filtering; against 0.2.170 the tab does it itself on the whole list.
