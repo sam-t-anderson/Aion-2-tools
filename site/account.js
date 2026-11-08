@@ -372,7 +372,7 @@ window.A2Session = (function () {
     if (!root) return;
     const [tab, legion] = location.hash.slice(1).split("/");
     view = window.A2Account.mount(root, io, {
-      tab: invite ? "legions" : opened || (["logs", "legions", "security"].includes(tab) ? tab : "logs"),
+      tab: invite ? "legions" : opened || (["logs", "parses", "legions", "security"].includes(tab) ? tab : "logs"),
       legion: /^lg_[0-9a-f]{12}$/.test(legion || "") ? legion : null,
       invite,
     });

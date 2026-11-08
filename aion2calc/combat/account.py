@@ -39,7 +39,9 @@ _ALLOWED = {
                        r"|legions/lg_[0-9a-f]{12}/(invites|invites/revoke|request|request/withdraw|requests/decide"
                        r"|role|remove|leave|disband))"),
 }
-_QUERY = re.compile(r"[A-Za-z0-9_=&%.+-]{0,300}")
+#: a query string as the pages encode it (URLSearchParams); Top parses' filters (0.2.392) carry names, which can be
+#: long once percent-encoded (a Korean name is nine characters a letter)
+_QUERY = re.compile(r"[A-Za-z0-9_=&%.+-]{0,600}")
 #: where Discord's sign-in returns: this app's own page on this computer (app/server.py serves it)
 DISCORD_BACK = re.compile(r"http://127\.0\.0\.1:[0-9]{1,5}/api/account/discord-done")
 _HANDOFF = re.compile(r"[A-Za-z0-9_-]{20,100}")

@@ -842,5 +842,12 @@
  "No parse yet: no other ranked run of this class on this encounter": "Pas encore de parse : aucun autre passage classé de cette classe sur ce combat",
  "Best of {0} ranked run": "Meilleur de {0} passage classé",
  "Best of {0} ranked runs": "Meilleur de {0} passages classés",
- "The best {0} by DPS are shown.": "Les {0} meilleurs par DPS sont affichés."
+ "The best {0} by DPS are shown.": "Les {0} meilleurs par DPS sont affichés.",
+ "All bosses": "Tous les boss",
+ "All difficulties": "Toutes les difficultés",
+ "All characters": "Tous les personnages",
+ "Per page": "Par page",
+ "No parses match.": "Aucun parse ne correspond.",
+ "{0} parse": "{0} parse",
+ "{0} parses": "{0} parses"
 }

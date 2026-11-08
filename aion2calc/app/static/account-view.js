@@ -1,4 +1,4 @@
-/* The optional account, for the desktop app and the website: My logs (with the account's top parses, 0.2.391),
+/* The optional account, for the desktop app and the website: My logs, Top parses (its own tab since 0.2.392),
    Legions, and Sign-in & security.
    The page hands in `io`: how to reach the server (the app asks its own local server, which keeps the
    credential; the website sends its session), what to show when signed out, and what only it can do.
@@ -79,6 +79,17 @@
     el.querySelectorAll("[data-page]").forEach((b) => (b.onclick = () => ((f.page = +b.dataset.page), show())));
   };
   const fresh = (id) => ({ id, page: 1, boss: "", since: "", until: "" });
+  // Top parses' page (0.2.392): its order, filters and page for the visit; the page size is kept in this browser.
+  const PARSES_PER_PAGE = "aion2.account.parsesPerPage";
+  const parsesPerPage = () => {
+    try {
+      const n = Number(localStorage.getItem(PARSES_PER_PAGE));
+      return [25, 50, 100].includes(n) ? n : 25;
+    } catch (e) {
+      return 25;
+    }
+  };
+  const freshParses = () => ({ page: 1, limit: parsesPerPage(), sort: "parse", order: "desc", boss: "", difficulty: "", cls: "", character: "" });
 
   // The menu in the header: "Sign in", or the account's name with what an account offers under it.
   function menu(el, io) {
@@ -97,6 +108,7 @@
       el.innerHTML = `<div class="acct-menu"><button class="btn small" type="button" aria-haspopup="true" aria-expanded="${open}">${esc(name)} ▾</button>
         <div class="acct-drop" role="menu" ${open ? "" : "hidden"}>
           <a role="menuitem" href="${esc(io.href("logs"))}">${esc(tr("My logs"))}</a>
+          <a role="menuitem" href="${esc(io.href("parses"))}">${esc(tr("Top parses"))}</a>
           <a role="menuitem" href="${esc(io.href("legions"))}">${esc(tr("Legions"))}</a>
           <a role="menuitem" href="${esc(io.href("security"))}">${esc(tr("Sign-in & security"))}</a>
           ${(io.menuItems || []).map(([id, label]) => `<button type="button" role="menuitem" data-acct-item="${esc(id)}">${esc(label)}</button>`).join("")}
@@ -137,7 +149,7 @@
   }
 
   function mount(root, io, opts = {}) {
-    const st = { tab: opts.tab || "logs", mine: fresh(null), shared: fresh(null), legion: opts.legion || null, invite: opts.invite || null, me: null, flash: "", top: null };
+    const st = { tab: opts.tab || "logs", mine: fresh(null), shared: fresh(null), legion: opts.legion || null, invite: opts.invite || null, me: null, flash: "", parses: freshParses(), parsesAll: null };
     const call = (method, path, body) => io.call(method, path, body);
     const flash = (text) => {
       st.flash = text;
@@ -157,7 +169,7 @@
         return;
       }
       st.me = s.account || {};
-      const tabs = [["logs", tr("My logs")], ["legions", tr("Legions")], ["security", tr("Sign-in & security")]];
+      const tabs = [["logs", tr("My logs")], ["parses", tr("Top parses")], ["legions", tr("Legions")], ["security", tr("Sign-in & security")]];
       root.innerHTML = `<div class="acct-page"><div class="row acct-title"><h2 translate="no">${esc(st.me.name)}</h2>
           <span class="small muted">${esc(many(st.me.logs ?? 0, "{0} log", "{0} logs") + " · " + many((st.me.characters || []).length, "{0} character", "{0} characters"))}</span></div>
         <div class="tabs" role="tablist">${tabs.map(([id, label]) => `<button role="tab" data-acct-tab="${id}" class="${id === st.tab ? "on" : ""}" aria-selected="${id === st.tab}">${esc(label)}</button>`).join("")}</div>
@@ -174,7 +186,7 @@
       );
       const body = root.querySelector("[data-acct-body]");
       try {
-        await { logs: renderLogs, legions: renderLegions, security: renderSecurity }[st.tab](body);
+        await { logs: renderLogs, parses: renderParses, legions: renderLegions, security: renderSecurity }[st.tab](body);
       } catch (e) {
         if (e && e.signedOut) return render();
         body.innerHTML = box(plain(e.message));
@@ -182,7 +194,7 @@
     }
 
     async function act(work, done) {
-      st.top = null; // a log changed: its parses are asked for again
+      st.parsesAll = null; // a log changed: an older server's whole list of parses is asked for again
       try {
         const result = await work();
         if (done) flash(typeof done === "function" ? done(result) : done);
@@ -195,9 +207,8 @@
     // ------------------------------------------------------------ my logs
     async function renderLogs(el) {
       const f = st.mine;
-      const top = topParses(); // asked for first, so the top parses load alongside the list
       const r = await call("GET", "/api/v1/account/logs?" + listQuery(f));
-      el.innerHTML = `<section class="acct-top" data-top-parses aria-live="polite"></section><div class="row">${filterRow(f, tr("your logs"))}${io.logTools ? io.logTools() : ""}<span class="small muted">${esc(many(r.total || 0, "{0} log", "{0} logs"))}</span></div>
+      el.innerHTML = `<div class="row">${filterRow(f, tr("your logs"))}${io.logTools ? io.logTools() : ""}<span class="small muted">${esc(many(r.total || 0, "{0} log", "{0} logs"))}</span></div>
         ${r.logs.length ? `<table class="t acct-logs"><thead><tr><th>${esc(tr("Description"))}</th><th>${esc(tr("Character"))}</th><th>${esc(tr("Uploaded"))}</th><th class="r">${esc(tr("Duration"))}</th><th>${esc(tr("Visibility"))}</th><th>${esc(tr("Edit"))}</th><th>${esc(tr("Delete"))}</th></tr></thead><tbody>
         ${r.logs.map((l, i) => `<tr><td><a href="${esc(io.logHref(l))}"${io.logTarget || ""}>${esc(l.title || l.boss || l.id)}</a>${l.held ? ` <span class="chip">${esc(tr("under review"))}</span>` : ""}<div class="small muted" translate="no">${esc(l.boss || "")}</div></td>
           <td translate="no">${esc(l.uploader || "—")}</td><td>${when(l.created_at)}</td><td class="r">${length(l.duration)}</td>
@@ -231,15 +242,13 @@
           }),
       );
       if (io.afterLogs) io.afterLogs(el, render);
-      renderTopParses(el.querySelector("[data-top-parses]"), top).catch((e) => {
-        if (e && e.signedOut) render();
-      });
     }
 
-    // ------------------------------------------------------------ top parses (0.2.391)
+    // ------------------------------------------------------------ top parses (0.2.391; its own tab since 0.2.392)
     // The account's best run on each boss and difficulty for each of its characters (log server 0.2.170), with the
     // parse the rankings give it: WCL-style colours, gold for the bracket's best run, provisional under five runs.
-    // Asked for once (st.top holds the request) and again after a change to the account's logs (act).
+    // Log server 0.2.171 pages, sorts and filters them and offers the filter menus (facets); log server 0.2.170
+    // sends the whole list whatever is asked, so the tab does the same with it here (locally).
     const parseTier = (p, rank) =>
       rank === 1 || p >= 100 ? "gold" : p >= 99 ? "pink" : p >= 95 ? "orange" : p >= 75 ? "purple" : p >= 50 ? "blue" : p >= 25 ? "green" : "grey";
     const parseCell = (p) => {
@@ -251,42 +260,207 @@
       return `<span class="parse q-${parseTier(p.parse, p.parse_rank)}${p.provisional ? " provisional" : ""}" title="${esc(title)}">${Math.round(p.parse)}</span>`;
     };
     const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : "—");
-    const topParses = () =>
-      st.top ||
-      (st.top = call("GET", "/api/v1/account/top-parses").catch((e) => {
-        if (e && e.signedOut) {
-          st.top = null;
-          throw e;
-        }
-        return { error: e };
-      }));
-    async function renderTopParses(el, pending) {
-      if (!el) return;
-      const head = `<h3>${esc(tr("Top parses"))}</h3>`;
-      el.innerHTML = head + `<p class="small muted">${esc(tr("Loading your top parses…"))}</p>`;
-      const found = await pending;
+    // Each column's sort and its first direction, as the server has them.
+    const SORTS = { parse: "desc", dps: "desc", date: "desc", boss: "asc", difficulty: "asc", character: "asc", class: "asc" };
+    const low = (v) => String(v ?? "").toLowerCase();
+    const order = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+    // The character menu's value: the name and the server together.
+    const pick = (name, server) => `${name}|${server}`;
+    const unpick = (value) => {
+      const at = String(value).lastIndexOf("|");
+      return at < 0 ? [String(value), ""] : [value.slice(0, at), value.slice(at + 1)];
+    };
+
+    // Log server 0.2.171's page, made here from 0.2.170's whole list: the menus, the filters, the order and the page.
+    function locally(all, p) {
+      const tally = (key) => {
+        const seen = new Map();
+        for (const r of all) seen.set(key(r), (seen.get(key(r)) || 0) + 1);
+        return [...seen].sort((a, b) => order(low(a[0]), low(b[0])) || order(a[0], b[0]));
+      };
+      const facets = {
+        bosses: tally((r) => r.boss).map(([value, count]) => ({ value, count })),
+        difficulties: tally((r) => r.difficulty).map(([value, count]) => ({ value, count })),
+        classes: tally((r) => r.class).map(([value, count]) => ({ value, count })),
+        characters: tally((r) => pick(r.character, r.server)).map(([value, count]) => {
+          const [character, server] = unpick(value);
+          return { character, server, count };
+        }),
+      };
+      const [name, server] = unpick(p.character);
+      const kept = all.filter(
+        (r) =>
+          (!p.boss || low(r.boss) === low(p.boss)) &&
+          (!p.difficulty || low(r.difficulty) === low(p.difficulty)) &&
+          (!p.cls || low(r.class) === low(p.cls)) &&
+          (!p.character || (low(r.character) === low(name) && String(r.server) === server)),
+      );
+      // ties by DPS (highest first), then boss, difficulty and character; a run with no parse yet last by parse
+      const base = kept
+        .slice()
+        .sort((a, b) => order(low(a.boss), low(b.boss)) || order(low(a.difficulty), low(b.difficulty)) || order(low(a.character), low(b.character)))
+        .sort((a, b) => (b.dps || 0) - (a.dps || 0));
+      const dir = p.order === "asc" ? 1 : -1;
+      let rows;
+      if (p.sort === "parse") {
+        const none = (r) => r.parse === null || r.parse === undefined;
+        rows = base
+          .filter((r) => !none(r))
+          .sort((a, b) => dir * (a.parse - b.parse))
+          .concat(base.filter(none));
+      } else {
+        const key = {
+          dps: (r) => [r.dps || 0],
+          date: (r) => [r.uploaded_at || 0],
+          boss: (r) => [low(r.boss), low(r.difficulty)],
+          difficulty: (r) => [low(r.difficulty), low(r.boss)],
+          character: (r) => [low(r.character), String(r.server)],
+          class: (r) => [low(r.class)],
+        }[p.sort];
+        rows = base.slice().sort((a, b) => {
+          const x = key(a),
+            y = key(b);
+          return dir * (x.map((v, i) => order(v, y[i])).find((c) => c) || 0);
+        });
+      }
+      const pages = Math.max(1, Math.ceil(rows.length / p.limit)),
+        page = Math.min(p.page, pages);
+      return { parses: rows.slice((page - 1) * p.limit, page * p.limit), total: rows.length, page, limit: p.limit, pages, all: all.length, facets };
+    }
+
+    async function fetchParses(p) {
+      if (st.parsesAll) return locally(st.parsesAll.parses, p);
+      const q = new URLSearchParams({ page: String(p.page), limit: String(p.limit), sort: p.sort, order: p.order });
+      if (p.boss) q.set("boss", p.boss);
+      if (p.difficulty) q.set("difficulty", p.difficulty);
+      if (p.cls) q.set("class", p.cls);
+      if (p.character) {
+        const [name, server] = unpick(p.character);
+        q.set("character", name);
+        if (server) q.set("server", server);
+      }
+      const r = await call("GET", "/api/v1/account/top-parses?" + q);
+      if (r.page === undefined || !r.facets) {
+        // log server 0.2.170: the whole list (its best 500 by DPS), paged, sorted and filtered here
+        st.parsesAll = { parses: r.parses || [], truncated: Boolean(r.truncated) };
+        return locally(st.parsesAll.parses, p);
+      }
+      return r;
+    }
+
+    async function renderParses(el, focus) {
+      const p = st.parses;
+      if (!el.children.length) el.innerHTML = `<p class="small muted">${esc(tr("Loading your top parses…"))}</p>`;
+      el.setAttribute("aria-busy", "true");
+      let r;
+      try {
+        r = await fetchParses(p);
+      } catch (e) {
+        if (e && e.signedOut) throw e;
+        const missing = /not found|404|does not send that request/i.test(String((e && e.message) || ""));
+        el.innerHTML = `<p class="small muted">${esc(missing ? tr("The community server doesn't list top parses yet.") : plain(e.message))}</p>`;
+        return;
+      } finally {
+        el.removeAttribute("aria-busy");
+      }
       if (!el.isConnected) return;
-      if (found.error) {
-        const missing = /not found|404|does not send that request/i.test(String((found.error && found.error.message) || ""));
-        el.innerHTML = head + `<p class="small muted">${esc(missing ? tr("The community server doesn't list top parses yet.") : plain(found.error.message))}</p>`;
+      p.page = r.page;
+      const again = (selector) =>
+        renderParses(el, selector).catch((e) => {
+          if (e && e.signedOut) return render();
+          el.innerHTML = box(plain(e.message));
+        });
+      const note = `<p class="small muted">${esc(tr("Your best DPS on each boss and difficulty for each of your characters, from the logs in this account (any visibility), in ranking-eligible PvE fights. The parse compares it with every ranked public run of the same boss, game version and difficulty by the same class: 100 is above them all."))}</p>`;
+      if (!(r.all ?? r.total)) {
+        el.innerHTML = `<p class="small acct-top-empty">${esc(tr("No ranked boss fights in your logs yet. Your best run on each boss shows here, with its parse against every public run of your class."))}</p>${note}`;
         return;
       }
-      const rows = found.parses || [];
-      el.innerHTML =
-        head +
-        (rows.length
-          ? `<table class="t acct-parses"><thead><tr><th>${esc(tr("Boss"))}</th><th>${esc(tr("Difficulty"))}</th><th>${esc(tr("Character"))}</th><th>${esc(tr("Class"))}</th><th class="r">${esc(tr("DPS"))}</th><th class="r">${esc(tr("Parse"))}</th><th>${esc(tr("Date"))}</th><th>${esc(tr("Log"))}</th></tr></thead><tbody>
-          ${rows
+      const f = r.facets || {};
+      const filtered = Boolean(p.boss || p.difficulty || p.cls || p.character);
+      const menu = (key, label, everything, items) =>
+        `<label>${esc(label)} <select data-pf="${key}"><option value="">${esc(everything)}</option>${items
+          .map(([value, shown, count]) => `<option value="${esc(value)}" ${value === p[key] ? "selected" : ""}>${esc(shown)} (${count})</option>`)
+          .join("")}</select></label>`;
+      const COLUMNS = [
+        ["boss", tr("Boss")],
+        ["difficulty", tr("Difficulty")],
+        ["character", tr("Character")],
+        ["class", tr("Class")],
+        ["dps", tr("DPS"), "r"],
+        ["parse", tr("Parse"), "r"],
+        ["date", tr("Date")],
+      ];
+      const heads = COLUMNS.map(([key, label, align]) => {
+        const on = p.sort === key;
+        return `<th class="${align || ""}" aria-sort="${on ? (p.order === "asc" ? "ascending" : "descending") : "none"}"><button type="button" class="sort${on ? " on" : ""}" data-sort="${key}">${esc(label)}<span class="arrow" aria-hidden="true">${on ? (p.order === "asc" ? "▲" : "▼") : ""}</span></button></th>`;
+      }).join("");
+      el.innerHTML = `<div class="row acct-parse-filters">
+          ${menu("boss", tr("Boss"), tr("All bosses"), (f.bosses || []).map((x) => [x.value, x.value, x.count]))}
+          ${menu("difficulty", tr("Difficulty"), tr("All difficulties"), (f.difficulties || []).map((x) => [x.value, cap(x.value), x.count]))}
+          ${menu("cls", tr("Class"), tr("All classes"), (f.classes || []).map((x) => [x.value, cap(x.value), x.count]))}
+          ${menu("character", tr("Character"), tr("All characters"), (f.characters || []).map((x) => [pick(x.character, x.server), `${x.character} (${world(x.server)})`, x.count]))}
+          <button class="btn small" data-pf-reset ${filtered ? "" : "disabled"}>${esc(tr("Reset"))}</button></div>
+        ${
+          r.parses.length
+            ? `<table class="t acct-parses"><thead><tr>${heads}<th>${esc(tr("Log"))}</th></tr></thead><tbody>
+          ${r.parses
             .map(
-              (p) => `<tr><td translate="no">${esc(p.boss || "—")}</td><td>${esc(cap(p.difficulty))}</td>
-            <td><span translate="no">${esc(p.character || "—")}</span> <span class="small muted" translate="no">${esc(world(p.server))}</span></td>
-            <td>${esc(cap(p.class))}</td><td class="r" title="${esc(many(p.attempts || 1, "Best of {0} ranked run", "Best of {0} ranked runs"))}">${Math.round(+p.dps || 0).toLocaleString("en-US")}</td>
-            <td class="r">${parseCell(p)}</td><td>${when(p.uploaded_at)}</td>
-            <td><a href="${esc(io.logHref({ id: p.log, url: p.url, segment: p.segment }))}"${io.logTarget || ""}>${esc(tr("Open"))}</a></td></tr>`,
+              (x) => `<tr><td translate="no">${esc(x.boss || "—")}</td><td>${esc(cap(x.difficulty))}</td>
+            <td><span translate="no">${esc(x.character || "—")}</span> <span class="small muted" translate="no">${esc(world(x.server))}</span></td>
+            <td>${esc(cap(x.class))}</td><td class="r" title="${esc(many(x.attempts || 1, "Best of {0} ranked run", "Best of {0} ranked runs"))}">${Math.round(+x.dps || 0).toLocaleString("en-US")}</td>
+            <td class="r">${parseCell(x)}</td><td>${when(x.uploaded_at)}</td>
+            <td><a href="${esc(io.logHref({ id: x.log, url: x.url, segment: x.segment }))}"${io.logTarget || ""}>${esc(tr("Open"))}</a></td></tr>`,
             )
-            .join("")}</tbody></table>${found.truncated ? `<p class="small muted">${esc(tr("The best {0} by DPS are shown.", rows.length))}</p>` : ""}`
-          : `<p class="small acct-top-empty">${esc(tr("No ranked boss fights in your logs yet. Your best run on each boss shows here, with its parse against every public run of your class."))}</p>`) +
-        `<p class="small muted">${esc(tr("Your best DPS on each boss and difficulty for each of your characters, from the logs in this account (any visibility), in ranking-eligible PvE fights. The parse compares it with every ranked public run of the same boss, game version and difficulty by the same class: 100 is above them all."))}</p>`;
+            .join("")}</tbody></table>`
+            : `<p class="small acct-top-empty">${esc(tr("No parses match."))}</p>`
+        }
+        <div class="row acct-pager"><button class="btn small" data-pp="prev" ${r.page > 1 ? "" : "disabled"}>${esc(tr("Previous"))}</button>
+          <span class="small muted" data-pp-status>${esc(tr("Page {0} of {1}", r.page, r.pages) + " · " + many(r.total, "{0} parse", "{0} parses"))}</span>
+          <button class="btn small" data-pp="next" ${r.page < r.pages ? "" : "disabled"}>${esc(tr("Next"))}</button>
+          <label>${esc(tr("Per page"))} <select data-pl>${[25, 50, 100].map((n) => `<option value="${n}" ${n === p.limit ? "selected" : ""}>${n}</option>`).join("")}</select></label></div>
+        ${st.parsesAll && st.parsesAll.truncated ? `<p class="small muted">${esc(tr("The best {0} by DPS are shown.", st.parsesAll.parses.length))}</p>` : ""}${note}`;
+      el.querySelectorAll("[data-pf]").forEach(
+        (sel) =>
+          (sel.onchange = () => {
+            p[sel.dataset.pf] = sel.value;
+            p.page = 1;
+            again(`[data-pf="${sel.dataset.pf}"]`);
+          }),
+      );
+      el.querySelector("[data-pf-reset]").onclick = () => {
+        Object.assign(p, { boss: "", difficulty: "", cls: "", character: "", page: 1 });
+        again("[data-pf=boss]");
+      };
+      el.querySelectorAll("[data-sort]").forEach(
+        (b) =>
+          (b.onclick = () => {
+            const key = b.dataset.sort;
+            if (p.sort === key) p.order = p.order === "asc" ? "desc" : "asc";
+            else Object.assign(p, { sort: key, order: SORTS[key] });
+            p.page = 1;
+            again(`[data-sort="${key}"]`);
+          }),
+      );
+      el.querySelectorAll("[data-pp]").forEach(
+        (b) =>
+          (b.onclick = () => {
+            p.page += b.dataset.pp === "next" ? 1 : -1;
+            again(`[data-pp="${b.dataset.pp}"]`);
+          }),
+      );
+      el.querySelector("[data-pl]").onchange = (ev) => {
+        p.limit = Number(ev.target.value);
+        p.page = 1;
+        try {
+          localStorage.setItem(PARSES_PER_PAGE, String(p.limit));
+        } catch (e) {
+          // storage blocked: the default next visit
+        }
+        again("[data-pl]");
+      };
+      // a control redrawn under the reader keeps the focus (a disabled one leaves it to the table)
+      const target = focus && el.querySelector(focus);
+      if (target && !target.disabled) target.focus();
     }
 
     // ------------------------------------------------------------ legions

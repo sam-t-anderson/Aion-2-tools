@@ -842,5 +842,12 @@
  "No parse yet: no other ranked run of this class on this encounter": "Ainda sem parse: nenhuma outra tentativa ranqueada desta classe neste combate",
  "Best of {0} ranked run": "Melhor de {0} tentativa ranqueada",
  "Best of {0} ranked runs": "Melhor de {0} tentativas ranqueadas",
- "The best {0} by DPS are shown.": "São mostrados os {0} melhores por DPS."
+ "The best {0} by DPS are shown.": "São mostrados os {0} melhores por DPS.",
+ "All bosses": "Todos os chefes",
+ "All difficulties": "Todas as dificuldades",
+ "All characters": "Todos os personagens",
+ "Per page": "Por página",
+ "No parses match.": "Nenhum parse corresponde.",
+ "{0} parse": "{0} parse",
+ "{0} parses": "{0} parses"
 }

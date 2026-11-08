@@ -1,4 +1,4 @@
-/* Account (#/account/logs|legions|security): the optional sign-in, and with it My logs, Legions and
+/* Account (#/account/logs|parses|legions|security): the optional sign-in, and with it My logs, Legions and
    Sign-in & security (account-view.js), plus the account menu in the header. The app keeps the
    credential (combat/account.py): this page asks the app, which talks to the server. */
 "use strict";
@@ -184,7 +184,7 @@ const accountIO = {
 
 async function pageAccount() {
   const parts = location.hash.replace(/^#\//, "").split("?")[0].split("/");
-  const tab = ["logs", "legions", "security"].includes(parts[1]) ? parts[1] : "logs";
+  const tab = ["logs", "parses", "legions", "security"].includes(parts[1]) ? parts[1] : "logs";
   const legion = tab === "legions" && /^lg_[0-9a-f]{12}$/.test(parts[2] || "") ? parts[2] : null;
   app().innerHTML = '<div id="account-root"></div>';
   accountView = A2Account.mount($("#account-root"), accountIO, { tab, legion });

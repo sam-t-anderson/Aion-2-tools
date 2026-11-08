@@ -68,6 +68,68 @@ def _heat(q):
                 "windows": [{**w, "uploaders": min(w["uploaders"], 1), "fights": min(w["fights"], 2)} for w in HEAT["windows"]]}
     return {**HEAT, "cell_size": cell, "matchup": listed.get(matchup)}
 
+
+# An account's top parses (log server 0.2.170; paged, sorted and filtered since 0.2.171), for the Account page's Top
+# parses tab: the best runs of two characters (a Zikel sorcerer and a Nezekan cleric) on five bosses at three
+# difficulties, 30 rows; every seventh has no parse yet.
+_TOP_BOSSES = ("Gatekeeper Testlord", "Watcher Testling", "Testboss Alpha", "Testboss Beta", "Testboss Gamma")
+
+
+def _top_parse(i, character, server, cls, boss, difficulty):
+    parse = None if i % 7 == 3 else round((i * 37) % 100 + 0.4, 1)
+    return {"character": character, "server": server, "class": cls, "boss": boss, "boss_key": f"npc:{2390001 + _TOP_BOSSES.index(boss)}",
+            "encounter_type": "expedition", "game_patch": "version:product:2.0.10.0", "difficulty": difficulty,
+            "dps": 10000.0 + i * 137, "parse": parse, "parse_rank": None if parse is None else 1 + (100 - int(parse)) // 10,
+            "parse_runs": 1 if parse is None else 40, "provisional": False, "attempts": 1 + i % 3, "log": f"top{i:02d}",
+            "segment": i % 4, "duration": 120.0, "uploaded_at": NOW - i * 3600, "visibility": "public",
+            "url": f"http://logs.test/l/top{i:02d}"}
+
+
+TOP_PARSES = [_top_parse(i, *who, boss, difficulty) for i, (who, boss, difficulty) in enumerate(
+    (who, boss, difficulty) for who in (("Seren", "2102", "sorcerer"), ("Alt", "1102", "cleric"))
+    for boss in _TOP_BOSSES for difficulty in ("normal", "hard", "transcendence"))]
+
+
+def top_parses(query=None, rows=None):
+    """``GET /api/v1/account/top-parses`` as log server 0.2.171 answers it: a page of ``rows`` (TOP_PARSES) in the order
+    asked for, with the filters and the menus (facets) among all of them; without parameters, 0.2.170's whole list."""
+    rows = TOP_PARSES if rows is None else rows
+    query = query or {}
+    if not query:
+        return {"parses": rows, "total": len(rows), "truncated": False, "characters": 2, "note": ""}
+    low = lambda v: str(v or "").lower()                                   # noqa: E731
+    kept = [r for r in rows if (not query.get("boss") or low(r["boss"]) == low(query["boss"]))
+            and (not query.get("difficulty") or low(r["difficulty"]) == low(query["difficulty"]))
+            and (not query.get("class") or low(r["class"]) == low(query["class"]))
+            and (not query.get("character") or low(r["character"]) == low(query["character"]))
+            and (not query.get("server") or r["server"] == query["server"])]
+    sort = query.get("sort") or "parse"
+    order = query.get("order") or ("desc" if sort in ("parse", "dps", "date") else "asc")
+    kept = sorted(sorted(kept, key=lambda r: (low(r["boss"]), low(r["difficulty"]), low(r["character"]))), key=lambda r: -r["dps"])
+    if sort == "parse":
+        parsed = sorted((r for r in kept if r["parse"] is not None), key=lambda r: r["parse"], reverse=order == "desc")
+        kept = parsed + [r for r in kept if r["parse"] is None]
+    else:
+        key = {"dps": lambda r: r["dps"], "date": lambda r: r["uploaded_at"], "boss": lambda r: (low(r["boss"]), low(r["difficulty"])),
+               "difficulty": lambda r: (low(r["difficulty"]), low(r["boss"])), "character": lambda r: (low(r["character"]), r["server"]),
+               "class": lambda r: low(r["class"])}[sort]
+        kept = sorted(kept, key=key, reverse=order == "desc")
+    limit = int(query.get("limit") or 25)
+    pages = max(1, -(-len(kept) // limit))
+    page = min(int(query.get("page") or 1), pages)
+
+    def tally(key):
+        counts = {}
+        for r in rows:
+            counts[key(r)] = counts.get(key(r), 0) + 1
+        return sorted(counts.items(), key=lambda kv: (low(kv[0][0] if isinstance(kv[0], tuple) else kv[0]), kv[0]))
+    facets = {"bosses": [{"value": v, "count": n} for v, n in tally(lambda r: r["boss"])],
+              "difficulties": [{"value": v, "count": n} for v, n in tally(lambda r: r["difficulty"])],
+              "classes": [{"value": v, "count": n} for v, n in tally(lambda r: r["class"])],
+              "characters": [{"character": c, "server": sv, "count": n} for (c, sv), n in tally(lambda r: (r["character"], r["server"]))]}
+    return {"parses": kept[(page - 1) * limit:page * limit], "total": len(kept), "page": page, "limit": limit, "pages": pages,
+            "sort": sort, "order": order, "facets": facets, "all": len(rows), "truncated": False, "characters": 2, "note": ""}
+
 # A featured encounter (log server 0.2.145): two phases, a legion that cleared it and a party still on the mini boss.
 FEATURED_ID = "fe_0123456789"
 ROLES = {"gladiator": "tank", "templar": "tank", "cleric": "support", "chanter": "support", "assassin": "dps", "ranger": "dps",

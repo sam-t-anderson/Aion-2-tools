@@ -842,5 +842,12 @@
  "No parse yet: no other ranked run of this class on this encounter": "パースはまだありません：この戦闘でこのクラスの他のランキング対象記録がありません",
  "Best of {0} ranked run": "ランキング対象 {0} 件中の最高",
  "Best of {0} ranked runs": "ランキング対象 {0} 件中の最高",
- "The best {0} by DPS are shown.": "DPS上位 {0} 件を表示しています。"
+ "The best {0} by DPS are shown.": "DPS上位 {0} 件を表示しています。",
+ "All bosses": "すべてのボス",
+ "All difficulties": "すべての難易度",
+ "All characters": "すべてのキャラクター",
+ "Per page": "1ページの件数",
+ "No parses match.": "一致するパースはありません。",
+ "{0} parse": "{0} 件のパース",
+ "{0} parses": "{0} 件のパース"
 }
