@@ -331,7 +331,9 @@ def write_markdown(adv: dict, out: Path) -> Path:
                  + ", ".join(f"{k} +{v}" for k, v in a["ideal"]["skills"].items()) + f" ({_pct(a['ideal']['gain'])}) | "
                  + f"{_pct(a['expected'].get('unique_5'))} |")
         for o in a["owned"]:
-            L.append(f"|  | owned: {o['name']} +{o['enchant']} | {', '.join(f'{k} +{v}' for k, v in o['skills'].items())} | "
+            deity = o.get("deity")       # the card's own deity stat (0.2.389)
+            stat = f" ({deity['label']} +{deity['points']:g})" if deity else ""
+            L.append(f"|  | owned: {o['name']} +{o['enchant']}{stat} | {', '.join(f'{k} +{v}' for k, v in o['skills'].items())} | "
                      f"{_pct(o['gain'])} | {o['verdict']} |")
     L += ["", "## Pantheon", "", "| Deity stat | DPS per 10 points | You have |", "|---|---:|---:|"]
     for r in adv["pantheon"]["per_point"]:

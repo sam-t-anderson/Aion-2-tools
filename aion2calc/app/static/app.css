@@ -417,6 +417,9 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 16px; backgrou
 .acard .sk .icon { flex: none; } .acard .sk .small { min-width: 0; font-size: 16px; line-height: 1.2; overflow-wrap: anywhere; }
 .acard .vals { display: flex; gap: 10px; font-size: 16px; color: var(--muted); margin-top: 4px; } .acard .vals b { color: var(--gain); }
 .owned { display: grid; grid-template-columns: 24px 1fr auto auto; gap: 5px; align-items: center; width: 100%; text-align: left; padding: 3px 0; border-top: 1px dashed var(--line); }
+/* what a card you have holds, under its keep / replace row (0.2.389): its deity stat, then its options as the targets' rows */
+.acard .mine { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 100%; padding: 2px 0 6px; }
+.acard .mine .opts { align-self: stretch; }
 .dtiles { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px; }
 .dtile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px; text-align: center; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; }
 .dtile.best { border-color: var(--frame-hi); box-shadow: 0 0 12px rgba(233,203,128,.25); } .dtile.dim { opacity: .55; }

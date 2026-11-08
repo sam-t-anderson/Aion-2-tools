@@ -154,6 +154,20 @@ def test_the_advice_markdown_and_json_are_written_together(advised, tmp_path):
         assert heading in text
 
 
+def test_each_arcana_card_you_have_shows_what_it_holds(advised, tmp_path):
+    """An arcana card you have was listed by its name, level and keep / replace; it now carries its deity stat, its
+    skill options at their levels (with their icons' skill ids) and how many of its option levels they fill
+    (0.2.389), which the page, the copied text and the markdown show."""
+    from aion2calc.plan.advisor import write_markdown
+    card = advised["advice"]["arcana"]["slots"]["Arcana Parchment"]["owned"][0]
+    assert card["name"] == "Parchment of Magic" and card["equipped"] is True
+    assert card["deity"] == {"label": "Destiny [Marchutan]", "points": 20.0, "source": "card"}
+    assert card["skills"] == {"Flame Arrow": 1} and card["skill_ids"] == {"Flame Arrow": FLAME_ARROW}
+    assert card["options"] == {"used": 1, "of": 4} and card["stats"] == []          # a Unique +0 holds four
+    text = write_markdown(advised["advice"], tmp_path).read_text(encoding="utf-8")
+    assert "|  | owned: Parchment of Magic +0 (Destiny [Marchutan] +20) | Flame Arrow +1 |" in text
+
+
 def test_advice_without_fights_or_calibration_says_so(advised, tmp_path):
     from aion2calc.plan.advisor import fight_summary, write_markdown
     advice = {**advised["advice"], "calibrated": False, "fights": fight_summary([]),

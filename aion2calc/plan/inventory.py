@@ -261,6 +261,7 @@ def from_character(imp, keep: dict | None = None) -> dict:
             "item_level": (it or {}).get("item_level"), "enchant": row.get("enchant") or 0,
             "icon": row.get("icon") or (it or {}).get("icon"),
             "stats": row.get("stats") or {}, "deity": row.get("deity") or {},
+            "main_stats": row.get("main_stats") or [],
             "skills": [list(x) for x in row.get("skills") or []],
             "rolls_text": row.get("rolls"), "manastones": row.get("manastones")})
     return inv

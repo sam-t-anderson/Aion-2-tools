@@ -180,6 +180,10 @@ def from_profile(ch: dict) -> ImportedCharacter:
                 gear_bonus[sk["id"]] = gear_bonus.get(sk["id"], 0) + lv
         row = {"slot": slot, "slot_pos": e.get("slotPos"), "id": e.get("id"), "name": e.get("name"),
                "grade": e.get("grade"), "enchant": e.get("enchantLevel"), "icon": e.get("icon"),
+               # the item's main stats as the official page lists them, deity stats included (an arcana card's
+               # "Time [Siel] +20" arrives as id "Time"): Gear & Advice shows a card's own (0.2.389)
+               "main_stats": [{k: m.get(k) for k in ("id", "name", "value", "extra") if m.get(k) not in (None, "")}
+                              for m in it.get("mainStats") or [] if isinstance(m, dict)],
                "stats": st, "rolls": [(s.get("name"), s.get("value")) for s in rolls],
                "manastones": [(s.get("name"), s.get("value")) for s in stones],
                "theostones": [g.get("name") for g in it.get("godStoneStat") or []],

@@ -556,8 +556,10 @@ def character_view(imp, evaluation: dict | None = None) -> dict:
                         "icon": row.get("icon"), "rolls": row.get("rolls"), "manastones": row.get("manastones"),
                         "theostones": row.get("theostones"), "skills": row.get("skills"),
                         "stats": fmt_stats(row.get("stats", {}))})
+    from ..plan.arcana import card_deity
     arcana = [{"slot": r["slot"], "name": r["name"], "grade": r.get("grade"), "enchant": r.get("enchant"),
-               "icon": r.get("icon"), "skills": r.get("skills"), "stats": fmt_stats(r.get("stats", {}))}
+               "icon": r.get("icon"), "skills": r.get("skills"), "stats": fmt_stats(r.get("stats", {})),
+               "deity": card_deity(r)}                   # the card's own deity stat, "Time [Siel] +20" (0.2.389)
               for r in sysm.get("arcana", [])]
     weights = (evaluation or {}).get("weights") or []
     lo = imp.loadout
