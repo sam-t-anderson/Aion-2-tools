@@ -124,9 +124,9 @@
     const [x,y,z]=box(c[0],c[1]),g=z>=6?1:0;ctx.fillStyle=t.ramp[heatStep(c[2],max)];
     ctx.beginPath();if(ctx.roundRect&&z>=8)ctx.roundRect(x+g,y+g,z-2*g,z-2*g,Math.min(3,z/4));else ctx.rect(x+g,y+g,z-2*g,z-2*g);ctx.fill();
    }
-   for(const c of data.cells){if(!c[3])continue;            // a kill: a dot with a surface ring
-    const [x,y,z]=box(c[0],c[1]),r=Math.max(3,Math.min(5,z*.18));
-    ctx.beginPath();ctx.arc(x+z/2,y+z/2,r,0,2*Math.PI);ctx.fillStyle=t.text;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=t.surface;ctx.stroke();}
+   for(const c of data.cells){if(!c[3])continue;            // a kill: a dot with a surface ring, small enough to leave the square's colour
+    const [x,y,z]=box(c[0],c[1]),r=Math.max(1.5,Math.min(5,z*.15));
+    ctx.beginPath();ctx.arc(x+z/2,y+z/2,r,0,2*Math.PI);ctx.fillStyle=t.text;ctx.fill();ctx.lineWidth=z>=20?2:1;ctx.strokeStyle=t.surface;ctx.stroke();}
    ctx.font='12px '+(getComputedStyle(document.body).fontFamily||'sans-serif');ctx.textBaseline='middle';
    for(const b of data.landmarks||[]){                       // the bosses' places: a diamond and the name in text ink
     const [x,y]=at(b.x,b.y);ctx.beginPath();ctx.moveTo(x,y-6);ctx.lineTo(x+6,y);ctx.lineTo(x,y+6);ctx.lineTo(x-6,y);ctx.closePath();
