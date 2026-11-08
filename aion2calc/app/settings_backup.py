@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import time
 
-from ..combat.a2log import CLASSES
+from ..combat.a2log import CLASSES, UNMODELLED_CLASSES
 from ..paths import home, write_user_json
 
 FORMAT = "aion2calc-settings"
@@ -218,8 +218,9 @@ def clean_class_colors(value) -> dict:
         clean["enabled"] = value["enabled"]
     if "colors" in value:
         colors = value["colors"]
-        if not (isinstance(colors, dict) and set(colors) <= set(CLASSES) and all(_is_hex(v) for v in colors.values())):
-            raise ValueError("combat_colors colors must map " + ", ".join(CLASSES) + " to six-digit hex colors")
+        known = CLASSES + UNMODELLED_CLASSES             # the Brawler has a colour before the calculator models it
+        if not (isinstance(colors, dict) and set(colors) <= set(known) and all(_is_hex(v) for v in colors.values())):
+            raise ValueError("combat_colors colors must map " + ", ".join(known) + " to six-digit hex colors")
         clean["colors"] = {k: v.lower() for k, v in colors.items()}
     return clean
 

@@ -15,6 +15,9 @@ from .rsc import find_object, flight, text_lines
 BASE = "https://metabot.gg/en/aion-2"
 CLASSES = ["gladiator", "templar", "assassin", "ranger",
            "sorcerer", "spiritmaster", "cleric", "chanter"]
+#: classes the global client has without their names and values, so metabot shows no page for them yet: the
+#: Brawler (the client's Fighter). ``python -m aion2calc refresh --only brawler`` reads it once metabot does.
+UPCOMING = ["brawler"]
 
 
 def class_data(cls: str, fresh: bool = False) -> dict:

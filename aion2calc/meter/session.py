@@ -13,8 +13,8 @@ import struct
 import uuid
 
 from ..combat.a2log import MOVEMENT_SOURCES
-from .a2parser.lookup import (dungeon_final_bosses, effect_skill, has_skill, is_heal_skill, job_from_skill, normalize_skill,
-                               npc_info, npc_name, skill_name, spirit_skill_category)
+from .a2parser.lookup import (class_key_of, dungeon_final_bosses, effect_skill, has_skill, is_heal_skill, job_from_skill,
+                               normalize_skill, npc_info, npc_name, skill_name, spirit_skill_category)
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
 from .a2parser.engine import ARENA_MATCH_MS, NPC_SKILLS, _own_class_skill
 from .context import party_instance
@@ -1686,7 +1686,7 @@ class CombatSession:
 
     @staticmethod
     def _actor(actor_id, name, job=None):
-        return {"id": str(actor_id), "name": name, "class": (job or "").lower().replace("elementalist", "spiritmaster") or None,
+        return {"id": str(actor_id), "name": name, "class": class_key_of(job),
                 "damage": 0, "hits": 0, "healing": 0, "skills": {}, "incoming": {"damage": 0, "hits": 0, "parries": 0, "sources": {}},
                 "counts": {key: 0 for key in ("crit", "back", "front", "double", "perfect", "multi", "parry")}}
 
@@ -1936,7 +1936,7 @@ class CombatSession:
                     if enemy_id and target_key != enemy_id:
                         continue
                     row = player(identity, epoch, event.actor_id, resolved)
-                    row["class"] = row["class"] or (job_from_skill(event.skill_code) or "").lower().replace("elementalist", "spiritmaster") or None
+                    row["class"] = row["class"] or class_key_of(job_from_skill(event.skill_code))
                     row["damage"] += damage; row["hits"] += 1
                     skill = row["skills"].get((event.skill_code, event.is_dot))
                     if skill is None:

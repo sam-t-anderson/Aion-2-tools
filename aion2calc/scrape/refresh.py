@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 from . import a2dil, gamers4life, metabot
+from .http import NotFound
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 
@@ -38,15 +39,25 @@ def refresh(only: str | None = None, skip_kr: bool = False, items_only: bool = F
     classes = [] if items_only else ([only] if only else metabot.CLASSES)
     for cls in classes:
         print(f"[metabot] {cls}")
-        _dump(DATA / "global" / "classes" / f"{cls}.json", metabot.class_data(cls))
+        try:
+            data = metabot.class_data(cls)
+        except NotFound:
+            if cls not in metabot.UPCOMING:
+                raise
+            print(f"  skip {cls}: metabot.gg has no page for it yet, as the global client has its skills without "
+                  "their names or values (docs/methodology.md, \"The Brawler\")")
+            data = None
+        if data is not None:
+            _dump(DATA / "global" / "classes" / f"{cls}.json", data)
         if not skip_kr:
-            print(f"[gamers4.life] {cls} hit profiles")
             kr_cls = "elementalist" if cls == "spiritmaster" else cls
-            profiles = {}
-            for sid in gamers4life.class_skill_ids(kr_cls):
-                det = gamers4life.skill_detail(sid)
-                profiles[sid] = {"name": det.get("name"), "hits": gamers4life.hit_profile(det)}
-            _dump(DATA / "kr" / "hit_profiles" / f"{cls}.json", profiles)
+            if data is not None:            # gamers4.life reads the global client too: nothing for an upcoming class
+                print(f"[gamers4.life] {cls} hit profiles")
+                profiles = {}
+                for sid in gamers4life.class_skill_ids(kr_cls):
+                    det = gamers4life.skill_detail(sid)
+                    profiles[sid] = {"name": det.get("name"), "hits": gamers4life.hit_profile(det)}
+                _dump(DATA / "kr" / "hit_profiles" / f"{cls}.json", profiles)
             print(f"[a2dil] {cls}")
             summ = a2dil.class_summary(kr_cls if kr_cls in a2dil.KR_CLASS else cls)
             summ.pop("raw", None)

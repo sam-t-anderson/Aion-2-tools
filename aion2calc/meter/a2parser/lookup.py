@@ -13,9 +13,21 @@ CLASS_PREFIXES = {
     11: "Gladiator", 12: "Templar", 13: "Assassin", 14: "Ranger",
     15: "Sorcerer", 16: "Elementalist", 17: "Cleric", 18: "Chanter", 19: "Fighter",
 }
+#: The roster's class codes (the official site's pcData ids: light male, light female, dark male, dark female). The
+#: Brawler, the client's Fighter, is 45-48 in the official Taiwanese site's pcData list (tw.ncsoft.com
+#: /aion2/api/gameinfo/pcdata, 8 November 2026); the global list has no Brawler yet.
 ROSTER_CLASSES = ((5, 8, "Gladiator"), (9, 12, "Templar"), (13, 16, "Ranger"),
                   (17, 20, "Assassin"), (21, 24, "Elementalist"), (25, 28, "Sorcerer"),
-                  (29, 32, "Cleric"), (33, 36, "Chanter"))
+                  (29, 32, "Cleric"), (33, 36, "Chanter"), (45, 48, "Fighter"))
+#: The calculator's class key of a job the game names otherwise: the Spiritmaster is the client's Elementalist and
+#: the Brawler its Fighter.
+JOB_CLASS_KEYS = {"elementalist": "spiritmaster", "fighter": "brawler"}
+
+
+def class_key_of(job) -> str | None:
+    """The calculator's class key of a job name from the game (``"Fighter"`` -> ``"brawler"``), None for none."""
+    key = str(job or "").strip().lower()
+    return JOB_CLASS_KEYS.get(key, key) or None
 
 
 @lru_cache(maxsize=32)

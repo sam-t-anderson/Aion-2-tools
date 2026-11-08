@@ -207,7 +207,8 @@ def fake_block(version: int = 0x0002000F, slots: int = 8, apps: int = 0) -> byte
 # ---- what the meter draws ----------------------------------------------------------------------
 
 CLASS_COLORS = {"sorcerer": "3A86C8", "assassin": "4CAF6E", "templar": "C9772B", "ranger": "B9962A",
-                "chanter": "B84F9E", "gladiator": "C8474F", "spiritmaster": "7A63D8", "cleric": "3FB4B0"}
+                "chanter": "B84F9E", "gladiator": "C8474F", "spiritmaster": "7A63D8", "cleric": "3FB4B0",
+                "brawler": "7F9A3A"}
 _TAG = re.compile(r"[<>]")
 
 
