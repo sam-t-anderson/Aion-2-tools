@@ -840,6 +840,8 @@ async function pageSettings() {
     <div class="setrow" data-g="overlay"><div class="lbl">Overlay layout</div><div><div class="row"><label>Players shown <input type="number" id="ov-maxp" min="1" max="24" value="${Number(ui.overlay_max_players) || 8}" style="width:74px"></label><label>Width <input type="number" id="ov-width" min="260" max="800" value="${Number(ui.overlay_width) || 340}" style="width:80px"> px</label><label>Height <input type="number" id="ov-height" min="0" max="800" value="${Number(ui.overlay_height) || 0}" style="width:74px"> px <span class="muted small">(0 = fit to contents)</span></label><label>Row height <input type="number" id="ov-rowh" min="14" max="48" value="${Number(ui.overlay_row_height) || 22}" style="width:74px"> px</label><span id="ov-layout-msg" class="small muted" role="status"></span></div>
       <label><input type="checkbox" id="ov-autoexp" ${ui.overlay_auto_expand === true ? "checked" : ""}> Auto-expand to show every captured player (beyond the limit above)</label>
       <label><input type="checkbox" id="ov-onlycombat" ${ui.overlay_only_in_combat === true ? "checked" : ""}> Show the meter only during combat (collapse between pulls)</label>
+      <label><input type="checkbox" id="ov-bossonly" ${ui.overlay_boss_only === true ? "checked" : ""}> Boss damage only: count the damage dealt to bosses, mini-bosses, field and world bosses <span class="muted">(leaves out trash and, in the Abyss, other players)</span></label>
+      <label><input type="checkbox" id="ov-pvponly" ${ui.overlay_pvp_only === true ? "checked" : ""}> Player (PvP) damage only: count the damage dealt to other players <span class="muted">(with Boss damage only on too, bosses count as well)</span></label>
       <label>Name display <select id="ov-namemode">${[
         ["name", "Character names"],
         ["class_number", "Class + party number"],
@@ -2012,6 +2014,10 @@ async function pageSettings() {
     api("/api/ui", { overlay_auto_expand: $("#ov-autoexp").checked }).then(() => toast("Saved"));
   $("#ov-onlycombat").onchange = () =>
     api("/api/ui", { overlay_only_in_combat: $("#ov-onlycombat").checked }).then(() => toast("Saved"));
+  $("#ov-bossonly").onchange = () =>
+    api("/api/ui", { overlay_boss_only: $("#ov-bossonly").checked }).then(() => toast("Saved"));
+  $("#ov-pvponly").onchange = () =>
+    api("/api/ui", { overlay_pvp_only: $("#ov-pvponly").checked }).then(() => toast("Saved"));
   $("#ov-scrollnames").onchange = () =>
     api("/api/ui", { overlay_long_names_scroll: $("#ov-scrollnames").checked }).then(() => toast("Saved"));
   $("#ov-namemode").onchange = () =>

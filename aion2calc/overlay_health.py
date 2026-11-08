@@ -15,6 +15,8 @@ process, which the app relaunches. Each step is logged in ``logs/overlay.log``.
 from __future__ import annotations
 
 import os
+import urllib.error
+import urllib.request
 from datetime import datetime
 
 #: The host form's colour and the card's: what a blank window is full of (RGB).
@@ -24,6 +26,11 @@ HOST_COLOR = (27, 32, 42)
 BLANK_FRACTION = 0.998
 #: The overlay process exits with this code to ask the app to start it again.
 RESTART_EXIT_CODE = 3
+#: ... and with this one when it could not open its window at all (no pywebview, or WebView2 would not start,
+#: 0.2.390): the app does not start it again, and Open overlay falls back to the page's own small window. Until then
+#: the overlay opened its address in the default browser instead, a full-size browser window, and when that came
+#: as the app was going away (an error while the window closed) the browser showed "127.0.0.1 refused to connect".
+UNAVAILABLE_EXIT_CODE = 4
 #: The heal steps, gentlest first.
 STEPS = ("nudge", "reload", "navigate", "restart")
 
@@ -112,6 +119,36 @@ class HealPolicy:
         self.bad = 0
         self.healthy_since = None
         return action
+
+
+def app_answers(app_base, timeout=1.0, opener=None):
+    """Whether the app at ``app_base`` (``http://127.0.0.1:<port>``) answers HTTP (0.2.390): the overlay asks before
+    it sends its window to the app, since WebView2 shows the browser's own error page ("127.0.0.1 refused to
+    connect") for an address where nothing listens. Any answer counts, an error status included; a refused or
+    unanswered connection does not. ``/api/overlay/commands`` is the lightest thing the app serves."""
+    if not app_base:
+        return True
+    opener = opener or urllib.request.urlopen
+    try:
+        with opener(f"{app_base.rstrip('/')}/api/overlay/commands", timeout=timeout) as response:
+            response.read(64)
+        return True
+    except urllib.error.HTTPError as err:
+        err.close()
+        return True
+    except Exception:
+        return False
+
+
+#: What the overlay window shows while the app does not answer (0.2.390): its own card at its own size, never the
+#: browser's error page. Inline, so it shows with no app to load it from.
+WAITING_HTML = """<!doctype html><html><head><meta charset="utf-8"><title>Aion 2 Calc Overlay</title><style>
+html,body{margin:0;height:100%;overflow:hidden;background:#1b202a;color:#c9d2e3;
+font:600 12px/1.4 "Segoe UI",system-ui,sans-serif;user-select:none;cursor:default}
+body{display:flex;align-items:center;justify-content:center;gap:8px;padding:0 12px;box-sizing:border-box}
+i{width:8px;height:8px;border-radius:50%;background:#e8cf8e;animation:p 1.2s ease-in-out infinite}
+@keyframes p{50%{opacity:.25}}@media (prefers-reduced-motion:reduce){i{animation:none}}
+</style></head><body><i aria-hidden="true"></i><span id="waiting" role="status">Waiting for Aion 2 Calc…</span></body></html>"""
 
 
 class RelaunchLimiter:

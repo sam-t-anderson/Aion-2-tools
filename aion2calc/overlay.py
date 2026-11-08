@@ -12,9 +12,9 @@ import os
 import sys
 import threading
 import time
-import webbrowser
 
-from .overlay_health import RESTART_EXIT_CODE, BlankDetector, HealPolicy, OverlayLog
+from .overlay_health import (RESTART_EXIT_CODE, UNAVAILABLE_EXIT_CODE, WAITING_HTML, BlankDetector, HealPolicy,
+                             OverlayLog, app_answers)
 
 
 _LOG = logging.getLogger(__name__)
@@ -592,6 +592,18 @@ class _OverlayAPI:
         self._hooked = False
         self._reload_requested = 0
         self._restart = False
+        # The app's address and whether the window waits for it (0.2.390): the window opens on its own waiting card
+        # (WAITING_HTML) and goes to the app's page only once the app answers. A load that fails anyway, or a heal
+        # step that would load the page while the app does not answer, puts the card back and waits again, so the
+        # browser's own error page ("127.0.0.1 refused to connect") never shows. The parent watch closes the
+        # overlay meanwhile once the app is gone for good.
+        self.app_base = None
+        self._waiting = False
+        self._wait_lock = threading.Lock()
+        self._closed = None
+        self._navigation_hooked = False
+        self._ever_shown = False
+        self._load_failures = 0       # failed loads of the page in a row: the waiter waits longer after each
 
     def hook_process_failures(self):
         """Subscribe to WebView2's ProcessFailed once its core exists (it is created after the window is
@@ -618,6 +630,110 @@ class _OverlayAPI:
         except Exception:
             kind = detail = "an unknown process failure"
         self._failure = (kind, detail)
+
+    def prepare_navigation(self):
+        """Turn WebView2's own error page off and hear how each load ends (0.2.390), once its core exists (shortly
+        after the window is made). Returns whether it is in place. With the error page off, a load that fails shows
+        nothing rather than "can't reach this page", and ``_on_navigation_completed`` puts the waiting card there."""
+        if self._navigation_hooked or self._window is None:
+            return self._navigation_hooked
+
+        def hook():
+            core = getattr(self._window.native.webview, "CoreWebView2", None)
+            if core is None:
+                return
+            try:
+                core.Settings.IsBuiltInErrorPageEnabled = False
+            except Exception as err:
+                self.log.write(f"the browser's error page stays on ({type(err).__name__}: {err})")
+            core.NavigationCompleted += self._on_navigation_completed
+            self._navigation_hooked = True
+
+        try:
+            self._on_ui(hook)
+        except Exception as err:
+            self.log.write(f"loads not followed ({type(err).__name__}: {err})")
+        return self._navigation_hooked
+
+    def _on_navigation_completed(self, sender, args):
+        """A load of the app's page that failed (the app gone, or not answering yet): the waiting card, and the page
+        again once the app answers. Runs on the UI thread, so it only starts the waiter. A load another load replaced
+        (``OperationCanceled``: the waiting card's own, as the page loads over it) is no failure."""
+        try:
+            source = str(getattr(sender, "Source", "") or "")
+            ours = not self.app_base or source.startswith(self.app_base)
+            if bool(args.IsSuccess):
+                if ours:
+                    self._load_failures = 0
+                return
+            status = str(getattr(args, "WebErrorStatus", "an error"))
+            if self._waiting or not ours or status.endswith("OperationCanceled"):
+                return
+        except Exception:
+            return
+        self._load_failures += 1
+        self.wait_for_app(f"the page did not load ({status})")
+
+    def wait_for_app(self, reason, show=True):
+        """Show the waiting card and load the app's page once the app answers; one waiter at a time. Returns
+        whether this call started the wait."""
+        with self._wait_lock:
+            if self._waiting:
+                return False
+            self._waiting = True
+        self.log.write(f"waiting for the app: {reason}")
+        if show:
+            try:
+                self._window.load_html(WAITING_HTML)
+            except Exception as err:
+                self.log.write(f"the waiting card did not show ({type(err).__name__}: {err})")
+        threading.Thread(target=self._await_app, daemon=True, name="overlay-wait-for-app").start()
+        return True
+
+    def _await_app(self, interval=1.0, answers=None):
+        answers = answers or app_answers
+        closed = self._closed
+        # A page that failed to load more than once in a row while the app answered waits longer each time (2, 4, ...
+        # up to 30 s), so a page the app cannot serve is not loaded every second.
+        backoff = min(30.0, interval * 2 ** (self._load_failures - 1)) if self._load_failures > 1 else 0.0
+        if backoff and closed is not None:
+            closed.wait(backoff)
+        while not (closed is not None and closed.is_set()):
+            if answers(self.app_base):
+                self.open_page("the app answers")
+                return
+            if closed is not None:
+                closed.wait(interval)
+            else:
+                time.sleep(interval)
+
+    def open_page(self, why):
+        """Load the app's page (the app answered just now)."""
+        self.log.write(f"loading the page: {why}")
+        with self._wait_lock:
+            self._waiting = False         # before the load: its failure, if it fails, starts a new wait
+        self._reload_requested = 0        # a fresh load is the reload the app asked for meanwhile
+        try:
+            self._window.load_url(self.url)
+        except Exception as err:
+            self.log.write(f"the page did not load ({type(err).__name__}: {err})")
+
+    def open_app(self, first_wait=3.0, answers=None, clock=time.monotonic, sleep=time.sleep):
+        """The window's first load (0.2.390): the app's page as soon as the app answers, within ``first_wait``
+        seconds; otherwise the waiting card the window opened on stays, and a waiter loads the page once the app
+        answers. Until then the window went to the app's address at once and showed the browser's error page
+        whenever nothing listened there yet or any more. Returns whether the page was loaded."""
+        answers = answers or app_answers
+        deadline = clock() + first_wait
+        while True:
+            if answers(self.app_base):
+                self.open_page("the app answers")
+                return True
+            if clock() >= deadline or (self._closed is not None and self._closed.is_set()):
+                break
+            sleep(0.25)
+        self.wait_for_app(f"the app did not answer in {first_wait:.0f} s", show=False)
+        return False
 
     def set_locked(self, value):
         # Screenshot lock: keep the overlay visible and stationary while locked.
@@ -1173,6 +1289,11 @@ class _Watchdog:
 
     def tick(self):
         api, now = self.api, self.clock()
+        if api._waiting:
+            # The waiting card is up (0.2.390): the app does not answer, and its waiter loads the page when it does.
+            # Nothing to heal meanwhile, and a reload would only send the window to an address that does not answer.
+            self.script_misses = 0
+            return None
         action, note = None, ""
         failure, api._failure = api._failure, None
         if failure:
@@ -1222,6 +1343,10 @@ class _Watchdog:
         window, api = self.window, self.api
 
         def act():
+            if action in ("reload", "navigate") and not app_answers(api.app_base):
+                # Loading the page now would show the browser's error page (0.2.390): wait for the app instead.
+                api.wait_for_app(f"{action} put off: the app does not answer")
+                return
             try:
                 native = window.native
                 if action == "nudge":
@@ -1396,6 +1521,7 @@ def _click_through_loop(window, api, win32, closed: threading.Event) -> None:
 def _run_overlay(window, api, app_base: str | None = None, party: bool = False, parent_pid=None) -> None:
     closed = threading.Event()
     window.events.closed += closed.set
+    api._closed = closed
     parent = _ParentProcess(parent_pid)
     if app_base or parent.watched():
         threading.Thread(target=_watch_parent, args=(app_base, closed, window, api, parent),
@@ -1422,8 +1548,16 @@ def _run_overlay(window, api, app_base: str | None = None, party: bool = False, 
         if win32 is not None:
             threading.Thread(target=_click_through_loop, args=(window, api, win32, closed),
                              daemon=True, name="overlay-click-through").start()
+        # WebView2's core comes up shortly after the window: its error page off and its loads followed before the
+        # window goes to the app (0.2.390).
+        for _ in range(50):
+            if api.prepare_navigation() or closed.is_set():
+                break
+            time.sleep(0.1)
+    # The window opened on its waiting card: the app's page once the app answers (0.2.390).
+    api.open_app()
     window.show()
-    api._visible = True
+    api._visible = api._ever_shown = True
     if sys.platform == "win32":
         threading.Thread(target=_health_loop, args=(window, api, win32, closed),
                          daemon=True, name="overlay-watchdog").start()
@@ -1561,21 +1695,28 @@ def main(argv=None) -> int:
         parent_pid = int(os.environ.get("AION2CALC_PARENT_PID") or 0) or None
     except ValueError:
         parent_pid = None
+    log = OverlayLog(_log_path(), "overlay" if party == "meter" else f"overlay[{party}]")
+    # Never a browser window (0.2.390): a window that cannot open ends with UNAVAILABLE_EXIT_CODE, and the app lets
+    # the page's own small window stand in. The overlay used to open its address in the default browser instead, a
+    # full-size window with a title bar, and when that came as the app was going away (an error while the window
+    # closed) the browser showed "127.0.0.1 refused to connect".
     try:
         import webview
-    except Exception:
-        webbrowser.open(url)
-        return 0
+    except Exception as err:
+        log.write(f"cannot open: pywebview is not available ({type(err).__name__}: {err})")
+        print(f"The native overlay needs pywebview ({type(err).__name__}: {err}).")
+        return UNAVAILABLE_EXIT_CODE
+    api = None
     try:
         min_width = {"radar": 180, "pets": 240}.get(party, 260)
         api = _OverlayAPI(min_width=min_width)
-        api.url = url
-        api.log = OverlayLog(_log_path(), "overlay" if party == "meter" else f"overlay[{party}]")
+        api.url, api.app_base, api.log = url, app_base, log
         api.log.write(f"started (pid {os.getpid()})")
-        # The card moves the window through begin_drag (0.2.371), not pywebview's drag regions.
+        # The card moves the window through begin_drag (0.2.371), not pywebview's drag regions. The window opens on
+        # its own waiting card at its own size, and goes to the app's page once the app answers (0.2.390).
         title ={"meter": "Aion 2 Calc Overlay", "party": "Aion 2 Calc Party Overlay", "radar": "Aion 2 Calc Radar Overlay",
                  "pets": "Aion 2 Calc Pet Tracker"}[party]
-        window = webview.create_window(title, url, frameless=True, easy_drag=False,
+        window = webview.create_window(title, html=WAITING_HTML, frameless=True, easy_drag=False,
                                        shadow=False, on_top=True, hidden=True, focus=False,
                                        transparent=sys.platform != "win32", background_color="#010203",
                                        width=a.width, height=a.height, min_size=(min_width, 70),
@@ -1587,8 +1728,13 @@ def main(argv=None) -> int:
             api.log.write("ending so the app starts the overlay again")
             return RESTART_EXIT_CODE
     except Exception as err:
-        print(f"Could not open the overlay ({type(err).__name__}: {err}); using the browser instead.")
-        webbrowser.open(url)
+        log.write(f"the window failed: {type(err).__name__}: {err}")
+        if api is not None and api._restart:
+            return RESTART_EXIT_CODE
+        if api is not None and api._ever_shown:
+            return 0                     # it ran, then failed as it closed: nothing to open again
+        print(f"Could not open the overlay ({type(err).__name__}: {err}).")
+        return UNAVAILABLE_EXIT_CODE
     return 0
 
 

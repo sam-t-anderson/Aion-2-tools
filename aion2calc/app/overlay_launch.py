@@ -22,7 +22,8 @@ its own setting whether or not the meter overlay is open (:func:`sync_pets`), an
 Each overlay process is watched: one that ends on its own with a non-zero code (its watchdog asked
 for a restart because the page went blank or stopped answering, or it crashed) is started again, at
 most five times in ten minutes; one the app closed, or that closed itself normally (Hide), is left
-alone. Open overlay while the overlay is already open asks it to reload its page. The overlay
+alone; one that could not open its window at all (``UNAVAILABLE_EXIT_CODE``, 0.2.390) is not started again for
+ten minutes, and Open overlay answers ``native: false`` meanwhile, so the page opens its own small window. Open overlay while the overlay is already open asks it to reload its page. The overlay
 process watches the app's process in turn (its PID goes along in the environment) and ends with it,
 so no overlay outlives the app, even a quit that never reached :func:`close`.
 """
@@ -35,7 +36,7 @@ import sys
 import threading
 import time
 
-from ..overlay_health import OverlayLog, RelaunchLimiter
+from ..overlay_health import UNAVAILABLE_EXIT_CODE, OverlayLog, RelaunchLimiter
 
 
 _PROCESS: subprocess.Popen | None = None
@@ -47,6 +48,19 @@ _RELAUNCHES = RelaunchLimiter()
 _URL = ""                       # the overlay URL of the last launch, for the companions' syncs
 _HIDDEN: set[str] = set()       # companions closed with their own Hide, until Open overlay or their setting flips
 COMPANIONS = ("party", "radar")
+#: When an overlay process last said it cannot open its window (``UNAVAILABLE_EXIT_CODE``, 0.2.390), and why. For
+#: ``UNAVAILABLE_FOR`` seconds after, Open overlay answers ``native: false`` and the page opens its own small window,
+#: instead of starting a process that would fail again (or, before 0.2.390, open a browser window of its own).
+_UNAVAILABLE: dict = {}
+UNAVAILABLE_FOR = 600.0
+
+
+def _native_unavailable(now=None) -> str:
+    """Why the native window cannot open, while an overlay process said so lately; "" otherwise."""
+    at = _UNAVAILABLE.get("at")
+    if at is None or (time.time() if now is None else now) - at >= UNAVAILABLE_FOR:
+        return ""
+    return _UNAVAILABLE.get("reason") or "the native overlay window could not open"
 
 
 def available() -> bool:
@@ -144,6 +158,11 @@ def _watch(proc: subprocess.Popen, url: str, party="meter") -> None:
         if code == 0:
             return
         which = {"meter": "overlay", "party": "party overlay", "radar": "radar overlay", "pets": "Pet Tracker overlay"}[kind]
+        if code == UNAVAILABLE_EXIT_CODE:
+            # It could not open its window at all: starting it again would fail again (0.2.390).
+            _UNAVAILABLE.update(at=time.time(), reason=f"the {which} could not open its window (see logs/overlay.log)")
+            _log(f"the {which} could not open its window; not started again, and Open overlay uses the page's own window")
+            return
         if not _RELAUNCHES.allow(time.time()):
             _log(f"the {which} ended with code {code}; not started again (five restarts in ten minutes)")
             return
@@ -193,7 +212,7 @@ def sync_pets(url: str, wanted: bool) -> bool:
     """Open or close the Pet Tracker window (``view=pets``) to match Settings → Pet Tracker. Unlike the
     companions it does not wait for the meter overlay: it opens and closes with its setting alone, and the
     app's close takes it with the rest. Returns True when this call opened it."""
-    if not available():
+    if not available() or wanted and _native_unavailable():
         return False
     with _LOCK:
         try:
@@ -245,9 +264,12 @@ def launch(url: str, reload_if_open: bool = False) -> dict:
     The companion windows whose settings are on (the Party-DPS overlay, the radar's window) are started
     too, and ones hidden with their own Hide come back. With ``reload_if_open`` an overlay that is
     already open is asked to reload its page instead."""
+    global _PROCESS, _URL
     if not available():
         return {"native": False, "reason": "pywebview is not bundled on this platform"}
-    global _PROCESS, _URL
+    unavailable = _native_unavailable()
+    if unavailable and not (_PROCESS is not None and _PROCESS.poll() is None):
+        return {"native": False, "reason": unavailable}
     with _LOCK:
         _URL = url
         _HIDDEN.clear()

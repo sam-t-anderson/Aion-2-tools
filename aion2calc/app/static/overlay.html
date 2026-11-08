@@ -12,7 +12,7 @@
   <div class="ovhd"><div class="ovtabs" role="tablist" aria-label="Overlay view">
     <button id="meter-tab" role="tab" data-tab="meter" aria-controls="ovcontent" aria-selected="true" class="on">Meter</button>
     <button id="plan-tab" role="tab" data-tab="plan" aria-controls="ovcontent" aria-selected="false">Plan</button>
-  </div><span id="ovviewtitle" class="ovviewtitle" hidden></span><button id="ovlock" title="Freeze the overlay in place for a screenshot">Lock</button><button id="ovsplit" title="Start a new fight — the next combat event begins a fresh encounter (same as Split now in the app)">New</button><button id="ovcopy" title="Copy the current meter as text, to paste in chat or Discord">Copy</button><button id="ovsettings" type="button" title="Overlay options: opacity and pet grouping" aria-expanded="false">Options</button><button id="ovhide" title="Hide overlay">Hide</button><button id="ovcapture" title="Start or stop capturing combat (same as Start/Stop in the app)">Start</button></div>
+  </div><span id="ovviewtitle" class="ovviewtitle" hidden></span><button id="ovlock" title="Freeze the overlay in place for a screenshot">Lock</button><button id="ovsplit" title="Start a new fight — the next combat event begins a fresh encounter (same as Split now in the app)">New</button><button id="ovcopy" title="Copy the current meter as text, to paste in chat or Discord">Copy</button><button id="ovsettings" type="button" title="Overlay options: opacity, pet grouping and damage filters" aria-expanded="false">Options</button><button id="ovhide" title="Hide overlay">Hide</button><button id="ovcapture" title="Start or stop capturing combat (same as Start/Stop in the app)">Start</button></div>
   <div id="ovmetrics" class="ovtabs ovmetrics" role="group" aria-label="Meter metric">
     <button type="button" data-metric="dps" aria-pressed="true" class="on">DPS</button>
     <button type="button" data-metric="hps" aria-pressed="false">HPS</button>
@@ -20,7 +20,7 @@
     <span class="ovsub" id="ovstatus"></span>
   </div>
   <div id="ovconnection" class="ovconnection" role="alert" hidden><span id="ovreason"></span> <button id="ovretry" type="button">Retry</button></div>
-  <div class="ovoptions"><label title="Group recorded pet damage and healing into the linked owner"><input id="ovcombine" type="checkbox" checked> Combine pets with owner</label><span id="ovpetstatus" role="status"></span></div>
+  <div class="ovoptions"><label title="Group recorded pet damage and healing into the linked owner"><input id="ovcombine" type="checkbox" checked> Combine pets with owner</label><label title="Count only the damage dealt to bosses: dungeon bosses, mini-bosses, field and world bosses. Damage to trash mobs and, in the open world (the Abyss), to other players is left out"><input id="ovbossonly" type="checkbox"> Boss damage only</label><label title="Count only the damage dealt to other players (PvP), leaving out damage to monsters. With Boss damage only also on, damage to bosses counts too"><input id="ovpvponly" type="checkbox"> Player (PvP) damage only</label><span id="ovpetstatus" role="status"></span></div>
   <div id="ovping" class="ovping" role="status">Ping: waiting for samples</div>
   <div id="ovlines" class="ovlines"><div id="ovodyle" class="ovodyle" role="status" hidden></div>
   <div id="ovshugo" class="ovodyle ovshugo" role="status" hidden></div>
@@ -73,6 +73,31 @@
   function styled() {
     try { return getComputedStyle(document.documentElement).overflow === "hidden"; } catch (e) { return true; }
   }
+  // A reload goes out only while the app answers (0.2.390): sent to an address where nothing listens any more, it
+  // showed the browser's own error page ("127.0.0.1 refused to connect") in the window. While the app does not answer
+  // the page says it is waiting and asks again; the native window closes once the app is gone for good.
+  function answers(then) {
+    var done = false, timer = setTimeout(function () { finish(false); }, 2000);
+    function finish(up) { if (!done) { done = true; clearTimeout(timer); then(up); } }
+    try {
+      fetch("/api/overlay/commands", { cache: "no-store" }).then(function () { finish(true); }, function () { finish(false); });
+    } catch (e) { finish(false); }
+  }
+  function waiting() {
+    if (document.getElementById("a2-waiting")) return;
+    var el = document.createElement("div");
+    el.id = "a2-waiting"; el.setAttribute("role", "status"); el.textContent = "Waiting for Aion 2 Calc\u2026";
+    el.style.cssText = "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:2147483647;" +
+      "background:#1b202a;color:#c9d2e3;font:600 12px/1.4 'Segoe UI',system-ui,sans-serif";
+    (document.body || document.documentElement).appendChild(el);
+  }
+  function reload() {
+    answers(function (up) {
+      if (up) { window.location.reload(); return; }
+      waiting();
+      setTimeout(reload, 3000);
+    });
+  }
   function check() {
     if (window.A2OverlayUp && styled()) return;
     if (document.readyState !== "complete") { setTimeout(check, 3000); return; }
@@ -80,7 +105,7 @@
     if (n >= 3) { note("startup", "the page loaded without " + what + "; not reloading again after " + n + " reloads"); return; }
     remember(n + 1);
     note("startup", "the page loaded without " + what + "; reloading (" + (n + 1) + ")");
-    setTimeout(function () { window.location.reload(); }, 300);
+    setTimeout(reload, 300);
   }
   setTimeout(check, 5000);
 })();

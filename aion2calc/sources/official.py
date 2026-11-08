@@ -30,7 +30,9 @@ REGIONS = {"nae": "North America", "eu": "Europe", "as": "Asia", "la": "Latin Am
 #: official className -> aion2calc class key
 CLASS_KEYS = {"Gladiator": "gladiator", "Templar": "templar", "Assassin": "assassin", "Ranger": "ranger",
               "Sorcerer": "sorcerer", "Elementalist": "spiritmaster", "Spiritmaster": "spiritmaster",
-              "Cleric": "cleric", "Chanter": "chanter"}
+              "Cleric": "cleric", "Chanter": "chanter",
+              # the Brawler: className "Fighter" (class id 12) on the official Taiwanese site's class list
+              "Fighter": "brawler", "Brawler": "brawler"}
 
 
 def _get(path: str, **params):

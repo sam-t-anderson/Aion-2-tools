@@ -84,7 +84,7 @@ FIGHT_INACTIVE: dict[str, float] = {
 }
 #: The class a skill id belongs to, by its leading two digits (``aion2calc.meter.a2parser.lookup.job_from_skill``).
 _CLASS_OF_PREFIX = {11: "gladiator", 12: "templar", 13: "assassin", 14: "ranger", 15: "sorcerer",
-                    16: "spiritmaster", 17: "cleric", 18: "chanter"}
+                    16: "spiritmaster", 17: "cleric", 18: "chanter", 19: "brawler"}
 
 
 @dataclass

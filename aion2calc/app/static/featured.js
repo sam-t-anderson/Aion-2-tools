@@ -15,7 +15,7 @@ const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const VIEWS=[["race","Race Summary"],["progress","Progress"],["reports","All Reports"],["rankings","Rankings"],["statistics","Statistics"]];
 const ROLES=[["dps","DPS"],["tank","Tank"],["support","Support"]];
 const CLASSES=["gladiator","templar","assassin","ranger","sorcerer","spiritmaster","cleric","chanter"];
-const PALETTE={gladiator:"#c69b6d",templar:"#f58cba",assassin:"#fff468",ranger:"#aad372",sorcerer:"#3fc7eb",spiritmaster:"#8788ee",cleric:"#ffffff",chanter:"#ff7c0a"};
+const PALETTE={gladiator:"#c69b6d",templar:"#f58cba",assassin:"#fff468",ranger:"#aad372",sorcerer:"#3fc7eb",spiritmaster:"#8788ee",cleric:"#ffffff",chanter:"#ff7c0a",brawler:"#00c98d"};
 const REGIONS={nae:"NA",na:"NA",eu:"EU",kr:"KR",tw:"TW",jp:"JP",global:"Global"};
 const cap=s=>s?s[0].toUpperCase()+s.slice(1):"";
 const n0=x=>x==null||!Number.isFinite(+x)?"—":Math.round(x).toLocaleString("en-US");

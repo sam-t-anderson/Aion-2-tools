@@ -83,3 +83,45 @@ def test_a_refused_script_is_reported_and_the_page_reloads_itself(app):
     log = (home / "logs" / "overlay.log").read_text(encoding="utf-8")
     assert "overlay page: load: failed to load" in log and "/static/overlay.js" in log
     assert "overlay page: startup: the page loaded without its script; reloading (1)" in log
+
+
+def test_a_page_without_its_script_waits_for_the_app_before_it_reloads(app):
+    """The guard's reload goes out only while the app answers (0.2.390): a reload into an address where nothing
+    listens showed the browser's "127.0.0.1 refused to connect" page in the overlay's window. Until the app answers
+    the page says it is waiting, then reloads and comes up."""
+    playwright = pytest.importorskip("playwright.sync_api")
+    base, home = app
+    with playwright.sync_playwright() as p:
+        chromium = "/opt/pw-browsers/chromium/chrome"
+        try:
+            browser = p.chromium.launch(executable_path=chromium if os.path.exists(chromium) else None)
+        except Exception as err:                                                  # noqa: BLE001 - no browser here
+            pytest.skip(f"no Chromium for Playwright: {err}")
+        page = browser.new_page(viewport={"width": 340, "height": 120})
+        refused, down = [], {"now": True}
+
+        def script(r):
+            if refused:
+                r.continue_()
+            else:
+                refused.append(r.request.url)
+                r.abort("connectionrefused")
+
+        def commands(r):
+            if down["now"]:
+                r.abort("connectionrefused")                                      # the app does not answer
+            else:
+                r.continue_()
+
+        page.route("**/static/overlay.js", script)
+        page.route("**/api/overlay/commands", commands)
+        page.goto(base + "/overlay")
+        page.wait_for_function("document.getElementById('a2-waiting')", timeout=15000)
+        assert page.locator("#a2-waiting").inner_text() == "Waiting for Aion 2 Calc…"
+        page.wait_for_timeout(3500)                                               # it asks again, and still waits
+        assert page.evaluate("performance.getEntriesByType('navigation')[0].type") == "navigate"
+        down["now"] = False
+        page.wait_for_function("window.A2OverlayUp === 'ready'", timeout=20000)
+        navigation = page.evaluate("performance.getEntriesByType('navigation')[0].type")
+        browser.close()
+    assert refused and navigation == "reload"
