@@ -319,7 +319,7 @@ def test_the_movement_replay_plays_the_recorded_positions(app_page, app_url, app
         key = box.locator(".cr-key")
         assert key.locator('ul[aria-label="Key"] li').all_inner_texts() == [
             "Boss", "Recording player", "Movement in the last 6 seconds",
-            "Faded: last seen over 8 seconds ago, or outside the fight area", "Arena"]
+            "Faded: last seen over 8 seconds ago, or outside the fight area; gone once unseen for 20 seconds (a minute for players and bosses)", "Arena"]
         players = key.locator('ul[aria-label="Players"] li')
         texts = players.all_inner_texts()
         assert [t.split(" ")[0] for t in texts] == ["Testsorc", "Testally"], texts       # the recording player first
@@ -418,7 +418,7 @@ def test_a_boss_fights_replay_draws_its_arena_as_a_circle_or_a_square(app_page, 
         box.locator("[data-tokens] circle").first.wait_for()
         assert box.locator("[data-room-shape]").count() == 0 and box.locator("[data-room] *").count() == 0
         assert box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts() == [             # no boss, no arena
-            "Movement in the last 6 seconds", "Faded: last seen over 8 seconds ago, or outside the fight area"]
+            "Movement in the last 6 seconds", "Faded: last seen over 8 seconds ago, or outside the fight area; gone once unseen for 20 seconds (a minute for players and bosses)"]
     finally:
         page.goto("about:blank")
         path.unlink()
@@ -879,7 +879,7 @@ def test_the_replay_shows_the_bosses_casts_and_what_appears(app_page, app_url, a
         box.locator("[data-tokens] circle").first.wait_for()
         key = box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts()
         assert "Boss cast: ringed on the caster, a marker where it was aimed, a wedge for its facing" in key
-        assert "Appeared: an enemy or pet first seen here during the fight" in key
+        assert "Appeared: an enemy first seen here during the fight (an add, or a summon of the other side)" in key
         assert sorted(box.locator("#cr-ticks option").evaluate_all("os => os.map(o => o.value)")) == ["12.0", "14.0", "4.0"]
         assert box.locator("[data-scrub]").get_attribute("list") == "cr-ticks"
         # every cast and appearance beside the arena, from the top, with its time; none in progress yet
@@ -913,10 +913,359 @@ def test_the_replay_shows_the_bosses_casts_and_what_appears(app_page, app_url, a
         assert box.locator("[data-marks] .cr-aim").count() == 0 and now() == ["Summoned Spike appeared"] and rows.count() == 1
         box.locator('.cr-key [data-key-toggle="spawns"]').uncheck()
         assert box.locator("[data-marks] *").count() == 0 and now() == []
-        assert rows.all_inner_texts() == ["The key hides every cast and appearance."]
+        assert rows.all_inner_texts() == ["The key hides every cast and event."]
         box.locator('.cr-key [data-key-toggle="casts"]').check()
         assert box.locator("[data-marks] .cr-castring").count() == 1 and rows.count() == 2
         assert arena() == still
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
+def summoner_recording():
+    """A boss fight (0.2.393) with a party Spiritmaster whose Wind Spirit is linked to them and whose Fire Spirit is not,
+    the spirit striking its owner as the recordings hold a summon's own strikes, a boss clone the game sends no position
+    of striking the party member, who dies and is revived, and an add that dies early and is long unseen after."""
+    doc = moving_recording(casts=True)
+    me, ally, sm = "p:1101:1", "p:1101:2", "p:1101:3"
+    doc["players"].append({"id": sm, "name": "Testspirit", "class": "spiritmaster", "server": "1101"})
+    fight = doc["segments"][1]
+    fight["duration"] = 70.0
+    fight["entities"] += [{"id": "sp1", "name": "Wind Spirit", "kind": "pet", "owner": sm},
+                          {"id": "sp2", "name": "Fire Spirit", "kind": "pet"},
+                          {"id": "cl1", "name": "Unnamed summon", "kind": "enemy", "mob_code": 2920604}]
+    fight["movement"] += ([{"t": float(t), "entity": sm, "x": 1200.0, "y": 1000.0 + 5 * t, "z": 50.0, "src": "party"} for t in range(0, 70, 4)]
+                          + [{"t": float(t), "entity": "sp1", "x": 1210.0, "y": 1010.0, "z": 50.0, "src": "move"} for t in range(5, 29, 2)]
+                          + [{"t": float(t), "entity": "sp2", "x": 1190.0, "y": 1010.0, "z": 50.0, "src": "move"} for t in range(6, 29, 2)])
+    fight["movement"].sort(key=lambda m: m["t"])
+    fight["events"] = ([{"kind": "damage", "t": float(t), "source": me, "target": "boss", "skill_id": 15210000, "skill": "Burst", "amount": 2000} for t in range(30)]
+                       + [{"kind": "damage", "t": float(t), "source": sm, "target": "boss", "skill_id": 16010000, "skill": "Spirit Strike", "amount": 1500} for t in range(0, 30, 3)]
+                       + [{"kind": "damage", "t": t, "source": "sp1", "target": sm, "skill_id": 16990003, "skill": "Wind Spirit: Basic Attack", "amount": 400} for t in (7.0, 9.0, 11.0)]
+                       + [{"kind": "damage", "t": t, "source": "sp2", "target": "boss", "skill_id": 16990002, "skill": "Fire Spirit: Basic Attack", "amount": 300} for t in (8.0, 10.0)]
+                       + [{"kind": "damage", "t": 6.0, "source": "cl1", "target": ally, "skill_id": 1800000, "skill": "Attack", "amount": 900},
+                          {"kind": "damage", "t": 9.5, "source": "boss", "target": ally, "skill_id": 123, "skill": "Trample", "amount": 5000},
+                          {"kind": "death", "t": 10.0, "target": ally}, {"kind": "revive", "t": 16.0, "target": ally}])
+    fight["events"].sort(key=lambda e: e["t"])
+    return doc
+
+
+def test_the_replay_plays_in_real_seconds_at_the_chosen_speed(app_page, app_url, app_home):
+    """Play runs the fight in real seconds at 1× (0.2.393) and faster or slower at the chosen speed, which is kept."""
+    page = app_page
+    name = "session-20261108-200000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    doc = moving_recording()
+    doc["segments"][1]["duration"] = 120.0
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    clock = lambda: float(page.locator("[data-replay] [data-clock]").inner_text().rstrip("s"))   # noqa: E731
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box = page.locator("[data-replay]")
+        box.locator("[data-tokens] circle").first.wait_for()
+        speed = box.locator("[data-speed]")
+        assert speed.locator("option").all_inner_texts() == ["0.25×", "0.5×", "1×", "2×", "4×", "8×"] and speed.input_value() == "1"
+        page.click("[data-play]")
+        page.wait_for_timeout(1500)
+        page.click("[data-play]")
+        assert 1.0 <= clock() <= 2.6                                   # real seconds, give or take a frame or two
+        speed.select_option("8")
+        page.click("[data-rewind]")
+        page.click("[data-play]")
+        page.wait_for_timeout(1000)
+        page.click("[data-play]")
+        assert 6.0 <= clock() <= 12.0
+        assert page.evaluate("localStorage.getItem('a2-replay-speed')") == "8"
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        assert page.locator("[data-replay] [data-speed]").input_value() == "8"
+    finally:
+        page.evaluate("localStorage.removeItem('a2-replay-speed')")
+        page.goto("about:blank")
+        path.unlink()
+
+
+def test_the_replay_marks_deaths_revives_and_where_a_clone_struck(app_page, app_url, app_home):
+    """A player's death is a ✕ where they fell and a greyed token until revived, a revive a ring, and a boss clone the
+    game sends no position of is ringed where it struck the player (0.2.393); all listed and ticked on the slider."""
+    page = app_page
+    name = "session-20261108-201000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(summoner_recording()), encoding="utf-8")
+
+    def scrub(t):
+        page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box = page.locator("[data-replay]")
+        box.locator("[data-tokens] circle").first.wait_for()
+        rows = [" ".join(t.split()) for t in box.locator("[data-events] li").all_inner_texts()]
+        assert "6.0s Clone hit Testally · Cleric" in rows
+        assert "10.0s Testally · Cleric died" in rows and "16.0s Testally · Cleric revived" in rows
+        ticks = box.locator("#cr-ticks option").evaluate_all("os => os.map(o => o.value)")
+        assert {"6.0", "10.0", "16.0"} <= set(ticks)
+        key = box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts()
+        assert "Death: a ✕ where a player fell, their token greyed until revived; a ring when revived" in key
+        assert "Struck by an add or a boss's clone: where it hit a player (the game sends no position of many of them)" in key
+        ally = box.locator("[data-tokens] circle", has=page.locator("title", has_text="Testally"))
+        scrub(6.5)                                                   # the clone's hit, ringed at the party member
+        hit = box.locator("[data-marks] .cr-hit")
+        assert hit.count() == 1 and "Clone hit Testally · Cleric · 6.0s" in hit.locator("title").text_content()
+        assert hit.locator("circle").first.get_attribute("cx") == ally.get_attribute("cx")
+        scrub(12)                                                    # dead: a ✕ where they fell, the token greyed
+        assert box.locator("[data-marks] .cr-death").count() == 1 and ally.get_attribute("fill-opacity") == "0.2"
+        assert "dead since 10.0s" in ally.locator("title").text_content()
+        scrub(17)                                                    # revived: ringed, the ✕ gone
+        assert box.locator("[data-marks] .cr-revive").count() == 1 and box.locator("[data-marks] .cr-death").count() == 0
+        assert ally.get_attribute("fill-opacity") == "1"
+        box.locator('.cr-key [data-key-toggle="lives"]').uncheck()
+        assert box.locator("[data-marks] .cr-revive").count() == 0
+        assert not any("revived" in " ".join(t.split()) for t in box.locator("[data-events] li").all_inner_texts())
+        box.locator('.cr-key [data-key-toggle="hits"]').uncheck()
+        scrub(6.5)
+        assert box.locator("[data-marks] .cr-hit").count() == 0
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
+def test_a_token_long_unseen_leaves_the_replay(app_page, app_url, app_home):
+    """A token fades 8 s after its last position and leaves the replay after 20 s unseen, a player or a boss after a
+    minute (0.2.393); until then a summon that expired stayed faded at its last place for the rest of the fight."""
+    page = app_page
+    name = "session-20261108-202000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(summoner_recording()), encoding="utf-8")
+
+    def scrub(t):
+        page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+    token = lambda text: page.locator("[data-replay] [data-tokens] circle", has=page.locator("title", has_text=text))   # noqa: E731
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        page.locator("[data-replay] [data-tokens] circle").first.wait_for()
+        scrub(40)                                       # the spirits and the add last seen at 28 s: faded
+        assert token("Wind Spirit").get_attribute("fill-opacity") == "0.35"
+        assert token("Summoned Spike").get_attribute("fill-opacity") == "0.35"
+        scrub(49)                                       # 21 s unseen: gone; the party member (last seen at 28 s) stays
+        assert token("Wind Spirit").count() == 0 and token("Summoned Spike").count() == 0
+        assert token("Testally").count() == 1 and token("Testally").get_attribute("fill-opacity") == "0.35"
+        scrub(20)                                       # seen again: back
+        assert token("Wind Spirit").count() == 1
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
+def test_a_partys_summons_are_on_the_partys_side(app_page, app_url, app_home):
+    """A summon follows its owner (0.2.393): a party Spiritmaster's spirits, linked or not, are drawn as pets in the
+    owner's colour and are never listed as enemies that appeared, while a boss's add stays an enemy. A spirit striking
+    its own owner, as the recordings hold a summon's own strikes, is no damage taken. Until 0.2.392 the cast list
+    named every summon of the party as an enemy that appeared."""
+    page = app_page
+    name = "session-20261108-203000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps(summoner_recording()), encoding="utf-8")
+
+    def scrub(t):
+        page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+    token = lambda text: page.locator("[data-replay] [data-tokens] circle", has=page.locator("title", has_text=text))   # noqa: E731
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box = page.locator("[data-replay]")
+        box.locator("[data-tokens] circle").first.wait_for()
+        rows = [" ".join(t.split()) for t in box.locator("[data-events] li").all_inner_texts()]
+        assert "12.0s Summoned Spike appeared" in rows                       # the boss's add: an enemy
+        assert not any("Spirit" in r for r in rows), rows                   # the party's spirits: never enemies
+        key = box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts()
+        assert "Pet or summon, in its owner's class colour" in key
+        scrub(10)
+        assert token("Wind Spirit").get_attribute("fill") == "#8788ee"      # the owner's class colour
+        assert token("Fire Spirit").get_attribute("fill") == "#8788ee"      # no owner linked: placed by its skills
+        assert token("Summoned Spike").count() == 0 or token("Summoned Spike").get_attribute("fill") == "#9a9a9a"
+        # the spirit's strikes recorded on its own Spiritmaster are no damage taken
+        taken = page.evaluate("""() => {
+            const table = [...document.querySelectorAll('.cr-review table')].find(t => [...t.querySelectorAll('th')].some(h => h.textContent.trim() === 'Damage taken'));
+            const column = [...table.querySelectorAll('th')].findIndex(h => h.textContent.trim() === 'Damage taken');
+            return [...table.querySelectorAll('tr')].find(r => r.textContent.includes('Testspirit')).children[column].textContent.trim(); }""")
+        assert taken == "0"
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
+def test_an_enemy_players_summons_stay_enemies(app_page, app_url, app_home):
+    """In PvP an enemy Spiritmaster's spirit is the other side's (0.2.393): drawn grey with the enemies and listed when
+    it appears, while the recording side keeps its own summons."""
+    page = app_page
+    name = "session-20261108-204000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    me = "p:1101:1"
+    doc = recording()
+    fight = doc["segments"][1]
+    fight.update(label="Combat 1", boss="Combat 1", encounter_type="pvp_open_world", duration=30.0, killed=False)
+    fight["entities"] = [{"id": "foe", "name": "Testfoe", "kind": "enemy", "is_player": True, "class": "spiritmaster"},
+                         {"id": "fsp", "name": "Water Spirit", "kind": "pet", "owner": "foe"},
+                         {"id": "usp", "name": "Earth Spirit", "kind": "pet"}]
+    fight["movement"] = sorted([{"t": float(t), "entity": "foe", "x": 1000.0 + 10 * t, "y": 1000.0, "z": 50.0, "src": "move"} for t in range(30)]
+                               + [{"t": float(t), "entity": "fsp", "x": 1020.0, "y": 1010.0, "z": 50.0, "src": "move"} for t in range(5, 30, 2)]
+                               + [{"t": float(t), "entity": "usp", "x": 980.0, "y": 990.0, "z": 50.0, "src": "move"} for t in range(6, 30, 2)]
+                               + [{"t": float(t), "entity": me, "x": 900.0, "y": 950.0, "z": 50.0, "src": "applied"} for t in range(0, 30, 3)],
+                               key=lambda m: m["t"])
+    fight["events"] = sorted([{"kind": "damage", "t": float(t), "source": me, "target": "foe", "skill_id": 15210000, "skill": "Burst", "amount": 2000} for t in range(0, 30, 2)]
+                             + [{"kind": "damage", "t": float(t), "source": "foe", "target": me, "skill_id": 16010000, "skill": "Spirit Strike", "amount": 1500} for t in range(1, 30, 3)]
+                             + [{"kind": "damage", "t": float(t), "source": "fsp", "target": me, "skill_id": 16990002, "skill": "Water Spirit: Basic Attack", "amount": 300} for t in (7, 9)]
+                             + [{"kind": "damage", "t": float(t), "source": "usp", "target": me, "skill_id": 16990003, "skill": "Earth Spirit: Basic Attack", "amount": 300} for t in (8, 10)],
+                             key=lambda e: e["t"])
+    path.write_text(json.dumps(doc), encoding="utf-8")
+
+    def scrub(t):
+        page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+    token = lambda text: page.locator("[data-replay] [data-tokens] circle", has=page.locator("title", has_text=text))   # noqa: E731
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box = page.locator("[data-replay]")
+        box.locator("[data-tokens] circle").first.wait_for()
+        rows = [" ".join(t.split()) for t in box.locator("[data-events] li").all_inner_texts()]
+        assert "5.0s Water Spirit appeared" in rows                          # the enemy player's linked spirit
+        assert "6.0s Earth Spirit appeared" in rows                          # unlinked, with the other side's skills
+        assert "Other enemy" in box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts()
+        scrub(10)
+        assert token("Water Spirit").get_attribute("fill") == "#9a9a9a" and token("Earth Spirit").get_attribute("fill") == "#9a9a9a"
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
+def test_the_replay_draws_the_measured_dashes_trails_and_wedges(app_page, app_url, app_home):
+    """The log server's 0.2.172 catalog (0.2.393): a dash is drawn along the boss's recorded track from the cast to the
+    end of its span with round ends, a trail where the boss passed within its duration, and wedges round the caster's
+    facing with the safe gaps between them undrawn, each instead of the skill's older shape, in the list, the key and
+    the Raid Planner. A catalog without them draws as before."""
+    page = app_page
+    name = "session-20261108-205000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    doc = moving_recording(casts=True)
+    doc["segments"][1]["npc_casts"].append({"t": 20.0, "source": "boss", "skill_id": 125, "skill": "Scorch", "facing": 90.0})
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    wedges = {"shape": "arcs", "radius": 800.0, "inner": 0, "segments": [[-60, -30], [30, 60]], "anchor": "cast",
+              "accuracy": 1.0, "confidence": "measured", "casts": 10}
+    shapes = {"123": {"shape": "circle_aim", "radius": 300.0, "delay": 1.0, "confidence": "high", "casts": 9, "accuracy": 0.9,
+                      "path": {"shape": "dash", "half_width": 200.0, "span": 3.0, "accuracy": 1.0, "confidence": "measured", "casts": 10}},
+              "124": {**wedges, "arcs": dict(wedges)},
+              "125": {"shape": "trail", "half_width": 150.0, "span": 4.0, "duration": 3.0, "accuracy": 0.95, "confidence": "measured", "casts": 12}}
+    catalog = {"meta": {"extra_version": 1, "extra_shapes": {"dash": 1, "trail": 1, "arcs": 1}}, "shapes": shapes}
+    page.route("**/static/aoe-shapes.json", lambda route: route.fulfill(json=catalog))
+
+    def scrub(t):
+        page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+    xy = lambda points: [tuple(map(float, p.split(","))) for p in points.split()]       # noqa: E731
+    rows = lambda: [" ".join(t.split()) for t in page.locator("[data-replay] [data-events] li").all_inner_texts()]  # noqa: E731
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box = page.locator("[data-replay]")
+        box.locator("[data-tokens] circle").first.wait_for()
+        page.wait_for_function("document.querySelector('[data-replay] [data-events]')?.innerText.includes('wedges')")
+        assert "Measured area: a dash or trail along the boss's path; wedges with safe gaps between them" in box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts()
+        assert "4.0s Gatekeeper Testlord: Trample at Testally · dash 4.0 m wide along its path for 3.0 s" in rows()
+        assert "14.0s Gatekeeper Testlord: Meteor on the ground near Testally · 2 wedges of 8.0 m around the caster, safe between them" in rows()
+        assert "20.0s Gatekeeper Testlord: Scorch · trail 3.0 m wide along its path for 4.0 s, each part staying 3.0 s" in rows()
+        marks = box.locator("[data-marks]")
+        boss = box.locator("[data-tokens] circle", has=page.locator("title", has_text="Gatekeeper Testlord"))
+        scrub(5)            # the dash: the boss's way from the cast to 3 s after it, ahead of the boss, not the circle at the aim
+        assert marks.locator(".cr-aoe-dash").count() == 1 and marks.locator(".cr-aoe-circle_aim").count() == 0
+        band = marks.locator(".cr-aoe-dash .cr-aoe-band")
+        way = xy(band.get_attribute("points"))
+        assert len(way) == 4 and all(b[0] > a[0] for a, b in zip(way, way[1:])) and len({y for _, y in way}) == 1
+        assert way[0][0] < float(boss.get_attribute("cx")) < way[-1][0]
+        assert band.evaluate("e => getComputedStyle(e).strokeLinecap") == "round" and band.evaluate("e => parseFloat(getComputedStyle(e).strokeWidth)") > 1
+        assert "dash 4.0 m wide along its path for 3.0 s (measured, 10 casts, 100% of the positions explained)" in marks.locator(".cr-aoe-dash title").text_content()
+        scrub(8)
+        assert marks.locator(".cr-aoe-path").count() == 0
+        scrub(14.5)         # two wedges either side of the facing (45°, counter-clockwise), the gap between them undrawn
+        assert marks.locator(".cr-aoe-arcs path").count() == 2 and marks.locator(".cr-aoe-cone").count() == 0
+        angles = marks.locator(".cr-aoe-arcs path").evaluate_all("""ps => ps.map(p => {
+            const [bx, by, x1, y1, , , , , , x2, y2] = p.getAttribute('d').match(/-?[0-9.]+/g).map(Number);
+            const deg = (x, y) => Math.round(Math.atan2(by - y, x - bx) * 180 / Math.PI); return [deg(x1, y1), deg(x2, y2)]; })""")
+        assert angles == [[-15, 15], [75, 105]]
+        scrub(20)
+        start = float(boss.get_attribute("cx"))
+        scrub(21)           # the trail: where the boss passed since the cast
+        trail = xy(marks.locator(".cr-aoe-trail .cr-aoe-band").get_attribute("points"))
+        assert abs(trail[0][0] - start) < .01 and abs(trail[-1][0] - float(boss.get_attribute("cx"))) < .01
+        scrub(26)           # 2 s after the span ended: only the part passed in the last 3 s, behind the boss
+        trail = xy(marks.locator(".cr-aoe-trail .cr-aoe-band").get_attribute("points"))
+        assert trail[0][0] > start + 1 and trail[-1][0] < float(boss.get_attribute("cx"))
+        scrub(27.5)
+        assert marks.locator(".cr-aoe-path").count() == 0
+        # the Raid Planner takes them: the dash and the trail as lines along the boss's way, a wedge for each segment
+        box.locator("[data-plan]").click()
+        page.wait_for_function("location.hash === '#/raid' && document.querySelector('#rname')?.value === 'Gatekeeper Testlord'")
+        plan, = [p for p in page.evaluate("Object.values(JSON.parse(localStorage.getItem('a2plans')))") if p.get("meta", {}).get("name") == "Gatekeeper Testlord"]
+        areas = [(t["shape"], t["from"], t["until"], t["facing"], t.get("angle")) for t in plan["tokens"] if t["kind"] == "aoe"]
+        assert areas == [("line", 4.0, 7.6, 0.0, None), ("cone", 14.0, 15.5, 0.0, 15.0), ("cone", 14.0, 15.5, 90.0, 15.0), ("line", 20.0, 27.0, 0.0, None)]
+        # an older catalog: the old shapes, and no word of the new ones
+        page.unroute("**/static/aoe-shapes.json")
+        older = {"123": {k: v for k, v in shapes["123"].items() if k != "path"},
+                 "124": {"shape": "cone", "radius": 800.0, "angle": 45.0, "delay": 0.5, "confidence": "high", "casts": 9, "accuracy": 0.9}}
+        page.route("**/static/aoe-shapes.json", lambda route: route.fulfill(json={"shapes": older}))
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box.locator("[data-tokens] circle").first.wait_for()
+        page.wait_for_function("document.querySelector('[data-replay] [data-events]')?.innerText.includes('cone')")
+        assert "4.0s Gatekeeper Testlord: Trample at Testally · circle of 3.0 m around the aim" in rows()
+        assert "14.0s Gatekeeper Testlord: Meteor on the ground near Testally · 90° cone 8.0 m long" in rows()
+        assert "20.0s Gatekeeper Testlord: Scorch" in rows()
+        assert not any("Measured area: a dash" in k for k in box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts())
+        scrub(4.5)
+        assert marks.locator(".cr-aoe-circle_aim").count() == 1 and marks.locator(".cr-aoe-path").count() == 0
+        scrub(14.5)
+        assert marks.locator(".cr-aoe-cone").count() == 1 and marks.locator(".cr-aoe-arcs").count() == 0
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
+def test_a_boss_add_or_clone_is_drawn_in_the_bosss_colour(app_page, app_url, app_home):
+    """An NPC of the boss's side, no one's summon, that struck the party in a boss fight is the boss's add or clone
+    (0.2.393): drawn in the boss's colour, named by the community catalog when the game data gives it no name (else
+    Clone), ringed where it appeared and where it struck; an add that struck nobody stays a grey enemy."""
+    page = app_page
+    name = "session-20261108-206000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    me, ally = "p:1101:1", "p:1101:2"
+    doc = moving_recording(casts=True)
+    fight = doc["segments"][1]
+    fight["entities"].append({"id": "cl2", "name": "Unnamed summon", "kind": "enemy", "mob_code": 2920601})
+    fight["movement"] = sorted(fight["movement"] + [{"t": float(t), "entity": "cl2", "x": 950.0, "y": 1000.0, "z": 50.0, "src": "move"} for t in range(13, 19)],
+                               key=lambda m: m["t"])
+    fight["events"] = ([{"kind": "damage", "t": float(t), "source": me, "target": "boss", "skill_id": 15210000, "skill": "Burst", "amount": 2000} for t in range(30)]
+                       + [{"kind": "damage", "t": 15.0, "source": "cl2", "target": ally, "skill_id": 1800000, "skill": "Attack", "amount": 900}])
+    fight["events"].sort(key=lambda e: e["t"])
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    page.add_init_script("window.A2CommunityNames = {'2920601': 'Test Echo'};")
+
+    def scrub(t):
+        page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+    token = lambda text: page.locator("[data-replay] [data-tokens] circle", has=page.locator("title", has_text=text))   # noqa: E731
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box = page.locator("[data-replay]")
+        box.locator("[data-tokens] circle").first.wait_for()
+        key = box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts()
+        assert "Boss add or clone: an enemy that struck the party during the boss fight" in key and "Other enemy" in key
+        rows = [" ".join(t.split()) for t in box.locator("[data-events] li").all_inner_texts()]
+        assert "13.0s Test Echo appeared" in rows and "15.0s Test Echo hit Testally · Cleric" in rows
+        assert "12.0s Summoned Spike appeared" in rows
+        scrub(15.5)
+        assert token("Test Echo").get_attribute("fill") == "#ef6262" and token("Test Echo").get_attribute("r") == "1.8"
+        assert token("Summoned Spike").get_attribute("fill") == "#9a9a9a"
+        assert "Test Echo hit Testally · Cleric · 15.0s" in box.locator("[data-marks] .cr-hit title").text_content()
+        box.locator('.cr-key [data-key-toggle="add"]').uncheck()
+        assert token("Test Echo").count() == 0 and token("Summoned Spike").count() == 1
     finally:
         page.goto("about:blank")
         path.unlink()
