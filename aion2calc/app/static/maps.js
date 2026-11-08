@@ -69,15 +69,21 @@
  // and the recorded bosses' places. World positions as recorded, x to the right and y up (north up, as the
  // movement replay draws them). The colours are one hue, light to dark by hits (dark to light on the dark theme).
  const HEAT_DETAIL='aion2.maps.heatCell',HEAT_CELLS=[[2000,'Normal squares (2,000)'],[1000,'Fine squares (1,000)'],[4000,'Coarse squares (4,000)']];
+ // A map per Abyss server matchup (log server 0.2.169): NC pairs a region's servers, and a pair shares one Abyss.
+ const HEAT_MATCHUP='aion2.maps.heatMatchup',HEAT_REGIONS={nae:'NA East',naw:'NA West',eu:'Europe',la:'South America',as:'Asia'};
+ const HEAT_SHORT={1800:'last 30 min',7200:'last 2 h',21600:'last 6 h',86400:'last 24 h',604800:'last 7 days'};
  const HEAT_WINDOWS={1800:'the last 30 minutes',7200:'the last 2 hours',21600:'the last 6 hours',86400:'the last 24 hours',604800:'the last 7 days'};
  const num=n=>Number(n||0).toLocaleString('en-US'),plural=(n,one,many)=>num(n)+' '+(Number(n)===1?one:many);
  function rememberedCell(){try{const v=Number(localStorage.getItem(HEAT_DETAIL));return HEAT_CELLS.some(c=>c[0]===v)?v:2000;}catch(_){return 2000;}}
  function rememberCell(v){try{localStorage.setItem(HEAT_DETAIL,String(v));}catch(_){/* storage blocked: the default next time */}}
+ function rememberedMatchup(){try{return localStorage.getItem(HEAT_MATCHUP)||'';}catch(_){return '';}}
+ function rememberMatchup(v){try{localStorage.setItem(HEAT_MATCHUP,v);}catch(_){/* storage blocked: the busiest next time */}}
+ const matchupName=m=>m?`${m.label}${HEAT_REGIONS[m.region]?' ('+HEAT_REGIONS[m.region]+')':''}`:'every server';
  // Five steps of the ramp, by hits on a log scale from 1 to the busiest square.
  function heatStep(hits,max){return max<=1?4:Math.max(0,Math.min(4,Math.floor(5*Math.log(hits)/Math.log(max+1e-9)-1e-9)));}
  function heatHTML(){
-  return '<section class="win heat-panel" data-heat><div class="wh"><h2>Abyss PvP heat map</h2><span class="sub">Where players fight players, refreshed every 15 minutes</span></div><div class="wb">'
-   +'<div class="row"><label>Squares <select data-heat-cell>'+HEAT_CELLS.map(([v,t])=>'<option value="'+v+'">'+t+'</option>').join('')+'</select></label><button class="btn small" type="button" data-heat-refresh>Refresh</button></div>'
+  return '<section class="win heat-panel" data-heat><div class="wh"><h2>Abyss PvP heat map</h2><span class="sub">Where players fight players, by server matchup</span></div><div class="wb">'
+   +'<div class="row"><label>Matchup <select data-heat-matchup><option value="">Loading the matchups…</option></select></label><label>Squares <select data-heat-cell>'+HEAT_CELLS.map(([v,t])=>'<option value="'+v+'">'+t+'</option>').join('')+'</select></label><button class="btn small" type="button" data-heat-refresh>Refresh</button></div>'
    +'<p class="small" data-heat-status role="status">Loading the heat map…</p>'
    +'<div class="heat-frame" data-heat-frame hidden><canvas data-heat-canvas role="img" aria-label="Abyss PvP heat map"></canvas><div class="heat-tip" data-heat-tip hidden></div></div>'
    +'<div class="heat-legend small" data-heat-legend hidden></div>'
@@ -89,9 +95,9 @@
   const panel=section.firstChild;root.appendChild(panel);
   const $=sel=>panel.querySelector(sel);
   const status=$('[data-heat-status]'),frame=$('[data-heat-frame]'),canvas=$('[data-heat-canvas]'),tip=$('[data-heat-tip]'),
-   legend=$('[data-heat-legend]'),table=$('[data-heat-table]'),rows=$('[data-heat-rows]'),note=$('[data-heat-note]'),cellSelect=$('[data-heat-cell]'),refresh=$('[data-heat-refresh]');
+   legend=$('[data-heat-legend]'),table=$('[data-heat-table]'),rows=$('[data-heat-rows]'),note=$('[data-heat-note]'),cellSelect=$('[data-heat-cell]'),refresh=$('[data-heat-refresh]'),matchSelect=$('[data-heat-matchup]');
   const api=(io&&io.api)||(window.A2&&typeof window.A2.api==='function'?p=>window.A2.api(p):null);
-  let data=null,view=null,hover=null,serial=0,timer=null,loadedAt=0,disposed=false,raf=0;
+  let data=null,view=null,hover=null,serial=0,timer=null,loadedAt=0,disposed=false,raf=0,matchup=rememberedMatchup(),listed='';
   cellSelect.value=String(rememberedCell());
   const tokens=()=>{const cs=getComputedStyle(panel),v=n=>cs.getPropertyValue(n).trim();
    return {ramp:[1,2,3,4,5].map(i=>v('--heat-'+i)),ground:v('--heat-ground'),surface:v('--heat-surface'),text:v('--text')||'#e9e6df',muted:v('--muted')||'#9aa3b5'};};
@@ -156,25 +162,50 @@
    }
    table.hidden=!busiest.length;
    frame.hidden=!view;
-   canvas.setAttribute('aria-label',data.available&&data.cells.length?`Abyss PvP heat map: ${plural(data.cells.length,'square','squares')} with PvP over ${HEAT_WINDOWS[data.window_seconds]||'the window shown'}, the busiest with ${plural(max,'hit','hits')}. The table below lists them.`:'The ground recordings have covered in the Abyss, with no PvP squares to show.');
+   canvas.setAttribute('aria-label',data.available&&data.cells.length?`Abyss PvP heat map of ${matchupName(data.matchup)}: ${plural(data.cells.length,'square','squares')} with PvP over ${HEAT_WINDOWS[data.window_seconds]||'the window shown'}, the busiest with ${plural(max,'hit','hits')}. The table below lists them.`:'The ground recordings have covered in the Abyss, with no PvP squares to show.');
   }
   function describe(){
    const when=whenAt((data.generated_at||Date.now()/1000)*1000);
+   const who=matchupName(data.matchup);
    if(data.available){
-    status.textContent=`${HEAT_WINDOWS[data.window_seconds]?HEAT_WINDOWS[data.window_seconds].replace(/^the l/,'L'):'Recent fights'}: ${plural(data.fights,'fight','fights')} from ${plural(data.uploaders,'uploader','uploaders')}, ${plural(data.hits,'PvP hit','PvP hits')} and ${plural(data.kills,'kill','kills')} in ${plural(data.cells.length,'square','squares')}${data.hidden_cells?` (${plural(data.hidden_cells,'square','squares')} only one uploader recorded ${data.hidden_cells===1?'is':'are'} left out)`:''}. Updated ${when}.`;
+    status.textContent=`${who.charAt(0).toUpperCase()+who.slice(1)}, ${HEAT_WINDOWS[data.window_seconds]||'recent fights'}: ${plural(data.fights,'fight','fights')} from ${plural(data.uploaders,'uploader','uploaders')}, ${plural(data.hits,'PvP hit','PvP hits')} and ${plural(data.kills,'kill','kills')} in ${plural(data.cells.length,'square','squares')}${data.hidden_cells?` (${plural(data.hidden_cells,'square','squares')} only one uploader recorded ${data.hidden_cells===1?'is':'are'} left out)`:''}. Updated ${when}.`;
    }else{
     const week=(data.windows||[]).find(w=>w.seconds===604800)||{uploaders:0};
-    status.textContent=`Not enough recorded Abyss PvP yet: the map needs fights from at least ${data.min_uploaders||3} uploaders within 7 days, and has ${plural(week.uploaders,'uploader','uploaders')}. Public Live Meter logs of Abyss fights add to it.${(data.footprint||[]).length?' Meanwhile the map shows the ground recordings have covered.':''}`;
+    status.textContent=`Not enough recorded Abyss PvP for ${who} yet: the map needs fights from at least ${data.min_uploaders||3} uploaders within 7 days, and has ${plural(week.uploaders,'uploader','uploaders')}. Public Live Meter logs of Abyss fights add to it.${(data.footprint||[]).length?' Meanwhile the map shows the ground recordings have covered.':''}`;
    }
    note.textContent=data.note||'';
+  }
+  function listMatchups(d){
+   const all=Array.isArray(d.matchups)?d.matchups:[];
+   const key=JSON.stringify(all.map(m=>[m.id,m.available,m.window_seconds]));
+   if(key===listed)return;
+   listed=key;
+   matchSelect.replaceChildren();
+   const pooled=document.createElement('option');pooled.value='all';pooled.textContent='Every server, pooled';
+   for(const region of Object.keys(HEAT_REGIONS)){
+    const mine=all.filter(m=>m.region===region);if(!mine.length)continue;
+    const group=document.createElement('optgroup');group.label=HEAT_REGIONS[region];
+    for(const m of mine){const o=document.createElement('option');o.value=m.id;
+     o.textContent=`${m.label} · ${m.available?(HEAT_SHORT[m.window_seconds]||'recent'):'too few uploaders yet'}`;group.appendChild(o);}
+    matchSelect.appendChild(group);
+   }
+   matchSelect.appendChild(pooled);
+   matchSelect.value=matchup&&(matchup==='all'||all.some(m=>m.id===matchup))?matchup:'all';
+  }
+  // No choice yet: the matchup with the most uploaders last week among those with a map, else every server pooled.
+  function busiest(d){
+   const open=(d.matchups||[]).filter(m=>m.available).sort((a,b)=>b.uploaders_7d-a.uploaders_7d||b.fights_7d-a.fights_7d);
+   return open.length?open[0].id:'all';
   }
   async function load(){
    const n=++serial;refresh.disabled=true;
    try{
     if(!api)throw Error('No community server is set up.');
-    const d=await api('/api/v1/pvp-heat?map=20&cell='+encodeURIComponent(cellSelect.value));
+    const d=await api('/api/v1/pvp-heat?map=20&cell='+encodeURIComponent(cellSelect.value)+(matchup?'&matchup='+encodeURIComponent(matchup):''));
     if(n!==serial||disposed)return;
     if(!d||!Array.isArray(d.cells))throw Error('The community server does not offer the PvP heat map yet.');
+    if(!matchup&&Array.isArray(d.matchups)){const pick=busiest(d);if(pick!=='all'){matchup=pick;listMatchups(d);return load();}matchup='all';}
+    listMatchups(d);
     data=d;loadedAt=Date.now();hover=null;tip.hidden=true;
     if(!d.bounds){frame.hidden=true;legend.hidden=true;table.hidden=true;}else render();
     describe();
@@ -214,6 +245,7 @@
   const leave=()=>{if(hover){hover=null;draw();}tip.hidden=true;};
   canvas.addEventListener('pointermove',pointer);canvas.addEventListener('pointerleave',leave);
   cellSelect.onchange=()=>{rememberCell(Number(cellSelect.value));load();};
+  matchSelect.onchange=()=>{matchup=matchSelect.value||'all';rememberMatchup(matchup);load();};
   refresh.onclick=load;
   const redraw=()=>{if(raf)cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{raf=0;if(data&&data.bounds){layout();draw();}});};
   const visible=()=>{if(!document.hidden&&loadedAt&&Date.now()-loadedAt>((data&&data.refresh_seconds)||900)*1000)load();};
