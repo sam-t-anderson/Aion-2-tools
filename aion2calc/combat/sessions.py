@@ -264,6 +264,9 @@ def reconstruct(name, first, last):
         doc = json.loads(raw)
         if (doc.get("meta", {}).get("archive", {}).get("id") != archive["id"] or doc.get("meta", {}).get("archive", {}).get("part") != row["archive"]["part"]):
             raise ValueError("A recording changed while loading; refresh and try again")
+        # each part's heals over time as its own meter recorded them: a meter before 0.2.399's rebuilt (0.2.404)
+        from .unnamed import rebuild_heals
+        rebuild_heals(doc)
         sources.append(({"file":row["file"]}, doc))
     return combine(sources)
 

@@ -793,6 +793,48 @@ NOBODYS = ("Left out of everyone's healing: 3 heal records between the two sides
 SUMMARY = ".cr-review .cr-scroll table:has(th:text-is('HPS')) tbody tr"                     # the players' table
 
 
+def older_heal_over_time_recording():
+    """A boss fight a meter before 0.2.399 saved (0.2.385): a Cleric's Light of Regeneration recorded as its pool of
+    5,946 when cast and then what was left of it at each of its 15 ticks, 47,616 in all, beside the Cleric's hits."""
+    from aion2calc.combat import a2log
+    me, boss = "p:1101:5", "2:9001"
+    lor = lambda t, amount: {"t": float(t), "kind": "heal", "source": me, "target": me, "skill_id": 17090120,  # noqa: E731
+                             "skill": "Light of Regeneration", "amount": float(amount)}
+    hits = [{"t": float(t), "player": me, "target": boss, "skill_id": 17010000, "skill": "Earth's Wrath", "damage": 2000.0}
+            for t in range(0, 60, 5)]
+    events = [lor(10, 5946), *(lor(10 + 2 * k, 5946 - 396 * k) for k in range(1, 16)),
+              *({"t": h["t"], "kind": "damage", "source": me, "target": boss, "skill_id": 17010000, "skill": "Earth's Wrath",
+                 "amount": 2000.0} for h in hits)]
+    fight = {"label": "Testboss", "boss": "Testboss", "duration": 60.0, "encounter_type": "expedition", "party_members": [me],
+             "entities": [{"id": boss, "name": "Testboss", "kind": "enemy", "is_boss": True}],
+             "hits": hits, "events": sorted(events, key=lambda e: e["t"])}
+    return a2log.validate({"format": "a2log", "version": 1,
+                           "meta": {"title": "Dungeon run", "capture_scope": "party",
+                                    "capture_quality": {"decoder": "a2tools-python-v1", "app_version": "0.2.385"}},
+                           "players": [{"id": me, "name": "Testcleric", "class": "cleric", "server": "1101"}],
+                           "segments": [fight]})
+
+
+def test_an_older_logs_heals_over_time_read_what_their_ticks_took(app_page, app_url, app_home):
+    """A log a meter before 0.2.399 saved is rebuilt when the review reads it (0.2.404): the Light of Regeneration
+    of 5,946 heals 15 ticks of 396, 5,940, not the 47,616 its records add up to, and the review says what it rebuilt."""
+    page = app_page
+    path = _saved(app_home, "session-20261106-010000-abcdef.a2log.json", older_heal_over_time_recording())
+    try:
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=0")
+        note = page.locator("[data-heals-over-time]")
+        note.wait_for()
+        assert squash(note.inner_text()) == (
+            "Heals over time rebuilt: 16 heal records (Light of Regeneration ×16), 47,616 as recorded, now 5,940. A meter "
+            "before 0.2.399 recorded a heal over time whole when it was cast and then, at each tick, what was left of it; "
+            "each record now heals what the ticks since the one before took.")
+        [row] = [squash(r) for r in page.locator(SUMMARY).all_inner_texts()]
+        assert row.startswith("Testcleric") and " 5,940 99 " in f" {row} "                    # healing and HPS over 60 s
+        assert "47,616" not in row
+    finally:
+        path.unlink()
+
+
 def test_a_pvp_opponent_is_chosen_under_player_and_shows_their_side_of_the_fight(app_page, app_url, app_home):
     """In a PvP fight the Player menu offers the opponents beside the party, and one chosen reads the fight from their
     side as a party player's view does: their row in the table, whom they struck and who struck them, their abilities,

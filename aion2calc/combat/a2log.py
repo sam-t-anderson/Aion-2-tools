@@ -163,6 +163,7 @@ _segment_properties.update({
     "resources": {"type": "array", "maxItems": LIMITS["resources"], "description": "The recording player's MP readings (the game sends no one else's): t (0 for the reading in force at the start), entity, mp, optional max (from the player's own record)"},
     "npc_casts": {"type": "array", "maxItems": LIMITS["npc_casts"], "description": "Recorded skill casts by bosses and, since 0.2.394, by their adds and clones (NPCs that spawned near a boss being fought, struck the party or cast at it): t, source (a listed entity), skill_id, skill, optional target, pos (where the cast was aimed: x, y, z in the movement's world coordinates) and facing (the caster's heading in degrees)"},
     "unattributed_heals": {"type": "object", "description": "The heal records of a PvP fight between the two sides, left out as nobody's healing when the log was read (combat.healing.unattributed_heals): a meter before 0.2.399 recorded a shield's absorb as a heal by the attacker, of what was left of the shield, and its caster is in no record. records, amount (as recorded), skills (name -> records)"},
+    "heals_over_time": {"type": "object", "description": "The heal-over-time records rebuilt into what each tick took when the log was read (combat.healing.heals_over_time, 0.2.404): a meter before 0.2.399 recorded a heal over time's pool when it was cast and then, at each tick, what was left of it. Its presence marks the segment rebuilt, so it is never rebuilt twice. records (rebuilt), amount (as recorded), rebuilt (what the ticks took), skills (name -> records)"},
     "arena": {"type": "object", "description": "The arena match this fight belongs to, from the game's own arena records: match (the game's match number), fighters (name, class, server, faction, level, rating before the match, ref to the player or entity, self for the recording player), rounds (t, round, winner and loser as indexes into fighters; the loser's death marker carries the winner as its source), and once the match ended in this fight the recording player's result (win or loss), rounds_won, rounds_lost and rating after it"},
 })
 SCHEMA["properties"]["players"]["items"]["properties"].update({
@@ -214,6 +215,25 @@ def _clean_unattributed(value) -> dict | None:
         return None
     amount = value.get("amount")
     out = {"records": records, "amount": float(amount) if _num(amount) and 0 <= amount < 1e15 else 0.0}
+    skills = value.get("skills")
+    if isinstance(skills, dict):
+        out["skills"] = {str(k)[:80]: v for k, v in list(skills.items())[:12]
+                         if isinstance(v, int) and not isinstance(v, bool) and 0 < v <= 2**53 - 1}
+    return out
+
+
+def _clean_heals_over_time(value) -> dict | None:
+    """A segment's count of the heal-over-time records rebuilt when it was read (``combat.healing.heals_over_time``),
+    bounded. It marks the segment rebuilt, so it is kept whenever its record count is."""
+    if not isinstance(value, dict):
+        return None
+    records = value.get("records")
+    if not isinstance(records, int) or isinstance(records, bool) or not 0 < records <= 2**53 - 1:
+        return None
+    out = {"records": records}
+    for key in ("amount", "rebuilt"):
+        amount = value.get(key)
+        out[key] = float(amount) if _num(amount) and 0 <= amount < 1e15 else 0.0
     skills = value.get("skills")
     if isinstance(skills, dict):
         out["skills"] = {str(k)[:80]: v for k, v in list(skills.items())[:12]
@@ -607,6 +627,9 @@ def validate(doc) -> dict:
         unattributed = _clean_unattributed(s.get("unattributed_heals"))
         if unattributed:
             out_segs[-1]["unattributed_heals"] = unattributed
+        rebuilt = _clean_heals_over_time(s.get("heals_over_time"))
+        if rebuilt:
+            out_segs[-1]["heals_over_time"] = rebuilt
         timed = s.get("capture_loss")
         if isinstance(timed, dict):
             # Kept even when empty: "no loss inside this fight's window" is the evidence.

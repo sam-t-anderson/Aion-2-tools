@@ -2536,7 +2536,9 @@ of 0.2.399 drops them with a count (`combat.healing.unattributed_heals`, the seg
 `unattributed_heals`). In a public log of nine PvP fights, eight of them Arena of Solitude matches (9 November), a Templar's
 Nezekan's Shield, Poach, Guarding Seal and Doom Shield made 925 such records naming the opponents, each
 one below the record before it of the same shield on the Templar, and the opponents' shields 287 more
-under the Templar's name. Its heals over time still count what was left of them at each tick.
+under the Templar's name. Its heals over time counted what was left of them at each tick: since
+[0.2.404](#heals-over-time-in-older-logs-rebuilt-when-read-02404) they are rebuilt into what each tick took
+when the log is read.
 
 **What it changes.** Replayed, the 20 October dungeon run's Cleric heals 2.6 million where the meter
 recorded 9.2 million: Light of Regeneration 665,116, not 7.1 million. Its Chanter heals 593,003, not
@@ -2545,6 +2547,85 @@ change. In the 31 October arena matches the Templar's shields took 101,797 of th
 which the meter had recorded as 930,063 of the opponents' healing on the Templar. The heal rates of
 [0.2.386](#heal-amounts-from-the-recorded-heals-02386) were measured from records of the older meters;
 [0.2.401](#heal-rates-from-what-the-heals-over-time-took-02401) re-measures them from what the ticks took.
+
+### Heals over time in older logs, rebuilt when read (0.2.404)
+
+A log recorded before 0.2.399 holds each heal over time as its pool when it was cast and then, at each tick, what was
+left of it ([above](#heals-over-time-and-shields-what-they-took-credited-to-the-caster-02399)). Since 0.2.404 such a log
+is rebuilt when it is read, into what a meter of 0.2.399 or later records: each tick as the HP it took from the pool.
+The rebuild (`combat.healing.heals_over_time`) runs when the app reviews a saved log or a recording's parts together, in
+My Character's healing share, and wherever a log server reads with this client (`combat.unnamed.relabel`). The stored
+log is never changed.
+
+**Which logs.** Those whose `capture_quality` names this client's decoder and a meter version before 0.2.399. A log
+naming no version and a log of 0.2.399 or later are read as they are. A recording's parts reviewed together are each
+rebuilt by their own meter's version before they are combined. A rebuilt segment carries
+`heals_over_time`, which the a2log validator keeps (`records` rebuilt, `amount` as recorded, `rebuilt`, `skills`), so
+a log read again, or saved and read again, is rebuilt once.
+
+**Which heals.** The ticking pools the 15, 20, 21 and 31 October captures' `05 38` records hold, each losing
+`pool // N` a tick on its own clock, one tick after it is cast (`healing.HEALS_OVER_TIME`):
+
+| Heal | Ticks a cast | Every | Pool ids |
+|---|---:|---|---|
+| Light of Regeneration | 15 | 2 s | all; its "+20 % amount healed when HP is 50 % or less" adds a second pool, and each tick takes from one of the two |
+| Recuperation | 4, or 6 with "+4s healing duration" (option 3) | 2 s | all; its heal and "+5 % HP restored" carry 18120000 too, so a lone record there is kept |
+| Absolution | 5 | 2 s | its level-20 option 4 only ("Restores 1.5% HP every 2s for 10s") |
+| Warding Strike | 5 | 2 s | its option 3 only ("Heal over Time during Warding") |
+| Enhance: Spirit's Benediction | 10 | 1 s | 16190000; a lone record is kept (option 1 heals on cast) |
+| Life Potion, Superior Life Potion | 5 | 2 s | two pools a use |
+
+Shields are not rebuilt: an absorb's record names the attacker, not the caster. Benevolence's ticks and every
+instant heal were recorded whole. Steel Barrier's and Hibernation's pools, whose tooltips restore Stamina and a share
+of Max HP, are left too.
+
+**The rule** is the one the heal rates were measured with
+([0.2.401](#heal-rates-from-what-the-heals-over-time-took-02401)), with each family's tick clock:
+
+- Each (source, target, skill id) chain of a fight's records is read in time order.
+- Each record goes to the open pool it continues, else it opens one. A pool whose tick is known takes a record a
+  whole number of its ticks below it, no more than the tick slots since its last record. A pool seen once takes a
+  record whose drop is its first record // N (that record was the application), or, one slot later, a record that
+  leaves both remainders below N with fewer than N ticks in the pool (that record was already a tick, the pool
+  cast before the fight).
+- A record that continues a pool becomes a heal of its drop: the ticks since the record before, including ticks whose
+  own records were lost. A pool's first record becomes one tick when it was already a tick, and nothing when it was
+  the cast.
+- A lone record is left out (a pool cast as the fight ended, Light of Regeneration's second pool unused), or kept
+  where it is the skill's instant heal.
+
+The rebuild then recomputes what the log says of its heals: the encounter insights' effective healing and the death
+recaps.
+
+**Checked** against the 0.2.399 decoder on the four captures. Each capture's 0.2.398 export was read through
+`relabel`, family by family, and set against the 0.2.399 export:
+
+- Light of Regeneration: −0.01 % and +1.03 % (the latter ticks the capture lost, which the drops show);
+- Recuperation: 0.00 %, −0.90 % and +1.73 %;
+- Warding Strike: 0.00 %, +1.82 % and 0.00 %;
+- the potions: 0.00 % in six of seven cases, +0.44 % in the seventh;
+- the instant heals: unchanged.
+
+A pool that divides evenly ends in a type `0a` record that neither decoder counts, so both leave out that last tick
+([open](open-investigations.md#heals-over-time-and-shields-in-the-05-38-records-the-caster-and-what-each-update-took-9-november-0399)).
+
+**What it changes.** In the 86 logs uploaded to the log server from 6 November to 06:00 on 7 November that name an
+older meter, 815 segments and 148,468 records were rebuilt, and the players' recorded healing reads 233 million, not
+624 million:
+
+| Heal | Kept |
+|---|---:|
+| Light of Regeneration | 10.8 % |
+| Enhance: Spirit's Benediction | 19.9 % |
+| Life Potion | 31.3 % |
+| Superior Life Potion | 29.1 % |
+| Recuperation, with its instant heals | 60.7 % |
+| Warding Strike, with its instant heal | 62.0 % |
+| Absolution, with its instant heal | 86.9 % |
+
+The rest moves only through the earlier repairs (Stamina and MP restores, a PvP fight's heals between the sides). So
+a Cleric's HPS, the healing tables and the HPS standings that read such a log come down to what was healed. The review
+says how many records it rebuilt, and its effective-healing note says the log's shields still read high.
 
 ### Stamina and MP restores are not healing (0.2.355)
 
