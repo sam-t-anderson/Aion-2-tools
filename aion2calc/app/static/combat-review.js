@@ -341,7 +341,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const member=foe?id=>id===foe:id=>friendly.has(id);
       const ours=foe?id=>rootOwner(id,r)===foe:id=>friendly.has(id) || !!r[id]?.owner;
       const oursRoot=foe?ours:party;
-      // A heal between the two sides of a PvP fight is nobody's (0.2.398). A meter before recorded a shield's absorb of
+      // A heal between the two sides of a PvP fight is nobody's (0.2.399). A meter before recorded a shield's absorb of
       // a hit as a heal by the attacker, of what was left of the shield: the party's shields as an opponent's heals on
       // it (in a recorded arena match a Templar's Nezekan's Shield, Poach and Guarding Seal at the moment of the
       // Ranger's hits), an opponent's as the party's heals on them. The shield's caster is in no record, so these are
@@ -536,7 +536,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         ${table(['Boss','Threshold','First observed sample','Observed HP'],s.milestones.map(r=>`<tr><td>${esc(label(d.r[r.entity]))}</td><td>≤ ${r.threshold_pct}%</td><td>${r.t.toFixed(3)}s</td><td>${number(r.current)} / ${number(r.max)} (${r.observed_pct.toFixed(1)}%)</td></tr>`))}
         <h4>Healing relationships</h4><p class="small muted">${s.healing_without_source} healing effects lack a source; ${s.healing_without_target} lack a recipient. These are excluded from pairs, not assigned to a player. Recorded amounts include overheal; effective healing on players is below.</p>
         ${table(['Healer','Recipient','Recorded amount','Effects'],s.healing.filter(r=>(selected(r.source)||selected(r.target))&&!pet(r.source)&&!pet(r.target)).map(r=>`<tr><td>${actorHTML(d.r[r.source])}</td><td>${actorHTML(d.r[r.target])}</td><td>${number(r.amount)}</td><td>${r.effects}</td></tr>`))}
-        ${s.healing_effect?(()=>{const h=s.healing_effect,c=h.check,over=r=>`${number(r.overheal)}${r.overheal_pct==null?'':` <span class="small muted">${r.overheal_pct.toFixed(1)}%</span>`}`;return `<h4>Effective healing and overheal</h4><p class="small muted">An instant heal on a player restores at most the HP they are missing: that part is effective healing, the rest overheal. Both come from the party HP feed (the target's last HP reading before the heal, and their maximum HP); a heal with no earlier reading or no known maximum is counted under <i>No reading</i>. Heals over time and shields are listed apart and not measured (shields by their records from 0.2.398, else from the skill descriptions; potions heal over time). A log recorded with 0.2.398 or later holds each tick and each absorb, credited to the caster; an older one holds the whole heal over time or shield when it was cast and then, at each tick or absorb, what was left of it, so its figures for them read high. Check, per read that healed a player: the HP after it matched the HP before plus its effective healing ${number(c.exact)} times in full and ${number(c.capped)} times topped up to maximum HP; ${number(c.other)} reads had other changes in between (damage, ticks) and ${number(c.unchecked)} could not be checked.</p>
+        ${s.healing_effect?(()=>{const h=s.healing_effect,c=h.check,over=r=>`${number(r.overheal)}${r.overheal_pct==null?'':` <span class="small muted">${r.overheal_pct.toFixed(1)}%</span>`}`;return `<h4>Effective healing and overheal</h4><p class="small muted">An instant heal on a player restores at most the HP they are missing: that part is effective healing, the rest overheal. Both come from the party HP feed (the target's last HP reading before the heal, and their maximum HP); a heal with no earlier reading or no known maximum is counted under <i>No reading</i>. Heals over time and shields are listed apart and not measured (shields by their records from 0.2.399, else from the skill descriptions; potions heal over time). A log recorded with 0.2.399 or later holds each tick and each absorb, credited to the caster; an older one holds the whole heal over time or shield when it was cast and then, at each tick or absorb, what was left of it, so its figures for them read high. Check, per read that healed a player: the HP after it matched the HP before plus its effective healing ${number(c.exact)} times in full and ${number(c.capped)} times topped up to maximum HP; ${number(c.other)} reads had other changes in between (damage, ticks) and ${number(c.unchecked)} could not be checked.</p>
         ${table(['Healer','Recorded','Effective','Overheal','Over time','Shields','No reading'],h.healers.filter(r=>selected(r.source)&&!pet(r.source)).map(r=>`<tr><td>${actorHTML(d.r[r.source])}</td><td>${number(r.amount)}</td><td>${number(r.effective)}</td><td>${over(r)}</td><td>${number(r.over_time)}</td><td>${number(r.shield)}</td><td>${number(r.unknown)}</td></tr>`))}
         ${table(['Healer','Recipient','Recorded','Effective','Overheal','Over time','Shields'],h.pairs.filter(r=>(selected(r.source)||selected(r.target))&&!pet(r.source)).map(r=>`<tr><td>${actorHTML(d.r[r.source])}</td><td>${actorHTML(d.r[r.target])}</td><td>${number(r.amount)}</td><td>${number(r.effective)}</td><td>${over(r)}</td><td>${number(r.over_time)}</td><td>${number(r.shield)}</td></tr>`))}${h.omitted_pairs?`<p class="small muted">${number(h.omitted_pairs)} smaller pairs are not listed.</p>`:''}`;})():''}
         <h4>Imported buff windows</h4><p class="small muted">Overlapping windows for the same buff/recipient are merged and clipped to the encounter. Uptime uses total encounter duration. Overlap uses recipient outgoing damage at or after the window start and before its end. It excludes pets and does not measure damage caused by the buff. Buff caster and live buff coverage are unavailable. ${s.invalid_buff_windows} empty/reversed/outside windows excluded.</p>
@@ -574,8 +574,8 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     }
     // An opponent's casts summarised as the analyzer summarises the party's (actions.rotation, which reads the party's
     // only): each skill's presses, the cooldown the game sent, how many fit from the first press to the end, the gaps
-    // and the cast time. The meter records the casts of the party and its summons only, so a log holds an opponent's
-    // when another recorder kept them.
+    // and the cast time. The live meter records a PvP opponent's casts since 0.2.398, with no cast time (the game sends
+    // cast ends for the recording player alone); an older log holds none.
     function rotationOf(segment, id) {
       const duration=Math.max(.001,segment.duration),median=v=>{v=v.slice().sort((a,b)=>a-b);return v.length?v[v.length>>1]:null;},groups=new Map();
       for(const c of presses((segment.casts || []).filter(c=>c.source===id))){const key=family(c.skill_id);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(c);}
@@ -607,7 +607,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     }
     // the casts behind a player's or an opponent's Skills, Cast timeline and Rotation
     const rotationFor=d=>d.foe?rotationOf(d.segment,d.foe):actionsOf().rotation;
-    const NO_FOE_CASTS='Their casts are not recorded: the meter records the casts of your party and its summons only. <i>Abilities</i> lists each skill they hit with, and the Timeline view each hit.';
+    const NO_FOE_CASTS='Their casts are not recorded in this log: the live meter records an opponent\'s casts since 0.2.398, once the game has named them. <i>Abilities</i> lists each skill they hit with, and the Timeline view each hit.';
     function castTimeline(d, rotation) {
       const players=d.foe?new Set([d.foe]):new Set((doc.players || []).map(p=>p.id));
       const shown=presses((d.segment.casts || []).filter(c=>players.has(c.source) && (!state.actor || c.source===state.actor))).filter(c=>!state.hideProcs || c.kind==='skill');
@@ -838,7 +838,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     // A PvP opponent chosen under Player: whom they struck and who struck them, and what the recording holds of them.
     // The summary, graph, timeline, events and tabs below read the fight from their side as well.
     // The heals of a PvP fight left out as nobody's (``data``'s ``unattributed``), said so rather than credited.
-    const unattributedHTML=u=>u?`<p class="small muted" data-unattributed>Left out of everyone's healing: ${number(u.count)} heal record${u.count===1?'':'s'} between the two sides, ${number(u.amount)} as recorded (${[...u.skills].sort((a,b)=>b[1]-a[1]).map(([skill,n])=>`${esc(skill)} ×${number(n)}`).join(', ')}). They are shields' absorbs, which a meter before 0.2.398 recorded as heals by the attacker, of what was left of the shield. The log does not name the shields' casters, so they count for no one.</p>`:'';
+    const unattributedHTML=u=>u?`<p class="small muted" data-unattributed>Left out of everyone's healing: ${number(u.count)} heal record${u.count===1?'':'s'} between the two sides, ${number(u.amount)} as recorded (${[...u.skills].sort((a,b)=>b[1]-a[1]).map(([skill,n])=>`${esc(skill)} ×${number(n)}`).join(', ')}). They are shields' absorbs, which a meter before 0.2.399 recorded as heals by the attacker, of what was left of the shield. The log does not name the shields' casters, so they count for no one.</p>`:'';
     function opponentHTML(d) {
       const foe=d.foe,e=d.r[foe] || {id:foe},seg=d.segment,cap=c=>String(c).charAt(0).toUpperCase()+String(c).slice(1),dealt=new Map(),taken=new Map();
       for(const x of d.events){if(x.kind!=='damage')continue;
@@ -851,7 +851,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const kinds=[[count(d.events,x=>x.kind==='damage' && d.ours(x.source)),'hit of theirs','hits of theirs','their hits'],
         [count(d.events,x=>x.kind==='damage' && d.ours(x.target) && !d.ours(x.source)),'hit on them','hits on them','hits on them'],
         [count(d.events,x=>x.kind==='heal' && d.ours(x.source)),'heal','heals','their healing'],
-        [count(seg.casts,c=>c.source===foe),'cast','casts','their casts (the meter records the casts of your party and its summons only)'],
+        [count(seg.casts,c=>c.source===foe),'cast','casts','their casts (recorded by the live meter since 0.2.398)'],
         [count(seg.effects,x=>d.ours(x.target) || !!x.source && d.ours(x.source)),'buff or debuff record','buff and debuff records','buffs and debuffs on or from them'],
         [count(seg.health,s=>s.entity===foe),'HP reading','HP readings','their HP'],[count(seg.movement,m=>m.entity===foe),'position','positions','their positions']];
       const held=[...kinds.filter(k=>k[0]).map(k=>`${number(k[0])} ${k[0]===1?k[1]:k[2]}`),...(deaths?[`${number(deaths)} death marker${deaths===1?'':'s'}`]:[])];

@@ -1,4 +1,4 @@
-"""Shields and heals over time are credited to their caster, as what they took (0.2.398).
+"""Shields and heals over time are credited to their caster, as what they took (0.2.399).
 
 A heal over time or a shield holds an HP pool, and the game reports it in ``05 38`` records with the effect's instance
 number (docs/open-investigations.md). Its application (effect type ``09``) names the caster as its actor and carries
@@ -198,7 +198,7 @@ def test_healing_lists_an_absorb_as_a_shield_whatever_its_skill_says():
 
 # ------------------------------------------------------------------ stored logs
 def _stored(encounter_type="pvp_arena"):
-    """A fight as a meter before 0.2.398 saved it: the Templar's shields as the Ranger's heals on them, of what was
+    """A fight as a meter before 0.2.399 saved it: the Templar's shields as the Ranger's heals on them, of what was
     left, the Ranger's own shield as the Templar's heal on the Ranger, and the heals that are what they say."""
     me, foe, pet, stranger = "p:2102:1", "2:12981", "2:18043", "2:5005"
     heal = lambda t, source, target, skill, name, amount: {"kind": "heal", "t": t, "source": source, "target": target,  # noqa: E731

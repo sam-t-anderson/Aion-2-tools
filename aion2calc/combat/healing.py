@@ -14,8 +14,8 @@ covered.
 
 Only instant heals are measured. A heal over time ("restores ... HP every 1s for 14s") and a shield
 ("a Protective Shield that blocks damage") are listed apart: the event's own ``absorb`` marks a
-shield's absorb (meter 0.2.398 and later), else the skill's description tells (potions, which have
-none, heal over time). Since 0.2.398 a heal over time is recorded tick by tick and a shield as the
+shield's absorb (meter 0.2.399 and later), else the skill's description tells (potions, which have
+none, heal over time). Since 0.2.399 a heal over time is recorded tick by tick and a shield as the
 damage each hit it took lost to it, credited to its caster; a meter before recorded the whole pool or
 shield when it was cast and then, at each tick or absorb, what was left of it.
 """
@@ -68,7 +68,7 @@ UNATTRIBUTED_SKILLS = 12
 def unattributed_heals(segment, players) -> dict | None:
     """Leave out of a PvP ``segment``'s events, in place, the heal records between the two sides, and count them
     in ``segment["unattributed_heals"]`` (``records``, ``amount``, ``skills``: skill name -> records), adding to a
-    count already there. A meter before 0.2.398 recorded a shield's absorb of a hit as a heal with the attacker as
+    count already there. A meter before 0.2.399 recorded a shield's absorb of a hit as a heal with the attacker as
     its source and what was left of the shield as its amount: your party's shields as an opponent's heals on you,
     an opponent's as your heals on them (a public PvP log of 9 November held 925 on its Templar, each one below
     the record before it of the same shield, and 287 on the opponents). The shield's caster is not in that record,

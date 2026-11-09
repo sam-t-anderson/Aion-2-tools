@@ -80,7 +80,7 @@ def relabel(doc):
     """``doc`` with each entity named "???" given its label, each arena match against players the
     capture could not name typed so, each zone name the catalog has replaced made current, the Stamina
     and MP restores left out of its heals, and in PvP the heals between the two sides (a shield's absorb
-    as a meter before 0.2.398 recorded it) left out and counted, in place (returned for chaining)."""
+    as a meter before 0.2.399 recorded it) left out and counted, in place (returned for chaining)."""
     from .healing import drop_restores, unattributed_heals
     players = {p.get("id") for p in (doc.get("players") if isinstance(doc, dict) else None) or [] if isinstance(p, dict)}
     for segment in (doc.get("segments") if isinstance(doc, dict) else None) or []:

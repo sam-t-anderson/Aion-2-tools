@@ -2348,10 +2348,10 @@ from their own record on entering a zone.
   * A heal over time ("restores … HP every 1s for 14s") seemed to arrive as one record carrying its
     whole amount, while the HP feed rises tick by tick. Light of Regeneration's ~6,000 rose ~418 per
     tick, and it was 68% of the recorded healing in the 15 October capture. Its records were read wrong
-    until 0.2.398: [below](#heals-over-time-and-shields-what-they-took-credited-to-the-caster-02398).
+    until 0.2.399: [below](#heals-over-time-and-shields-what-they-took-credited-to-the-caster-02399).
   * Some shields arrive as healing of the shield's size ("a Protective Shield that blocks damage";
     Impeding Authority) and restore no HP.
-  * Both are listed apart: a shield's absorb by its record's own mark (0.2.398), else by the skill
+  * Both are listed apart: a shield's absorb by its record's own mark (0.2.399), else by the skill
     descriptions. Potions, which have none, count as healing over time: their next readings rose far
     less than their amounts.
 * **The check.** For each read that healed a player, the target's HP after it (their last reading in
@@ -2360,10 +2360,10 @@ from their own record on entering a zone.
   HP. 168 had other changes in between (damage, ticks of other heals). Read in arrival order, 215
   heals raised HP by exactly their amount and 18 stopped at maximum HP.
 
-Pets and enemies are not covered. Shield absorption is decoded since 0.2.398 (below), but an absorb
+Pets and enemies are not covered. Shield absorption is decoded since 0.2.399 (below), but an absorb
 restores no HP, so the HP feed has nothing to check it against.
 
-### Heals over time and shields: what they took, credited to the caster (0.2.398)
+### Heals over time and shields: what they took, credited to the caster (0.2.399)
 
 A heal over time and a shield each hold an HP pool, and the game reports the pool in `05 38` records
 that carry the effect's instance (the number the game gives the effect on its target). Effect type
@@ -2401,7 +2401,7 @@ The reading, from four archived captures with raw TCP (the 15 and 20 October dun
 * **No absorb is an HP change.** 494 of 509 absorbs of three captures came with no HP record in their
   read: the shield took the hit.
 
-So since 0.2.398 an update is the heal of what it took (`parser._pool_update`), credited to the caster
+So since 0.2.399 an update is the heal of what it took (`parser._pool_update`), credited to the caster
 the effect's application named (`parser.PoolCasters`, kept across reads and cleared with the zone,
 whose entity ids it holds); the application is no heal. An update naming that caster is a tick, and
 its effect is then known to tick. One naming someone else is an absorb, the caster's, unless its
@@ -2416,11 +2416,11 @@ learns the rest from their first absorb. On the four captures, those rules call 
 shield's effect an absorb and every update of a heal over time's a tick of its own caster. The update
 follows the read's other records, so the hit of a fight's first absorb is already in the fight.
 
-**Stored logs.** A log recorded before 0.2.398 holds the absorbs as heals by the attacker of what was
+**Stored logs.** A log recorded before 0.2.399 holds the absorbs as heals by the attacker of what was
 left of the shield, and nothing in it names the caster. In a PvP fight a heal between the two sides
 (the party and its summons, an enemy and its summons) is therefore nobody's: the review leaves it out
 of both sides' healing and says how many there were, and a stored log read by the app or a log server
-of 0.2.398 drops them with a count (`combat.healing.unattributed_heals`, the segment's
+of 0.2.399 drops them with a count (`combat.healing.unattributed_heals`, the segment's
 `unattributed_heals`). In a public log of nine PvP fights, eight of them Arena of Solitude matches (9 November), a Templar's
 Nezekan's Shield, Poach, Guarding Seal and Doom Shield made 925 such records naming the opponents, each
 one below the record before it of the same shield on the Templar, and the opponents' shields 287 more

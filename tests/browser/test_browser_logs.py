@@ -741,10 +741,11 @@ def test_an_arena_match_shows_its_result_rating_fighters_and_rounds(app_page, ap
 
 def pvp_recording(opponent_casts=True):
     """A one-against-one arena match, a Templar recording against a Ranger: each one's hits on the other, the Templar's
-    shields recorded with the Ranger as their source (as a meter before 0.2.398 recorded an absorb), the Ranger's own heal,
+    shields recorded with the Ranger as their source (as a meter before 0.2.399 recorded an absorb), the Ranger's own heal,
     casts and buff, crowd control both ways, and each round's loser dying, the arena's death marker naming the winner.
-    Validated as the meter saves it, with the analysis that comes with that. Without ``opponent_casts`` the Ranger's
-    casts and heal are not in it, as in the meter's own recordings (it records the party's casts only)."""
+    Validated as the meter saves it, with the analysis that comes with that: the Ranger's casts have no cast time,
+    which the game sends for the recording player only (0.2.398). Without ``opponent_casts`` the Ranger's casts and
+    heal are not in it, as in a log the meter made before 0.2.398 (it recorded the party's casts only)."""
     from aion2calc.combat import a2log
     me, foe = "p:1101:1", "2:7001"
     effect = lambda t, end, target, source, skill, name, **extra: {"t": t, "end": end, "target": target, "source": source,  # noqa: E731
@@ -758,7 +759,7 @@ def pvp_recording(opponent_casts=True):
     events = [*theirs, *mine, *shields, *([event(30, foe, foe, 14790000, "Revitalization Contract", 1500.0, "heal")] if opponent_casts else []),
               {"t": 16.0, "kind": "death", "target": me, "source": foe}, {"t": 18.0, "kind": "revive", "target": me},
               {"t": 28.0, "kind": "death", "target": foe, "source": me}]
-    foe_casts = [*(cast(t, 14340000, "Tempest Shot", target=me, cooldown_ms=3000, cast_ms=300) for t in (0.9, 3.9, 6.9)),
+    foe_casts = [*(cast(t, 14340000, "Tempest Shot", target=me, cooldown_ms=3000) for t in (0.9, 3.9, 6.9)),
                  cast(10.9, 14030000, "Rapid Fire", target=me, cooldown_ms=8000), cast(12.5, 14000100, "Dodge", cooldown_ms=500)]
     fight = {"label": "Combat 1", "duration": 40.0, "encounter_type": "pvp_arena", "zone": "Impetusium Arena", "ping_recorder": me,
              "party_members": [me],
@@ -785,9 +786,9 @@ def pvp_recording(opponent_casts=True):
 
 ME, FOE = "p:1101:1", "2:7001"
 squash = lambda text: " ".join(text.split())                                                        # noqa: E731
-#: the note on the heals between the two sides, which a meter before 0.2.398 recorded for a shield's absorbs
+#: the note on the heals between the two sides, which a meter before 0.2.399 recorded for a shield's absorbs
 NOBODYS = ("Left out of everyone's healing: 3 heal records between the two sides, 6,000 as recorded (Nezekan's Shield ×3). "
-           "They are shields' absorbs, which a meter before 0.2.398 recorded as heals by the attacker, of what was left of "
+           "They are shields' absorbs, which a meter before 0.2.399 recorded as heals by the attacker, of what was left of "
            "the shield. The log does not name the shields' casters, so they count for no one.")
 SUMMARY = ".cr-review .cr-scroll table:has(th:text-is('HPS')) tbody tr"                     # the players' table
 
@@ -834,7 +835,7 @@ def test_a_pvp_opponent_is_chosen_under_player_and_shows_their_side_of_the_fight
         assert "Rapid Fire 5 3,000 23.1%" in abilities[1]
         details.locator('[data-detail="skills"]').click()
         skills = [squash(r) for r in details.locator("tbody tr").all_inner_texts()]
-        assert "Tempest Shot 3 3.0s 3.0s 3 of 13 · 23.1% 300 ms 0:00.90 → 0:06.90" in skills[0]
+        assert "Tempest Shot 3 3.0s 3.0s 3 of 13 · 23.1% — 0:00.90 → 0:06.90" in skills[0]         # no cast time
         assert "Rapid Fire 1 — 8.0s 1 of 4 · 25.0%" in skills[1] and "Dodge 1" in skills[2]
         details.locator('[data-detail="casts"]').click()
         lane = details.locator(".cr-timeline svg.cr-track:not(.cr-time-axis)")
@@ -877,8 +878,9 @@ def test_a_pvp_opponent_is_chosen_under_player_and_shows_their_side_of_the_fight
 
 def test_your_view_lists_the_crowd_control_you_took_and_what_the_log_lacks_reads_not_recorded(app_page, app_url, app_home):
     """The player's own view lists the crowd control an opponent landed on them, per state and per application; an
-    analysis made before it was listed says so. An opponent whose casts and heals the log does not hold (the meter
-    records the party's casts only) reads not recorded in their table row, Skills, Cast timeline and Rotation."""
+    analysis made before it was listed says so. An opponent whose casts and heals the log does not hold (a log the
+    meter made before 0.2.398, which recorded the party's casts only) reads not recorded in their table row, Skills,
+    Cast timeline and Rotation."""
     page = app_page
     actions = page.locator(".cr-actions:not(.cr-details)")
     path = _saved(app_home, "session-20261109-210000-abcdef.a2log.json", pvp_recording())
@@ -905,13 +907,14 @@ def test_your_view_lists_the_crowd_control_you_took_and_what_the_log_lacks_reads
         assert older in squash(actions.inner_text()) and "Shield Smite" in actions.inner_text()
         page.select_option('[data-control="actor"]', FOE)
         card = squash(page.locator("[data-opponent]").inner_text())
-        assert "Not recorded: their healing, their casts (the meter records the casts of your party and its summons only), their positions." in card
+        assert "Not recorded: their healing, their casts (recorded by the live meter since 0.2.398), their positions." in card
         [row] = [squash(r) for r in page.locator(SUMMARY).all_inner_texts()]
         assert row.endswith("Ranger 13,000 867 12,000 Not recorded — 1")
         details = page.locator(".cr-details")
         for tab in ("skills", "casts"):
             details.locator(f'[data-detail="{tab}"]').click()
-            assert "Their casts are not recorded: the meter records the casts of your party and its summons only." in details.inner_text()
+            assert ("Their casts are not recorded in this log: the live meter records an opponent's casts since 0.2.398, "
+                    "once the game has named them.") in squash(details.inner_text())
         actions.locator('[data-actions="rotation"]').click()
         assert "Their casts are not recorded" in actions.inner_text()
         actions.locator('[data-actions="cc"]').click()

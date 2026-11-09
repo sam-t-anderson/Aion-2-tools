@@ -914,7 +914,7 @@ public logs of the recording player and of their party members (Live Meter logs 
 - **Maps 510027, 510028 and 510033** are instanced PvE events (Drakan air raiders and their captain, Grandios and its
   spirits); one raider was taken for a player once, a fight typed *Other PvP* of 13 seconds.
 
-## Heals over time and shields in the `05 38` records: the caster, and what each update took (9 November, 0.2.398)
+## Heals over time and shields in the `05 38` records: the caster, and what each update took (9 November, 0.2.399)
 
 A user reported that in PvP their party's own shields counted as the opponent's healing. In a public log of nine PvP
 fights, eight of them Arena of Solitude matches (9 November, a Templar recording), 925 heal records on the Templar named an opponent as their
@@ -959,7 +959,7 @@ left, by the actor. A heal over time counted its pool, then what was left at eac
 a shield's absorbs counted what was left for the attacker. So in PvP your shields were the opponent's healing on you and
 theirs your healing on them, and in PvE a shield's absorbs were the NPC's healing, which no review credits.
 
-**Since 0.2.398** an update is the heal of what it took, credited to the caster its application named (`parser.PoolCasters`,
+**Since 0.2.399** an update is the heal of what it took, credited to the caster its application named (`parser.PoolCasters`,
 `parser._pool_update`), and an absorb is marked as one (`absorb` on the log's heal event: no HP restored). The application
 is no heal. An update naming the caster is a tick, and its effect is then known to tick; one naming someone else is the
 caster's absorb, unless its effect is known to tick and no hit of that actor's on the target came in the same read: then
@@ -973,7 +973,7 @@ Regeneration 665,116, not 7.1 million) and the Chanter 593,003, not 1.6 million.
 
 **Stored logs** cannot be fixed: an absorb's record never named the shield's caster. A heal between the two sides of a
 PvP fight is nobody's: the review leaves it out of both sides and says how many there were, and a log read by the app or a
-0.2.398 log server drops them and keeps the count (`combat.healing.unattributed_heals`). Their heals over time still read
+0.2.399 log server drops them and keeps the count (`combat.healing.unattributed_heals`). Their heals over time still read
 high; the review's effective-healing note says so.
 
 **Still open.**

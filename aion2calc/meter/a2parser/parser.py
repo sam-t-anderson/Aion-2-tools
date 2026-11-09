@@ -339,7 +339,7 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
     return out
 
 
-#: The ``05 38`` effect types of an effect that holds an HP pool: a heal over time's, or a shield's (0.2.398,
+#: The ``05 38`` effect types of an effect that holds an HP pool: a heal over time's, or a shield's (0.2.399,
 #: docs/open-investigations.md). ``09`` applies it: its actor is the caster and its amount the whole pool or the
 #: shield's size, and it restores no HP. ``0b`` updates it: its amount is what is left, and the varint after it what
 #: the update took, the HP a tick restored or the damage the shield absorbed of a hit. A tick names its caster as

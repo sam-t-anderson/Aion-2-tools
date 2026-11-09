@@ -561,10 +561,12 @@ class CombatSession:
             self._mark_boss_add(identity, p["entity"])
 
     def _keep_actions(self, actions, identity):
-        """Keep the decoded actions that concern the party: casts and cast ends by players and pets,
-        casts by catalog bosses and their adds and clones (0.2.394, marked ``add``), the local player's
-        chain windows and MP, effects on players and pets or applied by them (an enemy's own buffs are
-        kept only once the party has hit that enemy), and break-gauge readings."""
+        """Keep the decoded actions that concern the party: casts and cast ends by players and pets
+        (a named PvP opponent's too: the game names an arena opponent as the match opens, and the
+        export keeps a PvP fight's opponents' casts since 0.2.398), casts by catalog bosses and their
+        adds and clones (0.2.394, marked ``add``), the local player's chain windows and MP, effects on
+        players and pets or applied by them (an enemy's own buffs are kept only once the party has hit
+        that enemy), and break-gauge readings."""
         players, owners, epoch = identity["names"], identity["owners"], self.epoch
         local = identity.get("local_id")
         ours = lambda actor: actor in players or actor in owners or actor == local
@@ -908,7 +910,7 @@ class CombatSession:
         # Who struck with a player's own class skill, and who with an NPC's (0.2.354): an actor the capture
         # has no name or spawn record for that struck only with class skills is a player (an arena opponent,
         # a stranger in the Abyss), not an enemy of unknown type. Heals are no evidence: a shield's absorb, which
-        # carries the shield's skill, named the attacker as its actor before 0.2.398.
+        # carries the shield's skill, named the attacker as its actor before 0.2.399.
         strikes, npc_strikes = identity.setdefault("class_strikes", {}), identity.setdefault("npc_strikes", set())
         for e in events:
             if isinstance(e, DamageEvent):
@@ -1260,7 +1262,7 @@ class CombatSession:
     def _match_heal(event, identity, match_actors) -> bool:
         """A heal an arena fighter (or their summon) did on themselves or on nobody named: kept in an arena match
         (0.2.395) for the fighter's HPS. A heal on another fighter is not the actor's: the one fighter's shield
-        absorbing the other's hit, which before 0.2.398 named the attacker as its actor."""
+        absorbing the other's hit, which before 0.2.399 named the attacker as its actor."""
         if not match_actors or not isinstance(event, HealEvent):
             return False
         actor = identity["owners"].get(event.actor_id, event.actor_id)
@@ -2806,13 +2808,25 @@ class CombatSession:
         rank = lambda row: (0 if (entities.get(row["source"]) or {}).get("is_boss") else 1 if row["source"] in struck else 2)
         return sorted(sorted(npc_casts, key=lambda row: (rank(row), row["t"]))[:limit], key=lambda row: row["t"])
 
+    @staticmethod
+    def _cap_opponent_casts(casts, opponents):
+        """At most LIMITS["casts"] casts a fight: every cast of the party, then the opponents' in time order, so a
+        long fight against a crowd of the other faction never pushes the party's own casts out of its log."""
+        from ..combat.a2log import LIMITS
+        over = len(casts) - LIMITS["casts"]
+        if over <= 0:
+            return casts
+        theirs = [i for i, row in enumerate(casts) if row["source"] in opponents]
+        dropped = set(theirs[-over:])
+        return [row for i, row in enumerate(casts) if i not in dropped]
+
     def _segment_actions(self, group, identity, actor_refs, players, entities, by_epoch):
         """A segment's casts, effects, break-gauge readings and chain windows for its a2log, on the
         segment's clock (seconds from its start). Only actors the segment already references appear:
-        party players and their pets cast; effects are those on them or on the enemies they fought.
-        A cast can start up to three seconds before the first hit it causes, so casts from just
-        before the segment are kept with a negative time; an effect applied earlier and still
-        active is kept, clipped to the segment and marked ``before``."""
+        party players and their pets cast, and in a PvP fight its opponents (0.2.398); effects are
+        those on them or on the enemies they fought. A cast can start up to three seconds before the
+        first hit it causes, so casts from just before the segment are kept with a negative time; an
+        effect applied earlier and still active is kept, clipped to the segment and marked ``before``."""
         times, rows = by_epoch.get(group["epoch"], ([], []))
         start, end = group["start"], group["end"]
         duration = max(0.001, (end - start) / 1000)
@@ -2823,6 +2837,23 @@ class CombatSession:
             ref = actor_refs.get(actor)
             pet = entities.get(ref) if ref not in players else None
             return ref if ref in players or (pet and pet.get("kind") == "pet" and pet.get("owner") in players) else None
+
+        # A PvP fight's opponents (0.2.398): its enemy players, as the review's opponent view names them. Their casts
+        # are kept (``_keep_actions`` keeps every named player's, and the game names an arena opponent as the match
+        # opens) and go to ``casts`` beside the party's, so the review can show their skills, cast timeline and
+        # rotation. Their summons' casts are not exported, as the review reads an opponent's own casts only.
+        opponents = ({ref for ref, entity in entities.items() if entity.get("kind") == "enemy" and entity.get("is_player")}
+                     if group["pvp"] else set())
+
+        def cast_row(a, source):
+            skill = normalize_skill(a["skill"])
+            row = {"t": at(a["timestamp_ms"]), "source": source, "skill_id": skill, "skill": skill_name(skill)}
+            target = actor_refs.get(a["target"])
+            if a["at_target"] and target and target != source:
+                row["target"] = target
+            if a.get("cooldown_ms"):
+                row["cooldown_ms"] = a["cooldown_ms"]
+            return row
 
         ends, removals, applied = {}, {}, {}
         for a in window:
@@ -2854,6 +2885,10 @@ class CombatSession:
                 continue
             if kind == "cast" and start - 3000 <= ms <= end + 1000 and party_ref(a["actor"]) is None:
                 source = actor_refs.get(a["actor"])
+                if source in opponents:
+                    # No cast_ms: the game sends cast ends for the recording player alone.
+                    casts.append(cast_row(a, source))
+                    continue
                 add = (a.get("add") and boss_fight and source in entities
                        and entities[source].get("kind") == "enemy" and not entities[source].get("is_player"))
                 if source in entities and (entities[source].get("is_boss") or add) and start <= ms:
@@ -2873,13 +2908,7 @@ class CombatSession:
                 source = party_ref(a["actor"])
                 if source is None:
                     continue
-                skill = normalize_skill(a["skill"])
-                row = {"t": at(ms), "source": source, "skill_id": skill, "skill": skill_name(skill)}
-                target = actor_refs.get(a["target"])
-                if a["at_target"] and target and target != source:
-                    row["target"] = target
-                if a.get("cooldown_ms"):
-                    row["cooldown_ms"] = a["cooldown_ms"]
+                row = cast_row(a, source)
                 finished = [t for t in ends.get((a["actor"], a["skill"], a["seq"]), ()) if 0 <= t - ms <= 5000]
                 if finished:
                     row["cast_ms"] = min(finished) - ms
@@ -2939,6 +2968,8 @@ class CombatSession:
             for row in resources:
                 if row["entity"] == local:
                     row["max"] = maximum
+        if opponents:
+            casts = self._cap_opponent_casts(casts, opponents)
         return casts, effects, gauge, chains, resources, npc_casts
 
     def _arena_match(self, group):

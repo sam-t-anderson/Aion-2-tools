@@ -179,7 +179,7 @@ class MeterEngine:
         self.ping_tracker = PingTracker(perf_clock=perf_clock)
         self.seen_embedded_damage: set[bytes] = set()
         self.seen_embedded_order: deque[bytes] = deque()
-        # Who cast each heal over time and shield in view (0.2.398): a shield's absorb names the attacker whose hit it
+        # Who cast each heal over time and shield in view (0.2.399): a shield's absorb names the attacker whose hit it
         # took, and only its application names the caster.
         self.pools = PoolCasters()
         self._saved_encounters: set[tuple[int, int]] = set()

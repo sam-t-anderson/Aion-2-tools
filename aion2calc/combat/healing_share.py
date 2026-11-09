@@ -51,7 +51,7 @@ def _pool(doc: dict, pid: str) -> dict:
         seg = {**seg, "events": [dict(e) for e in (seg.get("events") or []) if isinstance(e, dict)]}
         try:
             drop_restores(seg)                 # MP and stamina restores are recorded as heals too
-            unattributed_heals(seg, players)   # and before 0.2.398 an opponent's shield as your heal on them
+            unattributed_heals(seg, players)   # and before 0.2.399 an opponent's shield as your heal on them
         except Exception:                      # noqa: BLE001 - a malformed segment is pooled as it is
             pass
         healed = 0.0
