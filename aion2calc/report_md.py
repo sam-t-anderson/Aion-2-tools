@@ -186,7 +186,7 @@ def write_markdown(summary: dict, out_dir: str, extra: dict | None = None) -> st
         top = ", ".join(f"{r['skill']} {100 * r['share']:.0f} %" for r in heal["by_skill"][:3])
         w(f"\n**Healing:** {heal['per_minute']:,.0f} a minute in a boss fight ({heal['hps']:,.0f} HPS; {top}): each heal at "
           f"this build's level times {heal['multiplier']:.2f} for its Attack (1 + Attack / 2,000, measured from recorded "
-          "heals), as often as the recorded healers heal (a heal over time counted by what its ticks took, 0.2.400).")
+          "heals), as often as the recorded healers heal (a heal over time counted by what its ticks took, 0.2.401).")
     gain = s["dps"][scen] / base["community_optimized_rotation"] - 1
     w(f"\nThe optimized build is **{100 * gain:+.1f}%** over the typical top global build played with the same "
       f"rotation optimizer, and **{100 * (s['dps'][scen] / base['community_naive'] - 1):+.1f}%** over that build "

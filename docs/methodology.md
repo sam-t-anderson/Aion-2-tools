@@ -1702,7 +1702,7 @@ a few self-heals ([World PvP](#every-classs-defensives-in-world-pvp-02386)).
 *Light of Regeneration's and Recuperation's rates in this table counted heal records that held a heal over time's
 whole pool when it was cast and then what was left of it at each tick
 ([0.2.399](#heals-over-time-and-shields-what-they-took-credited-to-the-caster-02399)); what the paragraph above reads
-as ticks capped by missing HP is that sequence. Since [0.2.400](#heal-rates-from-what-the-heals-over-time-took-02400)
+as ticks capped by missing HP is that sequence. Since [0.2.401](#heal-rates-from-what-the-heals-over-time-took-02401)
 they count what the ticks took, 6.3 and 20.4; the other rates stand.*
 
 ### The Assassin's Flash Slice and Storm Slice (0.2.386)
@@ -1963,7 +1963,7 @@ varies with gear grade (metabot says it does; the tests found half on bosses); t
 from any side; the heals on Block, which need how often the attackers hit; monsters' Accuracy, so Block cannot score
 against them; and the official profile's PvP Block id, read as `PvPBlock` after the boards' `PvPAccuracy`.
 
-### Heal rates from what the heals over time took (0.2.400)
+### Heal rates from what the heals over time took (0.2.401)
 
 [0.2.386](#heal-amounts-from-the-recorded-heals-02386) measured how often healers heal from the log server's heal
 records, and until [0.2.399](#heals-over-time-and-shields-what-they-took-credited-to-the-caster-02399) a meter
@@ -2033,7 +2033,7 @@ heals. In them the rebuild keeps 10.5 % of Light of Regeneration's recorded heal
 in 2,293 pools) and 65.8 % of Recuperation's (6.9 million of 10.5 million, 5.0 million of it its instant heals).
 Weighted as the rates are, per healer and fight:
 
-| Heal | 0.2.386 | Recorded, the 20 logs | Rebuilt, the 20 logs | Kept | 0.2.400 |
+| Heal | 0.2.386 | Recorded, the 20 logs | Rebuilt, the 20 logs | Kept | 0.2.401 |
 |---|---:|---:|---:|---:|---:|
 | Light of Regeneration | 59.1 | 56.4 | 6.0 | 10.6 % | **6.3** |
 | Recuperation | 32.0 | 30.3 | 19.3 | 63.6 % | **20.4** |
@@ -2544,7 +2544,7 @@ recorded 9.2 million: Light of Regeneration 665,116, not 7.1 million. Its Chante
 change. In the 31 October arena matches the Templar's shields took 101,797 of the opponents' damage,
 which the meter had recorded as 930,063 of the opponents' healing on the Templar. The heal rates of
 [0.2.386](#heal-amounts-from-the-recorded-heals-02386) were measured from records of the older meters;
-[0.2.400](#heal-rates-from-what-the-heals-over-time-took-02400) re-measures them from what the ticks took.
+[0.2.401](#heal-rates-from-what-the-heals-over-time-took-02401) re-measures them from what the ticks took.
 
 ### Stamina and MP restores are not healing (0.2.355)
 

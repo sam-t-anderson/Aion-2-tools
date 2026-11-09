@@ -1,5 +1,5 @@
 """0.2.386: heal amounts, every class's defensives in World PvP, incoming crowd control, Storm Slice and the boss's
-parries against Accuracy; 0.2.400: the heals over time's rates from what their ticks took."""
+parries against Accuracy; 0.2.401: the heals over time's rates from what their ticks took."""
 from dataclasses import replace
 
 import pytest
@@ -52,7 +52,7 @@ def test_a_heal_is_its_tooltip_value_times_one_plus_attack_over_two_thousand():
 
 
 def test_the_heals_over_time_count_what_their_ticks_took():
-    """0.2.400: Light of Regeneration's and Recuperation's rates are 0.2.386's times the share of their recorded healing
+    """0.2.401: Light of Regeneration's and Recuperation's rates are 0.2.386's times the share of their recorded healing
     that their ticks took in the same logs (10.6 % and 63.6 %; docs/methodology.md, "Heal rates from what the heals
     over time took"). The instant heals and Benevolence were read right and keep 0.2.386's rates."""
     cd = ClassData("cleric")

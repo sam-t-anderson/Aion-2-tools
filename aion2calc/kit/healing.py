@@ -1,4 +1,4 @@
-"""Healing amounts, measured from the log server's uploads (0.2.386; the heals over time re-measured in 0.2.400).
+"""Healing amounts, measured from the log server's uploads (0.2.386; the heals over time re-measured in 0.2.401).
 
 **A heal restores its tooltip's value at the skill's level times (1 + Attack / 2,000).** Each healer's recorded
 heals were set against the tooltip's mid value at the healer's own skill level (the official profile's, which the
@@ -16,7 +16,7 @@ over the healer's predicted full value of one application, in applications a min
 those rates times its own values (its skill levels and its Attack). Pooled over the boss fights of 20 recordings (6
 November 2026; a fight several party members uploaded counts once).
 
-**Heals over time (0.2.400).** A heal over time holds an HP pool. Light of Regeneration's is the formula's value (its
+**Heals over time (0.2.401).** A heal over time holds an HP pool. Light of Regeneration's is the formula's value (its
 recorded pools' median at 1.04 of it, over 1,796 pools) and each of its fifteen ticks takes a fifteenth of it. Meters
 before 0.2.399 recorded the pool when it was cast and then what was left of it at every tick, the sequence 0.2.386
 read as ticks capped by missing HP (a median of 0.55-0.70 of the formula, the tenth largest at it), and the rates
@@ -38,7 +38,7 @@ HEAL_ATTACK_SCALE = 2000.0
 #: The caster's share is the tooltip's: Healing Light heals the caster and the lowest-HP member (half), the party
 #: heals the caster and the party within 40 m (the recordings reach five players a cast, the Chanter's six). The two
 #: heals over time whose records counted what was left of them are 0.2.386's rates times the share of the recorded
-#: healing their ticks took (0.2.400).
+#: healing their ticks took (0.2.401).
 HEAL_RATES = {
     "cleric": {
         17090000: (6.3, 0.20),        # Light of Regeneration: its whole heal, 15 ticks in 30 s, on everyone in
