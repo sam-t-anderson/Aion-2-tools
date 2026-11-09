@@ -138,7 +138,7 @@ def summarize(doc):
             {"feature": "Buff, debuff and crowd-control windows", "records": len(segment.get("effects", [])), "basis": "Recorded effect applications and removals; crowd-control state from skill descriptions"},
             {"feature": "Break-gauge readings", "records": len(segment.get("gauge", [])), "basis": "Recorded boss break-gauge values"},
             {"feature": "MP readings", "records": len(segment.get("resources", [])), "basis": "The recording player's MP (the game sends no one else's)"},
-            {"feature": "Boss casts", "records": len(segment.get("npc_casts", [])), "basis": "Recorded skill casts by bosses; most boss skills have no name in the bundled tables"},
+            {"feature": "Boss casts", "records": len(segment.get("npc_casts", [])), "basis": "Recorded skill casts by bosses and their adds and clones; most boss skills have no name in the bundled tables"},
             {"feature": "Shields", "records": None, "basis": "Verified live decoding unavailable"}]
         segments.append({"segment":index, "catalog":coverage(segment), "capabilities": capabilities,
             "pressure": pressure_summary(segment, events, friendly), **{key:rows[:LIMIT] for key,rows in ordered.items()},
