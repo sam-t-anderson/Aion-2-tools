@@ -1,4 +1,4 @@
-"""A hit's damage is what it took off HP, and a two-byte field no longer shifts its values (0.2.401).
+"""A hit's damage is what it took off HP, and a two-byte field no longer shifts its values (0.2.402).
 
 After a layout-6 hit's modifiers comes a varint: with modifier bit 0x20 (decoded as Smite) it is what the hit lost before
 it reached HP, a fifth of its value when no shield took it, and without the bit 0. The target's HP drops by the value

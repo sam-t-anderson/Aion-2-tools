@@ -60,7 +60,7 @@ ABSORBED_BY = 0x40
 ABSORBED_BY_MAX = 8
 #: Modifier bit 0x20 of a layout-6 hit (decoded as ``SpecialDamage.SMITE``): the varint after the modifiers is then
 #: what the hit lost before it reached HP, a fifth of its value when no shield took it, and the target's HP drops by
-#: the value less it (0.2.401). Without the bit the varint is 0. From 128 on it takes two bytes, which the decoder read
+#: the value less it (0.2.402). Without the bit the varint is 0. From 128 on it takes two bytes, which the decoder read
 #: as one: the values then began with a second 0, and it took the power scalar for the hit's damage
 #: (docs/open-investigations.md).
 LOST_BEFORE_HP = 0x20

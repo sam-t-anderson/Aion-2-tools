@@ -982,7 +982,10 @@ and the decoder no longer reads them as hits ([next section](#a-hit-a-shield-abs
 **Still open.**
 - *The healers' rates* ([methodology, 0.2.386](methodology.md#heal-amounts-from-the-recorded-heals-02386)) were measured from
   the older meters' heal records, where a heal over time's ticks counted what was left of it (Light of Regeneration's
-  59.1 full-value applications a minute among them), and are not re-measured yet.
+  59.1 full-value applications a minute among them). *Re-measured in 0.2.401* from the same stored logs, each pool's
+  records differenced into what its ticks took: Light of Regeneration 6.3, Recuperation 20.4, the instant heals and
+  Benevolence unchanged ([methodology](methodology.md#heal-rates-from-what-the-heals-over-time-took-02401)). Stored
+  logs themselves still show the inflated heals over time; the same differencing could repair them when read.
 - Effect type `01` came twice in the arena capture, a Warding Strike with actor 0 and nothing after its amount; the
   decoder keeps reading it as a heal of its amount, as before. A team arena's records are unseen.
 
@@ -1043,9 +1046,9 @@ October captures (raw TCP, with `lz4` for the compressed bundles):
 skips, and no hit is read where they begin. A hit's damage is what it dealt; its Multi-Hits before the shields are read as
 before. A log holds a hit's total only, so a log recorded before 0.2.400 keeps these hits as they were.
 
-*The hits whose values began with two zeros, left open here, are read since 0.2.401: the field after a hit's modifiers
+*The hits whose values began with two zeros, left open here, are read since 0.2.402: the field after a hit's modifiers
 can take two bytes, and it is what the hit lost before it reached HP
-([next section](#what-a-hit-took-off-hp-the-field-after-its-modifiers-9-november-02401)).*
+([next section](#what-a-hit-took-off-hp-the-field-after-its-modifiers-9-november-02402)).*
 
 **Still open.**
 - *The rest of a hit a shield absorbed.* The strict walk of a hit's record (`parser._hit_tail`) does not read the
@@ -1056,7 +1059,7 @@ can take two bytes, and it is what the hit lost before it reached HP
   of 178, as the same skill's hits no shield took drain, and six of 1 HP, a drain no hit without a shield shows. Not done
   here: it changes the Multi-Hit counts and the healing of these hits.
 
-## What a hit took off HP: the field after its modifiers (9 November, 0.2.401)
+## What a hit took off HP: the field after its modifiers (9 November, 0.2.402)
 
 The section above left open 172 hits whose values began with two zeros, which the decoder read with the power scalar as
 their damage. The zeros came from a field it read as one byte. Read from the 15, 20, 21 and 31 October captures:
@@ -1076,7 +1079,7 @@ their damage. The zeros came from a field it read as one byte. Read from the 15,
   9,000 to 17,060 for a player) for the damage, and read the direction from the field's second byte: 120 of them came
   out from behind or from the front when the record said otherwise. A hit whose field took one byte counted its whole
   value, the field more than it took off HP.
-- **Before and after.** Each capture replayed through 0.2.400 and 0.2.401: every hit that changes has bit 0x20 and a
+- **Before and after.** Each capture replayed through 0.2.401 and 0.2.402: every hit that changes has bit 0x20 and a
   field. It drops to its value less the field (two bytes) or by the field (one byte), and nothing else changes.
 
   | Capture | Two-byte field: hits, damage removed | One-byte field: hits, damage removed | Directions corrected |
@@ -1090,9 +1093,9 @@ their damage. The zeros came from a field it read as one byte. Read from the 15,
   Ranger, 84,509 to 44,238), and their damage taken by up to 15 %. In the 20 October run the party's damage taken drops
   by 5 to 24 % in nine of the boss fights, its damage dealt not at all.
 
-**Since 0.2.401** the decoder reads the field when the modifiers have bit 0x20 (`parser.LOST_BEFORE_HP`), reads the
+**Since 0.2.402** the decoder reads the field when the modifiers have bit 0x20 (`parser.LOST_BEFORE_HP`), reads the
 direction and the values after it, and counts the hit's value less it. The hit's multi-hits stay as recorded, and the
-main hit carries the loss. A log holds a hit's total only, so a log recorded before 0.2.401 keeps these hits as they were.
+main hit carries the loss. A log holds a hit's total only, so a log recorded before 0.2.402 keeps these hits as they were.
 
 **Still open.**
 - *What takes the fifth.* The 317 hits came from the front (181), the side (85) and behind (51), from monsters (143)
