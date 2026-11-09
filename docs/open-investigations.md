@@ -1060,6 +1060,10 @@ October captures (raw TCP, with `lz4` for the compressed bundles):
 skips, and no hit is read where they begin. A hit's damage is what it dealt; its Multi-Hits before the shields are read as
 before. A log holds a hit's total only, so a log recorded before 0.2.400 keeps these hits as they were.
 
+*The hits whose values began with two zeros, left open here, are read since 0.2.402: the field after a hit's modifiers
+can take two bytes, and it is what the hit lost before it reached HP
+([next section](#what-a-hit-took-off-hp-the-field-after-its-modifiers-9-november-02402)).*
+
 **Still open.**
 - *The rest of a hit a shield absorbed.* The strict walk of a hit's record (`parser._hit_tail`) does not read the
   shields, so a hit with bit 0x40 takes the fallback, which loses some of the Multi-Hits the record carries (those under
@@ -1068,7 +1072,49 @@ before. A log holds a hit's total only, so a log recorded before 0.2.400 keeps t
   totals stay as they are, 63 of its hits a shield absorbed carry Multi-Hits, and 10 drains appear: three of 167 and one
   of 178, as the same skill's hits no shield took drain, and six of 1 HP, a drain no hit without a shield shows. Not done
   here: it changes the Multi-Hit counts and the healing of these hits.
-- *A hit's values beginning with two zeros.* The decoder reads a hit's values as a 0 (in most hits of layout 6), the
-  power scalar and the damage. 172 hits of the four captures begin with one 0 more, and the decoder, reading one, takes
-  the power scalar (9,000 to 17,060) for the damage and leaves the damage (a median of 2,407) unread: 233,960 too much in
-  the arena capture, 1.35 million in the four. 20 of them are hits a shield absorbed. Not checked against the HP feed yet.
+
+## What a hit took off HP: the field after its modifiers (9 November, 0.2.402)
+
+The section above left open 172 hits whose values began with two zeros, which the decoder read with the power scalar as
+their damage. The zeros came from a field it read as one byte. Read from the 15, 20, 21 and 31 October captures:
+
+- **The field.** In a layout-6 hit, the modifiers (one byte) are followed by a varint, then the direction (one byte),
+  the hit's own effect number (u32), a u32 (1 in most hits), the power scalar and the hit's value. The decoder skipped
+  ten bytes as if the varint were one, which lands on the u32's last byte: the one leading 0 it already read past. From
+  128 on the varint takes two bytes, and the values began with a second 0. Of the 38,279 layout-6 hits read directly, it
+  takes one byte in all 38,107 with one leading 0, and two in all 172 with two.
+- **What it holds.** It is 0 unless the modifiers have bit 0x20 (the bit the decoder names Smite), and non-zero in 317
+  hits. When no shield took the hit it is a fifth of the hit's value: 147 of the 151 two-byte ones at 0.200, the
+  one-byte ones as near as rounding allows. The target's HP drops by the value less it. In 201 reads where a target's HP
+  readings bracket only that read's hits (98 with a two-byte field, 103 with one byte), the drop equals the hits with the
+  field taken off, and in none with the value whole; 109 more match neither. With a shield on the hit (25 hits) it is a
+  smaller share, 0.05 to 0.18, which no HP reading can check.
+- **What it did.** For the hits whose field took two bytes the decoder took the power scalar (10,000 for a monster,
+  9,000 to 17,060 for a player) for the damage, and read the direction from the field's second byte: 120 of them came
+  out from behind or from the front when the record said otherwise. A hit whose field took one byte counted its whole
+  value, the field more than it took off HP.
+- **Before and after.** Each capture replayed through 0.2.401 and 0.2.402: every hit that changes has bit 0x20 and a
+  field. It drops to its value less the field (two bytes) or by the field (one byte), and nothing else changes.
+
+  | Capture | Two-byte field: hits, damage removed | One-byte field: hits, damage removed | Directions corrected |
+  |---|---:|---:|---:|
+  | 31 October, six arena matches by a Templar | 21, 239,203 | 36, 2,349 | 17 |
+  | 20 October, a dungeon run | 62, 441,312 | 8, 678 | 42 |
+  | 21 October, the Abyss | 50, 573,904 | 106, 5,635 | 35 |
+  | 15 October, a dungeon run | 40, 222,944 | none | 26 |
+
+  In the arena recording's review the Templar's damage drops in five of the six matches, by up to 48 % (against the
+  Ranger, 84,509 to 44,238), and their damage taken by up to 15 %. In the 20 October run the party's damage taken drops
+  by 5 to 24 % in nine of the boss fights, its damage dealt not at all.
+
+**Since 0.2.402** the decoder reads the field when the modifiers have bit 0x20 (`parser.LOST_BEFORE_HP`), reads the
+direction and the values after it, and counts the hit's value less it. The hit's multi-hits stay as recorded, and the
+main hit carries the loss. A log holds a hit's total only, so a log recorded before 0.2.402 keeps these hits as they were.
+
+**Still open.**
+- *What takes the fifth.* The 317 hits came from the front (181), the side (85) and behind (51), from monsters (143)
+  and players (174), critical or not. A block as the [methodology](methodology.md#block-against-accuracy-02387) models it
+  never takes a hit from behind, so this looks more like a damage reduction on the target than a block; which effect it
+  is, and why it takes less of a hit a shield is on, is not settled.
+- *Layouts 5 and 7* read their modifiers and direction as layout 6 does, but no hit of theirs is in these captures, so
+  their field is still read as one byte.
