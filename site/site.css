@@ -17,8 +17,8 @@
 .scard h3 { font-family: var(--display); letter-spacing: .6px; margin: 0 0 8px; color: var(--gold); font-size: 17px; }
 .shots h2, .dl h2 { font-family: var(--display); color: var(--gold); letter-spacing: 1px; margin: 32px 0 14px; }
 /* The overlay is a narrow window: shown near its own size beside the Live Meter, not stretched to half the page. */
-.shotgrid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); align-items: start; gap: 14px; }
-.shotoverlay { max-width: 360px; }
+.shotgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; gap: 14px; }
+.shotmeter { grid-column: 1 / -1; }
 .shotgrid img { width: 100%; height: auto; border: 1px solid var(--frame); border-radius: 8px; display: block; }
 .dlrow { display: flex; flex-wrap: wrap; gap: 10px; }
 /* The header's name links home; it keeps the brand's gold and spacing rather than a link's colour. */
