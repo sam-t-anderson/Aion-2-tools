@@ -3,10 +3,13 @@ Personal records tab, each showing its panel alone; the log server's fights, new
 hidden until asked for, each opening at its own fight; the recordings saved on this computer, by type; and
 the panels for the player's uploads (with the appeal against a moderator's hold) and characters; and a fight's
 review: its details tabs, its enemies by name, a comparison from a pasted link, the fight combined from every
-recording of it, and an arena match's result and rounds; and an analyzed fight's breakdown."""
+recording of it, an arena match's result and rounds, and a PvP opponent's side of the fight; and an analyzed fight's
+breakdown."""
 import json
 
-from apphelpers import go
+import pytest
+
+from apphelpers import axe_findings, close_context, go, open_context, watched_page
 from community import FIGHTS, LOG_ID, PART_LOG_ID
 
 TABS = ("community", "speed", "progression", "points", "extras")
@@ -733,6 +736,202 @@ def test_an_arena_match_shows_its_result_rating_fighters_and_rounds(app_page, ap
         page.wait_for_function("document.querySelector('.cr-review').innerText.includes('kill credit are not inferred')")
         assert page.locator("[data-arena-match]").count() == 0
     finally:
+        path.unlink()
+
+
+def pvp_recording(opponent_casts=True):
+    """A one-against-one arena match, a Templar recording against a Ranger: each one's hits on the other, the Templar's
+    shields recorded with the Ranger as their source (as the recordings name the attacker), the Ranger's own heal,
+    casts and buff, crowd control both ways, and each round's loser dying, the arena's death marker naming the winner.
+    Validated as the meter saves it, with the analysis that comes with that. Without ``opponent_casts`` the Ranger's
+    casts and heal are not in it, as in the meter's own recordings (it records the party's casts only)."""
+    from aion2calc.combat import a2log
+    me, foe = "p:1101:1", "2:7001"
+    effect = lambda t, end, target, source, skill, name, **extra: {"t": t, "end": end, "target": target, "source": source,  # noqa: E731
+                                                                    "skill_id": skill, "skill": name, **extra}
+    event = lambda t, source, target, skill, name, amount, kind="damage": {"t": float(t), "kind": kind, "source": source, "target": target,  # noqa: E731
+                                                                           "skill_id": skill, "skill": name, "amount": amount}
+    cast = lambda t, skill, name, **extra: {"t": t, "source": foe, "skill_id": skill, "skill": name, **extra}  # noqa: E731
+    theirs = [event(t, foe, me, 14340000, "Tempest Shot", 1000.0) for t in range(1, 11)] + [event(t, foe, me, 14030000, "Rapid Fire", 600.0) for t in range(11, 16)]
+    mine = [event(t, me, foe, 12010000, "Vicious Strike", 1500.0) for t in range(20, 28)]
+    shields = [event(t, foe, me, 12320000, "Nezekan's Shield", 2000.0, "heal") for t in (2, 5, 8)]
+    events = [*theirs, *mine, *shields, *([event(30, foe, foe, 14790000, "Revitalization Contract", 1500.0, "heal")] if opponent_casts else []),
+              {"t": 16.0, "kind": "death", "target": me, "source": foe}, {"t": 18.0, "kind": "revive", "target": me},
+              {"t": 28.0, "kind": "death", "target": foe, "source": me}]
+    foe_casts = [*(cast(t, 14340000, "Tempest Shot", target=me, cooldown_ms=3000, cast_ms=300) for t in (0.9, 3.9, 6.9)),
+                 cast(10.9, 14030000, "Rapid Fire", target=me, cooldown_ms=8000), cast(12.5, 14000100, "Dodge", cooldown_ms=500)]
+    fight = {"label": "Combat 1", "duration": 40.0, "encounter_type": "pvp_arena", "zone": "Impetusium Arena", "ping_recorder": me,
+             "party_members": [me],
+             "entities": [{"id": foe, "name": "Testranger", "kind": "enemy", "is_player": True, "class": "Ranger", "server": "1107"}],
+             "hits": [{"t": e["t"], "player": me, "target": foe, "skill_id": 12010000, "skill": "Vicious Strike", "damage": 1500.0} for e in mine],
+             "events": sorted(events, key=lambda e: e["t"]),
+             "casts": [*(foe_casts if opponent_casts else []),
+                       {"t": 19.9, "source": me, "skill_id": 12010000, "skill": "Vicious Strike", "target": foe, "cooldown_ms": 6000}],
+             "effects": [effect(12.0, 14.0, me, foe, 14070000, "Suppressing Arrow", ended="expired"),
+                         effect(14.5, 16.0, me, foe, 14130000, "Snare Shot", ended="removed"),
+                         effect(21.0, 23.0, foe, me, 12100000, "Shield Smite", ended="expired"),
+                         effect(29.0, 35.0, foe, foe, 14790000, "Revitalization Contract", ended="expired")],
+             "health": [{"t": 0.0, "entity": me, "current": 20000.0, "max": 20000.0}, {"t": 15.5, "entity": me, "current": 1500.0, "max": 20000.0},
+                        {"t": 19.0, "entity": foe, "current": 20000.0, "max": 20000.0}, {"t": 24.0, "entity": foe, "current": 12000.0, "max": 20000.0},
+                        {"t": 27.5, "entity": foe, "current": 2000.0, "max": 20000.0}],
+             "arena": {"match": 16945405,
+                       "fighters": [{"name": "Testtemplar", "class": "templar", "server": "1101", "faction": "asmodian", "rating": 1530, "ref": me, "self": True},
+                                    {"name": "Testranger", "class": "ranger", "server": "1107", "faction": "elyos", "rating": 1548, "ref": foe}],
+                       "rounds": [{"round": 1, "t": 16.0, "winner": 1, "loser": 0}, {"round": 2, "t": 28.0, "winner": 0, "loser": 1}]}}
+    return a2log.validate({"format": "a2log", "version": 1, "meta": {"title": "Arena session", "capture_scope": "party",
+                                                                  "uploader": {"name": "Testtemplar", "verified": True}},
+                           "players": [{"id": me, "name": "Testtemplar", "class": "templar", "server": "1101"}], "segments": [fight]})
+
+
+ME, FOE = "p:1101:1", "2:7001"
+squash = lambda text: " ".join(text.split())                                                        # noqa: E731
+SUMMARY = ".cr-review .cr-scroll table:has(th:text-is('HPS')) tbody tr"                     # the players' table
+
+
+def test_a_pvp_opponent_is_chosen_under_player_and_shows_their_side_of_the_fight(app_page, app_url, app_home):
+    """In a PvP fight the Player menu offers the opponents beside the party, and one chosen reads the fight from their
+    side as a party player's view does: their row in the table, whom they struck and who struck them, their abilities,
+    skills, rotation and cast timeline, the buffs and debuffs on and from them, crowd control both ways, and the death
+    recaps of their deaths and of the party's they struck in. The heal records on the party that name them are left
+    out of their healing, with a note. The party's own view stays as it was."""
+    page = app_page
+    path = _saved(app_home, "session-20261109-200000-abcdef.a2log.json", pvp_recording())
+    try:
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=0")
+        menu = page.locator('[data-control="actor"]')
+        menu.wait_for()
+        assert menu.locator("optgroup").evaluate_all("groups => groups.map(g => g.label)") == ["Opponents"]
+        assert [o.split(" · ")[0] for o in menu.locator("optgroup option").all_inner_texts()] == ["Testranger"]
+        assert "Choose an opponent under Player to see the fight from their side." in squash(page.locator(".cr-review").inner_text())
+        party = [squash(r) for r in page.locator(SUMMARY).all_inner_texts()]
+        assert len(party) == 1 and party[0].startswith("Testtemplar") and page.locator("[data-opponent]").count() == 0
+        menu.select_option(FOE)
+        card = page.locator("[data-opponent]")
+        card.wait_for()
+        text = squash(card.inner_text())
+        assert text.startswith("Opponent · Testranger") and card.locator("h3").inner_text().endswith("· Ranger")
+        assert ("Recorded: 15 hits of theirs, 8 hits on them, 1 heal, 5 casts, 4 buff and debuff records, 3 HP readings, 1 death marker. "
+                "Not recorded: their positions.") in text
+        dealt, taken = (squash(card.locator("table").nth(i).locator("tbody").inner_text()) for i in (0, 1))
+        assert dealt.startswith("Testtemplar") and dealt.endswith("13,000 100.0% 15 1,000 867")      # DPS on their 15 active seconds
+        assert taken.startswith("Testtemplar") and taken.endswith("12,000 100.0% 8 1,500 300")       # per second over the 40 s
+        assert ("Left out of their healing: 3 heal records on your party that name them as the source, 6,000 in all "
+                "(Templar skills: Nezekan's Shield ×3). An opponent does not heal your side.") in text
+        [row] = [squash(r) for r in page.locator(SUMMARY).all_inner_texts()]
+        assert row.startswith("Testranger") and row.endswith("Ranger 13,000 867 12,000 1,500 38 1")
+        assert "red: their HP" in page.locator(".cr-graph").inner_text()
+        details = page.locator(".cr-details")
+        details.locator('[data-detail="abilities"]').click()
+        abilities = [squash(r) for r in details.locator("tbody tr").all_inner_texts()]
+        assert len(abilities) == 2 and abilities[0].startswith("Testranger") and "Tempest Shot 10 10,000 76.9% 667" in abilities[0]
+        assert "Rapid Fire 5 3,000 23.1%" in abilities[1]
+        details.locator('[data-detail="skills"]').click()
+        skills = [squash(r) for r in details.locator("tbody tr").all_inner_texts()]
+        assert "Tempest Shot 3 3.0s 3.0s 3 of 13 · 23.1% 300 ms 0:00.90 → 0:06.90" in skills[0]
+        assert "Rapid Fire 1 — 8.0s 1 of 4 · 25.0%" in skills[1] and "Dodge 1" in skills[2]
+        details.locator('[data-detail="casts"]').click()
+        lane = details.locator(".cr-timeline svg.cr-track:not(.cr-time-axis)")
+        assert lane.count() == 1 and lane.locator("g.cr-marker").count() == 5
+        assert details.locator(".cr-timeline .cr-lane-name").inner_text().startswith("Testranger")
+        actions = page.locator(".cr-actions:not(.cr-details)")
+        assert squash(actions.locator("tbody tr").inner_text()).endswith("5 7.5 0 1")              # casts, per minute, procs, dodges
+        actions.locator('[data-actions="effects"]').click()
+        assert actions.locator("h4").all_inner_texts() == ["Buffs on them", "Your party's effects on them", "Their effects on others"]
+        mine, ours, theirs = (squash(actions.locator("table").nth(i).locator("tbody").inner_text()) for i in range(3))
+        assert "Revitalization Contract 15.0% 6.0s 1 Testranger" in mine and "Shield Smite 5.0% 2.0s 1 Testtemplar" in ours
+        assert "Suppressing Arrow 5.0% 2.0s 1 Testranger" in theirs and "Snare Shot 3.8% 1.5s 1 Testranger" in theirs
+        actions.locator('[data-actions="cc"]').click()
+        assert actions.locator("h4").all_inner_texts() == ["Their crowd control on your party", "Your party's crowd control on them"]
+        landed_on_us = [squash(r) for r in actions.locator("table").nth(0).locator("tbody tr").all_inner_texts()]
+        assert len(landed_on_us) == 2 and landed_on_us[0].startswith("0:12.00 Testtemplar") and landed_on_us[0].endswith("Suppressing Arrow Stun 2.00s Ran its duration")
+        assert landed_on_us[1].endswith("Snare Shot Slow soft 1.50s Removed early")
+        assert squash(actions.locator("table").nth(1).locator("tbody").inner_text()).endswith("Shield Smite Stun 2.00s Ran its duration")
+        page.click('[data-metric="deaths"]')
+        recaps = page.locator("h3:text-is('Player death recaps') + p + .cr-scroll tbody tr")
+        rows = [squash(r) for r in recaps.all_inner_texts()]
+        assert len(rows) == 2 and rows[0].startswith("Testtemplar") and "16.000s 10.0s 8,000 2,000" in rows[0]   # struck by them
+        assert rows[1].startswith("Testranger") and "28.000s 10.0s 12,000 0 2,000 / 20,000 at 27.500s" in rows[1]
+        assert rows[1].endswith("Vicious Strike · 1,500 at 27.000s")
+        recaps.nth(1).locator("[data-recap]").click()
+        assert "death marker at 28.000s" in page.locator("h4", has_text="death marker at").inner_text()
+        window = page.locator("h4:has-text('death marker at') + p + .cr-scroll tbody tr")
+        assert window.count() == 8 and all("Vicious Strike" in r for r in window.all_inner_texts())
+        page.click('[data-metric="summary"]')
+        page.click('[data-view="timeline"]')
+        lanes = page.locator("h3:text-is('Recorded effect timeline') ~ .cr-timeline .cr-lane-name")
+        assert lanes.count() == 2 and lanes.nth(1).inner_text().startswith("Testranger")
+        menu.select_option("")                                    # the party again, as before
+        page.wait_for_function("!document.querySelector('[data-opponent]')")
+        page.click('[data-view="table"]')
+        assert [squash(r).split(" · ")[0] for r in page.locator(SUMMARY).all_inner_texts()] == ["Testtemplar"]
+    finally:
+        path.unlink()
+
+
+def test_your_view_lists_the_crowd_control_you_took_and_what_the_log_lacks_reads_not_recorded(app_page, app_url, app_home):
+    """The player's own view lists the crowd control an opponent landed on them, per state and per application; an
+    analysis made before it was listed says so. An opponent whose casts and heals the log does not hold (the meter
+    records the party's casts only) reads not recorded in their table row, Skills, Cast timeline and Rotation."""
+    page = app_page
+    actions = page.locator(".cr-actions:not(.cr-details)")
+    path = _saved(app_home, "session-20261109-210000-abcdef.a2log.json", pvp_recording())
+    try:
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=0")
+        page.select_option('[data-control="actor"]', ME)
+        actions.locator('[data-actions="cc"]').click()
+        assert actions.locator("h4").all_inner_texts() == ["Each application", "Crowd control on your party", "Each application on your party"]
+        taken = [squash(r) for r in actions.locator("h4:text-is('Crowd control on your party') + p + .cr-scroll tbody tr").all_inner_texts()]
+        assert len(taken) == 2 and taken[0].startswith("Testtemplar") and taken[0].endswith("Stun 1 2.0s 1 0") and taken[1].endswith("Slow 1 1.5s 0 1")
+        each = [squash(r) for r in actions.locator("h4:text-is('Each application on your party') + .cr-scroll tbody tr").all_inner_texts()]
+        assert len(each) == 2 and "Testranger" in each[0] and each[0].endswith("Suppressing Arrow Stun 2.00s Ran its duration")
+    finally:
+        path.unlink()
+    doc = pvp_recording(opponent_casts=False)
+    for key in ("crowd_control_received", "crowd_control_received_by_target"):          # as an older analyzer left it
+        del doc["encounter_insights"]["segments"][0]["actions"][key]
+    path = _saved(app_home, "session-20261109-220000-abcdef.a2log.json", doc)
+    older = "Not in this log's analysis, which an older app or sharing server made."
+    try:
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=0")
+        page.select_option('[data-control="actor"]', ME)
+        actions.locator('[data-actions="cc"]').click()
+        assert older in squash(actions.inner_text()) and "Shield Smite" in actions.inner_text()
+        page.select_option('[data-control="actor"]', FOE)
+        card = squash(page.locator("[data-opponent]").inner_text())
+        assert "Not recorded: their healing, their casts (the meter records the casts of your party and its summons only), their positions." in card
+        [row] = [squash(r) for r in page.locator(SUMMARY).all_inner_texts()]
+        assert row.endswith("Ranger 13,000 867 12,000 Not recorded — 1")
+        details = page.locator(".cr-details")
+        for tab in ("skills", "casts"):
+            details.locator(f'[data-detail="{tab}"]').click()
+            assert "Their casts are not recorded: the meter records the casts of your party and its summons only." in details.inner_text()
+        actions.locator('[data-actions="rotation"]').click()
+        assert "Their casts are not recorded" in actions.inner_text()
+        actions.locator('[data-actions="cc"]').click()
+        assert older in squash(actions.inner_text()) and "Shield Smite Stun" in squash(actions.inner_text())
+    finally:
+        path.unlink()
+
+
+@pytest.mark.parametrize("scheme", ["dark", "light"])
+def test_the_opponent_view_passes_axe(browser, app_url, app_home, axe_js, scheme):
+    path = _saved(app_home, f"session-20261109-23000{scheme == 'light':d}-abcdef.a2log.json", pvp_recording())
+    context = open_context(browser, app_url, scheme)
+    try:
+        page, watch = watched_page(context, app_url)
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=0")
+        page.select_option('[data-control="actor"]', FOE)
+        page.locator("[data-opponent]").wait_for()
+        problems = [f"opponent: {p}" for p in axe_findings(page, axe_js)]
+        for tab in ("effects", "cc"):
+            page.click(f'[data-actions="{tab}"]')
+            problems += [f"{tab}: {p}" for p in axe_findings(page, axe_js)]
+        page.click('[data-metric="deaths"]')
+        problems += [f"deaths: {p}" for p in axe_findings(page, axe_js)]
+        problems += watch.unexpected()
+        assert not problems, "\n".join(problems)
+    finally:
+        close_context(context)
         path.unlink()
 
 

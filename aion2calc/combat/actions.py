@@ -143,21 +143,39 @@ def rotation(segment: dict, players: set) -> dict:
             "chains": sorted(chains, key=lambda r: -r["opened"]), "dodges": dodges}
 
 
+def _cc_totals(rows: list, key: str) -> list:
+    """Crowd-control applications summed per ``key`` (the player who landed them, or the one they landed on) and
+    state: how often they landed, re-applications included, how long they held, how many were hard and how many
+    the game removed early."""
+    totals = defaultdict(lambda: {"landed": 0, "seconds": 0.0, "hard": 0, "broken_early": 0})
+    for row in rows:
+        summary = totals[(row[key], row["state"])]
+        summary["landed"] += 1 + row["refreshes"]           # each re-application while held landed it again
+        summary["seconds"] += row["seconds"]
+        summary["hard"] += (1 + row["refreshes"]) * int(row["hard"])
+        summary["broken_early"] += int(row["ended"] == "removed")
+    return sorted(({key: who, "state": state, **summary, "seconds": round(summary["seconds"], 2)}
+                   for (who, state), summary in totals.items()), key=lambda r: -r["seconds"])
+
+
 def effects(segment: dict, friendly: set, entities: dict) -> dict:
-    """Buff uptime on the party, debuff uptime on enemies, and crowd control the party landed."""
+    """Buff uptime on the party, debuff uptime on enemies, the crowd control the party landed, and the crowd control
+    landed on the party by someone outside it (``crowd_control_received``: a PvP opponent's, whose skills the class
+    descriptions name; an NPC's skills have none, so a boss's crowd control is not listed)."""
     duration = max(0.001, segment["duration"])
     groups = defaultdict(list)
-    crowd = []
+    crowd, received = [], []
     for row in segment.get("effects") or []:
         target, source = row["target"], row.get("source")
         on_party = target in friendly
         side = "buff" if on_party and (source is None or source in friendly) else "incoming" if on_party else "debuff"
         groups[(side, target, _family(row["skill_id"]))].append(row)
         state = cc_state(row["skill_id"])
-        if side == "debuff" and state and source in friendly:
-            crowd.append({"t": row["t"], "end": row["end"], "seconds": round(row["end"] - row["t"], 2), "target": target,
-                          "source": source, "skill_id": row["skill_id"], "skill": row.get("skill"), "state": state,
-                          "hard": state.lower() in HARD_CC, "ended": row.get("ended"), "refreshes": row.get("refreshes", 0)})
+        if state and (side == "incoming" or (side == "debuff" and source in friendly)):
+            (received if side == "incoming" else crowd).append({
+                "t": row["t"], "end": row["end"], "seconds": round(row["end"] - row["t"], 2), "target": target,
+                "source": source, "skill_id": row["skill_id"], "skill": row.get("skill"), "state": state,
+                "hard": state.lower() in HARD_CC, "ended": row.get("ended"), "refreshes": row.get("refreshes", 0)})
     out = {"buffs": [], "incoming": [], "debuffs": []}
     for (side, target, family), rows in groups.items():
         seconds = _merged_seconds([(r["t"], r["end"]) for r in rows], duration)
@@ -171,16 +189,10 @@ def effects(segment: dict, friendly: set, entities: dict) -> dict:
             "boss": bool(entities.get(target, {}).get("is_boss"))})
     for key in out:
         out[key].sort(key=lambda r: (-r["boss"], -r["seconds"]))
-    by_source = defaultdict(lambda: {"landed": 0, "seconds": 0.0, "hard": 0, "broken_early": 0})
-    for row in crowd:
-        summary = by_source[(row["source"], row["state"])]
-        summary["landed"] += 1 + row["refreshes"]           # each re-application while held landed it again
-        summary["seconds"] += row["seconds"]
-        summary["hard"] += (1 + row["refreshes"]) * int(row["hard"])
-        summary["broken_early"] += int(row["ended"] == "removed")
     out["crowd_control"] = sorted(crowd, key=lambda r: r["t"])
-    out["crowd_control_by_source"] = sorted(({"source": source, "state": state, **summary, "seconds": round(summary["seconds"], 2)}
-                                             for (source, state), summary in by_source.items()), key=lambda r: -r["seconds"])
+    out["crowd_control_by_source"] = _cc_totals(crowd, "source")
+    out["crowd_control_received"] = sorted(received, key=lambda r: r["t"])
+    out["crowd_control_received_by_target"] = _cc_totals(received, "target")
     return out
 
 
@@ -339,7 +351,8 @@ def summarize(segment: dict, players: set, friendly: set, entities: dict) -> dic
     result = {"rotation": rotation(segment, players), **effects(segment, friendly, entities),
               "stagger": stagger(segment, entities), "mp": mp(segment), "boss_casts": boss_casts(segment, entities)}
     omitted = {}
-    for key in ("buffs", "incoming", "debuffs", "crowd_control", "crowd_control_by_source"):
+    for key in ("buffs", "incoming", "debuffs", "crowd_control", "crowd_control_by_source", "crowd_control_received",
+                "crowd_control_received_by_target"):
         omitted[key] = max(0, len(result[key]) - LIMIT)
         result[key] = result[key][:LIMIT]
     rotation_rows = result["rotation"]

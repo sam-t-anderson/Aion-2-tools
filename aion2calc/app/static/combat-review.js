@@ -328,36 +328,53 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     // The enemies the review is filtered to: one name's entities, their ids comma-separated in ``state.enemy``.
     let enemyKey=null,enemyIds=new Set();
     const isEnemy=id=>{if(state.enemy!==enemyKey){enemyKey=state.enemy;enemyIds=new Set(String(state.enemy || '').split(',').filter(Boolean));}return enemyIds.has(id);};
-    function data() {
+    // The fight's events and the totals of its players. ``foe``, a PvP opponent's id, reads the fight from their side
+    // as it reads a party player's: their damage done and taken, healing and deaths (``rows`` then holds them).
+    function data(foe='') {
       const segment=doc.segments[state.segment] || {duration:1,hits:[]};const r=refs();
       const recorded=segment.events || [];
-      const events=(recorded.length ? recorded : (segment.hits || []).map(h=>({kind:"damage",t:h.t,source:h.source || h.player,target:h.target,amount:h.damage,skill:h.skill,skill_id:h.skill_id}))).slice().sort((a,b)=>a.t-b.t);
+      let events=(recorded.length ? recorded : (segment.hits || []).map(h=>({kind:"damage",t:h.t,source:h.source || h.player,target:h.target,amount:h.damage,skill:h.skill,skill_id:h.skill_id}))).slice().sort((a,b)=>a.t-b.t);
       const friendly=new Set((doc.players || []).map(p=>p.id));
+      // Which side an actor is on: the party (its players and their summons), or from an opponent's side theirs.
+      const party=id=>friendly.has(rootOwner(id,r));
+      const member=foe?id=>id===foe:id=>friendly.has(id);
+      const ours=foe?id=>rootOwner(id,r)===foe:id=>friendly.has(id) || !!r[id]?.owner;
+      const oursRoot=foe?ours:party;
+      // An opponent heals no one on your side. The heal records on the party that name one as their source carry the
+      // party's own skills (in a recorded arena match a Templar's Nezekan's Shield, Poach and Guarding Seal, mostly at
+      // the moment of the Ranger's hits), so they are left out of the opponent's healing.
+      let unclaimed=null;
+      if(foe)events=events.filter(e=>{if(e.kind!=='heal' || !ours(e.source) || !party(e.target))return true;
+        unclaimed ||= {count:0,amount:0,skills:new Map(),classes:new Set()};unclaimed.count++;unclaimed.amount+=e.amount || 0;
+        const skill=e.skill || e.skill_id || 'Unknown';unclaimed.skills.set(skill,(unclaimed.skills.get(skill) || 0)+1);unclaimed.classes.add(skillClass(e.skill_id));return false;});
+      const enemy=foe?'':state.enemy;                // the enemy filter narrows the party's side only
       const seenDeaths=new Set();
       const rows=new Map();
-      const row=id=>{const key=owner(id,r);if(!key)return null;if(!rows.has(key)) rows.set(key,{...(r[key] || {id:key,name:key}),damage:0,taken:0,healing:0,deaths:0,revives:0});return rows.get(key);};
+      const row=id=>{const key=owner(id,r);if(!key)return null;if(!rows.has(key)) rows.set(key,{...(r[key] || {id:key,name:key}),damage:0,taken:0,healing:0,deaths:0,revives:0,hits:0,struck:0,heals:0});return rows.get(key);};
       for(const e of events) {
-        if(e.kind==="death") {const key=e.target+":"+e.t;if(seenDeaths.has(key))continue;seenDeaths.add(key);if(friendly.has(e.target) || (!state.combine && r[e.target]?.owner)) {const p=row(e.target);if(p)p.deaths++;}continue;}
-        if(e.kind==="revive") {if(friendly.has(e.target)) {const p=row(e.target);if(p)p.revives++;}continue;}
+        if(e.kind==="death") {const key=e.target+":"+e.t;if(seenDeaths.has(key))continue;seenDeaths.add(key);if(member(e.target) || (!state.combine && ours(e.target) && r[e.target]?.owner)) {const p=row(e.target);if(p)p.deaths++;}continue;}
+        if(e.kind==="revive") {if(member(e.target)) {const p=row(e.target);if(p)p.revives++;}continue;}
         if(e.kind==="damage") {
-          if((friendly.has(e.source) || r[e.source]?.owner) && (!state.enemy || isEnemy(e.target))) {const p=row(e.source);if(p)p.damage+=e.amount;}
+          if(ours(e.source) && (!enemy || isEnemy(e.target))) {const p=row(e.source);if(p){p.damage+=e.amount;p.hits++;}}
           // Friendly fire never happens: the recordings hold a summon's own strikes with its owner as the target (a
           // spirit's Basic Attack on its Spiritmaster, 0.2.393), which are no damage taken.
-          if((friendly.has(e.target) || r[e.target]?.owner) && !friendly.has(rootOwner(e.source,r)) && (!state.enemy || isEnemy(e.source))) {const p=row(e.target);if(p)p.taken+=e.amount;}
+          if(ours(e.target) && !oursRoot(e.source) && (!enemy || isEnemy(e.source))) {const p=row(e.target);if(p){p.taken+=e.amount;p.struck++;}}
         }
-        if(e.kind==="heal" && (friendly.has(e.source) || r[e.source]?.owner)) {const p=row(e.source);if(p)p.healing+=e.amount;}
+        if(e.kind==="heal" && ours(e.source)) {const p=row(e.source);if(p){p.healing+=e.amount;p.heals++;}}
       }
-      const outgoing=events.filter(e=>e.kind==='damage' && friendly.has(rootOwner(e.source,r)) && !friendly.has(rootOwner(e.target,r)));
+      const outgoing=events.filter(e=>e.kind==='damage' && oursRoot(e.source) && !oursRoot(e.target));
       const firstDamage=outgoing.length?outgoing[0].t:0;
       const dpsDuration=Math.max(1,new Set(outgoing.map(e=>Math.floor(Math.max(0,e.t-firstDamage)))).size);
-      return {segment,r,events,rows:[...rows.values()],friendly,dpsDuration};
+      return {segment,r,events,rows:[...rows.values()],friendly,dpsDuration,foe,ours,party,unclaimed};
     }
+    // A fight's PvP opponents: the enemy players in it, offered under Player beside the party.
+    const opponentsOf=d=>modeOf(d.segment)==='pvp'?Object.values(d.r).filter(e=>e.kind==='enemy' && e.is_player && !d.friendly.has(e.id)):[];
     function visibleEvents(d) {
       return d.events.filter(e=>(!state.actor || owner(e.source,d.r)===state.actor || owner(e.target,d.r)===state.actor)
-        && (!state.enemy || e.kind!=="damage" || isEnemy(e.target) || isEnemy(e.source))
+        && (!state.enemy || d.foe || e.kind!=="damage" || isEnemy(e.target) || isEnemy(e.source))
         && (state.pets || (!d.r[e.source]?.owner && !d.r[e.target]?.owner))
-        && (state.metric==="summary" || (state.metric==="damage" && e.kind==="damage" && (d.friendly.has(e.source) || d.r[e.source]?.owner))
-          || (state.metric==="taken" && e.kind==="damage" && (d.friendly.has(e.target) || d.r[e.target]?.owner)) || (state.metric==="healing" && e.kind==="heal") || (state.metric==="deaths" && e.kind==="death")));
+        && (state.metric==="summary" || (state.metric==="damage" && e.kind==="damage" && d.ours(e.source))
+          || (state.metric==="taken" && e.kind==="damage" && d.ours(e.target)) || (state.metric==="healing" && e.kind==="heal") || (state.metric==="deaths" && e.kind==="death")));
     }
     function graph(d, events) {
       const duration=Math.max(d.segment.duration,1),step=Math.max(1,Math.ceil(duration/1200)),count=Math.ceil(duration/step),series={};
@@ -366,8 +383,8 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         if(e.kind==='death')continue;
         let actor,kind;
         if(e.kind==='heal'){actor=owner(e.source,d.r);kind='Healing';}
-        else if(d.friendly.has(e.source)||d.r[e.source]?.owner){actor=owner(e.source,d.r);kind='Damage done';}
-        else if(d.friendly.has(e.target)||d.r[e.target]?.owner){actor=owner(e.target,d.r);kind='Damage taken';}else continue;
+        else if(d.ours(e.source)){actor=owner(e.source,d.r);kind='Damage done';}
+        else if(d.ours(e.target)){actor=owner(e.target,d.r);kind='Damage taken';}else continue;
         const key=actor+':'+kind;if(state.hidden.has(key))continue;
         const line=series[key] ||= {actor,kind,values:Array(count).fill(0)};
         const i=Math.max(0,Math.min(count-1,Math.floor(e.t/step)));
@@ -385,12 +402,14 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const bars=total.map((v,i)=>`<rect x="${x(i*step)}" y="${y(v)}" width="${Math.max(.5,880*Math.min(step,duration-i*step)/duration-1)}" height="${180-y(v)}" style="fill:var(--chart-bar,#39c2e047)"/>`).join('');
       const average=`<polyline points="${roll.map((v,i)=>`${x(Math.min(duration,(i+.5)*step))},${y(v)}`).join(' ')}" fill="none" style="stroke:var(--chart-line,#e8cf8e)" stroke-width="2"/>`;
       const paths=state.graphMode==='players'?lines.map(([,s])=>`<polyline fill="none" stroke="${color(d.r[s.actor]?.class)}" stroke-width="2" ${s.kind==='Damage taken'?'stroke-dasharray="7 4"':s.kind==='Healing'?'stroke-dasharray="2 3"':''} points="${s.values.map((v,i)=>`${x(Math.min(duration,(i+.5)*step))},${y(v)}`).join(' ')}"/>`).join(''):bars+average;
-      const health=(d.segment.health||[]).filter(s=>s.t>=0 && s.t<=duration && (state.enemy?isEnemy(s.entity):bossEntity(d.r[s.entity])));
+      // the red line: the bosses' HP, the filtered enemies', or in an opponent's view their own
+      const health=(d.segment.health||[]).filter(s=>s.t>=0 && s.t<=duration && (d.foe?s.entity===d.foe:state.enemy?isEnemy(s.entity):bossEntity(d.r[s.entity])));
+      const hpOf=d.foe?'their HP':'boss HP';
       let hpMax=1;for(const s of health)hpMax=Math.max(hpMax,s.max||s.current);
       const hp=[...new Set(health.map(s=>s.entity))].map(id=>`<polyline fill="none" stroke="#ef6262" stroke-width="1.5" points="${health.filter(s=>s.entity===id).map(s=>`${x(s.t)},${180-s.current*160/hpMax}`).join(' ')}"><title>${esc(label(d.r[id]))} HP (right scale)</title></polyline>`).join('');
       graphModel={duration,step,count,total,roll,lines,health,primary};
-      return `<div class="cr-graph"><div class="row small"><label>Graph style <select data-graph-mode><option value="total" ${state.graphMode!=='players'?'selected':''}>Live style · bars + 10 s average</option><option value="players" ${state.graphMode==='players'?'selected':''}>Player series</option></select></label><span>${esc(primary)} per second · ${step}s buckets${health.length?' · red: boss HP, right scale':' · Boss HP: not recorded'}</span></div>
-        <div class="cr-legend small" aria-label="Graph key">${state.graphMode==='players'?'<span>Class-colored lines: player rates · solid: damage done · dashed: damage taken · dotted: healing</span>':`<span><svg width="18" height="12" aria-hidden="true"><rect width="18" height="12" style="fill:var(--chart-bar,#39c2e047)"/></svg> Bars: total ${esc(primary.toLowerCase())} per second</span><span><svg width="24" height="12" aria-hidden="true"><path d="M0 6H24" style="stroke:var(--chart-line,#e8cf8e)" stroke-width="2"/></svg> Gold line: trailing 10-second average</span>`}${health.length?'<span><svg width="24" height="12" aria-hidden="true"><path d="M0 6H24" stroke="#ef6262" stroke-width="2"/></svg> Red line: boss HP (right axis)</span>':''}</div>
+      return `<div class="cr-graph"><div class="row small"><label>Graph style <select data-graph-mode><option value="total" ${state.graphMode!=='players'?'selected':''}>Live style · bars + 10 s average</option><option value="players" ${state.graphMode==='players'?'selected':''}>Player series</option></select></label><span>${esc(primary)} per second · ${step}s buckets${health.length?` · red: ${hpOf}, right scale`:` · ${d.foe?'Their':'Boss'} HP: not recorded`}</span></div>
+        <div class="cr-legend small" aria-label="Graph key">${state.graphMode==='players'?'<span>Class-colored lines: player rates · solid: damage done · dashed: damage taken · dotted: healing</span>':`<span><svg width="18" height="12" aria-hidden="true"><rect width="18" height="12" style="fill:var(--chart-bar,#39c2e047)"/></svg> Bars: total ${esc(primary.toLowerCase())} per second</span><span><svg width="24" height="12" aria-hidden="true"><path d="M0 6H24" style="stroke:var(--chart-line,#e8cf8e)" stroke-width="2"/></svg> Gold line: trailing 10-second average</span>`}${health.length?`<span><svg width="24" height="12" aria-hidden="true"><path d="M0 6H24" stroke="#ef6262" stroke-width="2"/></svg> Red line: ${hpOf} (right axis)</span>`:''}</div>
         <svg viewBox="0 0 1000 220" role="group" aria-label="Combat rate chart">${grid}${ticks}${paths}${hp}${health.length?`<text x="948" y="25" fill="#ef6262" font-size="11">${number(hpMax)}</text><text x="948" y="184" fill="#ef6262" font-size="11">0 HP</text>`:''}<path data-graph-cursor d="M60 20V180" stroke="currentColor" stroke-dasharray="3 3" visibility="hidden"/><rect data-graph-hit x="60" y="20" width="880" height="160" fill="transparent" tabindex="0" role="button" aria-label="Inspect graph time; use left and right arrow keys"/></svg>
         <div class="note small" data-graph-detail role="status">Hover or click the graph for rates. In Timeline view, click a time to move the timeline window there.</div><div class="cr-legend">${lines.map(([key,s])=>`<button class="btn small" data-series="${esc(key)}" style="color:${color(d.r[s.actor]?.class)}">${esc(label(d.r[s.actor]))} · ${s.kind}</button>`).join('')}<button class="btn small" data-showall>Show all series</button></div></div>`;
     }
@@ -453,7 +472,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       state.timelineStart=Math.max(0,Math.min(Number(state.timelineStart)||0,duration-span));
       const start=state.timelineStart,end=start+span,width=Math.max(900,Math.min(8000,span*32));
       const inWindow=events.filter(e=>e.t>=start && (e.t<end || end===duration && e.t<=end));
-      const ids=[...new Set(events.flatMap(e=>[owner(e.source,d.r),owner(e.target,d.r)]).filter(id=>id && (d.friendly.has(id)||d.r[id]?.owner)))];
+      const ids=[...new Set(events.flatMap(e=>[owner(e.source,d.r),owner(e.target,d.r)]).filter(id=>id && d.ours(id)))];
       let omitted=0;
       const lanes=ids.filter(id=>!timelineHidden.has(id)).map(id=>{
         const controls=`<button class="btn small" data-timeline-collapse="${esc(id)}" aria-expanded="${!timelineCollapsed.has(id)}">${timelineCollapsed.has(id)?'Expand':'Collapse'}</button><button class="btn small" data-timeline-hide="${esc(id)}">Hide</button>`;
@@ -527,13 +546,13 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     const pct=v=>v==null?'—':v.toFixed(1)+'%';
     const skillCell=r=>{const icon=skillSource(r.skill_id);return `${icon?`<img class="cr-skill-icon" src="${esc(icon)}" alt="" width="18" height="18" loading="lazy" onerror="this.remove()"> `:''}${esc(r.skill || r.skill_id || 'Unknown skill')}`;};
     const endedText={expired:'Ran its duration',removed:'Removed early'};
+    // A family zeroes the rank/spec digits; class system actions (dodge, weapon equip: "xx00") stay whole.
+    const family=id=>Math.floor(id/10000)%100===0?id:Math.floor(id/10000)*10000;
     // One press can send several records of a skill: the cast, which carries the skill's cooldown,
     // then follow-up parts without one. Keep the cooldown-bearing records when the skill has a
     // cooldown, else its aimed records; a skill with neither is a proc or passive effect.
     function presses(casts) {
       const groups=new Map();
-      // A family zeroes the rank/spec digits; class system actions (dodge, weapon equip: "xx00") stay whole.
-      const family=id=>Math.floor(id/10000)%100===0?id:Math.floor(id/10000)*10000;
       for(const c of casts){const key=c.source+'|'+family(c.skill_id);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(c);}
       const out=[];
       for(const rows of groups.values()) {
@@ -544,8 +563,44 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       }
       return out.sort((a,b)=>a.t-b.t);
     }
+    // An opponent's casts summarised as the analyzer summarises the party's (actions.rotation, which reads the party's
+    // only): each skill's presses, the cooldown the game sent, how many fit from the first press to the end, the gaps
+    // and the cast time. The meter records the casts of the party and its summons only, so a log holds an opponent's
+    // when another recorder kept them.
+    function rotationOf(segment, id) {
+      const duration=Math.max(.001,segment.duration),median=v=>{v=v.slice().sort((a,b)=>a-b);return v.length?v[v.length>>1]:null;},groups=new Map();
+      for(const c of presses((segment.casts || []).filter(c=>c.source===id))){const key=family(c.skill_id);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(c);}
+      const skills=[],dodges=[];let casts=0,procs=0;
+      for(const rows of groups.values()){
+        const times=rows.map(c=>c.t),gaps=times.slice(1).map((t,i)=>t-times[i]),cooldown=median(rows.filter(c=>c.cooldown_ms).map(c=>c.cooldown_ms));
+        const possible=cooldown>=1000?Math.floor(Math.max(0,duration-Math.max(0,times[0])-.5)/(cooldown/1000))+1:null,skill=rows[0].skill || String(rows[0].skill_id);
+        if(rows[0].kind==='skill')casts+=rows.length;else procs+=rows.length;
+        if(skill==='Dodge')dodges.push({source:id,count:rows.length});
+        skills.push({source:id,skill_id:rows[0].skill_id,skill,kind:rows[0].kind,casts:rows.length,first:times[0],last:times[times.length-1],
+          average_gap:gaps.length?gaps.reduce((a,b)=>a+b,0)/gaps.length:null,cooldown_ms:cooldown,possible,usage_pct:possible?Math.min(100,100*rows.length/possible):null,
+          cast_ms:median(rows.filter(c=>c.cast_ms!=null).map(c=>c.cast_ms))});
+      }
+      return {totals:skills.length?[{source:id,casts,procs,per_minute:60*casts/duration}]:[],skills:skills.sort((a,b)=>b.casts-a.casts),chains:[],dodges};
+    }
+    // An opponent's effect windows merged per recipient and effect, as the analyzer merges the party's (actions.effects):
+    // from each application to its removal, or to its stated duration when no removal was recorded; overlaps count once.
+    function effectGroups(list, duration) {
+      duration=Math.max(.001,duration);const groups=new Map();
+      for(const x of list){const key=x.target+'|'+family(x.skill_id);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(x);}
+      return [...groups.values()].map(rows=>{
+        let seconds=0,start=0,end=null;
+        for(const [a,b] of rows.map(x=>[Math.max(0,x.t),Math.min(duration,x.end)]).filter(([a,b])=>b>a).sort((m,n)=>m[0]-n[0])){if(end!==null && a<=end)end=Math.max(end,b);else{if(end!==null)seconds+=end-start;start=a;end=b;}}
+        if(end!==null)seconds+=end-start;
+        const by=new Map();for(const x of rows)by.set(x.source || '',(by.get(x.source || '') || 0)+1);
+        return {target:rows[0].target,skill_id:rows[0].skill_id,skill:rows[0].skill || String(rows[0].skill_id),applications:rows.length,seconds,uptime_pct:100*seconds/duration,
+          sources:[...by].sort((m,n)=>n[1]-m[1]).slice(0,5).map(([source,applications])=>({source:source || null,applications}))};
+      }).sort((a,b)=>b.seconds-a.seconds);
+    }
+    // the casts behind a player's or an opponent's Skills, Cast timeline and Rotation
+    const rotationFor=d=>d.foe?rotationOf(d.segment,d.foe):actionsOf().rotation;
+    const NO_FOE_CASTS='Their casts are not recorded: the meter records the casts of your party and its summons only. <i>Abilities</i> lists each skill they hit with, and the Timeline view each hit.';
     function castTimeline(d, rotation) {
-      const players=new Set((doc.players || []).map(p=>p.id));
+      const players=d.foe?new Set([d.foe]):new Set((doc.players || []).map(p=>p.id));
       const shown=presses((d.segment.casts || []).filter(c=>players.has(c.source) && (!state.actor || c.source===state.actor))).filter(c=>!state.hideProcs || c.kind==='skill');
       const ids=[...new Set(rotation.totals.map(r=>r.source))].filter(id=>!state.actor || id===state.actor);
       if(!ids.length)return '';
@@ -581,18 +636,19 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     // Why an encounter's casts cannot be shown, or '' when they can.
     function castsMissing(d) {
       if((doc.meta?.reconstruction?.omitted_actions || []).length)return '<p class="small muted">This combined review leaves out the casts: across these parts they exceed what one review can hold. Open a single part to see them.</p>';
+      if(d.foe)return (d.segment.casts || []).some(c=>c.source===d.foe)?'':`<p class="small muted">${NO_FOE_CASTS}</p>`;
       const s=actionsOf();
       if(!s || !(d.segment.casts || []).length)return `<p class="small muted">Skill casts are not recorded for this encounter. The live meter records them since 0.2.306${s?'':'; reopen the file with the updated app, or update the sharing server, to see them'}.</p>`;
       return '';
     }
     function skillsHTML(d) {
       const missing=castsMissing(d);if(missing)return missing;
-      const r=actionsOf().rotation,mine=id=>!state.actor || id===state.actor;
+      const r=rotationFor(d),mine=id=>!state.actor || id===state.actor;
       return `<p class="small muted">Casts are the game's own cast records. Cooldown usage compares the casts made with how many fit between the first cast and the end of the fight at the cooldown the game sent (cooldown reduction included). It does not judge priorities or account for mechanics that stop you casting.</p><label class="small"><input type="checkbox" data-control="hideProcs" ${state.hideProcs?'checked':''}> Hide procs and passive effects</label>
           ${table(['Player','Skill','Casts','Average gap','Cooldown','Cooldown usage','Cast time','First → last'],r.skills.filter(k=>mine(k.source) && (!state.hideProcs || k.kind==='skill')).map(k=>`<tr><td>${actorHTML(d.r[k.source])}</td><td>${skillCell(k)}${k.kind==='proc'?' <span class="small muted">proc</span>':''}</td><td>${number(k.casts)}</td><td>${k.average_gap==null?'—':k.average_gap.toFixed(1)+'s'}</td><td>${cooldownText(k.cooldown_ms)}</td><td>${k.possible?`${number(k.casts)} of ${number(k.possible)} · ${pct(k.usage_pct)}`:'—'}</td><td>${k.cast_ms==null?'—':number(k.cast_ms)+' ms'}</td><td>${signedClock(k.first)} → ${signedClock(k.last)}</td></tr>`))}`;
     }
     function castsHTML(d) {
-      return castsMissing(d) || castTimeline(d,actionsOf().rotation) || '<p class="small muted">No skill casts by the selected player in this encounter.</p>';
+      return castsMissing(d) || castTimeline(d,rotationFor(d)) || '<p class="small muted">No skill casts by the selected player in this encounter.</p>';
     }
     function actionsHTML(d) {
       const s=doc.encounter_insights?.segments?.find(s=>s.segment===state.segment)?.actions,seg=d.segment;
@@ -604,8 +660,8 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const omitted=Object.entries(s.omitted_actions || {}).filter(([,n])=>n).map(([key,n])=>`${number(n)} ${key.replaceAll('_',' ')} rows`).join(', ');
       let body='';
       if(state.actions==='rotation') {
-        const r=s.rotation,dodges=new Map(r.dodges.map(x=>[x.source,x.count]));
-        body=`<p class="small muted">Casts are the game's own cast records.</p>
+        const r=rotationFor(d),dodges=new Map(r.dodges.map(x=>[x.source,x.count]));
+        body=d.foe && !r.totals.length?`<p class="small muted">${NO_FOE_CASTS}</p>`:`<p class="small muted">Casts are the game's own cast records.</p>
           ${table(['Player','Skill casts','Casts per minute','Procs and passives','Dodges'],r.totals.filter(t=>mine(t.source)).map(t=>`<tr><td>${actorHTML(d.r[t.source])}</td><td>${number(t.casts)}</td><td>${t.per_minute.toFixed(1)}</td><td>${number(t.procs)}</td><td>${number(dodges.get(t.source)||0)}</td></tr>`))}
           ${(s.mp || []).some(m=>mine(m.entity))?`<h4>MP</h4><p class="small muted">The recording player's MP: the game sends no one else's. Spent is the sum of every drop (mostly skill costs); restored is regeneration and MP-restoring skills. Below 20% is the time under a fifth of the maximum.</p>${table(['Player','Start → end','Lowest','Maximum','Spent','Spent per minute','Restored','Below 20%'],s.mp.filter(m=>mine(m.entity)).map(m=>`<tr><td>${actorHTML(d.r[m.entity])}</td><td>${number(m.start)} → ${number(m.end)}</td><td>${number(m.lowest)}</td><td>${number(m.max)}${m.max_from_record?'':' <span class="small muted">highest reading</span>'}</td><td>${number(m.spent)}</td><td>${m.spent_per_minute==null?'—':number(m.spent_per_minute)}</td><td>${number(m.restored)}</td><td>${m.seconds_low.toFixed(1)}s <span class="small muted">${pct(m.low_pct)}</span></td></tr>`))}`:''}
           <p class="small muted">Each skill's casts and the cast timeline are under <i>Abilities and skills</i> above.</p>
@@ -613,14 +669,37 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       } else if(state.actions==='effects') {
         const sources=x=>x.sources.map(v=>v.source?`${actorHTML(d.r[v.source])} ×${v.applications}`:`Not recorded ×${v.applications}`).join(' ');
         const rows=list=>list.filter(x=>mine(x.target) || x.sources.some(v=>mine(v.source))).map(x=>`<tr><td>${actorHTML(d.r[x.target])}${x.boss?' <span class="small muted">boss</span>':''}</td><td>${skillCell(x)}</td><td>${pct(x.uptime_pct)}</td><td>${x.seconds.toFixed(1)}s</td><td>${number(x.applications)}</td><td>${sources(x)}</td></tr>`);
-        body=`<p class="small muted">Windows run from each effect's application to its removal, or to its stated duration when no removal was recorded. Overlapping applications on the same target count once. Uptime is over the whole encounter.</p>
+        const windows=`<p class="small muted">Windows run from each effect's application to its removal, or to its stated duration when no removal was recorded. Overlapping applications on the same target count once. Uptime is over the whole encounter.</p>`;
+        if(d.foe){
+          // an opponent's, from the fight's effect records: on them by themselves or their side, on them by the party, and by them
+          const fx=seg.effects || [],onThem=x=>d.ours(x.target),byParty=x=>!!x.source && d.party(x.source),groups=list=>effectGroups(list,seg.duration);
+          const imported=(seg.buffs || []).filter(b=>b.player===d.foe);
+          body=!fx.length && !imported.length?'<p class="small muted">Buffs and debuffs are not recorded for this encounter.</p>':`${windows}
+            <h4>Buffs on them</h4>${table(['Recipient','Buff','Uptime','Time','Applications','Given by'],rows(groups(fx.filter(x=>onThem(x) && !byParty(x)))))}
+            <h4>Your party's effects on them</h4>${table(['Recipient','Effect','Uptime','Time','Applications','Applied by'],rows(groups(fx.filter(x=>onThem(x) && byParty(x)))))}
+            <h4>Their effects on others</h4>${table(['Recipient','Effect','Uptime','Time','Applications','Source'],rows(groups(fx.filter(x=>!!x.source && d.ours(x.source) && !onThem(x)))))}
+            ${imported.length?`<h4>Imported buff windows</h4>${table(['Buff','Start → end'],imported.map(b=>`<tr><td>${skillCell({skill:b.name,skill_id:b.skill_id})}</td><td>${signedClock(b.start)} → ${signedClock(b.end)}</td></tr>`))}`:''}`;
+        } else body=`${windows}
           <h4>Buffs on the party</h4>${table(['Recipient','Buff','Uptime','Time','Applications','Given by'],rows(s.buffs))}
           <h4>Debuffs on enemies</h4>${table(['Enemy','Debuff','Uptime','Time','Applications','Applied by'],rows(s.debuffs))}
           <h4>Enemy effects on the party</h4>${table(['Recipient','Effect','Uptime','Time','Applications','Source'],rows(s.incoming))}`;
       } else if(state.actions==='cc') {
-        body=`<p class="small muted">Crowd control your party landed on enemies. The state comes from the skill's description; how long it held comes from the effect's own records. Removed early means the game ended the effect before its duration (an immunity, a break or a phase change, not told apart).</p>
+        const ccRow=(c,...who)=>`<tr><td>${signedClock(c.t)}</td>${who.map(id=>`<td>${actorHTML(d.r[id])}</td>`).join('')}<td>${skillCell(c)}</td><td>${esc(c.state)}${c.hard?'':' <span class="small muted">soft</span>'}</td><td>${c.seconds.toFixed(2)}s${c.refreshes?` <span class="small muted">re-applied ${number(c.refreshes)}×</span>`:''}</td><td>${esc(endedText[c.ended] || (c.end>=d.segment.duration-0.01?'Active at the end':'No removal recorded'))}</td></tr>`;
+        // Crowd control landed on the party from outside it (an analyzer that lists it, encounter_insights version 6):
+        // a PvP opponent's, whose skills the class descriptions name. An NPC's skills have none.
+        const received=s.crowd_control_received,pvp=modeOf(seg)==='pvp';
+        const older='<p class="small muted">Not in this log\'s analysis, which an older app or sharing server made.</p>';
+        if(d.foe){
+          const theirs=id=>!!id && d.ours(id);
+          body=!(seg.effects || []).length?'<p class="small muted">Crowd control is not recorded for this encounter.</p>':`<p class="small muted">Crowd control between them and your party. The state comes from the skill's description; how long it held comes from the effect's own records. Removed early means the game ended the effect before its duration.</p>
+            <h4>Their crowd control on your party</h4>${received?table(['Time','Player','Skill','State','Held','Ended'],received.filter(c=>theirs(c.source)).map(c=>ccRow(c,c.target))):older}
+            <h4>Your party's crowd control on them</h4>${table(['Time','Player','Skill','State','Held','Ended'],s.crowd_control.filter(c=>theirs(c.target)).map(c=>ccRow(c,c.source)))}`;
+        } else body=`<p class="small muted">Crowd control your party landed on enemies. The state comes from the skill's description; how long it held comes from the effect's own records. Removed early means the game ended the effect before its duration (an immunity, a break or a phase change, not told apart).</p>
           ${table(['Player','State','Landed (with re-applications)','Total held','Hard crowd control','Removed early'],s.crowd_control_by_source.filter(c=>mine(c.source)).map(c=>`<tr><td>${actorHTML(d.r[c.source])}</td><td>${esc(c.state)}</td><td>${number(c.landed)}</td><td>${c.seconds.toFixed(1)}s</td><td>${number(c.hard)}</td><td>${number(c.broken_early)}</td></tr>`))}
-          <h4>Each application</h4>${table(['Time','Player','Target','Skill','State','Held','Ended'],s.crowd_control.filter(c=>mine(c.source)).map(c=>`<tr><td>${signedClock(c.t)}</td><td>${actorHTML(d.r[c.source])}</td><td>${actorHTML(d.r[c.target])}</td><td>${skillCell(c)}</td><td>${esc(c.state)}${c.hard?'':' <span class="small muted">soft</span>'}</td><td>${c.seconds.toFixed(2)}s${c.refreshes?` <span class="small muted">re-applied ${number(c.refreshes)}×</span>`:''}</td><td>${esc(endedText[c.ended] || (c.end>=d.segment.duration-0.01?'Active at the end':'No removal recorded'))}</td></tr>`))}`;
+          <h4>Each application</h4>${table(['Time','Player','Target','Skill','State','Held','Ended'],s.crowd_control.filter(c=>mine(c.source)).map(c=>ccRow(c,c.source,c.target)))}
+          ${!received?(pvp?`<h4>Crowd control on your party</h4>${older}`:''):pvp || received.length?`<h4>Crowd control on your party</h4><p class="small muted">What players outside your party landed on it, such as a PvP opponent. The state comes from the skill's description; an NPC's skills have none, so a boss's crowd control is not listed.</p>
+            ${table(['Player','State','Taken (with re-applications)','Total held','Hard crowd control','Removed early'],(s.crowd_control_received_by_target || []).filter(c=>mine(c.target)).map(c=>`<tr><td>${actorHTML(d.r[c.target])}</td><td>${esc(c.state)}</td><td>${number(c.landed)}</td><td>${c.seconds.toFixed(1)}s</td><td>${number(c.hard)}</td><td>${number(c.broken_early)}</td></tr>`))}
+            <h4>Each application on your party</h4>${table(['Time','Player','Source','Skill','State','Held','Ended'],received.filter(c=>mine(c.target)).map(c=>ccRow(c,c.target,c.source)))}`:''}`;
       } else if(state.actions==='contribution') {
         // An estimate built from the recorded effect windows (encounter_insights.contribution); it is
         // never used for rankings or parses.
@@ -653,14 +732,38 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       }
       return `<div class="cr-actions"><h3>Casts, buffs and break gauge</h3><div class="cr-tabs">${tabs.map(([v,l])=>`<button class="btn small ${state.actions===v?'primary':''}" data-actions="${v}">${l}</button>`).join('')}</div>${state.actions?body:''}${state.actions&&omitted?`<p class="small muted">Row limits omitted ${esc(omitted)}.</p>`:''}</div>`;
     }
+    // An opponent's own death recaps, built as the analyzer builds the party's (recaps.py, which covers the party only):
+    // the damage and heals on them in the 10 seconds before each death marker, back to no earlier than their previous
+    // death, and their HP readings then.
+    function recapsOf(d, victim) {
+      const effects=d.events.filter(e=>(e.kind==='damage' || e.kind==='heal') && e.target===victim),health=(d.segment.health || []).filter(s=>s.entity===victim).sort((a,b)=>a.t-b.t);
+      const deaths=[...new Set(d.events.filter(e=>e.kind==='death' && e.target===victim).map(e=>e.t))].sort((a,b)=>a-b);
+      let previous=null;
+      return deaths.map((t,i)=>{
+        const start=Math.max(0,t-10,previous ?? 0),after=previous!=null && previous>=start;
+        const rows=effects.filter(e=>(after?e.t>previous:e.t>=start) && e.t<=t),samples=health.filter(s=>s.t>=start && s.t<=t),sum=kind=>rows.reduce((n,e)=>n+(e.kind===kind?e.amount || 0:0),0);
+        previous=t;
+        return {key:'o'+i,player:victim,t,window_seconds:t-start,short_window:t-start<10,incoming_damage:sum('damage'),received_healing:sum('heal'),
+          last_incoming_hit:rows.filter(e=>e.kind==='damage').pop() || null,last_hp:samples[samples.length-1] || null,
+          events:rows.slice(-200),omitted_events:Math.max(0,rows.length-200),health:samples.slice(-200),omitted_health:Math.max(0,samples.length-200)};
+      });
+    }
     function recapsHTML(d) {
-      const analysis=doc.death_analysis;
-      if(!analysis)return '<p class="note">Death recaps are unavailable in this older view. Reopen the local file with the updated app, or update the sharing server.</p>';
-      const shown=(analysis.recaps || []).map((r,i)=>({...r,index:i})).filter(r=>r.segment===state.segment && (!state.actor || r.player===state.actor));
-      const selected=shown.find(r=>r.index===state.recap) || shown[0];
+      const analysis=doc.death_analysis,foe=d.foe;
+      if(!analysis && !foe)return '<p class="note">Death recaps are unavailable in this older view. Reopen the local file with the updated app, or update the sharing server.</p>';
+      const party=(analysis?.recaps || []).map((r,i)=>({...r,key:String(i)})).filter(r=>r.segment===state.segment);
+      // an opponent's view: their own deaths, and the party's deaths they struck in (in the recap's window, or as the
+      // arena round's winner its death marker names)
+      const struck=r=>r.events.some(e=>e.kind==='damage' && e.source && d.ours(e.source)) || d.events.some(e=>e.kind==='death' && e.target===r.player && e.t===r.t && e.source && d.ours(e.source));
+      const shown=foe?[...recapsOf(d,foe),...party.filter(struck)].sort((a,b)=>a.t-b.t):party.filter(r=>!state.actor || r.player===state.actor);
+      const selected=shown.find(r=>r.key===String(state.recap)) || shown[0];
       const hp=x=>x?number(x.current)+(x.max?' / '+number(x.max):' (maximum unavailable)'):'Unavailable';
       const last=x=>x?`${actorHTML(d.r[x.source])} · ${esc(x.skill || x.skill_id || 'Unknown ability')} · ${number(x.amount)} at ${x.t.toFixed(3)}s`:'Unavailable';
-      return `<h3>Player death recaps</h3><p class="small muted">${esc(analysis.note)} Recaps include all recorded incoming sources for the selected player; enemy/metric/pet filters do not remove their context. ${analysis.omitted_recaps?`${analysis.omitted_recaps} recaps omitted by the 200-recap session limit.`:''}</p>${table(['Player','Death marker','Window','Recorded incoming damage','Recorded received healing','Latest recorded HP','Last observed incoming hit'],shown.map(r=>`<tr><td>${actorHTML(d.r[r.player])}<br><button class="btn small" data-recap="${r.index}">Open recap</button></td><td>${r.t.toFixed(3)}s</td><td>${r.window_seconds.toFixed(1)}s${r.short_window?' (short / split boundary)':''}</td><td>${number(r.incoming_damage)}</td><td>${number(r.received_healing)}</td><td>${hp(r.last_hp)}${r.last_hp?` at ${r.last_hp.t.toFixed(3)}s`:''}</td><td>${last(r.last_incoming_hit)}</td></tr>`))}${selected?`<h4>${esc(label(d.r[selected.player]))} · death marker at ${selected.t.toFixed(3)}s</h4><p class="small muted">Negative times are seconds before this marker. Equal timestamps do not establish ordering. Showing the last 200 effects and 200 HP samples; ${selected.omitted_events} effects and ${selected.omitted_health} HP samples omitted. Window totals include omitted effects.</p>${table(['Relative time','Effect','Source','Ability','Recorded amount'],selected.events.map(e=>`<tr><td>${(e.t-selected.t).toFixed(3)}s</td><td>${esc(e.kind)}</td><td>${actorHTML(d.r[e.source])}</td><td>${esc(e.skill || e.skill_id || 'Unknown')}</td><td>${number(e.amount)}</td></tr>`))}${table(['Relative time','Observed HP'],selected.health.map(s=>`<tr><td>${(s.t-selected.t).toFixed(3)}s</td><td>${hp(s)}</td></tr>`))}`:analysis.omitted_recaps?'<p>No recap was retained for this selection; the session limit may have omitted it. Use Events to inspect recorded markers.</p>':'<p>No explicit player death markers were recorded for this selection; this does not prove survival.</p>'}`;
+      const intro=foe?`Their deaths, and your party's deaths they struck in during the window before (an arena round's death marker names its winner). ${analysis?esc(analysis.note):'Up to 10 seconds of recorded history before each death marker. Your party\'s recaps are unavailable in this older view.'}`
+        :`${esc(analysis.note)} Recaps include all recorded incoming sources for the selected player; enemy/metric/pet filters do not remove their context. ${analysis.omitted_recaps?`${analysis.omitted_recaps} recaps omitted by the 200-recap session limit.`:''}`;
+      const none=foe?"<p>No death markers were recorded for them, or for your party's deaths they struck in; this does not prove survival.</p>"
+        :analysis.omitted_recaps?'<p>No recap was retained for this selection; the session limit may have omitted it. Use Events to inspect recorded markers.</p>':'<p>No explicit player death markers were recorded for this selection; this does not prove survival.</p>';
+      return `<h3>Player death recaps</h3><p class="small muted">${intro}</p>${table(['Player','Death marker','Window','Recorded incoming damage','Recorded received healing','Latest recorded HP','Last observed incoming hit'],shown.map(r=>`<tr><td>${actorHTML(d.r[r.player])}<br><button class="btn small" data-recap="${r.key}">Open recap</button></td><td>${r.t.toFixed(3)}s</td><td>${r.window_seconds.toFixed(1)}s${r.short_window?' (short / split boundary)':''}</td><td>${number(r.incoming_damage)}</td><td>${number(r.received_healing)}</td><td>${hp(r.last_hp)}${r.last_hp?` at ${r.last_hp.t.toFixed(3)}s`:''}</td><td>${last(r.last_incoming_hit)}</td></tr>`))}${selected?`<h4>${esc(label(d.r[selected.player]))} · death marker at ${selected.t.toFixed(3)}s</h4><p class="small muted">Negative times are seconds before this marker. Equal timestamps do not establish ordering. Showing the last 200 effects and 200 HP samples; ${selected.omitted_events} effects and ${selected.omitted_health} HP samples omitted. Window totals include omitted effects.</p>${table(['Relative time','Effect','Source','Ability','Recorded amount'],selected.events.map(e=>`<tr><td>${(e.t-selected.t).toFixed(3)}s</td><td>${esc(e.kind)}</td><td>${actorHTML(d.r[e.source])}</td><td>${esc(e.skill || e.skill_id || 'Unknown')}</td><td>${number(e.amount)}</td></tr>`))}${table(['Relative time','Observed HP'],selected.health.map(s=>`<tr><td>${(s.t-selected.t).toFixed(3)}s</td><td>${hp(s)}</td></tr>`))}`:none}`;
     }
     function ranksHTML(d) {
       if(!options.rankings)return "";
@@ -722,6 +825,32 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         ${table(['Fighter','Class','Server','Faction','Rating before','Rounds won here'],a.fighters.map((f,i)=>`<tr><td>${who(i)}${f.self?' <span class="muted">(recording player)</span>':''}</td><td>${esc(f.class || '')}</td><td>${esc(worldFor(f.server))}</td><td>${esc(factions[f.faction] || '')}</td><td>${Number.isFinite(f.rating)?rate(f.rating):'—'}</td><td>${won(i)}</td></tr>`))}
         ${table(['Round','Ended at','Winner','Loser'],rounds.map(r=>`<tr><td>${Number.isInteger(r.round)?r.round:''}</td><td>${clock(r.t,true)}</td><td>${who(r.winner)}</td><td>${who(r.loser)}</td></tr>`))}
         <p class="small muted">From the game's own arena records: the roster as the match opened, each round's result and the match result. A round's loser died; their death marker names the winner.</p></section>`;
+    }
+    // A PvP opponent chosen under Player: whom they struck and who struck them, and what the recording holds of them.
+    // The summary, graph, timeline, events and tabs below read the fight from their side as well.
+    function opponentHTML(d) {
+      const foe=d.foe,e=d.r[foe] || {id:foe},seg=d.segment,cap=c=>String(c).charAt(0).toUpperCase()+String(c).slice(1),dealt=new Map(),taken=new Map();
+      for(const x of d.events){if(x.kind!=='damage')continue;
+        const [into,who]=d.ours(x.source) && !d.ours(x.target)?[dealt,x.target]:d.ours(x.target) && !d.ours(x.source)?[taken,x.source]:[];if(!into)continue;
+        const key=owner(who,d.r) || '',g=into.get(key) || {id:key,amount:0,hits:0,max:0};g.amount+=x.amount || 0;g.hits++;g.max=Math.max(g.max,x.amount || 0);into.set(key,g);}
+      const lines=(groups,per)=>{const all=[...groups.values()].sort((a,b)=>b.amount-a.amount),total=all.reduce((n,g)=>n+g.amount,0);
+        return all.map(g=>`<tr><td>${actorHTML(d.r[g.id])}</td><td>${number(g.amount)}</td><td>${total?(100*g.amount/total).toFixed(1):0}%</td><td>${number(g.hits)}</td><td>${number(g.max)}</td><td>${number(g.amount/per)}</td></tr>`);};
+      const count=(list,test)=>(list || []).reduce((n,x)=>n+(test(x)?1:0),0),deaths=count(d.events,x=>x.kind==='death' && x.target===foe);
+      // each kind of record: how many the recording holds of them, else how it reads as not recorded
+      const kinds=[[count(d.events,x=>x.kind==='damage' && d.ours(x.source)),'hit of theirs','hits of theirs','their hits'],
+        [count(d.events,x=>x.kind==='damage' && d.ours(x.target) && !d.ours(x.source)),'hit on them','hits on them','hits on them'],
+        [count(d.events,x=>x.kind==='heal' && d.ours(x.source)),'heal','heals','their healing'],
+        [count(seg.casts,c=>c.source===foe),'cast','casts','their casts (the meter records the casts of your party and its summons only)'],
+        [count(seg.effects,x=>d.ours(x.target) || !!x.source && d.ours(x.source)),'buff or debuff record','buff and debuff records','buffs and debuffs on or from them'],
+        [count(seg.health,s=>s.entity===foe),'HP reading','HP readings','their HP'],[count(seg.movement,m=>m.entity===foe),'position','positions','their positions']];
+      const held=[...kinds.filter(k=>k[0]).map(k=>`${number(k[0])} ${k[0]===1?k[1]:k[2]}`),...(deaths?[`${number(deaths)} death marker${deaths===1?'':'s'}`]:[])];
+      const missing=kinds.filter(k=>!k[0]).map(k=>k[3]),u=d.unclaimed,classes=u?[...u.classes].filter(Boolean):[];
+      const left=u?`<p class="small muted">Left out of their healing: ${number(u.count)} heal record${u.count===1?'':'s'} on your party that name them as the source, ${number(u.amount)} in all (${classes.length===1?esc(cap(classes[0]))+' skills: ':''}${[...u.skills].sort((a,b)=>b[1]-a[1]).map(([skill,n])=>`${esc(skill)} ×${number(n)}`).join(', ')}). An opponent does not heal your side.</p>`:'';
+      return `<section class="note" data-opponent><h3>Opponent · ${actorHTML(e)}${e.class?` · ${esc(cap(e.class))}`:''}</h3>
+        <p class="small muted">The review below reads the fight from their side: the summary, graph, timeline and events, their abilities, their deaths, and the buffs, debuffs and crowd control on and from them. Only what the recording holds of them is shown.</p>
+        <p>Recorded: ${held.join(', ') || 'nothing of theirs'}.${missing.length?` Not recorded: ${missing.join(', ')}.`:''}</p>
+        <h4>Damage done by target</h4>${table(['Target','Damage','Share','Hits','Largest hit','DPS'],lines(dealt,d.dpsDuration))}
+        <h4>Damage taken by source</h4>${table(['Source','Damage','Share','Hits','Largest hit','Per second'],lines(taken,Math.max(1,seg.duration)))}${left}</section>`;
     }
     function runsHTML(d) {
       const analysis=doc.run_analysis, all=analysis?.runs || (ranks?.run_detail?[ranks.run_detail]:[]);
@@ -802,7 +931,9 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       if(state.character && refs()[state.character]){root.innerHTML='<div data-profile>'+profileHTML()+'</div>';bindProfile();return;}
       if(!doc.segments.some(matchesMode)){root.innerHTML=combinedHTML()+archiveHTML()+'<p class="note">No encounters recorded for this combat mode.</p><button class="btn small" data-show-all>Show all recorded encounters</button>';bindArchive();bindCombined();root.querySelector('[data-show-all]').onclick=()=>{state.mode='';state.run='';render();requestRanks();};return;}
       if(!doc.segments[state.segment] || !matchesMode(doc.segments[state.segment])){state.segment=doc.segments.findIndex(matchesMode);state.run='';state.actor='';state.enemy='';ranks=null;}
-      const d=data(),events=visibleEvents(d),duration=Math.max(1,d.segment.duration),metric=state.metric==="summary"?"damage":state.metric;
+      // ``v`` is the fight as the review shows it: the party's (``d``), or a PvP opponent's side once one is chosen under Player
+      const d=data(),foes=opponentsOf(d),foe=foes.some(e=>e.id===state.actor)?state.actor:'',v=foe?data(foe):d;
+      const events=visibleEvents(v),duration=Math.max(1,d.segment.duration),metric=state.metric==="summary"?"damage":state.metric;
       const quality=ranks?.quality || d.segment.quality;
       const driver=quality?.driver_monitoring;
       const driverHTML=driver?`<p>Capture driver: ${driver.sampled?`${driver.partial?'partial coverage · ':''}${number(driver.pcap_received)} received · ${number(driver.pcap_dropped)} capture-buffer drops · ${number(driver.pcap_if_dropped)} interface/driver drops`:'unavailable / not recorded'}. ${esc(driver.note)}</p>`:'';
@@ -851,7 +982,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const qualityHTML=`<details class="note"><summary>Capture quality · ${quality?.eligible?'Eligible for community rankings':'Unranked / completeness unverified'}</summary>${quality?`<ul>${(quality.messages || []).map(m=>`<li>${esc(m)}</li>`).join('')}</ul><p>${esc(quality.note)}</p>${driverHTML}${processingHTML}`:'<p>This older log does not contain a capture-quality assessment. It remains available for review.</p>'}${stitchedHTML()}</details>`;
       const runs=[...new Set(doc.segments.filter(matchesMode).map(s=>s.run_id || "legacy"))];
       const runMenu=runs.some(id=>id!=="legacy")?`<label>Run <select data-control="run"><option value="">All runs</option>${runs.map(id=>`<option value="${esc(id)}" ${state.run===id?'selected':''}>Run ${esc(id)}</option>`).join('')}</select></label><span class="small muted">Run ${esc(d.segment.run_id || "legacy")} · ${d.segment.run_complete?'Finished':'Unfinished / completion unverified'} · ${esc(d.segment.run_end_reason || '')}</span>`:"";
-      const rows=d.rows.filter(p=>!state.actor || p.id===state.actor).sort((a,b)=>b[metric]-a[metric]);
+      const rows=v.rows.filter(p=>!state.actor || p.id===state.actor).sort((a,b)=>b[metric]-a[metric]);
       // Each player's parse: their DPS against every ranked run of their class on this boss /
       // category / game version / difficulty, by every character, from the server's rankings for
       // this encounter. Log server 0.2.127 shrinks a small bracket's parses toward 50, so gold marks
@@ -868,31 +999,34 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         const runs=entry.parse_runs??entry.parse_characters??0, few=runs<5, rank=entry.parse_rank;
         return `<span class="parse-badge q-${parseTier(entry.parse,rank)}${few?' provisional':''}" title="Parse ${entry.parse}${rank?` · rank ${rank} of`:' among'} ${runs} ranked ${esc(p.class||'')} run${runs===1?'':'s'} on this encounter${few?' (provisional: fewer than 5 runs; small brackets read toward the middle)':''}">${Math.round(entry.parse)}</span>`;
       };
-      const parseColumn=!!options.rankings;
-      const summary=`<p class="small muted">DPS uses shared active damage time (${d.dpsDuration.toFixed(0)}s): one-second buckets with outgoing player damage. Empty buckets are excluded; DPS holds while idle and resumes on the same totals. Deaths do not reset players. Graph rates use elapsed encounter time.${parseColumn?' Parse: percentile among every ranked run of the same class on this encounter, by every character (100 = above them all); dimmed when fewer than 5 runs compare.':''}</p>`+table(["Player / server",...(parseColumn?["Parse"]:[]),"Class","Damage done","DPS","Damage taken","Healing","HPS","Deaths"],rows.map(p=>`<tr><td style="color:${color(p.class)}">${actorHTML(p)}</td>${parseColumn?`<td class="r">${parseHTML(p)}</td>`:''}<td>${esc(p.class || "Unknown")}</td><td>${number(p.damage)}</td><td>${number(p.damage/d.dpsDuration)}</td><td>${number(p.taken)}</td><td>${number(p.healing)}</td><td>${number(p.healing/duration)}</td><td>${p.deaths?`${p.deaths}${p.revives?` <span class="muted">(revived ${p.revives})</span>`:''}`:'No markers'}</td></tr>`));
-      const skills=new Map();for(const e of events) {if(e.kind==="death" || e.kind==="revive" || (state.metric==="summary" && (e.kind!=="damage" || !(d.friendly.has(e.source) || d.r[e.source]?.owner))))continue;const actor=owner(state.metric==="taken"?e.target:e.source,d.r);const key=actor+":"+e.kind+":"+(e.skill_id || e.skill);const row=skills.get(key) || {actor,kind:e.kind,skill:e.skill || e.skill_id || "Unknown",amount:0,hits:0,min:Infinity,max:0};row.amount+=e.amount || 0;row.hits++;row.min=Math.min(row.min,e.amount || 0);row.max=Math.max(row.max,e.amount || 0);skills.set(key,row);}
+      const parseColumn=!!options.rankings && !foe;
+      // an opponent's amount whose records the log does not hold reads not recorded, never zero
+      const held=(p,count,text,none='Not recorded')=>foe && !p[count]?none:text;
+      const summary=`<p class="small muted">${foe?`An opponent's figures are the recording's records of them: their hits and heals, the hits on them and their death markers. DPS uses their own active damage time (${v.dpsDuration.toFixed(0)}s): one-second buckets with damage of theirs; empty buckets are excluded. Graph rates use elapsed encounter time.`:`DPS uses shared active damage time (${d.dpsDuration.toFixed(0)}s): one-second buckets with outgoing player damage. Empty buckets are excluded; DPS holds while idle and resumes on the same totals. Deaths do not reset players. Graph rates use elapsed encounter time.`}${parseColumn?' Parse: percentile among every ranked run of the same class on this encounter, by every character (100 = above them all); dimmed when fewer than 5 runs compare.':''}</p>`+table(["Player / server",...(parseColumn?["Parse"]:[]),"Class","Damage done","DPS","Damage taken","Healing","HPS","Deaths"],rows.map(p=>`<tr><td style="color:${color(p.class)}">${actorHTML(p)}</td>${parseColumn?`<td class="r">${parseHTML(p)}</td>`:''}<td>${esc(p.class || "Unknown")}</td><td>${held(p,'hits',number(p.damage))}</td><td>${held(p,'hits',number(p.damage/v.dpsDuration),'—')}</td><td>${held(p,'struck',number(p.taken))}</td><td>${held(p,'heals',number(p.healing))}</td><td>${held(p,'heals',number(p.healing/duration),'—')}</td><td>${p.deaths?`${p.deaths}${p.revives?` <span class="muted">(revived ${p.revives})</span>`:''}`:'No markers'}</td></tr>`));
+      const skills=new Map();for(const e of events) {if(e.kind==="death" || e.kind==="revive" || (state.metric==="summary" && (e.kind!=="damage" || !v.ours(e.source))))continue;const actor=owner(state.metric==="taken"?e.target:e.source,d.r);const key=actor+":"+e.kind+":"+(e.skill_id || e.skill);const row=skills.get(key) || {actor,kind:e.kind,skill:e.skill || e.skill_id || "Unknown",amount:0,hits:0,min:Infinity,max:0};row.amount+=e.amount || 0;row.hits++;row.min=Math.min(row.min,e.amount || 0);row.max=Math.max(row.max,e.amount || 0);skills.set(key,row);}
       const skillRows=[...skills.values()].sort((a,b)=>b.amount-a.amount),skillTotal=skillRows.reduce((total,s)=>total+s.amount,0);
-      const breakdown=table(["Player / server","Ability","Effects","Amount","Share","Per second","Average","Minimum","Maximum"],skillRows.map(s=>`<tr><td style="color:${color(d.r[s.actor]?.class)}">${actorHTML(d.r[s.actor])}</td><td>${esc(s.skill)}${s.kind==="heal"?" (heal)":""}</td><td>${s.hits}</td><td>${number(s.amount)}</td><td>${skillTotal?(100*s.amount/skillTotal).toFixed(1):0}%</td><td>${number(s.amount/(s.kind==='damage' && state.metric!=='taken'?d.dpsDuration:duration))}</td><td>${number(s.amount/s.hits)}</td><td>${number(s.min)}</td><td>${number(s.max)}</td></tr>`));
+      const breakdown=table(["Player / server","Ability","Effects","Amount","Share","Per second","Average","Minimum","Maximum"],skillRows.map(s=>`<tr><td style="color:${color(d.r[s.actor]?.class)}">${actorHTML(d.r[s.actor])}</td><td>${esc(s.skill)}${s.kind==="heal"?" (heal)":""}</td><td>${s.hits}</td><td>${number(s.amount)}</td><td>${skillTotal?(100*s.amount/skillTotal).toFixed(1):0}%</td><td>${number(s.amount/(s.kind==='damage' && state.metric!=='taken'?v.dpsDuration:duration))}</td><td>${number(s.amount/s.hits)}</td><td>${number(s.min)}</td><td>${number(s.max)}</td></tr>`));
       // One row per player and ability at the page's own text size (an SVG scaled to the page's width drew it larger
       // the wider the window).
       const skillChart=skillRows.length?`<p class="small muted">${state.metric==="healing"?"Healing":state.metric==="taken"?"Damage taken":"Damage done"} by player and ability, the top 20 rows; <i>Abilities</i> lists every one. Select a player to see only theirs.</p><div class="cr-bars" role="list" aria-label="Amount by player and ability">${skillRows.slice(0,20).map(s=>{const name=label(d.r[s.actor])+" · "+s.skill;return `<div class="cr-bar" role="listitem" title="${esc(name+" · "+number(s.amount))}"><span class="cr-bar-name">${esc(name)}</span><span class="cr-bar-track"><span style="width:${(100*s.amount/Math.max(1,skillRows[0].amount)).toFixed(2)}%;background:${color(d.r[s.actor]?.class)}"></span></span><span class="cr-bar-value">${number(s.amount)}</span></div>`;}).join('')}</div>`:'<p class="small muted">No abilities were recorded for this view.</p>';
       const byAbility=body=>state.metric==="deaths"?'<p class="small muted">Choose Summary, Damage Done, Damage Taken or Healing above to see each ability.</p>':body;
       const detailTabs=[["contribution","Ability contribution"],["abilities","Abilities"],["skills","Skills"],["casts","Cast timeline"],["","Hide"]];
-      const detailBody={contribution:()=>byAbility(skillChart),abilities:()=>byAbility(breakdown),skills:()=>skillsHTML(d),casts:()=>castsHTML(d)}[state.detail];
+      const detailBody={contribution:()=>byAbility(skillChart),abilities:()=>byAbility(breakdown),skills:()=>skillsHTML(v),casts:()=>castsHTML(v)}[state.detail];
       const detailsHTML=`<div class="cr-actions cr-details"><h3>Abilities and skills</h3><div class="cr-tabs">${detailTabs.map(([v,l])=>`<button class="btn small ${state.detail===v?'primary':''}" data-detail="${v}">${l}</button>`).join('')}</div>${detailBody?detailBody():''}</div>`;
       const pageCount=Math.max(1,Math.ceil(events.length/100));state.page=Math.min(state.page,pageCount-1);
       const eventTable=table(["Time","Event","Caster / attacker","Recipient / target","Ability","Amount"],events.slice(state.page*100,(state.page+1)*100).map(e=>`<tr><td>${e.t.toFixed(3)}s</td><td>${esc(e.kind)}</td><td>${actorHTML(d.r[e.source])}</td><td>${actorHTML(d.r[e.target])}</td><td>${esc(e.skill || e.skill_id || "—")}</td><td>${e.kind==="death"?"—":number(e.amount)}</td></tr>`));
       root.innerHTML=`<section class="win cr-review"><div class="wh"><h2>${esc(doc.meta?.title || "Combat log")}</h2><span>${duration.toFixed(1)}s</span></div><div class="wb">
-        <div class="row"><label>Combat mode <select data-control="mode"><option value="" ${!state.mode?'selected':''}>All recorded modes</option><option value="pve" ${state.mode==='pve'?'selected':''}>PvE</option><option value="pvp" ${state.mode==='pvp'?'selected':''}>PvP</option></select></label>${runMenu}${options.live?`<label><input type="checkbox" data-control="followLatest" ${state.followLatest?'checked':''}> Follow latest encounter</label>`:''}<label>Encounter <select data-control="segment">${doc.segments.map((s,i)=>(!matchesMode(s) || (state.run && (s.run_id || "legacy")!==state.run))?"":`<option value="${i}" ${i===state.segment?"selected":""}>${esc(s.label || s.boss || "Combat "+(i+1))}${Number.isInteger(s.continued_in)?(PIECE_LABELS[s.fragment] || ' (piece of a cut fight)'):''}</option>`).join("")}</select></label><label>Player <select data-control="actor"><option value="">All players</option>${d.rows.map(p=>`<option value="${esc(p.id)}" ${p.id===state.actor?"selected":""}>${esc(label(p))}</option>`).join("")}</select></label><button class="btn small" data-color-settings>Class colors</button>${window.A2AssetHealth?'<button class="btn small" data-retry-images>Retry images</button><button class="btn small" data-export-images>Export image failures</button>':''}<label><input type="checkbox" data-control="insights" ${state.insights?"checked":""}> Encounter insights</label></div>
+        <div class="row"><label>Combat mode <select data-control="mode"><option value="" ${!state.mode?'selected':''}>All recorded modes</option><option value="pve" ${state.mode==='pve'?'selected':''}>PvE</option><option value="pvp" ${state.mode==='pvp'?'selected':''}>PvP</option></select></label>${runMenu}${options.live?`<label><input type="checkbox" data-control="followLatest" ${state.followLatest?'checked':''}> Follow latest encounter</label>`:''}<label>Encounter <select data-control="segment">${doc.segments.map((s,i)=>(!matchesMode(s) || (state.run && (s.run_id || "legacy")!==state.run))?"":`<option value="${i}" ${i===state.segment?"selected":""}>${esc(s.label || s.boss || "Combat "+(i+1))}${Number.isInteger(s.continued_in)?(PIECE_LABELS[s.fragment] || ' (piece of a cut fight)'):''}</option>`).join("")}</select></label><label>Player <select data-control="actor"><option value="">All players</option>${d.rows.map(p=>`<option value="${esc(p.id)}" ${p.id===state.actor?"selected":""}>${esc(label(p))}</option>`).join("")}${foes.length?`<optgroup label="Opponents">${foes.map(e=>`<option value="${esc(e.id)}" ${e.id===state.actor?"selected":""}>${esc(label(e))}</option>`).join("")}</optgroup>`:""}</select></label><button class="btn small" data-color-settings>Class colors</button>${window.A2AssetHealth?'<button class="btn small" data-retry-images>Retry images</button><button class="btn small" data-export-images>Export image failures</button>':''}<label><input type="checkbox" data-control="insights" ${state.insights?"checked":""}> Encounter insights</label></div>
         ${(d.segment.encounter_type||doc.meta?.encounter_type||'').startsWith('pvp_')?(d.segment.arena?arenaHTML(d):'<p class="note">PvP recording · matched by mode, arena/encounter, ruleset and game version. Opponents are outside the recorded Self/Party roster. Only observed combat effects are shown; match results, objectives and kill credit are not inferred.</p>'):''}
+        ${foe?opponentHTML(v):foes.length?'<p class="small muted">Choose an opponent under <i>Player</i> to see the fight from their side.</p>':''}
         <p class="small muted">${doc.meta?.installed_build?`Installed game version: ${esc(doc.meta.installed_build)} (${esc(doc.meta.installed_build_source)}). `:""}${d.segment.game_patch||doc.meta?.game_patch?`Version source: ${esc(buildLabel(d.segment.game_patch_source||doc.meta?.game_patch_source||"source not recorded"))}. `:""}${d.segment.zone?`Zone: ${esc(d.segment.zone)} · ${esc(d.segment.zone_source || "source not recorded")}. `:""}${d.segment.difficulty?`Difficulty: ${esc(d.segment.difficulty)} · ${esc(d.segment.difficulty_source || "source not recorded")}. `:""}${d.segment.encounter_type_source?`Encounter type source: ${esc(d.segment.encounter_type_source)}. `:""}${doc.meta?.region_source?`Region source: ${esc(doc.meta.region_source)}.`:""}</p>
         ${combinedHTML()}${archiveHTML()}${sharedHTML()}${fightHTML()}${qualityHTML}${classificationHTML(d)}${catalogHTML(d)}${state.mode?'<p class="small muted">Showing only encounters recorded as '+state.mode.toUpperCase()+'. Whole-run timing is hidden in this filtered view.</p>':runsHTML(d)}<div class="cr-tabs">${["summary","damage","taken","healing","deaths"].map((v,i)=>`<button class="btn small ${state.metric===v?"primary":""}" data-metric="${v}">${["Summary","Damage Done","Damage Taken","Healing","Death recaps"][i]}</button>`).join("")}<span class="cr-spacer"></span>${["table","timeline","events"].map(v=>`<button class="btn small ${state.view===v?"primary":""}" data-view="${v}">${v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>
         <div class="cr-options">${[["graph","Graph"],["timeline","Timeline"],["skills","Skills"],["deaths","Deaths"],["heals","Healing"],["pets","Pets"],["combine","Combine pets with owner"]].map(([key,label])=>`<label><input type="checkbox" data-control="${key}" ${state[key]?"checked":""}> ${label}</label>`).join("")}</div>
-        <div class="row"><span>Character builds:</span>${Object.values(d.r).filter(character).map(actorHTML).join(" ")}</div><div data-profile>${profileHTML()}</div><div data-colors hidden></div>${state.graph && state.metric!=="deaths"?graph(d,events):""}${latencyHTML(d)}${bossHPHTML(d)}${encounters(d)}${state.metric==="deaths"?recapsHTML(d):""}${state.insights?insightsHTML(d):""}
+        <div class="row"><span>Character builds:</span>${Object.values(d.r).filter(character).map(actorHTML).join(" ")}</div><div data-profile>${profileHTML()}</div><div data-colors hidden></div>${state.graph && state.metric!=="deaths"?graph(v,events):""}${latencyHTML(d)}${bossHPHTML(d)}${encounters(d)}${state.metric==="deaths"?recapsHTML(v):""}${state.insights?insightsHTML(d):""}
         ${state.view==="table" ? summary : state.view==="events" ? eventTable+`<div class="row"><button class="btn small" data-prev>Previous</button> ${state.page+1} / ${pageCount} · ${events.length} events <button class="btn small" data-next>Next</button></div>` : ""}
-        ${state.timeline && state.view==="timeline" ? timeline(d,events):""}
+        ${state.timeline && state.view==="timeline" ? timeline(v,events):""}
         ${detailsHTML}
-        ${actionsHTML(d)}
+        ${actionsHTML(v)}
         <p class="small muted">${d.events.some(e=>e.kind==="heal"&&!e.target)?"Some healing recipients are not carried by their packet variant. ":""}${!d.events.some(e=>e.kind==="death")?"No death markers recorded; zero counts do not establish a deathless run. ":""}${!(d.segment.positions || []).length&&!(d.segment.movement || []).length?"Movement replay is unavailable: no positions were recorded (recordings made before 0.2.350 have none).":""}</p>
         ${reportHTML()}${metadataHTML(d)}${ranksHTML(d)}${options.rankings?'<button class="btn small" data-rank-refresh>Refresh rankings</button>':""}${options.publish?'<details><summary>Publish this log</summary><div class="row"><select data-upload-vis aria-label="Upload visibility"><option>public</option><option>unlisted</option><option>private</option></select><button class="btn small" data-upload>Upload saved session</button><span data-upload-result></span></div></details>':""}<div data-replay></div>
         <div class="row"><input data-compare placeholder="Another log's link or ID" aria-label="Link or ID of the log to compare"><button class="btn small" data-compare-go ${options.compare?"":"disabled"}>Compare log</button><span data-compare-result></span><input type="file" data-compare-file accept=".json" aria-label="Compare a local a2log file"></div>
@@ -911,7 +1045,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         selectLatest();render();if(changedEncounter)requestRanks();
       });
       const mapping=root.querySelector('[data-export-mappings]');if(mapping)mapping.onclick=()=>{const c=doc.encounter_insights.segments.find(s=>s.segment===state.segment).catalog;const url=URL.createObjectURL(new Blob([JSON.stringify(c,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='aion2-mapping-report.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);root.querySelector('[data-mapping-status]').textContent='Mapping report download started.';};
-      root.querySelectorAll("[data-recap]").forEach(e=>e.onclick=()=>{state.recap=+e.dataset.recap;render();});
+      root.querySelectorAll("[data-recap]").forEach(e=>e.onclick=()=>{state.recap=e.dataset.recap;render();});
       root.querySelectorAll("[data-metric]").forEach(e=>e.onclick=()=>{state.metric=e.dataset.metric;state.page=0;render();});
       root.querySelectorAll("[data-actions]").forEach(e=>e.onclick=()=>{state.actions=e.dataset.actions;render();});
       root.querySelectorAll("[data-detail]").forEach(e=>e.onclick=()=>{state.detail=e.dataset.detail;render();});
@@ -987,7 +1121,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
           const rows=[...rates].map(([actor,row])=>`<tr><td style="color:${color(d.r[actor]?.class)}">${esc(label(d.r[actor]))}</td><td>${rate(row['Damage done'])}</td><td>${rate(row.Healing)}</td><td>${rate(row['Damage taken'])}</td></tr>`);
           let html=`<p><b>${clock(inspected,true)}</b> · Total ${esc(m.primary.toLowerCase())}: ${rate(m.total[i])} · 10 s average: ${rate(m.roll[i])}</p>`+table(['Player','Damage done','Healing','Damage taken'],rows);
           const hpRows=[];for(const id of new Set(m.health.map(s=>s.entity))){const sample=m.health.filter(s=>s.entity===id && s.t<=inspected).sort((a,b)=>b.t-a.t)[0];if(sample)hpRows.push(`<tr><td>${esc(label(d.r[id]))}</td><td>${number(sample.current)}</td><td>${sample.max?number(sample.max):'Unavailable'}</td><td>${clock(sample.t,true)}</td></tr>`);}
-          if(hpRows.length)html+=table(['Boss','Remaining HP','Observed maximum','Sample time'],hpRows);
+          if(hpRows.length)html+=table([foe?'Opponent':'Boss','Remaining HP','Observed maximum','Sample time'],hpRows);
           root.querySelector('[data-graph-detail]').innerHTML=html;const cursor=root.querySelector('[data-graph-cursor]');cursor.setAttribute('d','M'+(60+880*inspected/m.duration)+' 20V180');cursor.setAttribute('visibility','visible');};
         const time=e=>{const box=hit.getBoundingClientRect();return (e.clientX-box.left)/Math.max(1,box.width)*graphModel.duration;};
         hit.onpointermove=e=>inspect(time(e));hit.onfocus=()=>inspect(inspected);

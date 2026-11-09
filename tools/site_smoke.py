@@ -12,7 +12,8 @@ For every page, at desktop width and at phone width (390 px):
     again in the dark one.
 Requests to any other site are blocked, so the check never depends on the log server or a third party.
 The Maps page must not contact the interactive-map provider until the visitor asks for the map, a log
-page must offer the log server's own link for the log (its preview shows the fight), the Logs page's
+page must offer the log server's own link for the log (its preview shows the fight) and, for a PvP fight, its
+opponent's side of the fight under Player (checked with axe-core too), the Logs page's
 Completed-run speed tab must name a run's bosses and show its time, the Class stats page's spread graph
 must end its axis past the highest 90th percentile rather than at one best parse, and the Gathering page must
 show everyone's drop rates, each kind of node with where it grows, only the dungeons whose cubes held a
@@ -294,6 +295,70 @@ def check_replay_to_planner(browser, base: str, problems: list) -> None:
     except Exception as exc:
         problems.append(f"log.html → planner.html: the replay did not open in the Raid Planner ({str(exc).splitlines()[0]})")
     context.close()
+
+
+# A one-against-one PvP fight as the log server sends it without its analysis: each side's hits on the other and a
+# death of each.
+PVP_LOG = {"format": "a2log", "version": 1, "meta": {"source": "site-smoke", "title": "Arena match"},
+           "players": [{"id": "a", "name": "Templ", "class": "templar"}],
+           "segments": [{"label": "Combat 1", "duration": 20, "encounter_type": "pvp_arena",
+                         "entities": [{"id": "foe", "name": "Rang", "kind": "enemy", "is_player": True, "class": "Ranger"}],
+                         "hits": [{"t": i + 13, "player": "a", "target": "foe", "skill": "Vicious Strike", "skill_id": 12010000, "damage": 1000} for i in range(6)],
+                         "events": [{"t": i + 0.5, "kind": "damage", "source": "foe", "target": "a", "skill": "Tempest Shot", "skill_id": 14340000, "amount": 800}
+                                    for i in range(12)]
+                         + [{"t": 12.0, "kind": "death", "target": "a", "source": "foe"}]
+                         + [{"t": i + 13.0, "kind": "damage", "source": "a", "target": "foe", "skill": "Vicious Strike", "skill_id": 12010000, "amount": 1000}
+                            for i in range(6)]
+                         + [{"t": 18.5, "kind": "death", "target": "foe", "source": "a"}]}]}
+
+
+def check_pvp_opponent(browser, base: str, axe: str | None, problems: list) -> None:
+    """A PvP log's page offers its opponent under Player, and the opponent chosen shows their side of the fight: whom
+    they struck and who struck them, and the recap of their death, with no script error and, with --axe, no serious
+    accessibility problem in the light theme or the dark one."""
+    server = "https://logs.example"
+
+    def route(r):
+        url = r.request.url
+        if url.endswith("/config.js"):
+            r.fulfill(content_type="text/javascript", body=f'window.A2CONFIG = {{"server": "{server}", "key": ""}};')
+        elif url.startswith(server + "/api/v1/logs/abcdef12/raw"):
+            r.fulfill(content_type="application/json", body=json.dumps(PVP_LOG), headers={"Access-Control-Allow-Origin": "*"})
+        elif urllib.parse.urlsplit(url).hostname in ("127.0.0.1", "localhost") or url.startswith(("data:", "blob:")):
+            r.continue_()
+        else:
+            r.abort()
+
+    for scheme in ("light", "dark") if axe else ("light",):
+        label = f"log.html (a PvP opponent{', dark' if scheme == 'dark' else ''})"
+        context = browser.new_context(color_scheme=scheme, viewport=DESKTOP)
+        context.route("**/*", route)
+        page, errors = context.new_page(), []
+        page.on("pageerror", lambda err: errors.append(f"script error: {err}"))
+        try:
+            page.goto(base + "log.html?id=abcdef12", wait_until="load")
+            page.wait_for_selector('[data-control="actor"] optgroup[label="Opponents"]', state="attached", timeout=8000)
+            page.select_option('[data-control="actor"]', "foe")
+            card = page.locator("[data-opponent]")
+            card.wait_for(timeout=8000)
+            text = " ".join(card.inner_text().split())
+            if "Opponent · Rang" not in text or "9,600 100.0% 12" not in text or "6,000 100.0% 6" not in text:
+                problems.append(f"{label}: the opponent's side reads {text[:300]!r}")
+            page.click('[data-metric="deaths"]')
+            if "18.500s" not in page.locator(".cr-review").inner_text():
+                problems.append(f"{label}: no recap of the opponent's death")
+            if axe:
+                page.add_script_tag(path=axe)
+                found = page.evaluate("""async () => {
+                    const r = await axe.run(document, {resultTypes: ['violations']});
+                    return r.violations.filter(v => v.impact === 'serious' || v.impact === 'critical')
+                            .map(v => `${v.impact} ${v.id}: ${v.help} — ${v.nodes.slice(0, 3).map(n => n.target.join(' ')).join(', ')}`);
+                }""")
+                problems += [f"{label}: accessibility {v}" for v in found]
+        except Exception as exc:                     # the page never offered the opponent
+            problems.append(f"{label}: no opponent's side of the fight ({str(exc).splitlines()[0]})")
+        problems += [f"{label}: {e}" for e in errors]
+        context.close()
 
 
 # One run of the log server's /api/v1/run-leaderboard, as the server sends it: the route by catalog key, each
@@ -583,6 +648,7 @@ def main() -> int:
                 check_maps_button(context, base, problems)
             if "log.html" in pages:
                 check_log_share(browser, base, problems)
+                check_pvp_opponent(browser, base, args.axe, problems)
             if "log.html" in pages and "planner.html" in pages:
                 check_replay_to_planner(browser, base, problems)
             if "logs.html" in pages:
