@@ -260,6 +260,30 @@ def test_buff_uptime_merges_overlaps_and_crowd_control_is_listed_by_state():
     assert by["ally"]["broken_early"] == 1 and by["me"]["hard"] == 1
 
 
+def test_crowd_control_on_the_party_is_listed_apart_by_whom_it_held():
+    """A PvP opponent's crowd control on the party (``crowd_control_received``): its state from the skill's
+    description and its timing from the effect records, summed per party member and state. What the party landed
+    stays in ``crowd_control``; an NPC's skill, which no class description names, is not listed."""
+    suppressing_arrow, snare_shot = 14070000, 14130000          # a Ranger's Stun and Slow
+    on = lambda t, end, target, source, skill, name, **extra: {"t": t, "end": end, "target": target, "source": source,  # noqa: E731
+                                                                "skill_id": skill, "skill": name, **extra}
+    segment = {"duration": 60.0, "entities": [{"id": "foe", "name": "Foe", "kind": "enemy", "is_player": True}],
+               "effects": [on(4.0, 6.0, "me", "foe", suppressing_arrow, "Suppressing Arrow", ended="expired"),
+                           on(20.0, 20.5, "me", "foe", suppressing_arrow, "Suppressing Arrow", ended="removed", refreshes=1),
+                           on(30.0, 34.0, "ally", "foe", snare_shot, "Snare Shot"),
+                           on(40.0, 41.0, "foe", "me", WAVE_BLOW, "Wave Blow", ended="expired"),
+                           on(50.0, 52.0, "me", "boss", 2390001, "Boss Slam")]}
+    result = summarize(segment, {"me", "ally"}, {"me", "ally"}, {"foe": {"is_player": True}, "boss": {"is_boss": True}})
+    assert [(c["t"], c["target"], c["source"], c["state"], c["hard"], c["ended"]) for c in result["crowd_control_received"]] == [
+        (4.0, "me", "foe", "Stun", True, "expired"), (20.0, "me", "foe", "Stun", True, "removed"), (30.0, "ally", "foe", "Slow", False, None)]
+    by = {(r["target"], r["state"]): r for r in result["crowd_control_received_by_target"]}
+    stun = by[("me", "Stun")]
+    assert (stun["landed"], stun["seconds"], stun["hard"], stun["broken_early"]) == (3, 2.5, 3, 1)
+    assert (by[("ally", "Slow")]["landed"], by[("ally", "Slow")]["hard"]) == (1, 0)
+    assert [(c["source"], c["target"], c["state"]) for c in result["crowd_control"]] == [("me", "foe", "Knockdown")]
+    assert result["omitted_actions"]["crowd_control_received"] == 0
+
+
 def test_the_break_gauge_is_shared_by_skill_stagger_values_with_its_breaks():
     [boss] = summarize(_review_segment(), {"me", "ally"}, {"me", "ally"}, {"boss": {"is_boss": True}})["stagger"]
     shares = {p["player"]: p["amount"] for p in boss["players"]}

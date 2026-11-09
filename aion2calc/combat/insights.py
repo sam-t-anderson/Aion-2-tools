@@ -148,4 +148,4 @@ def summarize(doc):
             "actions":action_summary(segment, players, friendly, entities),
             "healing_effect":healing_summary(segment, players, friendly),
             "contribution":contribution_summary(doc, index)})
-    return {"version": 5, "note":NOTE,"segments":segments}
+    return {"version": 6, "note":NOTE,"segments":segments}
