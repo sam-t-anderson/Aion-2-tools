@@ -4,6 +4,14 @@
 
 **What it changes.** In the 86 older logs uploaded to the log server from 6 November to early 7 November, the players' healing reads 233 million instead of 624 million. Light of Regeneration keeps 11 % of what was recorded, Enhance: Spirit's Benediction 20 %, the Life Potion 31 %, Recuperation 61 %, Warding Strike 62 % and Absolution 87 %. A log recorded with 0.2.399 or later reads as before.
 
+## A shield's hits keep their Multi-Hits, and the HP they drained counts (0.2.403)
+
+**Multi-Hits on a hit a shield absorbed.** Since 0.2.400 the meter knows where a hit's record names the shields that absorbed it, but it read such a hit the long way round, which drops small Multi-Hits and, for some skills, all of them. A hit's Multi-Hits are now read whether or not a shield took it: in the six arena matches of a 31 October recording, 68 hits that shields absorbed show the Multi-Hits they landed, and 100 in an Abyss recording of 21 October. Each hit's total is as before; what changes is the Multi-Hit counts the live meter's skill stats and the overlay's player panel show.
+
+**The HP a hit drained.** A skill that drains HP sends the amount at the end of the hit's record, after the shields when a shield took the hit, where the meter stopped reading. Those drains are now the attacker's healing, as on any other hit: 19 in the two recordings, five of 152 to 178 and fourteen of 1 HP, where a shield took the whole hit.
+
+**Older logs.** A log recorded before 0.2.403 has none of these drains.
+
 ## A hit counts what it took off HP (0.2.402)
 
 **Hits that lost part of their damage.** Some hits reach their target reduced: the game's record of the hit then carries how much it lost before it reached HP, a fifth of the hit in the recordings, and the target's HP drops by the rest. The meter counted the whole hit, and when the amount lost was 128 or more it misread the record. It took the attacker's power scalar for the hit's damage (10,000 for a monster, 9,000 to 17,060 for a player), so a hit of 1,480 counted 10,830, and it read the direction from the wrong byte. In a recording of six arena matches by a Templar, this put the Templar's damage up to 48 % too high in five of the matches (84,509 where the hits dealt 44,238 in the match against the Ranger), and their damage taken up to 15 %. In a dungeon run of 20 October the party's damage taken read 5 to 24 % high in nine of the boss fights. Each hit now counts what it took off HP, with its direction read where the record gives it, in the live meter, the review and the saved log.

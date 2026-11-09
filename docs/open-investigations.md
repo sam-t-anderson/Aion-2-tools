@@ -1064,14 +1064,9 @@ before. A log holds a hit's total only, so a log recorded before 0.2.400 keeps t
 can take two bytes, and it is what the hit lost before it reached HP
 ([next section](#what-a-hit-took-off-hp-the-field-after-its-modifiers-9-november-02402)).*
 
-**Still open.**
-- *The rest of a hit a shield absorbed.* The strict walk of a hit's record (`parser._hit_tail`) does not read the
-  shields, so a hit with bit 0x40 takes the fallback, which loses some of the Multi-Hits the record carries (those under
-  50, and with switch 0x76 the count, taken for a field), and stops at the shields, leaving the HP the hit drained
-  (`03 00` and an amount after them) unread. Read through the strict walk and past the shields, the arena capture's
-  totals stay as they are, 63 of its hits a shield absorbed carry Multi-Hits, and 10 drains appear: three of 167 and one
-  of 178, as the same skill's hits no shield took drain, and six of 1 HP, a drain no hit without a shield shows. Not done
-  here: it changes the Multi-Hit counts and the healing of these hits.
+*The rest of a hit a shield absorbed, also left open here, is read since 0.2.403: the strict walk reads the shields and
+the record past them
+([below](#the-rest-of-a-hit-a-shield-absorbed-the-strict-walk-reads-the-shields-9-november-02403)).*
 
 ## What a hit took off HP: the field after its modifiers (9 November, 0.2.402)
 
@@ -1118,3 +1113,34 @@ main hit carries the loss. A log holds a hit's total only, so a log recorded bef
   is, and why it takes less of a hit a shield is on, is not settled.
 - *Layouts 5 and 7* read their modifiers and direction as layout 6 does, but no hit of theirs is in these captures, so
   their field is still read as one byte.
+
+## The rest of a hit a shield absorbed: the strict walk reads the shields (9 November, 0.2.403)
+
+0.2.400 left the shields to the fallback read of a hit's record, which stopped at them. Two things were lost. The
+fallback drops the Multi-Hits under 50, and with switch bits 0x10 and 0x20 together it takes the Multi-Hits' count for
+a field. And stopping at the shields, it never reached the record's end, where `03 00` and an amount carry the HP the hit
+drained, as on any other hit.
+
+**Since 0.2.403** the strict walk (`parser._hit_tail`) reads the shields after a hit's Multi-Hits and ends the record
+after them (`parser._shields_end`), and the fallback, where it still reads a hit with them, goes on past them too.
+Replayed through 0.2.402 and 0.2.403, every change is one of these, and no hit's total changes:
+
+| Capture | Hits a shield absorbed that now carry their Multi-Hits | Drains read past the shields |
+|---|---:|---|
+| 31 October, six arena matches by a Templar | 68 | 10: 167 three times and 178 once (one skill, whose other hits drain 167 and 178 too), 1 HP six times |
+| 21 October, the Abyss | 100 | 9: 152 once (its skill's other hits drain 152 and 192), 1 HP eight times |
+| 20 and 15 October, the dungeon runs | none | none |
+
+- **The Multi-Hits are what a Multi-Hit is**, a tenth of the hit ([methodology](methodology.md#multi-hit-from-the-recordings-02382)):
+  147 of the 168 at 0.09 to 0.11 of their hit, 16 hits under 100 with a tenth rounded down to a whole HP, and 5 on hits
+  whose total the decoder already took from their power scalar (the next item), whose totals stay as they were.
+- **A drain of 1 HP** comes from a hit a shield took whole. Where the same skills hit with no shield they drain 26 to
+  223, as if a drain were a share of the HP a hit takes, and at least 1. The HP feed cannot check a drain either way: the drains
+  the decoder read before show in the attacker's HP in 7 of 331 windows between readings.
+
+**Still open.**
+- *A critical hit of 25 or less counts its power scalar.* The decoder takes a critical layout-6 hit's first value for
+  its damage when the second is 25 or less (`first_is_damage` in `parse_damage_packet`), but the first is the power
+  scalar and the second the hit. In the arena capture 79 such hits counted 997,092 more than their values, in the Abyss
+  capture 217 counted 2,953,842 more. In 202 reads where the target's HP readings bracket them, the HP drop equals the
+  small value, and in none the decoded one.
