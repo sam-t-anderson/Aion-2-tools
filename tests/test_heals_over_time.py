@@ -1,4 +1,4 @@
-"""An older log's heals over time are rebuilt into what each tick took when it is read (0.2.403).
+"""An older log's heals over time are rebuilt into what each tick took when it is read (0.2.404).
 
 A heal over time holds an HP pool, reported in ``05 38`` records. A meter before 0.2.399 recorded the pool as a heal
 when it was cast and then, at each tick, a heal of what was left of it, so a Light of Regeneration counted about ten
@@ -134,7 +134,7 @@ def test_only_an_older_meters_logs_are_rebuilt_and_only_once():
     events = _pool_records(10.0, CLERIC, TARGET, LOR, "Light of Regeneration", 5946, 15)
     assert meter_version(_doc(events, "0.2.385")) == (0, 2, 385)
     assert records_pools(_doc(events, "0.2.398")) and not records_pools(_doc(events, "0.2.399"))
-    assert not records_pools(_doc(events, "0.2.403"))
+    assert not records_pools(_doc(events, "0.2.404"))
     unnamed = _doc(events, None)
     assert not records_pools(unnamed)                                   # names no meter version
     other = _doc(events)

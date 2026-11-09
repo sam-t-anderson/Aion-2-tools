@@ -816,7 +816,7 @@ def older_heal_over_time_recording():
 
 
 def test_an_older_logs_heals_over_time_read_what_their_ticks_took(app_page, app_url, app_home):
-    """A log a meter before 0.2.399 saved is rebuilt when the review reads it (0.2.403): the Light of Regeneration
+    """A log a meter before 0.2.399 saved is rebuilt when the review reads it (0.2.404): the Light of Regeneration
     of 5,946 heals 15 ticks of 396, 5,940, not the 47,616 its records add up to, and the review says what it rebuilt."""
     page = app_page
     path = _saved(app_home, "session-20261106-010000-abcdef.a2log.json", older_heal_over_time_recording())

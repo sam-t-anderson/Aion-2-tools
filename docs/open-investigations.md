@@ -974,8 +974,8 @@ Regeneration 665,116, not 7.1 million) and the Chanter 593,003, not 1.6 million.
 **Stored logs** cannot be fixed: an absorb's record never named the shield's caster. A heal between the two sides of a
 PvP fight is nobody's: the review leaves it out of both sides and says how many there were, and a log read by the app or a
 0.2.399 log server drops them and keeps the count (`combat.healing.unattributed_heals`). Their heals over time read high
-until 0.2.403, which rebuilds them into what each tick took when the log is read
-([methodology](methodology.md#heals-over-time-in-older-logs-rebuilt-when-read-02403)).
+until 0.2.404, which rebuilds them into what each tick took when the log is read
+([methodology](methodology.md#heals-over-time-in-older-logs-rebuilt-when-read-02404)).
 
 *Doom Shield's phantom hit, left open here, is gone since 0.2.400: a hit's record names the shields that absorbed it,
 and the decoder no longer reads them as hits ([next section](#a-hit-a-shield-absorbed-the-shields-its-record-names-9-november-02400)).*
@@ -986,8 +986,8 @@ and the decoder no longer reads them as hits ([next section](#a-hit-a-shield-abs
   59.1 full-value applications a minute among them). *Re-measured in 0.2.401* from the same stored logs, each pool's
   records differenced into what its ticks took: Light of Regeneration 6.3, Recuperation 20.4, the instant heals and
   Benevolence unchanged ([methodology](methodology.md#heal-rates-from-what-the-heals-over-time-took-02401)). Since
-  0.2.403 the stored logs themselves are repaired the same way when read
-  ([methodology](methodology.md#heals-over-time-in-older-logs-rebuilt-when-read-02403)).
+  0.2.404 the stored logs themselves are repaired the same way when read
+  ([methodology](methodology.md#heals-over-time-in-older-logs-rebuilt-when-read-02404)).
 - *A pool's last tick when it divides evenly.* A heal over time whose pool is a whole number of its ticks (Absolution's
   1.5 % of maximum HP five times, a Life Potion's first pool of 2,095, five of 419) has no update that leaves nothing.
   In the four captures, the pools that reached their last tick that way ended as follows:

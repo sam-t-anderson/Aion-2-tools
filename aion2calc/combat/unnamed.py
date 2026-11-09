@@ -18,7 +18,7 @@ the arena match (``arena_matches``); the meter of 0.2.355 types it so itself.
 Its heals lose the Stamina and MP a skill restores (``healing.drop_restores``): the game sends them in
 the layout of an HP restore, and a meter of 0.2.354 or earlier recorded them as healing. In a log a meter
 before 0.2.399 recorded, its heals over time are rebuilt into what each tick took (``healing.heals_over_time``,
-0.2.403): such a meter recorded a heal over time's pool when it was cast and then what was left of it.
+0.2.404): such a meter recorded a heal over time's pool when it was cast and then what was left of it.
 """
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def relabel(doc):
     """``doc`` with each entity named "???" given its label, each arena match against players the
     capture could not name typed so, each zone name the catalog has replaced made current, the Stamina
     and MP restores left out of its heals, in a log a meter before 0.2.399 recorded its heals over time
-    rebuilt into what each tick took (``healing.heals_over_time``, 0.2.403), and in PvP the heals between
+    rebuilt into what each tick took (``healing.heals_over_time``, 0.2.404), and in PvP the heals between
     the two sides (a shield's absorb as such a meter recorded it) left out and counted, in place
     (returned for chaining). A rebuild recomputes the summaries the log carries of its heals: the
     encounter insights' effective healing and the death recaps."""

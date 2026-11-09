@@ -2537,7 +2537,7 @@ of 0.2.399 drops them with a count (`combat.healing.unattributed_heals`, the seg
 Nezekan's Shield, Poach, Guarding Seal and Doom Shield made 925 such records naming the opponents, each
 one below the record before it of the same shield on the Templar, and the opponents' shields 287 more
 under the Templar's name. Its heals over time counted what was left of them at each tick: since
-[0.2.403](#heals-over-time-in-older-logs-rebuilt-when-read-02403) they are rebuilt into what each tick took
+[0.2.404](#heals-over-time-in-older-logs-rebuilt-when-read-02404) they are rebuilt into what each tick took
 when the log is read.
 
 **What it changes.** Replayed, the 20 October dungeon run's Cleric heals 2.6 million where the meter
@@ -2548,10 +2548,10 @@ which the meter had recorded as 930,063 of the opponents' healing on the Templar
 [0.2.386](#heal-amounts-from-the-recorded-heals-02386) were measured from records of the older meters;
 [0.2.401](#heal-rates-from-what-the-heals-over-time-took-02401) re-measures them from what the ticks took.
 
-### Heals over time in older logs, rebuilt when read (0.2.403)
+### Heals over time in older logs, rebuilt when read (0.2.404)
 
 A log recorded before 0.2.399 holds each heal over time as its pool when it was cast and then, at each tick, what was
-left of it ([above](#heals-over-time-and-shields-what-they-took-credited-to-the-caster-02399)). Since 0.2.403 such a log
+left of it ([above](#heals-over-time-and-shields-what-they-took-credited-to-the-caster-02399)). Since 0.2.404 such a log
 is rebuilt when it is read, into what a meter of 0.2.399 or later records: each tick as the HP it took from the pool.
 The rebuild (`combat.healing.heals_over_time`) runs when the app reviews a saved log or a recording's parts together, in
 My Character's healing share, and wherever a log server reads with this client (`combat.unnamed.relabel`). The stored

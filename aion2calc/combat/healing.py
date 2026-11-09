@@ -122,7 +122,7 @@ TICKS_RECORDED_SINCE = (0, 2, 399)
 #: ``(ticks a cast, seconds between ticks, the option a pool needs, whether an instant heal shares the pool's id)``.
 #: Read from the 15, 20, 21 and 31 October captures: a pool of N ticks loses ``pool // N`` at each tick, one tick
 #: interval after it is cast, and what is left at the end is below N (docs/methodology.md, "Heals over time in
-#: older logs, rebuilt when read (0.2.403)"). A skill not listed keeps its records as they are.
+#: older logs, rebuilt when read (0.2.404)"). A skill not listed keeps its records as they are.
 HEALS_OVER_TIME = {
     17090000: (15, 2.0, None, False),   # Light of Regeneration (its "+20 %" option adds a second pool beside it)
     18120000: (4, 2.0, None, True),     # Recuperation: 6 ticks with option 3, "+4s healing duration"; its heal and

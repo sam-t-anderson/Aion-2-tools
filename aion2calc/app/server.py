@@ -772,7 +772,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"fingerprint": hashlib.sha256(session_path(q["fingerprint"]).read_bytes()).hexdigest()})
             if q.get("file"):
                 # A recording an earlier app saved is shown under the zone names the catalog uses now, and one a
-                # meter before 0.2.399 saved with its heals over time as what each tick took (0.2.403).
+                # meter before 0.2.399 saved with its heals over time as what each tick took (0.2.404).
                 from ..combat.unnamed import rebuild_heals, rename_zones
                 doc = rename_zones(json.loads(session_path(q["file"]).read_text(encoding="utf-8")))
                 rebuild_heals(doc)
