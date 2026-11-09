@@ -183,7 +183,8 @@
     const max = maxOf(party.length ? party : [me].filter(Boolean)),
       sum = sumOf(party);
     let out = "";
-    if (me && ctx.layout !== "versus") {
+    // Compact with "All 3 for party" is one table, your row marked among the party's: a "You" row above it repeated it (0.2.396).
+    if (me && ctx.layout !== "versus" && !(ctx.layout === "compact" && ctx.all3)) {
       if (ctx.layout === "compact") out += tableHead("You") + tableRow(ctx, me, max);
       else
         out +=
@@ -191,7 +192,7 @@
           METRICS.map(([key, label], i) => row(ctx, me, me[key], sum[i], max[i], { label })).join("");
     }
     if (ctx.all3) {
-      if (ctx.layout === "compact") return out + sec("Party") + party.map((p) => tableRow(ctx, p, max)).join("");
+      if (ctx.layout === "compact") return tableHead("Party") + party.map((p) => tableRow(ctx, p, max)).join("");
       return out + sec(`Party · ${METRICS.map(([key]) => metricLabel(key)).join(" · ")}`) + party.map((p) => triRow(ctx, p, max[0])).join("");
     }
     const key = ctx.metric === "hps" ? "hps" : ctx.metric === "taken" ? "dtps" : "dps";

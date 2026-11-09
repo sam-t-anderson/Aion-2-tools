@@ -1182,7 +1182,9 @@
     if(bgMode==="top"){const h=parseFloat(card.style.getPropertyValue("--ov-top-h"))||0;if(h>0)rects.push(shape([top.left*dpr,top.top*dpr,top.right*dpr,(top.top+h)*dpr],corner(card,"::before")));}
     for(const el of card.children){
       if(el.id==="ovbg"||el.hidden||el.offsetParent===null&&getComputedStyle(el).position!=="fixed")continue;
-      if(el.id==="ovcontent"){el.querySelectorAll(":scope > .ovrow, :scope > .muted").forEach(add);continue;}
+      // the rows and notes, and arena mode's own pieces (0.2.396): its section labels and column heads, the versus
+      // bars, the player cards (each card of the grid on its own); left out, they fell outside the window's shape
+      if(el.id==="ovcontent"){el.querySelectorAll(":scope > .ovrow, :scope > .muted, :scope > .arn-sec, :scope > .arn-thead, :scope > .arn-tug, :scope > .arn-card, :scope > .arn-grid .arn-sec, :scope > .arn-grid .arn-mini").forEach(add);continue;}
       if(bgMode==="top"&&el.getBoundingClientRect().bottom<=top.top+(parseFloat(card.style.getPropertyValue("--ov-top-h"))||0)+1)continue;   // inside the panel already
       add(el);
     }
