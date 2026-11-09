@@ -35,7 +35,7 @@ def test_a_live_arena_match_gives_the_overlay_both_fighters_and_the_score():
     engine, s = _live()
     t = _fight(engine, s)
     s.observe(engine, [HealEvent(actor_id=FOE, skill_code=SHARP_STRIKE, amount=5_000, timestamp_ms=t - 300, target_id=FOE),
-                       # a drain names the drained enemy as its actor: the heal is the drainer's, not the opponent's
+                       # a heal by the opponent on you is not theirs (before 0.2.398, your shield absorbing their hit)
                        HealEvent(actor_id=FOE, skill_code=SHIELD_STRIKE, amount=7_000, timestamp_ms=t - 200, target_id=ME)],
               timestamp_ms=t - 100)
     engine.telemetry = [{"kind": "hp", "entity": FOE, "current": 18_000, "max": 30_000, "timestamp_ms": t - 50}]

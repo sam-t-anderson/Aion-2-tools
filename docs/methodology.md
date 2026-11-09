@@ -2345,20 +2345,94 @@ from their own record on entering a zone.
   in the same read. Each player's last reading from before the fight is kept for heals early in it.
   A heal with no earlier reading or no known maximum is counted as *No reading*, never guessed.
 * **Heals over time and shields are not measured.**
-  * A heal over time ("restores … HP every 1s for 14s") arrives as one record carrying its whole
-    amount, while the HP feed rises tick by tick. Light of Regeneration's ~6,000 rose ~418 per tick,
-    and it was 68% of the recorded healing in the 15 October capture.
+  * A heal over time ("restores … HP every 1s for 14s") seemed to arrive as one record carrying its
+    whole amount, while the HP feed rises tick by tick. Light of Regeneration's ~6,000 rose ~418 per
+    tick, and it was 68% of the recorded healing in the 15 October capture. Its records were read wrong
+    until 0.2.398: [below](#heals-over-time-and-shields-what-they-took-credited-to-the-caster-02398).
   * Some shields arrive as healing of the shield's size ("a Protective Shield that blocks damage";
     Impeding Authority) and restore no HP.
-  * Both are listed apart, told apart by the skill descriptions. Potions, which have none, count as
-    healing over time: their next readings rose far less than their amounts.
+  * Both are listed apart: a shield's absorb by its record's own mark (0.2.398), else by the skill
+    descriptions. Potions, which have none, count as healing over time: their next readings rose far
+    less than their amounts.
 * **The check.** For each read that healed a player, the target's HP after it (their last reading in
   that read, else the next within a second) should equal the HP before plus the read's effective
   healing. In the 15 October capture, 256 reads matched in full and 22 matched topped up to maximum
   HP. 168 had other changes in between (damage, ticks of other heals). Read in arrival order, 215
   heals raised HP by exactly their amount and 18 stopped at maximum HP.
 
-Pets and enemies are not covered, and shield absorption itself is not decoded.
+Pets and enemies are not covered. Shield absorption is decoded since 0.2.398 (below), but an absorb
+restores no HP, so the HP feed has nothing to check it against.
+
+### Heals over time and shields: what they took, credited to the caster (0.2.398)
+
+A heal over time and a shield each hold an HP pool, and the game reports the pool in `05 38` records
+that carry the effect's instance (the number the game gives the effect on its target). Effect type
+`09` applies it: its actor is the caster and its amount the whole pool or the shield's size. Type
+`0b` updates it: its amount is what is left, and a varint after it what the update took. A tick
+names its caster as the actor; a shield's absorb names the attacker whose hit it took. The decoder
+read the amount, what was left, as the heal and the actor as the healer, and counted the application
+as a heal too. So each tick of a heal over time counted what was left of it, and an absorb counted
+what was left of the shield for the attacker: in PvP your shields were the opponent's healing on
+you, and theirs yours on them.
+
+The reading, from four archived captures with raw TCP (the 15 and 20 October dungeon runs, the
+21 October Abyss recording and the 31 October arena matches; 28,705 updates):
+
+* **What the update took.** For one effect (its target, instance and effect number), the amount before
+  an update less the varint after the amount is the amount the update leaves, in 5,288 of 5,297
+  updates of three of the captures; each of the other nine differs by a whole number of its own
+  takes, ticks the capture lost.
+* **HP rises by what the ticks took.** In 1,854 reads of three captures where the target's HP was read
+  before and after with no damage between, it rose by the sum of what the read's ticks took, and in
+  none by their amounts. Light of Regeneration's 5,946 heals 396 a tick, 15 ticks, with 6 left.
+* **The application restores nothing.** 1,122 of the 1,319 applications of three captures came with no
+  HP record in their read (the game sends HP only when it changes), and Warding Strike's "immediately restores" arrives
+  as a heal record of its own beside its application.
+* **Who cast it.** Of the 27,205 updates whose application was seen, 24,014 name the caster, every one
+  of a heal over time's effect (Light of Regeneration, Recuperation, Absolution, Warding Strike,
+  Spirit's Benediction, potions and others); 3,163 name someone else, every one of a shield's effect
+  (Guarding Seal, Poach's shield, Doom Shield, Nezekan's Shield, Grapple, the Chanter's Impeding
+  Authority and Protection Circle, the Cleric's Prayer of Concentration and Yustiel's Power, Steel
+  Barrier's shield, Siphon), and no shield's effect names its caster; the other 28 are another
+  healer's ticks of Recuperation and Spirit's Benediction under an instance someone else applied.
+  Steel Barrier holds both: its effect 11 is a shield, its effect 14 a heal over time. Only 800 of the
+  3,163 absorbs came in the same read as a hit by their actor on that target: in the Abyss
+  recording's crowd most came with no hit of their actor's decoded near them.
+* **No absorb is an HP change.** 494 of 509 absorbs of three captures came with no HP record in their
+  read: the shield took the hit.
+
+So since 0.2.398 an update is the heal of what it took (`parser._pool_update`), credited to the caster
+the effect's application named (`parser.PoolCasters`, kept across reads and cleared with the zone,
+whose entity ids it holds); the application is no heal. An update naming that caster is a tick, and
+its effect is then known to tick. One naming someone else is an absorb, the caster's, unless its
+effect is known to tick and its actor struck no hit on the target in the same read: then it is the
+other healer's tick, theirs, and an absorb teaches that its skill absorbs. With no application seen
+(cast before the recording, or out of view), an update by an actor that struck the target in the same
+read, or of a skill known to absorb whose effect is not known to tick, is an absorb whose caster no
+record names, and counts for no one; any other names its caster, as a tick does. A capture starts
+knowing the eight shields of the Templar, Cleric and Chanter above (Guarding Seal, Poach, Doom Shield,
+Nezekan's Shield, Impeding Authority, Protection Circle, Prayer of Concentration, Yustiel's Power) and
+learns the rest from their first absorb. On the four captures, those rules call every update of a
+shield's effect an absorb and every update of a heal over time's a tick of its own caster. The update
+follows the read's other records, so the hit of a fight's first absorb is already in the fight.
+
+**Stored logs.** A log recorded before 0.2.398 holds the absorbs as heals by the attacker of what was
+left of the shield, and nothing in it names the caster. In a PvP fight a heal between the two sides
+(the party and its summons, an enemy and its summons) is therefore nobody's: the review leaves it out
+of both sides' healing and says how many there were, and a stored log read by the app or a log server
+of 0.2.398 drops them with a count (`combat.healing.unattributed_heals`, the segment's
+`unattributed_heals`). In a public log of nine PvP fights, eight of them Arena of Solitude matches (9 November), a Templar's
+Nezekan's Shield, Poach, Guarding Seal and Doom Shield made 925 such records naming the opponents, each
+one below the record before it of the same shield on the Templar, and the opponents' shields 287 more
+under the Templar's name. Its heals over time still count what was left of them at each tick.
+
+**What it changes.** Replayed, the 20 October dungeon run's Cleric heals 2.6 million where the meter
+recorded 9.2 million: Light of Regeneration 665,116, not 7.1 million. Its Chanter heals 593,003, not
+1.6 million. Heals the game sends whole (Healing Light, Radiant Recovery, Radiant Benediction) do not
+change. In the 31 October arena matches the Templar's shields took 101,797 of the opponents' damage,
+which the meter had recorded as 930,063 of the opponents' healing on the Templar. The heal rates of
+[0.2.386](#heal-amounts-from-the-recorded-heals-02386) were measured from records of the older meters
+and are not re-measured yet.
 
 ### Stamina and MP restores are not healing (0.2.355)
 

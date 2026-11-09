@@ -741,7 +741,7 @@ def test_an_arena_match_shows_its_result_rating_fighters_and_rounds(app_page, ap
 
 def pvp_recording(opponent_casts=True):
     """A one-against-one arena match, a Templar recording against a Ranger: each one's hits on the other, the Templar's
-    shields recorded with the Ranger as their source (as the recordings name the attacker), the Ranger's own heal,
+    shields recorded with the Ranger as their source (as a meter before 0.2.398 recorded an absorb), the Ranger's own heal,
     casts and buff, crowd control both ways, and each round's loser dying, the arena's death marker naming the winner.
     Validated as the meter saves it, with the analysis that comes with that. Without ``opponent_casts`` the Ranger's
     casts and heal are not in it, as in the meter's own recordings (it records the party's casts only)."""
@@ -785,6 +785,10 @@ def pvp_recording(opponent_casts=True):
 
 ME, FOE = "p:1101:1", "2:7001"
 squash = lambda text: " ".join(text.split())                                                        # noqa: E731
+#: the note on the heals between the two sides, which a meter before 0.2.398 recorded for a shield's absorbs
+NOBODYS = ("Left out of everyone's healing: 3 heal records between the two sides, 6,000 as recorded (Nezekan's Shield ×3). "
+           "They are shields' absorbs, which a meter before 0.2.398 recorded as heals by the attacker, of what was left of "
+           "the shield. The log does not name the shields' casters, so they count for no one.")
 SUMMARY = ".cr-review .cr-scroll table:has(th:text-is('HPS')) tbody tr"                     # the players' table
 
 
@@ -792,8 +796,8 @@ def test_a_pvp_opponent_is_chosen_under_player_and_shows_their_side_of_the_fight
     """In a PvP fight the Player menu offers the opponents beside the party, and one chosen reads the fight from their
     side as a party player's view does: their row in the table, whom they struck and who struck them, their abilities,
     skills, rotation and cast timeline, the buffs and debuffs on and from them, crowd control both ways, and the death
-    recaps of their deaths and of the party's they struck in. The heal records on the party that name them are left
-    out of their healing, with a note. The party's own view stays as it was."""
+    recaps of their deaths and of the party's they struck in. The heal records between the two sides (the party's
+    shields, recorded with them as the source) are left out of everyone's healing, with a note in both views."""
     page = app_page
     path = _saved(app_home, "session-20261109-200000-abcdef.a2log.json", pvp_recording())
     try:
@@ -802,7 +806,9 @@ def test_a_pvp_opponent_is_chosen_under_player_and_shows_their_side_of_the_fight
         menu.wait_for()
         assert menu.locator("optgroup").evaluate_all("groups => groups.map(g => g.label)") == ["Opponents"]
         assert [o.split(" · ")[0] for o in menu.locator("optgroup option").all_inner_texts()] == ["Testranger"]
-        assert "Choose an opponent under Player to see the fight from their side." in squash(page.locator(".cr-review").inner_text())
+        review = squash(page.locator(".cr-review").inner_text())
+        assert "Choose an opponent under Player to see the fight from their side." in review
+        assert NOBODYS in review                                                    # the party's view says so too
         party = [squash(r) for r in page.locator(SUMMARY).all_inner_texts()]
         assert len(party) == 1 and party[0].startswith("Testtemplar") and page.locator("[data-opponent]").count() == 0
         menu.select_option(FOE)
@@ -815,8 +821,7 @@ def test_a_pvp_opponent_is_chosen_under_player_and_shows_their_side_of_the_fight
         dealt, taken = (squash(card.locator("table").nth(i).locator("tbody").inner_text()) for i in (0, 1))
         assert dealt.startswith("Testtemplar") and dealt.endswith("13,000 100.0% 15 1,000 867")      # DPS on their 15 active seconds
         assert taken.startswith("Testtemplar") and taken.endswith("12,000 100.0% 8 1,500 300")       # per second over the 40 s
-        assert ("Left out of their healing: 3 heal records on your party that name them as the source, 6,000 in all "
-                "(Templar skills: Nezekan's Shield ×3). An opponent does not heal your side.") in text
+        assert NOBODYS in text
         [row] = [squash(r) for r in page.locator(SUMMARY).all_inner_texts()]
         assert row.startswith("Testranger") and row.endswith("Ranger 13,000 867 12,000 1,500 38 1")
         # in the Ranger's colour: an entity's class is capitalised ("Ranger"), the colour table's keys are not

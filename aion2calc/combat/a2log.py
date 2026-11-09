@@ -150,7 +150,7 @@ _segment_properties.update({
     "zone_source":{"type":"string"}, "encounter_type_source":{"type":"string"}, "difficulty_source":{"type":"string"},
     "game_patch": {"type": "string"}, "game_patch_source": {"type": "string"}, "game_patch_basis": {"type": "string"}, "difficulty": {"type": "string"}, "encounter_type": {"enum": list(ENCOUNTER_TYPES)},
     "entities": {"type": "array", "maxItems": 2000, "description": "Observed enemies and pets: id, name, kind, mob_code, is_boss, owner"},
-    "events": {"type": "array", "maxItems": LIMITS["hits"], "description": "Recorded damage/heal/death/revive effects: t, kind, source, target, skill, skill_id, amount; a revive is a player's first HP above zero after a death; unknown recipients omitted"},
+    "events": {"type": "array", "maxItems": LIMITS["hits"], "description": "Recorded damage/heal/death/revive effects: t, kind, source, target, skill, skill_id, amount; a heal with absorb true is a shield's absorb of a hit (no HP restored); a heal with no source names no caster; a revive is a player's first HP above zero after a death; unknown recipients omitted"},
     "health": {"type": "array", "maxItems": LIMITS["hp"], "description": "Entity HP samples: t, entity, current, optional max"},
     "ping_source": {"type": "string"}, "ping_recorder": {"type": "string"},
     "ping": {"type": "array", "maxItems": LIMITS["hp"], "description": "Round-trip latency over time: [t seconds, milliseconds] pairs"},
@@ -162,6 +162,7 @@ _segment_properties.update({
     "chains": {"type": "array", "maxItems": LIMITS["chains"], "description": "The recording player's chain-skill windows: t opened, optional end, player, skill_id that opened it, next_id and next (the chain skill)"},
     "resources": {"type": "array", "maxItems": LIMITS["resources"], "description": "The recording player's MP readings (the game sends no one else's): t (0 for the reading in force at the start), entity, mp, optional max (from the player's own record)"},
     "npc_casts": {"type": "array", "maxItems": LIMITS["npc_casts"], "description": "Recorded skill casts by bosses and, since 0.2.394, by their adds and clones (NPCs that spawned near a boss being fought, struck the party or cast at it): t, source (a listed entity), skill_id, skill, optional target, pos (where the cast was aimed: x, y, z in the movement's world coordinates) and facing (the caster's heading in degrees)"},
+    "unattributed_heals": {"type": "object", "description": "The heal records of a PvP fight between the two sides, left out as nobody's healing when the log was read (combat.healing.unattributed_heals): a meter before 0.2.398 recorded a shield's absorb as a heal by the attacker, of what was left of the shield, and its caster is in no record. records, amount (as recorded), skills (name -> records)"},
     "arena": {"type": "object", "description": "The arena match this fight belongs to, from the game's own arena records: match (the game's match number), fighters (name, class, server, faction, level, rating before the match, ref to the player or entity, self for the recording player), rounds (t, round, winner and loser as indexes into fighters; the loser's death marker carries the winner as its source), and once the match ended in this fight the recording player's result (win or loss), rounds_won, rounds_lost and rating after it"},
 })
 SCHEMA["properties"]["players"]["items"]["properties"].update({
@@ -202,6 +203,22 @@ def _int(value, low=0, high=2**53 - 1) -> bool:
 
 ARENA_RESULTS = ("win", "loss")
 ARENA_FACTIONS = ("elyos", "asmodian")
+
+
+def _clean_unattributed(value) -> dict | None:
+    """A segment's count of the heals left out as nobody's (``combat.healing.unattributed_heals``), bounded."""
+    if not isinstance(value, dict):
+        return None
+    records = value.get("records")
+    if not isinstance(records, int) or isinstance(records, bool) or not 0 < records <= 2**53 - 1:
+        return None
+    amount = value.get("amount")
+    out = {"records": records, "amount": float(amount) if _num(amount) and 0 <= amount < 1e15 else 0.0}
+    skills = value.get("skills")
+    if isinstance(skills, dict):
+        out["skills"] = {str(k)[:80]: v for k, v in list(skills.items())[:12]
+                         if isinstance(v, int) and not isinstance(v, bool) and 0 < v <= 2**53 - 1}
+    return out
 
 
 def _clean_arena(value, references: set, duration: float) -> dict | None:
@@ -522,6 +539,8 @@ def validate(doc) -> dict:
                 row["skill_id"] = event["skill_id"]
             if isinstance(event.get("skill"), str):
                 row["skill"] = event["skill"][:80]
+            if event["kind"] == "heal" and event.get("absorb") is True:
+                row["absorb"] = True        # a shield's absorb of a hit (0.2.398): damage taken off it, no HP restored
             events.append(row)
         health = []
         for sample in (s.get("health") or [])[:LIMITS["hp"]]:
@@ -585,6 +604,9 @@ def validate(doc) -> dict:
         arena = _clean_arena(s.get("arena"), references, float(s["duration"]))
         if arena:
             out_segs[-1]["arena"] = arena
+        unattributed = _clean_unattributed(s.get("unattributed_heals"))
+        if unattributed:
+            out_segs[-1]["unattributed_heals"] = unattributed
         timed = s.get("capture_loss")
         if isinstance(timed, dict):
             # Kept even when empty: "no loss inside this fight's window" is the evidence.

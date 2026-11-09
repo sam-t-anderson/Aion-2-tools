@@ -39,12 +39,15 @@ class DamageEvent:
 
 @dataclass(frozen=True, slots=True)
 class HealEvent:
-    actor_id: int
+    #: who healed: the caster of the heal, the heal over time or the shield. None when the records name no one: a
+    #: shield's absorb names the attacker whose hit it took, and its caster is known only from its application.
+    actor_id: int | None
     skill_code: int
     amount: int
     timestamp_ms: int
-    is_hot: bool = False
+    is_hot: bool = False            # a heal over time's tick
     target_id: int | None = None
+    absorb: bool = False            # a shield's absorb of a hit: the damage it took, no HP restored
 
 
 @dataclass(slots=True)

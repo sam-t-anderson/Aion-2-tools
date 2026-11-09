@@ -12,10 +12,12 @@ raised HP by exactly their amount and 18 stopped at max HP (docs/open-investigat
 with no earlier reading or no maximum is left unknown, never guessed. Pets and enemies are not
 covered.
 
-Only instant heals are measured. A heal over time ("restores ... HP every 1s for 14s") is recorded
-once with its whole amount while the HP feed rises tick by tick, and a shield the game reports as
-healing ("a Protective Shield that blocks damage") restores no HP: both are listed apart, by the
-skill's description (potions, which have none, heal over time).
+Only instant heals are measured. A heal over time ("restores ... HP every 1s for 14s") and a shield
+("a Protective Shield that blocks damage") are listed apart: the event's own ``absorb`` marks a
+shield's absorb (meter 0.2.398 and later), else the skill's description tells (potions, which have
+none, heal over time). Since 0.2.398 a heal over time is recorded tick by tick and a shield as the
+damage each hit it took lost to it, credited to its caster; a meter before recorded the whole pool or
+shield when it was cast and then, at each tick or absorb, what was left of it.
 """
 from __future__ import annotations
 
@@ -59,6 +61,59 @@ def drop_restores(segment) -> int:
     return len(events) - len(kept)
 
 
+#: How many skills a segment's ``unattributed_heals`` names.
+UNATTRIBUTED_SKILLS = 12
+
+
+def unattributed_heals(segment, players) -> dict | None:
+    """Leave out of a PvP ``segment``'s events, in place, the heal records between the two sides, and count them
+    in ``segment["unattributed_heals"]`` (``records``, ``amount``, ``skills``: skill name -> records), adding to a
+    count already there. A meter before 0.2.398 recorded a shield's absorb of a hit as a heal with the attacker as
+    its source and what was left of the shield as its amount: your party's shields as an opponent's heals on you,
+    an opponent's as your heals on them (a public PvP log of 9 November held 925 on its Templar, each one below
+    the record before it of the same shield, and 287 on the opponents). The shield's caster is not in that record,
+    so the log cannot credit it:
+    the records are nobody's healing. A side is the party (``players`` and their summons) or an enemy (an entity
+    of kind ``enemy`` and its summons); a heal from or onto anyone else stays. Returns the count, None for none."""
+    if not isinstance(segment, dict) or not str(segment.get("encounter_type") or "").startswith("pvp_"):
+        return None
+    events = segment.get("events")
+    if not isinstance(events, list):
+        return None
+    entities = {e["id"]: e for e in segment.get("entities") or [] if isinstance(e, dict) and isinstance(e.get("id"), str)}
+
+    def side(actor):
+        seen = set()
+        while actor in entities and entities[actor].get("owner") and actor not in seen:
+            seen.add(actor)
+            actor = entities[actor]["owner"]
+        if actor in players:
+            return "party"
+        return "enemy" if entities.get(actor, {}).get("kind") == "enemy" else None
+
+    kept, left = [], []
+    for e in events:
+        if isinstance(e, dict) and e.get("kind") == "heal":
+            ours, theirs = side(e.get("source")), side(e.get("target"))
+            if ours and theirs and ours != theirs:
+                left.append(e)
+                continue
+        kept.append(e)
+    if not left:
+        return None
+    segment["events"] = kept
+    count = segment.get("unattributed_heals") if isinstance(segment.get("unattributed_heals"), dict) else {}
+    skills = dict(count.get("skills") or {})
+    for e in left:
+        name = str(e.get("skill") or e.get("skill_id") or "Unknown")[:80]
+        skills[name] = skills.get(name, 0) + 1
+    count = {"records": int(count.get("records") or 0) + len(left),
+             "amount": float(count.get("amount") or 0) + sum(float(e.get("amount") or 0) for e in left),
+             "skills": dict(sorted(skills.items(), key=lambda kv: (-kv[1], kv[0]))[:UNATTRIBUTED_SKILLS])}
+    segment["unattributed_heals"] = count
+    return count
+
+
 def _readings(segment: dict, targets: set) -> dict:
     out = defaultdict(list)
     for sample in segment.get("health") or []:
@@ -95,7 +150,8 @@ def summarize(segment: dict, players: set, healers: set | None = None) -> dict |
     for heal in heals:
         target, t, amount = heal["target"], heal["t"], float(heal["amount"])
         key = (heal.get("skill_id"), heal.get("skill"))
-        kind = kinds[key] if key in kinds else kinds.setdefault(key, heal_kind(*key))
+        kind = ("shield" if heal.get("absorb") is True
+                else kinds[key] if key in kinds else kinds.setdefault(key, heal_kind(*key)))
         rows, at = readings.get(target, []), times.get(target, [])
         i = bisect_left(at, t)                  # rows[i - 1] is the last reading of an earlier read
         prior = rows[i - 1] if i else None

@@ -900,15 +900,15 @@ class CombatSession:
         # when each first and last did (``_unnamed_members`` tells a member still fighting from a stale id).
         fighters, spans = identity.setdefault("fighters", set()), identity.setdefault("fighter_spans", {})
         for e in events:
-            if isinstance(e, (DamageEvent, HealEvent)) and job_from_skill(e.skill_code):
+            if isinstance(e, (DamageEvent, HealEvent)) and e.actor_id is not None and job_from_skill(e.skill_code):
                 fighters.add(e.actor_id)
                 span = spans.get(e.actor_id)
                 spans[e.actor_id] = ((e.timestamp_ms, e.timestamp_ms) if span is None
                                      else (min(span[0], e.timestamp_ms), max(span[1], e.timestamp_ms)))
         # Who struck with a player's own class skill, and who with an NPC's (0.2.354): an actor the capture
         # has no name or spawn record for that struck only with class skills is a player (an arena opponent,
-        # a stranger in the Abyss), not an enemy of unknown type. Heals are no evidence: a draining skill's
-        # heal record names the enemy it drains as its actor.
+        # a stranger in the Abyss), not an enemy of unknown type. Heals are no evidence: a shield's absorb, which
+        # carries the shield's skill, named the attacker as its actor before 0.2.398.
         strikes, npc_strikes = identity.setdefault("class_strikes", {}), identity.setdefault("npc_strikes", set())
         for e in events:
             if isinstance(e, DamageEvent):
@@ -1259,8 +1259,8 @@ class CombatSession:
     @staticmethod
     def _match_heal(event, identity, match_actors) -> bool:
         """A heal an arena fighter (or their summon) did on themselves or on nobody named: kept in an arena match
-        (0.2.395) for the fighter's HPS. A drain's heal record names the drained enemy as its actor and the drainer
-        as its target, so a heal on another fighter is not the actor's."""
+        (0.2.395) for the fighter's HPS. A heal on another fighter is not the actor's: the one fighter's shield
+        absorbing the other's hit, which before 0.2.398 named the attacker as its actor."""
         if not match_actors or not isinstance(event, HealEvent):
             return False
         actor = identity["owners"].get(event.actor_id, event.actor_id)
@@ -3094,8 +3094,11 @@ class CombatSession:
                 target = reference(event.target_id)
                 t = max(0, event.timestamp_ms - group["start"]) / 1000
                 if isinstance(event, HealEvent):
-                    events.append({"kind": "heal", "t": t, "source": source, "target": target,
-                        "skill_id": event.skill_code, "skill": skill_name(event.skill_code), "amount": event.amount})
+                    heal = {"kind": "heal", "t": t, "source": source, "target": target,
+                            "skill_id": event.skill_code, "skill": skill_name(event.skill_code), "amount": event.amount}
+                    if event.absorb:
+                        heal["absorb"] = True       # a shield's absorb: damage taken off a hit, no HP restored
+                    events.append(heal)
                     continue
                 events.append({"kind": "damage", "t": t, "source": source, "target": target,
                     "skill_id": event.skill_code, "skill": skill_name(event.skill_code), "amount": event.total_damage})

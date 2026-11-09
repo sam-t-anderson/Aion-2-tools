@@ -11,7 +11,8 @@ import json
 import math
 import struct
 import unicodedata
-from collections import deque
+from collections import OrderedDict, deque
+from dataclasses import dataclass
 from importlib.resources import files
 
 from .framing import FrameKind, decompress_bundle, read_varint, walk, walk_inner
@@ -338,10 +339,77 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
     return out
 
 
-def parse_dot_packet(frame: bytes, timestamp_ms: int | None = None) -> DamageEvent | HealEvent | None:
-    """Decode supported damage-over-time and healing effect records."""
-    if timestamp_ms is None:
-        timestamp_ms = time.time_ns() // 1_000_000
+#: The ``05 38`` effect types of an effect that holds an HP pool: a heal over time's, or a shield's (0.2.398,
+#: docs/open-investigations.md). ``09`` applies it: its actor is the caster and its amount the whole pool or the
+#: shield's size, and it restores no HP. ``0b`` updates it: its amount is what is left, and the varint after it what
+#: the update took, the HP a tick restored or the damage the shield absorbed of a hit. A tick names its caster as
+#: the actor; an absorb names the attacker whose hit it took. The effect's instance number links the two.
+POOL_APPLIED, POOL_UPDATE = 0x09, 0x0B
+_DOT_TYPES, _HEAL_TYPES = (0x02, 0x0A), (0x01, POOL_APPLIED, POOL_UPDATE)
+#: How many applications ``PoolCasters`` remembers; the oldest goes first.
+POOL_CASTERS_KEPT = 16_384
+
+
+def _pool_family(skill: int) -> int:
+    """A class skill's family (its rank and specialization digits zeroed); any other id stands for itself."""
+    return skill - skill % 10_000 if 10_000_000 <= skill <= 99_999_999 else skill
+
+
+class PoolCasters:
+    """Who cast each heal over time and shield the capture saw applied (``05 38`` type ``09``), for the updates
+    that do not name its caster: a shield's absorb names the attacker whose hit it took. An effect is its target
+    and the instance number the game gives it there. Entity ids belong to a zone, so the engine clears the casters
+    with its zone; what it has learned of the skills is kept: the skill families whose updates were absorbs
+    (``absorbing``), and the effects (a family and the effect's index) whose updates named their caster, a heal
+    over time's ticks (``ticking``). One skill can hold both: Steel Barrier's shield is its effect 11, and its
+    effect 14 ticks."""
+
+    #: Skill families of the shields of the archived diagnostic captures (15, 20, 21 and 31 October), none of whose
+    #: updates named the caster its application named: the Templar's Guarding Seal, Poach's shield, Doom Shield and
+    #: Nezekan's Shield; the Cleric's Prayer of Concentration and Yustiel's Power; the Chanter's Impeding Authority and
+    #: Protection Circle. An update of one whose application the capture missed is an absorb with no caster from the
+    #: start. The other shields (Grapple, Steel Barrier, Siphon in the captures) are learned from their first absorb:
+    #: seeded, Steel Barrier's effect that ticks would read as a shield's until it first ticked.
+    ABSORBING = frozenset({12750000, 12130000, 12070000, 12320000, 18240000, 17770000, 17420000, 18730000})
+
+    def __init__(self) -> None:
+        self._casters: OrderedDict[tuple[int, int], tuple[int, int]] = OrderedDict()
+        self.absorbing: set[int] = set(self.ABSORBING)
+        self.ticking: set[tuple[int, int]] = set()
+
+    def applied(self, target: int, instance: int, caster: int, skill: int) -> None:
+        key = (target, instance)
+        self._casters.pop(key, None)
+        self._casters[key] = (caster, skill)
+        if len(self._casters) > POOL_CASTERS_KEPT:
+            self._casters.popitem(last=False)
+
+    def caster(self, target: int, instance: int, skill: int) -> int | None:
+        """The caster of the effect ``instance`` on ``target``, when its application was of ``skill``."""
+        known = self._casters.get((target, instance))
+        return known[0] if known is not None and known[1] == skill else None
+
+    def clear(self) -> None:
+        self._casters.clear()
+
+
+@dataclass(frozen=True, slots=True)
+class _EffectRecord:
+    """One ``05 38`` record, read but not yet an event (an update waits for the rest of its read)."""
+    target: int
+    kind: int
+    actor: int
+    instance: int
+    skill: int
+    index: int                      # the effect's index within its skill (the effect number's last two digits)
+    amount: int
+    delta: int | None               # an update's: what it took
+    timestamp_ms: int
+
+
+def _effect_record(frame: bytes, timestamp_ms: int) -> _EffectRecord | None:
+    """``05 38``: target, the effect type (u8), actor, the effect's instance, its effect number (u32: the skill
+    times 100 plus the effect's index), an amount and, for an update, what it took."""
     length = read_varint(frame, 0)
     if length.length <= 0:
         return None
@@ -357,32 +425,103 @@ def parse_dot_packet(frame: bytes, timestamp_ms: int | None = None) -> DamageEve
         return None
     effect_type = frame[offset]
     offset += 1
-    is_damage = effect_type in (0x02, 0x0A)
-    is_heal = effect_type in (0x01, 0x09, 0x0B)
-    if not is_damage and not is_heal:
+    if effect_type not in _DOT_TYPES and effect_type not in _HEAL_TYPES:
         return None
     actor = _var(frame, offset)
     if actor is None:
         return None
     actor_id, offset = actor
-    if is_damage and actor_id == target_id:
+    if effect_type in _DOT_TYPES and actor_id == target_id:
         return None
-    unknown = _var(frame, offset)
-    if unknown is None:
+    instance = _var(frame, offset)
+    if instance is None:
         return None
-    _, offset = unknown
+    instance_id, offset = instance
     if offset + 4 > len(frame):
         return None
-    skill_id = int.from_bytes(frame[offset : offset + 4], "little") // 100
+    effect = int.from_bytes(frame[offset : offset + 4], "little")
     offset += 4
     amount = _var(frame, offset)
-    if amount is None or not 0 < amount[0] <= 99_999_999:
+    if amount is None or not 0 <= amount[0] <= 99_999_999:
         return None
-    if is_heal:
-        return HealEvent(actor_id, skill_id, amount[0], timestamp_ms, effect_type == 0x0B, target_id)
-    if skill_id not in DOT_SKILLS:
+    delta = None
+    if effect_type == POOL_UPDATE:
+        step = _var(frame, amount[1])
+        if step is None or not 0 < step[0] <= 99_999_999:
+            return None
+        delta = step[0]
+    elif amount[0] == 0:
+        return None                 # only an update's pool can be empty
+    return _EffectRecord(target_id, effect_type, actor_id, instance_id, effect // 100, effect % 100, amount[0], delta,
+                         timestamp_ms)
+
+
+def _effect_event(record: _EffectRecord) -> DamageEvent | HealEvent | None:
+    """The event of a ``05 38`` record that is neither a pool's application nor its update."""
+    if record.kind in _DOT_TYPES:
+        if record.skill not in DOT_SKILLS:
+            return None
+        return DamageEvent(record.actor, record.target, record.skill, record.amount, record.timestamp_ms, is_dot=True)
+    if record.kind == 0x01:
+        return HealEvent(record.actor, record.skill, record.amount, record.timestamp_ms, False, record.target)
+    return None
+
+
+def _pool_update(record: _EffectRecord, pools: PoolCasters, struck=frozenset()) -> HealEvent:
+    """The heal a pool's update (``0b``) stands for: what a tick restored, or what a shield absorbed of a hit (no
+    HP restored). A tick names its caster as the actor and an absorb the attacker, so:
+
+    * An update naming the caster the effect's application named is a tick, and the effect ticks.
+    * One naming another actor is an absorb, the caster's, when that actor struck the target in the same read
+      (``struck``: attacker and target pairs) or the effect has not been seen ticking: its skill absorbs. Else it is
+      another healer's tick on an effect someone else applied (a crowd of Chanters' Recuperation), and theirs.
+    * With no application seen: an update of a skill that absorbs, of an effect not seen ticking, or by an actor
+      that struck the target in the same read, is an absorb nobody's, since no record names the caster; any other
+      names its caster, as a tick does, and the target's own update is the target's.
+
+    On the archived captures these rules call every update of a shield an absorb and every update of a heal over
+    time a tick of its own caster (docs/open-investigations.md)."""
+    caster = pools.caster(record.target, record.instance, record.skill)
+    family = _pool_family(record.skill)
+    effect = (family, record.index)
+    hit = (record.actor, record.target) in struck
+    ticks = effect in pools.ticking
+    absorb = False
+    if caster is not None and record.actor == caster:
+        pools.ticking.add(effect)
+    elif caster is not None:
+        if hit or not ticks:
+            absorb = True
+            if not ticks:
+                pools.absorbing.add(family)
+        else:
+            caster = record.actor
+    elif record.actor == record.target:
+        caster, absorb = record.actor, family in pools.absorbing and not ticks
+    elif hit or (family in pools.absorbing and not ticks):
+        absorb = True
+    else:
+        caster = record.actor
+    return HealEvent(caster, record.skill, record.delta, record.timestamp_ms, not absorb, record.target, absorb)
+
+
+def parse_dot_packet(frame: bytes, timestamp_ms: int | None = None,
+                     pools: PoolCasters | None = None) -> DamageEvent | HealEvent | None:
+    """Decode supported damage-over-time and healing effect records (``05 38``). A heal over time's or a shield's
+    application restores no HP: ``pools``, when given, remembers its caster, and it yields nothing. An update
+    yields the tick or the absorb, credited to the caster ``pools`` saw apply it (``_pool_update``)."""
+    if timestamp_ms is None:
+        timestamp_ms = time.time_ns() // 1_000_000
+    record = _effect_record(frame, timestamp_ms)
+    if record is None:
         return None
-    return DamageEvent(actor_id, target_id, skill_id, amount[0], timestamp_ms, is_dot=True)
+    if record.kind == POOL_APPLIED:
+        if pools is not None:
+            pools.applied(record.target, record.instance, record.actor, record.skill)
+        return None
+    if record.kind == POOL_UPDATE:
+        return _pool_update(record, pools if pools is not None else PoolCasters())
+    return _effect_event(record)
 
 
 def scan_identity(frame: bytes) -> list[tuple[int, str, bool, str | None]]:
@@ -1685,10 +1824,17 @@ def decode_stream(data: bytes, timestamp_ms: int | None = None,
                   known_entities: set[int] | None = None,
                   seen_embedded: set[bytes] | None = None,
                   seen_order: deque[bytes] | None = None,
-                  known_players: set[int] | None = None):
-    """Yield recognized damage, DOT and healing records from a captured stream."""
+                  known_players: set[int] | None = None,
+                  pools: PoolCasters | None = None):
+    """Yield recognized damage, DOT and healing records from a captured stream. ``pools`` carries who cast each
+    heal over time and shield from one read to the next (``MeterEngine`` keeps one); without it an application is
+    known for this read only. A pool's update waits for the end of the read, whose hits tell an absorb from a tick
+    when no application named its caster (the game sends an absorb before the hit it took)."""
     seen = seen_embedded if seen_embedded is not None else set()
     order = seen_order if seen_order is not None else deque()
+    pools = pools if pools is not None else PoolCasters()
+    if timestamp_ms is None:
+        timestamp_ms = time.time_ns() // 1_000_000
 
     def walk_packets(buffer: bytes, *, inner: bool, depth: int):
         if depth > 8:
@@ -1711,9 +1857,16 @@ def decode_stream(data: bytes, timestamp_ms: int | None = None,
             yield from (e for e in direct if not _restore(e))
             if pending_context and any(e.actor_id == pending_context[0] and e.skill_code == pending_context[1] for e in direct):
                 pending_context = None
-            effect = parse_dot_packet(frame, timestamp_ms) if not direct else None
-            if effect is not None and not _restore(effect):
-                yield effect
+            effect = _effect_record(frame, timestamp_ms) if not direct else None
+            if effect is not None:
+                if effect.kind == POOL_APPLIED:
+                    pools.applied(effect.target, effect.instance, effect.actor, effect.skill)
+                elif effect.kind == POOL_UPDATE:
+                    yield effect                # made an event once the read is decoded
+                else:
+                    event = _effect_event(effect)
+                    if event is not None and not _restore(event):
+                        yield event
             if direct:
                 continue
             pos = 0
@@ -1741,4 +1894,13 @@ def decode_stream(data: bytes, timestamp_ms: int | None = None,
                     yield from recovered_damage
             if effect is not None:
                 continue
-    yield from walk_packets(data, inner=False, depth=0)
+    read = list(walk_packets(data, inner=False, depth=0))
+    struck = {(e.actor_id, e.target_id) for e in read if isinstance(e, DamageEvent)}
+    yield from (item for item in read if not isinstance(item, _EffectRecord))
+    # The updates follow the read's other records, an absorb after the hit it took: a heal that came before its
+    # fight's first hit would be out-of-combat healing to the session, and the first hit's absorb lost.
+    for item in read:
+        if isinstance(item, _EffectRecord):
+            item = _pool_update(item, pools, struck)
+            if not _restore(item):
+                yield item
