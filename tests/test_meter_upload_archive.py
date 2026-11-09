@@ -155,3 +155,32 @@ def test_a_combined_review_leaves_out_actions_past_one_documents_limit(isolated_
     combined = combine(sources)
     assert combined["meta"]["reconstruction"]["omitted_actions"] == ["casts"]
     assert all("casts" not in s or not s["casts"] for s in combined["segments"])
+
+
+def test_a_combined_review_thins_chart_samples_past_one_documents_limit(isolated_home, monkeypatch):
+    """Health, position and ping samples only draw the charts and the replay: past one document's limit the combined
+    review keeps each series' first and last samples and every death, and thins the rest evenly, instead of refusing
+    with "Combined health exceeds review limits" (a six-part recording of 9 November, 0.2.396)."""
+    from aion2calc.combat import a2log
+    from aion2calc.combat.reconstruction import clean_manifest
+    doc1, doc2 = _two_part_session()
+    for doc in (doc1, doc2):
+        for segment in doc["segments"]:                      # a boss and a player, 30 samples each over the 1 s fight
+            ids = (segment["entities"][0]["id"], segment["hits"][0]["player"])
+            segment["health"] = [{"t": round(i / 30, 4), "entity": entity, "current": 0 if entity == ids[0] and i == 29 else 1000 - i,
+                                  "max": 1000} for entity in ids for i in range(30)]
+    sessions.save(doc1, "session-20261013-000001-aaaaaa.a2log.json")
+    sources = sessions.live_archive_sources(doc2)
+    combined = combine(sources)
+    assert "thinned" not in combined["meta"]["reconstruction"]
+    assert sum(len(s["health"]) for s in combined["segments"]) == 60 * len(combined["segments"])
+    monkeypatch.setitem(a2log.LIMITS, "hp", 100)             # more than one fight's samples, fewer than all of them
+    combined = combine(sources)
+    assert sum(len(s["health"]) for s in combined["segments"]) <= 100
+    assert combined["meta"]["reconstruction"]["thinned"]["health"] >= 2
+    assert clean_manifest(combined["meta"]["reconstruction"])["thinned"] == combined["meta"]["reconstruction"]["thinned"]
+    for segment in combined["segments"]:
+        for entity in {h["entity"] for h in segment["health"]}:
+            own = [h for h in segment["health"] if h["entity"] == entity]
+            assert own[0]["t"] == 0.0 and own[-1]["t"] == round(29 / 30, 4)   # each series keeps its first and last sample
+        assert any(h["current"] == 0 for h in segment["health"])          # and its death
