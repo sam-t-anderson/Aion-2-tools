@@ -30,6 +30,10 @@ OBSERVED_OPEN_WORLD_MAPS = {
     20: "the Abyss: an 18 October capture fought the community field-boss list's two Chaotic Lower "
         "Reshanta bosses there (Watcher Kaira, killed; Argo, the Spirit King), with no instance and "
         "players of both factions in combat",
+    23: "Upper Reshanta, the Abyss's upper layer (Chaotic Upper Reshanta): named by a player (9 November); three party "
+        "members' recordings of 4-7 November fought its Abyss NPCs (Abyss Swarm, Abyss Klaw, Chandala Drakan troopers, "
+        "Undying Guard, Renegade Daeva) and the other faction's players there, with no instance, coming from and going "
+        "back to the Abyss's lower layer (map 20)",
 }
 OPEN_WORLD_MAPS |= set(OBSERVED_OPEN_WORLD_MAPS)
 

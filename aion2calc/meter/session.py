@@ -1521,7 +1521,8 @@ class CombatSession:
             new_records = _newest(records, records[-1].sequence - carried.last_seq)
             if groups:   # the open fight continues on a copy: the carried one is a shared value
                 last = groups[-1]
-                groups[-1] = {**last, "records": list(last["records"]), "majors": set(last["majors"])}
+                groups[-1] = {**last, "records": list(last["records"]), "majors": set(last["majors"]),
+                              "bosses": set(last.get("bosses", ()))}
                 actors_of[-1] = set(actors_of[-1])
         # When each enemy died, (epoch, entity) -> ms, from the recorded deaths. A boss fight is
         # live until its boss dies; that decides below whether a stray effect may cut it.
@@ -1530,6 +1531,14 @@ class CombatSession:
             if sample["kind"] == "death":
                 deaths.append(sample)
                 death_ms.setdefault((sample["epoch"], sample["entity"]), sample["timestamp_ms"])
+        boss_cache = {}
+        def is_boss(epoch, enemy):
+            """A catalog boss: in the open world, a field or world boss."""
+            key = (epoch, enemy)
+            if key not in boss_cache:
+                code = self.identities.get(epoch, {}).get("spawns", {}).get(enemy, {}).get("mobCode")
+                boss_cache[key] = bool(code and npc_info(code).get("isBoss"))
+            return boss_cache[key]
         major_cache = {}
         def is_major(epoch, enemy):
             key = (epoch, enemy)
@@ -1615,7 +1624,7 @@ class CombatSession:
                     # own with no party damage in it, past the run's end (0.2.355).
                     continue
                 groups.append({"id": f"{record.epoch}-{event.timestamp_ms}-{record.sequence}", "epoch": record.epoch,
-                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "damage_start": None, "split": record.split, "run":record.run, "pvp":pvp, "records": [], "majors": set(),
+                               "start": event.timestamp_ms, "end": event.timestamp_ms, "last_damage": event.timestamp_ms, "damage_start": None, "split": record.split, "run":record.run, "pvp":pvp, "records": [], "majors": set(), "bosses": set(), "saw_pvp": False,
                                "kind_damage": None})       # your last hit of the fight's own kind
                 actors_of.append(set())
                 peak.append(max(peak[-1], event.timestamp_ms) if peak else event.timestamp_ms)
@@ -1629,6 +1638,10 @@ class CombatSession:
                     group["kind_damage"] = max(group["kind_damage"] or 0, event.timestamp_ms)
                 if is_major(record.epoch, event.target_id):
                     group["majors"].add(event.target_id)
+                if not pvp and is_boss(record.epoch, event.target_id):
+                    group.setdefault("bosses", set()).add(event.target_id)
+            if pvp:
+                group["saw_pvp"] = True
             group["end"] = max(group["end"], event.timestamp_ms)
             group["records"].append(record)
             actors_of[-1].update((event.actor_id, event.target_id))
@@ -1689,7 +1702,17 @@ class CombatSession:
             for index, at in ends.items():
                 shown[index] = {**groups[index], "end": at}
         self.discarded_segments = max(self.discarded_segments, len(groups) - 200)
-        return shown[-200:]
+        return [self._open_world_kind(group) for group in shown[-200:]]
+
+    def _open_world_kind(self, group):
+        """A fight's kind in the open world (0.2.395): one that struck a field or world boss is PvE, and any other
+        that holds a player's hit (yours on a player or a player's on your side) is PvP, mobs or not. Fights stay
+        cut as before; only the kind they are given changes. Elsewhere the kind is the fight's own."""
+        from .a2parser.engine import OPEN_WORLD_MAPS
+        if self.runs.get(group.get("run"), {}).get("map_id") not in OPEN_WORLD_MAPS:
+            return group
+        kind = bool(group.get("saw_pvp")) and not group.get("bosses")
+        return group if kind == group["pvp"] else {**group, "pvp": kind}
 
     def _carry_grouping(self, scope, config, allowed_for):
         """The previous ``groups`` result when it can be carried on: the same scope and settings, its
@@ -2069,8 +2092,9 @@ class CombatSession:
                         enemy = enemies[target_key] = {"key": target_key, "id": str(event.target_id),
                             "name": named(epoch, event.target_id, True), "damage": 0, "hits": 0,
                             "mob_code": identity["spawns"].get(event.target_id, {}).get("mobCode"),
-                            "is_player": group["pvp"] or (event.target_id in identity["names"]
-                                                          and not self._spawned_npc(identity, event.target_id)),
+                            # a mob of a mixed open-world PvP fight is no player (0.2.395)
+                            "is_player": (group["pvp"] and not identity["spawns"].get(event.target_id, {}).get("mobCode"))
+                                         or (event.target_id in identity["names"] and not self._spawned_npc(identity, event.target_id)),
                             "is_boss": self._boss_target(identity, event.target_id),
                             "owner": identity["owners"].get(event.target_id), "players": {},
                             "last_ms": 0, "players_last": {}}
@@ -3018,6 +3042,8 @@ class CombatSession:
                 for record in group["records"]:
                     if isinstance(record.event, DamageEvent):
                         allowed_now = allowed_for(record)
+                        if not self._pvp_damage(record, allowed_now):
+                            continue     # a mob of a mixed open-world fight is no opponent (0.2.395)
                         other = record.event.target_id if record.event.actor_id in allowed_now else record.event.actor_id
                         opponents.add(identity["owners"].get(other, other))
             def reference(actor_id):

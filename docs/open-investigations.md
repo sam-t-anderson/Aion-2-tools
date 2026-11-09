@@ -881,7 +881,7 @@ The 0.2.393 replay drew Ferocious Horn Nuakum's clone only where it struck a pla
 
 The counts come from replaying each capture through the meter's decoder and session, before and after the change, and counting the decoded and exported rows by mob code.
 
-## PvP in the public logs of 29 October to 9 November: an arena roster before its map, the team arenas and map 23 (0.2.395)
+## PvP in the public logs of 29 October to 9 November: an arena roster before its map, the team arenas, Upper Reshanta and mixed fights (0.2.395)
 
 A user reported PvP missing from their fights, and team arena and battlefield matches missing from the PvP logs. The
 public logs of the recording player and of their party members (Live Meter logs of 29 October to 9 November) show:
@@ -897,14 +897,19 @@ public logs of the recording player and of their party members (Live Meter logs 
   typed Arena, but with no arena record: the team match's roster, rounds and result are still unseen (the one-against-one
   records are `19 e3`, `25 e3` and `28 e3`). The overlay's arena mode follows such a match by its map and its players. A
   recording with **Record TCP payloads** on through a team match would let its records be read.
-- **Map 23.** Three party members' recordings of 4–7 November fought on map 23, entered from and left for the Abyss (map
-  20): long fights against Abyss NPCs (Abyss Swarm, Abyss Klaw, Chandala Drakan troopers and scouts, Undying Guard,
-  Renegade Daeva, Makarah Krall) with players of the other faction now and then. Map 23 is no known map, so those fights are
-  typed *Other PvP* and *PvE unverified*. It looks like a second Abyss layer (the middle and upper layers are staged in
-  `context.STAGED_ZONES`), but no source names it yet, so it is not classified. No battlefield fight was found in the
-  public logs.
-- **Mixed fights stay one kind.** A party's 380-second fight in the Abyss of 4 November, against mobs while players of the
-  other faction dealt 98% of the damage the party took, is typed open-world PvE: a fight is PvE or PvP, and the party's own
-  hits went to mobs and players within seconds of each other (`MIXED_KIND_WINDOW_MS`). Unchanged.
+- **Map 23 is Upper Reshanta (0.2.395).** Three party members' recordings of 4–7 November fought on map 23, entered from
+  and left for the Abyss (map 20): long fights against Abyss NPCs (Abyss Swarm, Abyss Klaw, Chandala Drakan troopers and
+  scouts, Undying Guard, Renegade Daeva, Makarah Krall) with players of the other faction now and then. A player named it
+  Upper Reshanta, the Abyss's upper layer (staged as *Reshanta Surface* in `context.STAGED_ZONES`), so it is open world
+  now (`engine.OBSERVED_OPEN_WORLD_MAPS`): its fights are typed open-world PvP or PvE named *Upper Reshanta*, where they
+  were *Other PvP* and *PvE unverified*, and a stored log is re-typed as it is read (`context.enrich`). No battlefield
+  fight was found in the public logs.
+- **Mixed open-world fights (0.2.395).** A party's 380-second fight in the Abyss of 4 November, against mobs while players
+  of the other faction dealt 98% of the damage the party took, was typed open-world PvE: a fight was PvE or PvP by your
+  own hits, which went to mobs and players within seconds of each other (`MIXED_KIND_WINDOW_MS`). A player's rule now
+  decides an open-world fight's kind (`session._open_world_kind`): one with a player's hit in it, either way, is PvP unless
+  it struck a field or world boss (a catalog boss), whose fight is PvE, and one against mobs alone is PvE. Fights are cut
+  as before, and only a fight's real players are its opponents. Log server 0.2.174 leaves the Abyss's fights against mobs
+  alone out of its log lists.
 - **Maps 510027, 510028 and 510033** are instanced PvE events (Drakan air raiders and their captain, Grandios and its
   spirits); one raider was taken for a player once, a fight typed *Other PvP* of 13 seconds.

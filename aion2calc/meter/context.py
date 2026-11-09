@@ -39,18 +39,19 @@ STAGED_ZONES = (
      "service": "Korea, Taiwan", "kind": "open-world PvP",
      "source": "aion2hub.com, the Chapter 1 patch notes of 1 July 2026 (the Abyss Battle Directive: Middle Stratum is completed there); metabot.gg and thegameswiki.com name the layer",
      "note": "Artifact capture exists in the lower and middle layers; the map id is unknown until a recording shows it"},
-    {"zone": "Reshanta Surface", "also": ("Chaotic Upper Reshanta", "Surface of Chaotic Ereshkigal"),
-     "service": "Korea, Taiwan", "kind": "open-world PvP",
+    {"zone": "Reshanta Surface", "also": ("Chaotic Upper Reshanta", "Surface of Chaotic Ereshkigal", "Upper Reshanta"),
+     "service": "Korea, Taiwan; Global since early November 2026 as map 23 (engine.OBSERVED_OPEN_WORLD_MAPS)", "kind": "open-world PvP",
      "source": "aion2hub.com, the Chapter 1 patch notes of 1 July 2026; metabot.gg's Chaotic Upper Reshanta map page; thegameswiki.com",
      "note": "Entry at item level 4,300 or less or Combat Power 400K or less, 300 players a faction, no Artifacts or bosses; six field areas and two villages (Dukysas and Krotan Fortress hold the merchants); levels 43-55; the map id is unknown until a recording shows it"},
     {"zone": "Abyss Rift Zone", "also": (), "service": "Korea, Taiwan", "kind": "instanced faction event",
      "source": "aion2hub.com, the patch notes of 17 June 2026",
      "note": "Tuesdays and Thursdays from 22:00 by matching group, 400 players a faction, level 45 and item level 3,000; bosses appear over time and the faction landing the final blow is rewarded by per-class contribution; the map id is unknown until a recording shows it"},
 )
-#: Open-world zones named by recorded map id for PvP fights: the Abyss (map 20; the evidence is in
+#: Open-world zones named by recorded map id for PvP fights: the Abyss (map 20, its lower layer) and Upper Reshanta
+#: (map 23, its upper layer, in the Global service since early November; the evidence is in
 #: ``engine.OBSERVED_OPEN_WORLD_MAPS``) and the two faction zones the field-boss timers use
 #: (``combat.field_bosses.ZONE_MAPS``).
-OPEN_WORLD_ZONES = {20: "Abyss"}
+OPEN_WORLD_ZONES = {20: "Abyss", 23: "Upper Reshanta"}
 PVP_IN_INSTANCE = (" (a PvP flag inside a group instance, which holds only the party: an older client's "
                    "segmentation artifact)")
 CATEGORIES = {"Dungeon":"expedition", "Transcendence":"transcendence", "Nightmare":"nightmare",
