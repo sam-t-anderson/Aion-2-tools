@@ -1588,7 +1588,8 @@
     if(interpolate&&tab==="meter"&&!locked){
       const dt=projecting?Math.max(0,(performance.now()-lastRenderAt)/1000):0;
       const seen=new Set();
-      document.querySelectorAll("#ovcontent .ovrate").forEach(el=>{
+      // The meter's own rows only (their rates carry data-k): arena mode's rows are drawn whole on each poll.
+      document.querySelectorAll("#ovcontent .ovrate[data-k]").forEach(el=>{
         const key=el.getAttribute("data-k"), target=parseFloat(el.getAttribute("data-target"))||0;
         const amt=parseFloat(el.getAttribute("data-amt"))||0;
         seen.add(key);
