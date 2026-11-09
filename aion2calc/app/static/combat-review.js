@@ -566,8 +566,8 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     }
     // An opponent's casts summarised as the analyzer summarises the party's (actions.rotation, which reads the party's
     // only): each skill's presses, the cooldown the game sent, how many fit from the first press to the end, the gaps
-    // and the cast time. The meter records the casts of the party and its summons only, so a log holds an opponent's
-    // when another recorder kept them.
+    // and the cast time. The live meter records a PvP opponent's casts since 0.2.398, with no cast time (the game sends
+    // cast ends for the recording player alone); an older log holds none.
     function rotationOf(segment, id) {
       const duration=Math.max(.001,segment.duration),median=v=>{v=v.slice().sort((a,b)=>a-b);return v.length?v[v.length>>1]:null;},groups=new Map();
       for(const c of presses((segment.casts || []).filter(c=>c.source===id))){const key=family(c.skill_id);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(c);}
@@ -599,7 +599,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     }
     // the casts behind a player's or an opponent's Skills, Cast timeline and Rotation
     const rotationFor=d=>d.foe?rotationOf(d.segment,d.foe):actionsOf().rotation;
-    const NO_FOE_CASTS='Their casts are not recorded: the meter records the casts of your party and its summons only. <i>Abilities</i> lists each skill they hit with, and the Timeline view each hit.';
+    const NO_FOE_CASTS='Their casts are not recorded in this log: the live meter records an opponent\'s casts since 0.2.398, once the game has named them. <i>Abilities</i> lists each skill they hit with, and the Timeline view each hit.';
     function castTimeline(d, rotation) {
       const players=d.foe?new Set([d.foe]):new Set((doc.players || []).map(p=>p.id));
       const shown=presses((d.segment.casts || []).filter(c=>players.has(c.source) && (!state.actor || c.source===state.actor))).filter(c=>!state.hideProcs || c.kind==='skill');
@@ -841,7 +841,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const kinds=[[count(d.events,x=>x.kind==='damage' && d.ours(x.source)),'hit of theirs','hits of theirs','their hits'],
         [count(d.events,x=>x.kind==='damage' && d.ours(x.target) && !d.ours(x.source)),'hit on them','hits on them','hits on them'],
         [count(d.events,x=>x.kind==='heal' && d.ours(x.source)),'heal','heals','their healing'],
-        [count(seg.casts,c=>c.source===foe),'cast','casts','their casts (the meter records the casts of your party and its summons only)'],
+        [count(seg.casts,c=>c.source===foe),'cast','casts','their casts (recorded by the live meter since 0.2.398)'],
         [count(seg.effects,x=>d.ours(x.target) || !!x.source && d.ours(x.source)),'buff or debuff record','buff and debuff records','buffs and debuffs on or from them'],
         [count(seg.health,s=>s.entity===foe),'HP reading','HP readings','their HP'],[count(seg.movement,m=>m.entity===foe),'position','positions','their positions']];
       const held=[...kinds.filter(k=>k[0]).map(k=>`${number(k[0])} ${k[0]===1?k[1]:k[2]}`),...(deaths?[`${number(deaths)} death marker${deaths===1?'':'s'}`]:[])];
