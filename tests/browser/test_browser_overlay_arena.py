@@ -129,3 +129,34 @@ def test_the_player_cards_window_lists_the_match_as_a_list_or_a_grid(app_page, a
     assert page.locator("#ovcontent .arn-mini").count() == 4
     open_overlay(page, app_url, {"running": True, "snapshot": {"players": []}}, view="players")
     page.wait_for_function("(document.querySelector('#ovcontent') || {}).textContent.includes('Waiting for an arena or battlefield match')")
+
+
+SHAPES = """window.__shapes = []; window.pywebview = { platform: "edgechromium",
+    api: new Proxy({}, { get: (t, name) => (...args) => { if (name === "set_window_shape") window.__shapes.push(args[0]); return Promise.resolve(); } }) };"""
+COVERED = """sel => { const s = window.__shapes[window.__shapes.length - 1], dpr = window.devicePixelRatio || 1;
+    const els = [...document.querySelectorAll(sel)];
+    return Array.isArray(s) && els.length > 0 && els.every(e => { const b = e.getBoundingClientRect();
+        return s.some(r => r[0] <= b.left * dpr + 1 && r[1] <= b.top * dpr + 1 && r[2] >= b.right * dpr - 1 && r[3] >= b.bottom * dpr - 1); }); }"""
+
+
+def test_the_see_through_modes_keep_the_arena_pieces_inside_the_window(app_page, app_url):
+    """In the "top portion only" and "none" modes the window takes the shape of what the page draws. Arena mode's own
+    pieces were left out of that shape, so in a 5v5 Arena of Cooperation of 9 November the player cards window showed
+    its header and no cards, and the compact table lost its heads. They are part of the window now; and the compact
+    layout with "All 3 for party" is one table, your row marked in it, not a "You" row repeated above it (0.2.396)."""
+    page = app_page
+    page.add_init_script(SHAPES)
+    open_overlay(page, app_url, team(), view="players", overlay_bg_mode="top")
+    page.wait_for_selector("#ovcontent .arn-card")
+    page.wait_for_function(COVERED, arg="#ovcontent .arn-card")
+    page.wait_for_function(COVERED, arg="#ovcontent > .arn-sec")
+    open_overlay(page, app_url, team(), view="players", overlay_bg_mode="none", overlay_players_style="grid")
+    page.wait_for_selector("#ovcontent .arn-mini")
+    page.wait_for_function(COVERED, arg="#ovcontent .arn-mini")
+    open_overlay(page, app_url, team(), overlay_bg_mode="none", overlay_arena_layout="compact", overlay_arena_all3=True)
+    page.wait_for_selector("#ovcontent .arn-table")
+    page.wait_for_function(COVERED, arg="#ovcontent > .arn-thead")
+    page.wait_for_function(COVERED, arg="#ovcontent .arn-table")
+    names = page.locator("#ovcontent .arn-table .ovnametext").all_inner_texts()
+    assert sorted(names) == ["Ally", "Testme"]                                       # you once, among the party
+    assert "ovrow-self" in page.locator("#ovcontent .arn-table").nth(names.index("Testme")).get_attribute("class")

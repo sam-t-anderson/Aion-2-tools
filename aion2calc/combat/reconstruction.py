@@ -13,6 +13,8 @@ from .runs import stamp
 MAX_PARTS = 32
 #: The recorded action lists (0.2.306; MP readings and boss casts since 0.2.307) a combined review may leave out.
 ACTION_KEYS = ("casts", "effects", "gauge", "chains", "resources", "npc_casts", "movement")
+#: Sampled series that only draw the charts and the replay: thinned to fit, not refused (0.2.396).
+SAMPLED_KEYS = ("health", "positions", "ping")
 MAX_BYTES = 64 * 1024 * 1024
 NOTE = ("Combined review of submitted recording parts. Source encounters and run boundaries remain separate. "
         "Counters do not establish loss-free capture; entry, completion and rankings are not inherited. "
@@ -50,7 +52,39 @@ def clean_manifest(value):
     omitted = value.get("omitted_actions")
     if isinstance(omitted, list) and omitted and all(key in ACTION_KEYS for key in omitted):
         manifest["omitted_actions"] = sorted(set(omitted))
+    thinned = value.get("thinned")
+    if isinstance(thinned, dict):
+        kept = {key: step for key, step in thinned.items() if key in SAMPLED_KEYS and type(step) is int and 2 <= step <= 1_000_000}
+        if kept:
+            manifest["thinned"] = dict(sorted(kept.items()))
     return manifest
+
+
+def _thin(segments, key, limit):
+    """Keep at most ``limit`` samples of ``key`` across ``segments``: each series' (each entity's) first and last
+    sample, every death (a health sample at zero) and an even share of the rest; returns the step used."""
+    total = sum(len(s.get(key, [])) for s in segments)
+    step = max(2, -(-total // limit))
+    while True:
+        kept = []
+        for segment in segments:
+            series = {}
+            for i, sample in enumerate(segment.get(key, [])):
+                series.setdefault(sample.get("entity") if isinstance(sample, dict) else None, []).append(i)
+            keep = set()
+            for indexes in series.values():
+                keep.update(indexes[::step])
+                keep.update((indexes[0], indexes[-1]))
+            if key == "health":
+                keep.update(i for i, sample in enumerate(segment.get(key, []))
+                            if isinstance(sample, dict) and sample.get("current") == 0)
+            kept.append([sample for i, sample in enumerate(segment.get(key, [])) if i in keep])
+        if sum(map(len, kept)) <= limit or step >= total:
+            for segment, samples in zip(segments, kept):
+                if key in segment:
+                    segment[key] = samples
+            return step
+        step += max(1, step // 4)
 
 
 def combine(sources):
@@ -178,9 +212,13 @@ def combine(sources):
             "sha256":hashlib.sha256(json.dumps(doc, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()})
     if len(segments) > LIMITS["segments"]:
         raise ValueError("Combined review exceeds 200 encounters; choose a shorter range")
-    for key, limit in (("hits", LIMITS["hits"]), ("events", LIMITS["hits"]), ("health", LIMITS["hp"]), ("positions", LIMITS["hp"]), ("ping", LIMITS["hp"])):
-        if sum(len(s.get(key, [])) for s in segments) > limit:
+    for key in ("hits", "events"):
+        if sum(len(s.get(key, [])) for s in segments) > LIMITS["hits"]:
             raise ValueError(f"Combined {key} exceeds review limits; choose a shorter range")
+    # Health, position and ping samples only draw the charts and the replay: past one document's limit they are
+    # thinned to fit, keeping each series' ends and every death, rather than refusing the review (0.2.396).
+    thinned = {key: _thin(segments, key, LIMITS["hp"]) for key in SAMPLED_KEYS
+               if sum(len(s.get(key, [])) for s in segments) > LIMITS["hp"]}
     # Casts, effect windows, chain windows and gauge readings (0.2.306) add up fast across parts:
     # past one document's limit a combined review leaves them out, and each part still has them.
     omitted_actions = [key for key in ACTION_KEYS if sum(len(s.get(key, [])) for s in segments) > LIMITS[key]]
@@ -193,7 +231,8 @@ def combine(sources):
                     transport_monitored=all(c.get("transport_monitored") is True for c in captures))
     meta = {"source":"Aion 2 Calc combined recording review", "title":f"Recording parts {first}–{last}",
             "capture_scope":next(iter(scopes)), "capture_quality":evidence, "contribute":"no",
-            "reconstruction":{"version":1, "sources":provenance, **({"omitted_actions":omitted_actions} if omitted_actions else {})}}
+            "reconstruction":{"version":1, "sources":provenance, **({"omitted_actions":omitted_actions} if omitted_actions else {}),
+                              **({"thinned":thinned} if thinned else {})}}
     for key in ("region", "game_patch", "installed_build", "installed_build_namespace", "installed_build_cohort", "installed_build_source", "launcher_build", "launcher_build_namespace", "launcher_build_source", "file_version", "installed_content_build", "installed_content_namespace", "installed_content_source"):
         values = {d["meta"].get(key) for _, d, _, _ in loaded}
         if len(values) == 1 and next(iter(values)):

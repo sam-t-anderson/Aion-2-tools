@@ -67,7 +67,7 @@ LABELS = {
     "partial_capture": "Partial capture: instance entry or player membership was not established; metrics are descriptive only.",
     "party_roster_late": "The first party roster arrived after combat; earlier party membership is unverified.",
     "storage_boundary": "This archive part crosses a storage boundary; full fight/run completeness is not established.",
-    "missing_metadata": "Record the game version, difficulty and encounter category.",
+    "missing_metadata": "Record the game version, difficulty and encounter category (PvP has no difficulty).",
     "unverified_category": "The encounter category has not been identified.",
     "continued": "The meter cut this boss fight in two; the whole fight is ranked as the encounter this one continues in.",
     "start_unverified": "A boss at full health was not observed at the start of this encounter.",
@@ -79,11 +79,24 @@ LABELS = {
     "transport_unverified": "TCP loss monitoring was unavailable for this capture.",
     "tcp_pending": "The TCP stream still contains unresolved out-of-order data.",
     "decoder_unverified": "The decoder or application version is missing or unsupported.",
-    "pvp_boundaries_unverified": "PvP match start/end detection is not yet verified.",
+    "pvp_boundaries_unverified": "Only a whole arena match is ranked: the arena entry seen, and every round and the result in the game's records.",
     "no_damage": "No outgoing player damage was recorded.",
     "party_scope_unverified": "A Party capture is required for comparable party encounters.",
     "timing_invalid": "Recorded damage extends beyond the encounter duration.",
 }
+
+
+def arena_match_whole(segment) -> bool:
+    """An arena match recorded whole (0.2.396), so its start and end are the match's own: the meter saw the arena
+    entered (the run's start), and the fight holds the game's records of every round, numbered from the first
+    without a gap, and of the match's result. The meter numbers rounds by their order in the match and leaves out
+    those outside the fight, and attaches the result only when its record falls inside the fight, so a fight that
+    began after the first round or ended before the result fails here."""
+    arena = segment.get("arena")
+    if not isinstance(arena, dict) or segment.get("run_start_observed") is not True or not arena.get("result"):
+        return False
+    rounds = [r.get("round") for r in arena.get("rounds") or [] if isinstance(r, dict)]
+    return bool(rounds) and rounds == list(range(1, len(rounds) + 1))
 
 
 def part_counter(capture, key):
@@ -197,14 +210,18 @@ def assess(doc, segment):
     # verified end (a kill, or a cleanly completed run) is wholly contained in this part and is not
     # boundary-incomplete, so the part rolling over at its edges must not unrank it. Fights that are
     # not self-contained are still caught here (and by partial_capture / start_/end_unverified).
+    # A whole arena match is self-contained too: the game's records give its start and end (0.2.396).
     self_contained = (segment.get("run_start_observed") is True
-                      and bool(segment.get("run_complete") or segment.get("killed")))
+                      and bool(segment.get("run_complete") or segment.get("killed"))
+                      or segment.get("encounter_type") == "pvp_arena" and arena_match_whole(segment))
     if capture.get("storage_boundary") is True and not self_contained:
         reasons.append("storage_boundary")
     if segment.get("party_roster_late") is True:
         reasons.append("party_roster_late")
     kind = segment.get("encounter_type") or meta.get("encounter_type") or "unknown"
-    if not all(segment.get(k) or meta.get(k) for k in ("game_patch", "difficulty")):
+    pvp = kind.startswith("pvp_")
+    # PvP has no difficulty: it is just PvP (0.2.396)
+    if not all(segment.get(k) or meta.get(k) for k in (("game_patch",) if pvp else ("game_patch", "difficulty"))):
         reasons.append("missing_metadata")
     if kind in ("unknown", "pve_unverified", "pvp_other"):
         reasons.append("unverified_category")
@@ -248,8 +265,10 @@ def assess(doc, segment):
     deaths = dead_entities(segment)
     if segment.get("continued_in") is not None:
         reasons.append("continued")
-    if kind.startswith("pvp_"):
-        reasons.append("pvp_boundaries_unverified")
+    if pvp:
+        # Ranked only as a whole arena match, its boundaries the game's own records (0.2.396); other PvP stays unranked.
+        if kind != "pvp_arena" or not arena_match_whole(segment):
+            reasons.append("pvp_boundaries_unverified")
     else:
         if not bosses:
             reasons.append("boss_unverified")
