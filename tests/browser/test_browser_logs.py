@@ -3,7 +3,7 @@ Personal records tab, each showing its panel alone; the log server's fights, new
 hidden until asked for, each opening at its own fight; the recordings saved on this computer, by type; and
 the panels for the player's uploads (with the appeal against a moderator's hold) and characters; and a fight's
 review: its details tabs, its enemies by name, a comparison from a pasted link, the fight combined from every
-recording of it, and an arena match's result and rounds."""
+recording of it, and an arena match's result and rounds; and an analyzed fight's breakdown."""
 import json
 
 from apphelpers import go
@@ -1411,3 +1411,46 @@ def test_the_raid_planner_hands_its_saved_plans_to_the_app_for_the_overlay(app_p
     page.dispatch_event("#rname", "change")
     page.wait_for_function("fetch('/api/plans/saved').then(r => r.json()).then(d => Object.values(d.plans).some(p => p.meta.name === 'Kept for the overlay'))",
                            polling=300)
+
+
+# An analyzed fight (Combat Logs → an AbyssLogs import), as GET /api/encounters/<id> answers it: no damage taken recorded.
+ANALYSIS = {
+    "id": "TestFight01",
+    "meta": {"player": "Testsorc", "class": "sorcerer", "target": "Gatekeeper Testlord", "source": "AbyssLogs",
+             "combat_power": 123456, "party": [], "notes": ["Test analysis"]},
+    "summary": {"total": 1_560_000, "dps": 13_000, "duration": 120.0, "hits": 412, "crit": .42, "double": .1, "perfect": .06,
+                "multi": .13, "back": .2, "front": .5, "cpm": 38, "idle_seconds": 4.5,
+                "biggest_hit": {"skill": "Test Burst", "damage": 48211, "t": 33.2}},
+    "skills": [{"skill": skill, "skill_id": 11000000 + 10000 * k, "share": share, "hits": 20 + 5 * k, "avg_hit": 5000.0,
+                "max_hit": 15000.0}
+               for k, (skill, share) in enumerate((("Test Strike", .4), ("Test Burst", .25), ("Test Bolt", .15),
+                                                   ("Test Wave", .1), ("Test Flare", .06), ("Test Spark", .04)))],
+    "timeline": {"per_second": [13_000.0] * 120, "rolling10": [13_000.0] * 120},
+    "rotation": [[1.6 * i, ("Test Strike", "Test Burst", "Test Bolt")[i % 3]] for i in range(60)],
+    "buffs": [], "gaps": [], "vs_optimal": {"error": "no optimized build"}, "vs_top": {},
+}
+
+
+def test_an_analyzed_fights_breakdown_shows_every_section_at_once_inside_its_window(app_page, app_url):
+    """An analyzed fight draws the Live Meter's breakdown in its Encounter window: every section at once, the highest
+    hit over the donut, the hits the analysis counted, a note where defense has nothing recorded, and the rotation
+    strip scrolling inside the card, where the keyboard reaches it (the combat review's parse badge, also named parse
+    until now, had let the card grow to the strip's whole width, past the window)."""
+    page = app_page
+    page.route("**/api/encounters/TestFight01", lambda r: r.fulfill(json=ANALYSIS))
+    go(page, app_url, "#/combat-log/analysis/TestFight01")
+    card = page.locator("#focused-log .parse")
+    card.wait_for()
+    card_box, window_box = card.bounding_box(), page.locator("#focused-log section.win").first.bounding_box()
+    assert window_box["x"] < card_box["x"] and card_box["x"] + card_box["width"] < window_box["x"] + window_box["width"]
+    assert page.locator("#focused-log .ptabs").is_hidden()
+    assert page.locator("#focused-log h3.psh").all_text_contents() == ["Damage by skill", "DPS over the fight", "Skills",
+                                                                       "Defense", "Accuracy"]
+    assert page.locator("#focused-log .pdmg .phi").inner_text().split() == ["HIGHEST", "HIT", "48.21K"]
+    assert page.locator("#focused-log .pacc .rc").first.inner_text().split() == ["HITS", "412"]
+    assert page.locator("#focused-log .pdef .pnote").inner_text() == "This source does not provide incoming-damage events."
+    assert page.locator("#focused-log .pdef h3").get_attribute("title") is None      # no note to give
+    chart, defense = (page.locator(f"#focused-log .{name}").bounding_box() for name in ("pchart", "pdef"))
+    assert abs(chart["y"] + chart["height"] - defense["y"] - defense["height"]) < 1   # the columns end together
+    strip = page.locator("#focused-log .prot .strip")
+    assert strip.evaluate("s => s.scrollWidth > s.clientWidth + 100") and strip.get_attribute("tabindex") == "0"

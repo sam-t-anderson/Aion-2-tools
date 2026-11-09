@@ -27,6 +27,7 @@ function parseFromEncounter(a) {
     cp: m.combat_power || null,
     dmg: s.total,
     dps: s.dps,
+    hits: s.hits ?? null,
     contrib: null,
     duration: s.duration,
     boss: m.target,
