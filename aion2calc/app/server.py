@@ -771,9 +771,12 @@ class Handler(BaseHTTPRequestHandler):
             if q.get("fingerprint"):
                 return self._json({"fingerprint": hashlib.sha256(session_path(q["fingerprint"]).read_bytes()).hexdigest()})
             if q.get("file"):
-                # A recording an earlier app saved is shown under the zone names the catalog uses now.
-                from ..combat.unnamed import rename_zones
-                return self._json(rename_zones(json.loads(session_path(q["file"]).read_text(encoding="utf-8"))))
+                # A recording an earlier app saved is shown under the zone names the catalog uses now, and one a
+                # meter before 0.2.399 saved with its heals over time as what each tick took (0.2.403).
+                from ..combat.unnamed import rebuild_heals, rename_zones
+                doc = rename_zones(json.loads(session_path(q["file"]).read_text(encoding="utf-8")))
+                rebuild_heals(doc)
+                return self._json(doc)
             if q.get("paged"):
                 return self._json(recent_page(int(q.get("offset", 0)), int(q.get("limit", 25)), q.get("archive", "")))
             return self._json(recent())

@@ -973,8 +973,9 @@ Regeneration 665,116, not 7.1 million) and the Chanter 593,003, not 1.6 million.
 
 **Stored logs** cannot be fixed: an absorb's record never named the shield's caster. A heal between the two sides of a
 PvP fight is nobody's: the review leaves it out of both sides and says how many there were, and a log read by the app or a
-0.2.399 log server drops them and keeps the count (`combat.healing.unattributed_heals`). Their heals over time still read
-high; the review's effective-healing note says so.
+0.2.399 log server drops them and keeps the count (`combat.healing.unattributed_heals`). Their heals over time read high
+until 0.2.403, which rebuilds them into what each tick took when the log is read
+([methodology](methodology.md#heals-over-time-in-older-logs-rebuilt-when-read-02403)).
 
 *Doom Shield's phantom hit, left open here, is gone since 0.2.400: a hit's record names the shields that absorbed it,
 and the decoder no longer reads them as hits ([next section](#a-hit-a-shield-absorbed-the-shields-its-record-names-9-november-02400)).*
@@ -984,8 +985,21 @@ and the decoder no longer reads them as hits ([next section](#a-hit-a-shield-abs
   the older meters' heal records, where a heal over time's ticks counted what was left of it (Light of Regeneration's
   59.1 full-value applications a minute among them). *Re-measured in 0.2.401* from the same stored logs, each pool's
   records differenced into what its ticks took: Light of Regeneration 6.3, Recuperation 20.4, the instant heals and
-  Benevolence unchanged ([methodology](methodology.md#heal-rates-from-what-the-heals-over-time-took-02401)). Stored
-  logs themselves still show the inflated heals over time; the same differencing could repair them when read.
+  Benevolence unchanged ([methodology](methodology.md#heal-rates-from-what-the-heals-over-time-took-02401)). Since
+  0.2.403 the stored logs themselves are repaired the same way when read
+  ([methodology](methodology.md#heals-over-time-in-older-logs-rebuilt-when-read-02403)).
+- *A pool's last tick when it divides evenly.* A heal over time whose pool is a whole number of its ticks (Absolution's
+  1.5 % of maximum HP five times, a Life Potion's first pool of 2,095, five of 419) has no update that leaves nothing.
+  In the four captures, the pools that reached their last tick that way ended as follows:
+  - Recuperation: 199 of 289 with a type `0a` record carrying that tick, 2 s after the last update;
+  - Light of Regeneration: 13 of 23;
+  - Absolution: 19 of 25;
+  - potions (148) and Warding Strike (18): never.
+
+  On a party player below full HP, HP rose by exactly that `0a` in 11 of the 24 reads that show it, where it rises by
+  an ordinary tick in 39 %. So the `0a` looks like the last tick. No decoder counts it as a heal: neither the old meters
+  nor 0.2.399. A log of 0.2.399 or later and an older log rebuilt when read both leave it out, so Absolution's heal over
+  time reads four of its five ticks. Whether a potion's last tick heals with no record is not known.
 - Effect type `01` came twice in the arena capture, a Warding Strike with actor 0 and nothing after its amount; the
   decoder keeps reading it as a heal of its amount, as before. A team arena's records are unseen.
 

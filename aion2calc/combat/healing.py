@@ -114,6 +114,194 @@ def unattributed_heals(segment, players) -> dict | None:
     return count
 
 
+#: The meter version from which a heal over time is recorded tick by tick (0.2.399). A meter before recorded its
+#: ``05 38`` pool as a heal of the whole pool when it was cast and then, at each tick, a heal of what was left of it.
+TICKS_RECORDED_SINCE = (0, 2, 399)
+
+#: The heals over time whose ``05 38`` records hold an HP pool that ticks, by skill family:
+#: ``(ticks a cast, seconds between ticks, the option a pool needs, whether an instant heal shares the pool's id)``.
+#: Read from the 15, 20, 21 and 31 October captures: a pool of N ticks loses ``pool // N`` at each tick, one tick
+#: interval after it is cast, and what is left at the end is below N (docs/methodology.md, "Heals over time in
+#: older logs, rebuilt when read (0.2.403)"). A skill not listed keeps its records as they are.
+HEALS_OVER_TIME = {
+    17090000: (15, 2.0, None, False),   # Light of Regeneration (its "+20 %" option adds a second pool beside it)
+    18120000: (4, 2.0, None, True),     # Recuperation: 6 ticks with option 3, "+4s healing duration"; its heal and
+                                        # its "+5 % HP restored" carry 18120000 too
+    17290000: (5, 2.0, 4, False),       # Absolution's option 4, "Restores 1.5% HP every 2s for 10s"
+    12350000: (5, 2.0, 3, False),       # Warding Strike's option 3, "Heal over Time during Warding"
+    16190000: (10, 1.0, None, True),    # Enhance: Spirit's Benediction, every 1 s (option 1 heals on cast)
+    2011101: (5, 2.0, None, False),     # Life Potion: two pools a use
+    2011102: (5, 2.0, None, False),     # Superior Life Potion: two pools a use
+}
+#: The 2 s and 1 s tick clocks jitter by about 0.1 s in the recorded times.
+TICK_TOLERANCE_S = 0.4
+#: How many skills a segment's ``heals_over_time`` names.
+HEALS_OVER_TIME_SKILLS = 12
+
+
+def _options(skill_id: int) -> set[int]:
+    """The specialization slots a skill id carries in its digits (``lookup.decode_spec_flags``)."""
+    suffix, slots = (skill_id % 10_000) // 10, set()
+    while suffix:
+        if not 1 <= suffix % 10 <= 5:
+            return set()
+        slots.add(suffix % 10)
+        suffix //= 10
+    return slots
+
+
+def pool_shape(skill_id) -> tuple[int, float, bool] | None:
+    """``(ticks a cast, seconds a tick, whether a lone record is an instant heal)`` for a skill id whose heal records
+    a meter before 0.2.399 made from a ticking pool, else None. A lone record under Recuperation's or Spirit's
+    Benediction's own id is its instant heal; under any other pool id it is a pool seen once, which healed nothing a
+    record can show (cast as the fight ended, or Light of Regeneration's second pool left unused)."""
+    if not isinstance(skill_id, int) or isinstance(skill_id, bool):
+        return None
+    family = skill_id - skill_id % 10_000 if 10_000_000 <= skill_id <= 99_999_999 else skill_id
+    shape = HEALS_OVER_TIME.get(family)
+    if shape is None:
+        return None
+    ticks, interval, needs, shared = shape
+    options = _options(skill_id) if family != skill_id else set()
+    if needs is not None and needs not in options:
+        return None                                     # the skill's own heal: its pool needs that option
+    if family == 18120000 and 3 in options:
+        ticks = 6
+    return ticks, interval, shared and skill_id == family
+
+
+class _Pool:
+    __slots__ = ("rem", "tick", "last_t", "records", "first_is_tick")
+
+    def __init__(self, index: int, amount: float, t: float):
+        self.rem, self.tick, self.last_t = amount, None, t
+        self.records = [[index, None]]                   # [event index, what it took]
+        self.first_is_tick = False
+
+
+def _continues(pool: _Pool, amount: float, t: float, ticks: int, interval: float):
+    """How ``amount`` at ``t`` continues ``pool`` (a rank, lower is better), or None. The records of one pool sit on
+    its tick clock and step down by whole ticks: a pool whose tick is known takes a record a whole number of ticks
+    below it, no more than the tick slots since its last record; a pool seen once takes one whose drop is its
+    record // ``ticks`` (that record was the application), or one slot later one that leaves both remainders below
+    ``ticks`` with fewer than ``ticks`` ticks in the pool (that record was already a tick: cast before the fight)."""
+    if amount >= pool.rem or t < pool.last_t:
+        return None
+    slots = round((t - pool.last_t) / interval)
+    if slots < 1 or slots > ticks or abs(t - pool.last_t - slots * interval) > TICK_TOLERANCE_S:
+        return None
+    drop = pool.rem - amount
+    if pool.tick:
+        covered = drop / pool.tick
+        return (0, covered, 0) if drop % pool.tick == 0 and 1 <= covered <= slots else None
+    if drop == pool.rem // ticks:
+        return (1, 1, 0)
+    if slots == 1 and pool.rem // drop < ticks and amount % drop < ticks:
+        return (2, 1, 1)
+    return None
+
+
+def _pools(records, ticks: int, interval: float) -> list[_Pool]:
+    """``records``: ``[(event index, t, amount)]`` of one (source, target, skill id) chain in recorded order, made
+    into the pools they belong to. Pools of one chain can run at once (Light of Regeneration's second pool, a
+    potion's two, Recuperation's stacking), and each record goes to the one it continues, else opens its own."""
+    pools: list[_Pool] = []
+    for index, t, amount in records:
+        best, rank = None, None
+        for pool in pools:
+            r = _continues(pool, amount, t, ticks, interval)
+            if r is not None and (rank is None or r < rank or (r == rank and pool.last_t > best.last_t)):
+                best, rank = pool, r
+        if best is None:
+            pools.append(_Pool(index, amount, t))
+            continue
+        drop = best.rem - amount
+        if best.tick is None:
+            best.tick, best.first_is_tick = drop, bool(rank[2])
+        best.records.append([index, drop])
+        best.rem, best.last_t = amount, t
+    return pools
+
+
+def heals_over_time(segment) -> dict | None:
+    """Rebuild, in place, the heal-over-time records of a ``segment`` a meter before 0.2.399 recorded into what each
+    tick took, as a meter of 0.2.399 or later records them, and count them in ``segment["heals_over_time"]``
+    (``records`` rebuilt, ``amount`` as recorded, ``rebuilt``, ``skills``: skill name -> records).
+
+    Such a meter recorded a heal over time's pool when it was cast and then, at each tick, what was left of it, so a
+    Light of Regeneration counted about ten times what it healed. Each (source, target, skill id) chain of
+    :data:`HEALS_OVER_TIME`'s records is split back into its pools (:func:`_pools`): a record that continues a pool
+    becomes a heal of the drop since the pool's last record (the ticks between them), a pool's first record a heal
+    of one tick when it was already a tick, else (the pool being cast) nothing; a lone record is the skill's instant
+    heal, kept, or a pool seen once, left out. A segment already counted is left alone, so a log read twice is rebuilt
+    once. The caller decides that the log is that old (:func:`records_pools`). Returns the count, None for none."""
+    if not isinstance(segment, dict) or isinstance(segment.get("heals_over_time"), dict):
+        return None
+    events = segment.get("events")
+    if not isinstance(events, list):
+        return None
+    chains, shapes = defaultdict(list), {}
+    for index, e in enumerate(events):
+        if not isinstance(e, dict) or e.get("kind") != "heal" or e.get("absorb"):
+            continue
+        sid, t, amount = e.get("skill_id"), e.get("t"), e.get("amount")
+        shape = pool_shape(sid)
+        if shape is None or type(t) not in (int, float) or type(amount) not in (int, float) or amount <= 0:
+            continue
+        shapes[sid] = shape
+        chains[(e.get("source"), e.get("target"), sid)].append((index, float(t), float(amount)))
+    if not chains:
+        return None
+    took = {}
+    for (_source, _target, sid), records in chains.items():
+        ticks, interval, instant = shapes[sid]
+        records.sort(key=lambda r: r[1])                # in time order; a pool's records at one time keep theirs
+        for pool in _pools(records, ticks, interval):
+            if len(pool.records) == 1:
+                index = pool.records[0][0]
+                took[index] = float(events[index]["amount"]) if instant else 0.0
+                continue
+            pool.records[0][1] = pool.tick if pool.first_is_tick else 0.0
+            took.update((index, float(drop)) for index, drop in pool.records)
+    kept, skills, recorded, rebuilt = [], {}, 0.0, 0.0
+    for index, e in enumerate(events):
+        if index not in took:
+            kept.append(e)
+            continue
+        recorded += float(e["amount"])
+        name = str(e.get("skill") or e.get("skill_id") or "Unknown")[:80]
+        skills[name] = skills.get(name, 0) + 1
+        if took[index] > 0:
+            e["amount"] = took[index]
+            rebuilt += took[index]
+            kept.append(e)
+    segment["events"] = kept
+    count = {"records": len(took), "amount": recorded, "rebuilt": rebuilt,
+             "skills": dict(sorted(skills.items(), key=lambda kv: (-kv[1], kv[0]))[:HEALS_OVER_TIME_SKILLS])}
+    segment["heals_over_time"] = count
+    return count
+
+
+def meter_version(doc) -> tuple[int, int, int] | None:
+    """The version of the meter that recorded ``doc`` (``meta.capture_quality.app_version``), or None when the log
+    names no version or no meter of this client made it."""
+    from .quality import DECODER
+    meta = doc.get("meta") if isinstance(doc, dict) else None
+    quality = meta.get("capture_quality") if isinstance(meta, dict) else None
+    if not isinstance(quality, dict) or quality.get("decoder") != DECODER:
+        return None
+    found = re.match(r"(\d{1,6})\.(\d{1,6})\.(\d{1,6})", str(quality.get("app_version") or ""))
+    return tuple(int(x) for x in found.groups()) if found else None
+
+
+def records_pools(doc) -> bool:
+    """Whether ``doc``'s heals over time are as a meter before 0.2.399 recorded them (the pool, then what was left
+    of it), which :func:`heals_over_time` rebuilds. A log that names no meter version keeps its records as they
+    are."""
+    version = meter_version(doc)
+    return version is not None and version < TICKS_RECORDED_SINCE
+
+
 def _readings(segment: dict, targets: set) -> dict:
     out = defaultdict(list)
     for sample in segment.get("health") or []:
