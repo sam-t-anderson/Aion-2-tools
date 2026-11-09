@@ -61,6 +61,7 @@ function parseFromMeter(snap, idx) {
     cp: null,
     dmg: p.damage,
     dps: p.dps,
+    hits: p.hits ?? null,
     contrib: p.share,
     duration: snap.duration,
     boss: snap.boss,

@@ -20,6 +20,9 @@ function lineChart(per, roll) {
 // One parse card (header stats · DPS/Defense/Accuracy tabs · damage-source donut · per-skill table ·
 // rotation strip), shared by the Combat Logs view and the Live Meter. Fed by a normalized object so
 // a saved log and a live snapshot render identically. No paid tiers — every panel is shown.
+// A card with room for it (app.css, a container query on .parse) shows every section at once in two
+// columns under their headings instead of the tabs: damage by skill and the DPS chart beside accuracy
+// and defense, the skill table under them.
 const PCOL = ["#e8cf8e", "#58a6ff", "#b18cff", "#6fcf7a", "#e68a5a", "#5ad1c4", "#e45a8a", "#d7c15a", "#8a92a8"];
 let _ptab = "dps";
 const skillIcon = (id) =>
@@ -91,32 +94,41 @@ function renderParse(d) {
     <td class="dmg"><i style="width:${(100 * (s.damage || 0)) / mxDmg}%"></i><span>${kfmt(s.damage)}<span class="pcpct">${Math.round((100 * (s.damage || 0)) / totDmg)}%</span></span></td></tr>`,
     )
     .join("");
+  // A section's heading, shown only when every section shows at once; there its tooltip carries the section's
+  // note, which the tabs show under the section.
+  const heading = (title, note) => `<h3 class="psh"${note ? ` title="${esc(note)}"` : ""}>${title}</h3>`;
   const spark = d.timeline
-    ? `<div style="margin:4px 0 12px">${lineChart(d.timeline.per_second, d.timeline.rolling10)}</div>`
+    ? `<section class="psec pchart">${heading("DPS over the fight")}<div class="pspark">${lineChart(d.timeline.per_second, d.timeline.rolling10)}</div></section>`
     : "";
   const dpsPanel = `<div class="ppanel" data-pane="dps"${at === "dps" ? "" : " hidden"}>
-    ${d.highest != null ? `<div class="phi"><div class="k">Highest hit</div><div class="v">${kfmt(d.highest)}</div></div>` : ""}
-    <div class="psplit">${pdonut(parts.length ? parts : [{ value: 1, color: "#2a3045" }], [kfmt(d.dps), "DPS"])}<div class="ptop">${topList || '<span class="muted">No skills recorded.</span>'}</div></div>
-    ${spark}<table class="pskills"><tr><th>Skill</th><th>Hit</th><th>DPS</th><th>Avg</th><th>Min</th><th>Max</th><th>Damage</th></tr>${srows}</table></div>`;
+    <section class="psec pdmg">${heading("Damage by skill")}${d.highest != null ? `<div class="phi"><div class="k">Highest hit</div><div class="v">${kfmt(d.highest)}</div></div>` : ""}
+    <div class="psplit">${pdonut(parts.length ? parts : [{ value: 1, color: "#2a3045" }], [kfmt(d.dps), "DPS"])}<div class="ptop">${topList || '<span class="muted">No skills recorded.</span>'}</div></div></section>
+    ${spark}<section class="psec pskl">${heading("Skills")}<table class="pskills"><tr><th>Skill</th><th>Hit</th><th>DPS</th><th>Avg</th><th>Min</th><th>Max</th><th>Damage</th></tr>${srows}</table></section></div>`;
   const rate = (x) => (x == null ? "—" : Math.round(100 * x) + "%");
   const rc = (k, v) => `<div class="rc"><div class="k">${k}</div><div class="v">${v}</div></div>`;
-  const accPanel = `<div class="ppanel" data-pane="acc"${at === "acc" ? "" : " hidden"}><div class="prates">
-    ${rc("Hit chance", "Unavailable")}${rc("Crit", rate(d.rates.crit))}${rc("Back", rate(d.rates.back))}${rc("Front", rate(d.rates.front))}${rc("Double", rate(d.rates.double))}${rc("Perfect", rate(d.rates.perfect))}${rc("Multi", rate(d.rates.multi))}${rc("Parried", rate(d.rates.parry))}</div><p class="small muted">Rates use decoded outgoing hits. Hit chance requires attempted attacks and misses, which this source does not currently provide.</p></div>`;
+  // The player's outgoing hits: the source's own count, else the skills' hits added up.
+  const hits =
+    d.hits ?? (skills.some((s) => s.hits != null) ? skills.reduce((sum, s) => sum + (s.hits || 0), 0) : null);
+  const accNote =
+    "Rates use decoded outgoing hits. Hit chance requires attempted attacks and misses, which this source does not currently provide.";
+  const accPanel = `<div class="ppanel" data-pane="acc"${at === "acc" ? "" : " hidden"}><section class="psec pacc">${heading("Accuracy", accNote)}<div class="prates">
+    ${rc("Hits", n0(hits))}${rc("Crit", rate(d.rates.crit))}${rc("Back", rate(d.rates.back))}${rc("Front", rate(d.rates.front))}${rc("Double", rate(d.rates.double))}${rc("Perfect", rate(d.rates.perfect))}${rc("Multi", rate(d.rates.multi))}${rc("Parried", rate(d.rates.parry))}</div><p class="small muted pnotes">${accNote}</p></section></div>`;
   const defense = d.incoming;
-  const defPanel = `<div class="ppanel" data-pane="def"${at === "def" ? "" : " hidden"}>${
+  const defNote =
+    "Damage received and parry flags are measured from decoded hits. Avoided attacks and pre-mitigation damage are unavailable; armor, mitigation and dodge percentages cannot be inferred from received damage alone.";
+  const defPanel = `<div class="ppanel" data-pane="def"${at === "def" ? "" : " hidden"}><section class="psec pdef">${heading("Defense", defense ? defNote : "")}${
     defense
       ? `<div class="prates">${rc("Damage taken", kfmt(defense.damage))}${rc("Incoming hits", n0(defense.hits))}${rc("Parried hits", n0(defense.parries))}${rc("Healing done", kfmt(d.healing || 0))}</div><table class="t"><tr><th>Attacker</th><th>Damage taken</th></tr>${Object.entries(
           defense.sources || {},
         )
           .sort((a, b) => b[1] - a[1])
           .map(([name, damage]) => `<tr><td>${esc(name)}</td><td>${kfmt(damage)}</td></tr>`)
-          .join(
-            "",
-          )}</table><p class="small muted">Damage received and parry flags are measured from decoded hits. Avoided attacks and pre-mitigation damage are unavailable; armor, mitigation and dodge percentages cannot be inferred from received damage alone.</p>`
+          .join("")}</table><p class="small muted pnotes">${defNote}</p>`
       : `<div class="pnote">This source does not provide incoming-damage events.</div>`
-  }</div>`;
+  }</section></div>`;
+  // The strip scrolls sideways inside the card, so the keyboard can reach it too.
   const rot = (d.rotation || []).length
-    ? `<div class="prot"><div class="lbl">Skill rotation</div><div class="strip">${d.rotation
+    ? `<div class="prot"><div class="lbl">Skill rotation</div><div class="strip" tabindex="0" role="group" aria-label="Skill rotation">${d.rotation
         .slice(0, 80)
         .map(
           (e) =>
@@ -129,11 +141,12 @@ function renderParse(d) {
   const clsIcon = d.cls
     ? `<img class="pcls" src="${icon("https://metabot.gg/web/aion2/classes/" + String(d.cls).toLowerCase() + ".webp")}" alt="" onerror="this.style.visibility='hidden'">`
     : "";
-  return `<div class="parse">
+  // .pgrid lays the sections out when they all show at once (a card without the DPS chart arranges them otherwise).
+  return `<div class="parse"><div class="pgrid${spark ? "" : " nochart"}">
     <div class="phead"><div class="pwho">${clsIcon}<b>${esc(d.name || "—")}</b><span class="psub">${esc(cap(d.cls || ""))}${d.boss ? " · " + esc(d.boss) : ""}</span></div>
       <div class="pstats">${d.gs != null ? stat("GS", n0(d.gs)) : ""}${d.cp != null ? stat("CP", kfmt(d.cp)) : ""}${stat("DMG", kfmt(d.dmg))}${stat("DPS", kfmt(d.dps), true)}${d.contrib != null ? stat("Contrib", Math.round(100 * d.contrib) + "%") : ""}</div></div>
     <div class="ptabs"><button data-ptab="dps" class="${at === "dps" ? "on" : ""}">DPS</button><button data-ptab="def" class="${at === "def" ? "on" : ""}">Defense</button><button data-ptab="acc" class="${at === "acc" ? "on" : ""}">Accuracy</button></div>
-    ${dpsPanel}${defPanel}${accPanel}${rot}</div>`;
+    ${dpsPanel}${defPanel}${accPanel}${rot}</div></div>`;
 }
 document.addEventListener("click", (e) => {
   // one delegated handler toggles the parse tabs

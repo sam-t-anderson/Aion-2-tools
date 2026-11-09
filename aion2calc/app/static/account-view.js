@@ -253,11 +253,11 @@
       rank === 1 || p >= 100 ? "gold" : p >= 99 ? "pink" : p >= 95 ? "orange" : p >= 75 ? "purple" : p >= 50 ? "blue" : p >= 25 ? "green" : "grey";
     const parseCell = (p) => {
       if (p.parse === null || p.parse === undefined)
-        return `<span class="parse q-none" title="${esc(tr("No parse yet: no other ranked run of this class on this encounter"))}">·</span>`;
+        return `<span class="parse-badge q-none" title="${esc(tr("No parse yet: no other ranked run of this class on this encounter"))}">·</span>`;
       const title =
         tr("Parse {0}, rank {1} of {2} ranked runs of this class on this encounter", p.parse, p.parse_rank ?? "—", p.parse_runs) +
         (p.provisional ? " " + tr("Provisional: fewer than 5 runs.") : "");
-      return `<span class="parse q-${parseTier(p.parse, p.parse_rank)}${p.provisional ? " provisional" : ""}" title="${esc(title)}">${Math.round(p.parse)}</span>`;
+      return `<span class="parse-badge q-${parseTier(p.parse, p.parse_rank)}${p.provisional ? " provisional" : ""}" title="${esc(title)}">${Math.round(p.parse)}</span>`;
     };
     const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : "—");
     // Each column's sort and its first direction, as the server has them.

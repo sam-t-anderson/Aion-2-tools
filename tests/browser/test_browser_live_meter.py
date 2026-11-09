@@ -3,7 +3,8 @@ status stay in view; the capture settings (network interface, game port, name ov
 final boss) and the diagnostics sit under a closed "Advanced capture", which remembers being opened and
 opens by itself when the player has a choice to make there. Npcap shows above it only when it needs doing.
 Start asks for a capture and leaves recording raw game traffic to its saved setting; a capture catching up
-on a heavy fight says so."""
+on a heavy fight says so. The selected player's breakdown under the Players window shows every section at once
+where it has the room, and its tabs where it has not."""
 import json
 import urllib.request
 
@@ -222,6 +223,104 @@ def test_odyle_energy_shugo_keys_and_nightmare_tickets_show_under_the_players(ap
     icon = page.locator("#mview p.odyle img")                        # the app's own copy of the game's icon
     assert "/static/game-assets/" in icon.get_attribute("src") and icon.evaluate("i => i.complete && i.naturalWidth > 0")
     assert page.locator("#mview p.odyle i.keyicon").count() == 1 and page.locator("#mview p.odyle i.ticketicon").count() == 1
+
+
+def fighter(i: int, name: str, cls: str, damage: float, hits: int = None) -> dict:
+    """A player row of the meter's snapshot with what the breakdown under the Players window shows of it: the skills
+    (their hits add up to 195), the rates, the damage taken by attacker, the healing and the DPS timeline."""
+    seconds = 120
+    skills = [{"skill": skill, "skill_id": 11000000 + 10000 * k, "hits": 20 + 5 * k, "damage": damage * share,
+               "share": share, "min": 900.0, "max": 21000.0}
+              for k, (skill, share) in enumerate((("Test Strike", .4), ("Test Burst", .25), ("Test Bolt", .15),
+                                                  ("Test Wave", .1), ("Test Flare", .06), ("Test Spark", .04)))]
+    per_second = [damage / seconds * (0.6 + (s % 10) / 12) for s in range(seconds)]
+    row = {"id": str(20 + i), "key": str(20 + i), "name": name, "class": cls, "server_name": "Zikel", "damage": damage,
+           "dps": damage / seconds, "healing": 0, "skills": skills,
+           "crit": .41, "back": .21, "front": .52, "double": .11, "perfect": .07, "multi": .14, "parry": .02,
+           "incoming": {"damage": 150000, "hits": 30, "parries": 3,
+                        "sources": {"Gatekeeper Testlord": 120000, "Testlord's Clone": 30000}},
+           "timeline": {"per_second": per_second,
+                        "rolling10": [sum(per_second[max(0, s - 9):s + 1]) / min(s + 1, 10) for s in range(seconds)]}}
+    if hits is not None:
+        row["hits"] = hits
+    return row
+
+
+# A four-player fight; the cleric's row has no hit count of its own.
+FIGHT = {"players": [fighter(0, "Testsorc", "sorcerer", 1_800_000, hits=412), fighter(1, "Testranger", "ranger", 1_500_000, hits=380),
+                     fighter(2, "Testtemplar", "templar", 900_000, hits=300), fighter(3, "Testcleric", "cleric", 600_000)],
+         "duration": 120, "dps": 40_000, "boss": "Gatekeeper Testlord"}
+for _row in FIGHT["players"]:
+    _row["share"] = _row["damage"] / 4_800_000
+
+
+def test_the_breakdown_shows_every_section_at_once_where_it_has_room_and_its_tabs_where_not(app_page, app_url):
+    """A breakdown as wide as the Players window above it (the combat review's parse badge, also named parse until
+    now, had shrunk it to its content), every section at once under its heading in two columns where the card is
+    900 px wide or more: damage by skill over the DPS chart beside accuracy over defense, the skill table under
+    them; the hits where the hit chance was; and the tabs again where the card is narrower."""
+    page = app_page
+    page.set_viewport_size({"width": 1260, "height": 1000})
+    meter_says(page, FIGHT)
+    go(page, app_url, "#/meter")
+    card = page.locator("#pbd .parse")
+    card.wait_for()
+    window = page.locator("#mview section.win:has(.pmeters)")
+    card_box, window_box = card.bounding_box(), window.bounding_box()
+    assert round(card_box["x"]) == round(window_box["x"]) and round(card_box["width"]) == round(window_box["width"])
+    assert card.evaluate("c => [getComputedStyle(c).display, getComputedStyle(c).backgroundImage.split('(')[0]]") == ["block", "linear-gradient"]
+    # every section at once, under headings in the windows' gold capitals, and no tabs
+    assert page.locator("#pbd .ptabs").is_hidden()
+    headings = page.locator("#pbd h3.psh")
+    assert headings.all_text_contents() == ["Damage by skill", "DPS over the fight", "Skills", "Defense", "Accuracy"]
+    look = "h => ['display', 'color', 'fontFamily', 'textTransform'].map(k => getComputedStyle(h)[k])"
+    title = window.locator(".wh h2").evaluate(look)                                # the Players window's own title
+    assert title[0] == "block" and title[2].startswith("Cinzel") and title[3] == "uppercase"
+    assert headings.evaluate_all(f"hs => hs.map({look})") == [title] * 5
+    box = {name: page.locator(f"#pbd .{name}").bounding_box() for name in ("pdmg", "pchart", "pacc", "pdef", "pskl")}
+    left, right = box["pdmg"], box["pacc"]
+    assert box["pchart"]["x"] == left["x"] and box["pdef"]["x"] == right["x"] and right["x"] > left["x"] + left["width"]
+    assert left["y"] == right["y"]                                                   # damage by skill beside accuracy
+    assert box["pchart"]["y"] >= left["y"] + left["height"] and box["pdef"]["y"] >= right["y"] + right["height"]
+    bottom = {name: b["y"] + b["height"] for name, b in box.items()}
+    assert abs(bottom["pchart"] - bottom["pdef"]) < 1                               # the columns end together
+    assert page.locator("#pbd .pchart svg.chart").bounding_box()["height"] >= 150   # the chart fills its column
+    assert box["pskl"]["y"] >= bottom["pdef"] and abs(box["pskl"]["width"] - (right["x"] + right["width"] - left["x"])) < 1
+    # the legend's names start at their swatches, the shares end at the right
+    legend = page.locator("#pbd .ptop .trow").first
+    assert legend.locator(".nm").evaluate("n => getComputedStyle(n).textAlign") in ("start", "left")
+    share, row = legend.locator(".pc").bounding_box(), legend.bounding_box()
+    assert abs(share["x"] + share["width"] - (row["x"] + row["width"])) < 1
+    # the hits where the hit chance was, four tiles a row; the notes move into the headings' tooltips
+    tiles = page.locator("#pbd .pacc .rc")
+    assert tiles.locator(".k").all_text_contents() == ["Hits", "Crit", "Back", "Front", "Double", "Perfect", "Multi", "Parried"]
+    assert tiles.locator(".v").all_text_contents() == ["412", "41%", "21%", "52%", "11%", "7%", "14%", "2%"]
+    tops = [tiles.nth(i).bounding_box()["y"] for i in range(8)]
+    assert len(set(tops[:4])) == 1 and len(set(tops[4:])) == 1 and tops[4] > tops[0]
+    assert page.locator("#pbd .pdef .rc .v").all_text_contents() == ["150.00K", "30", "3", "0"]
+    assert page.locator("#pbd .pdef table tr").all_inner_texts()[1:] == ["Gatekeeper Testlord\t120.00K", "Testlord's Clone\t30.00K"]
+    assert page.locator("#pbd .pnotes").evaluate_all("ps => ps.map(p => getComputedStyle(p).display)") == ["none", "none"]
+    assert page.locator("#pbd .pacc h3").get_attribute("title").startswith("Rates use decoded outgoing hits.")
+    assert page.locator("#pbd .pdef h3").get_attribute("title").startswith("Damage received and parry flags")
+    # a player without a hit count of their own: their skills' hits
+    page.click('#mview [data-sel="3"]')
+    page.locator("#pbd .pwho b", has_text="Testcleric").wait_for()
+    assert page.locator("#pbd .pacc .rc .v").first.text_content() == "195"
+    # narrower, the tabs show one section at a time, with its notes under it
+    page.set_viewport_size({"width": 860, "height": 1000})
+    tabs = page.locator("#pbd .ptabs")
+    tabs.wait_for()
+    assert headings.evaluate_all("hs => hs.every(h => getComputedStyle(h).display === 'none')")
+
+    def shown():
+        return [pane for pane in ("dps", "def", "acc") if page.locator(f'#pbd .ppanel[data-pane="{pane}"]').is_visible()]
+    assert shown() == ["dps"] and page.locator("#pbd .pchart svg.chart").is_visible()
+    tabs.get_by_role("button", name="Accuracy").click()
+    assert shown() == ["acc"] and page.locator("#pbd .pacc .pnotes").is_visible()
+    tabs.get_by_role("button", name="Defense").click()
+    assert shown() == ["def"] and page.locator("#pbd .pdef .pnotes").is_visible()
+    tabs.get_by_role("button", name="DPS").click()
+    assert shown() == ["dps"]
 
 
 def test_the_identity_line_names_the_world_and_the_game_version_note_stays_folded(app_page, app_url):
