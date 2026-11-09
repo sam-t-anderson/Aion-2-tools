@@ -17,7 +17,7 @@ from .a2parser.lookup import (class_key_of, dungeon_final_bosses, effect_skill, 
                                normalize_skill, npc_info, npc_name, skill_name, spirit_skill_category)
 from .a2parser.models import DamageEvent, HealEvent, SpecialDamage
 from .a2parser.engine import ARENA_MATCH_MS, NPC_SKILLS, _own_class_skill
-from .context import party_instance
+from .context import PVP_MAPS, party_instance
 from .enrage import estimate as enrage_estimate
 
 
@@ -72,6 +72,8 @@ PET_DESPAWN_IDLE_MS = 8_000
 MIXED_KIND_WINDOW_MS = 5_000
 #: Arena matches a session keeps (0.2.361): a roster record each, so a long evening of matches stays small.
 ARENA_MATCHES_KEPT = 64
+#: The PvP matches the overlay's arena mode follows (0.2.395), by the name the game gives them.
+ARENA_KINDS = {"solitude": "Arena of Solitude", "cooperation": "Arena of Cooperation", "battlefield": "Battlefield"}
 #: How long after a fight's last record its arena round may end and still be the fight's: the killing blow comes
 #: first, the round's result with or just after the loser's 0 HP (within 0.2 s in the 31 October recording).
 ARENA_ROUND_SLACK_MS = 3_000
@@ -886,6 +888,10 @@ class CombatSession:
         identity = self.identities.setdefault(self.epoch, {"names": {}, "spawns": {}, "jobs": {}, "local_id": None, "roster": {}, "owners": {}})
         arena = getattr(engine, "arena", None)
         in_arena = bool(getattr(engine, "arena_in_progress", lambda: False)())
+        # The fighters of the arena match in progress (0.2.395): their HP and deaths, and the healing they do on
+        # their own side, are kept whatever the capture scope, so the overlay can show the opponent's HP and HPS.
+        match_actors = ({fighter["actor"] for fighter in arena["fighters"] if fighter.get("actor") is not None}
+                        if in_arena and arena else set())
         identity["player_ids"] = set(engine.known_players)
         observed = identity.setdefault("observed_players", set())
         observed.update(engine.known_players)
@@ -1065,7 +1071,7 @@ class CombatSession:
                     self._storage_last[scope] = (context_key, max(event.timestamp_ms, previous[1])
                                                if previous and context_key == previous[0] else event.timestamp_ms)
                 self.storage_groups = max(self._storage_groups.values(), default=0)
-            if not self._retained(record, party, identity, allowed_in):
+            if not (self._retained(record, party, identity, allowed_in) or self._match_heal(event, identity, match_actors)):
                 self.out_of_scope += 1
                 continue
             if len(self.records) == self.records.maxlen:
@@ -1167,7 +1173,8 @@ class CombatSession:
                 if key in self._dead:
                     continue
                 self._dead.add(key)
-            if not self._retained(probe, party, identity, allowed_in, entity=sample.get("entity")):
+            if not (self._retained(probe, party, identity, allowed_in, entity=sample.get("entity"))
+                    or sample.get("entity") in match_actors):
                 self.out_of_scope += 1
                 continue
             if len(self.telemetry) == self.telemetry.maxlen:
@@ -1248,6 +1255,17 @@ class CombatSession:
             name = npc_name(code)
             return name if not name.startswith("#") else f"Enemy #{actor_id} (type {code})"
         return f"{'Enemy' if enemy else 'Player'} #{actor_id}"
+
+    @staticmethod
+    def _match_heal(event, identity, match_actors) -> bool:
+        """A heal an arena fighter (or their summon) did on themselves or on nobody named: kept in an arena match
+        (0.2.395) for the fighter's HPS. A drain's heal record names the drained enemy as its actor and the drainer
+        as its target, so a heal on another fighter is not the actor's."""
+        if not match_actors or not isinstance(event, HealEvent):
+            return False
+        actor = identity["owners"].get(event.actor_id, event.actor_id)
+        return actor in match_actors and (event.target_id is None or event.target_id == event.actor_id
+                                          or identity["owners"].get(event.target_id, event.target_id) == actor)
 
     def _retained(self, record, party, identity, allowed_in, entity=None):
         """Whether an effect (``record``) or an HP/death sample of ``entity`` is kept under the
@@ -2560,8 +2578,148 @@ class CombatSession:
                 row["dead"] = int(row["id"]) in dead_ids
             except (TypeError, ValueError):
                 row["dead"] = False
+        summary["arena"] = self._live_arena(chosen, epochs, local_id, summary)
         summary["history_discarded"] = self.discarded
         return summary
+
+    def _live_arena(self, chosen, epochs, local_id, summary):
+        """The PvP match the shown fight is, for the overlay's arena mode (0.2.395), or None.
+
+        ``kind`` is ``solitude`` (an arena match of two), ``cooperation`` (an arena match of more) or ``battlefield``
+        (PvP on an instanced map that is no arena and no dungeon: no battlefield's map id is known yet). The open
+        world (the Abyss) is no match. An arena match's fighters come from the game's own roster (name, class,
+        server, faction, level, arena rating, season wins and losses) with its rounds and result; without one, the
+        party's players and the enemy players the fight holds. Each fighter carries its DPS, damage taken per
+        second and HPS over the shown fight's clock, its HP and deaths, and, for your party, the combat power and
+        gear score the game's party list gives (an enemy's combat power is looked up by the app: ``cp_source``)."""
+        if not chosen:
+            return None
+        from .a2parser.engine import OPEN_WORLD_MAPS
+        group = chosen[-1]
+        run = self.runs.get(group["run"], {})
+        map_id = run.get("map_id")
+        match = self._arena_match(group)
+        if match is None:
+            if not group["pvp"] or not map_id or map_id in OPEN_WORLD_MAPS:
+                return None
+            if party_instance(run.get("instance_id")) or party_instance(map_id):
+                return None
+        identity = self.identities[group["epoch"]]
+        local = self._corrected(identity, local_id) if local_id is not None else None
+        rows = {row["id"]: row for row in summary["players"]}
+        mine = rows.get(str(local)) if local is not None else None
+        duration = max(1.0, float(summary.get("duration") or 0))
+        start, end = chosen[0]["start"], group["end"] + ARENA_ROUND_SLACK_MS
+        # Each actor's damage dealt and taken and the damage you took from each, over the shown fight; a summon's
+        # goes to its owner.
+        dealt, taken, healed, to_you = Counter(), Counter(), Counter(), Counter()
+        for fight in chosen:
+            owners = self.identities[fight["epoch"]]["owners"]
+            for record in fight["records"]:
+                event = record.event
+                if isinstance(event, HealEvent):
+                    continue
+                actor = owners.get(event.actor_id, event.actor_id)
+                amount = event.total_damage
+                dealt[actor] += amount
+                taken[event.target_id] += amount
+                if local is not None and event.target_id == local:
+                    to_you[actor] += amount
+        # Each actor's healing on themselves (or on nobody named) over the fight's span: an enemy's own heals are kept
+        # in an arena match (``_match_heal``) but are no part of the party's fight, so they are read from the records.
+        floor = min(epochs) if epochs else None
+        for record in reversed(self.records):
+            event = record.event
+            if floor is None or record.epoch < floor or event.timestamp_ms < start - 30_000:
+                break
+            if not isinstance(event, HealEvent) or record.epoch not in epochs or not start <= event.timestamp_ms <= end:
+                continue
+            owners = self.identities.get(record.epoch, {}).get("owners", {})
+            actor = owners.get(event.actor_id, event.actor_id)
+            if event.target_id is None or owners.get(event.target_id, event.target_id) == actor:
+                healed[actor] += event.amount
+        deaths = Counter(sample["entity"] for sample in self.telemetry
+                         if sample.get("kind") == "death" and sample.get("epoch") in epochs and start <= sample["timestamp_ms"] <= end)
+        you_took = sum(to_you.values())
+
+        def fighter(actor, side, **fields):
+            row = rows.get(str(actor)) if actor is not None else None
+            name = fields.get("name") or (row or {}).get("name") or (self.name(group["epoch"], actor) if actor is not None else "")
+            info = self._roster_info(identity, name) if side == "ally" else {}
+            current, maximum = self._latest_hp(actor, epochs) if actor is not None else (None, None)
+            out = {"key": f"a:{actor}" if actor is not None else f"r:{fields.get('dbid')}", "id": str(actor) if actor is not None else None,
+                   "name": name, "class": fields.get("class") or (row or {}).get("class")
+                   or (class_key_of(identity["jobs"].get(actor) or identity.get("class_strikes", {}).get(actor)) if actor is not None else None),
+                   "server": fields.get("server") or (row or {}).get("server") or (str(info["serverId"]) if info.get("serverId") else None),
+                   "side": side, "self": actor is not None and actor == local,
+                   "hp_pct": current / maximum if current is not None and maximum else None,
+                   "dead": actor is not None and (group["epoch"], actor) in self._dead, "deaths": deaths.get(actor, 0) if actor is not None else 0}
+            if row is not None:                       # a party member: the same figures as their meter row
+                out.update(dps=row.get("dps", 0), dtps=row.get("dtps", 0), hps=row.get("hps", 0))
+            else:
+                out.update(dps=dealt.get(actor, 0) / duration, dtps=taken.get(actor, 0) / duration, hps=healed.get(actor, 0) / duration)
+            if side == "enemy" and you_took:
+                out["share_of_your_damage_taken"] = to_you.get(actor, 0) / you_took
+            power = info.get("combatPower") or (identity["spawns"].get(actor, {}).get("combatPower") if out["self"] else None)
+            out["combat_power"] = power or None
+            out["gear_score"] = info.get("gearScore") or None
+            out["cp_source"] = "party" if out["combat_power"] else None
+            for key in ("faction", "level", "rating", "wins", "losses"):
+                if fields.get(key) is not None:
+                    out[key] = fields[key]
+            return out
+
+        fighters = []
+        if match is not None:
+            for entry in match["fighters"]:
+                actor = entry.get("actor")
+                own = actor is not None and actor == local or (match["result"] or {}).get("dbid") == entry["dbid"]
+                side = "ally" if own or actor is not None and str(actor) in rows else "enemy"
+                fighters.append(fighter(actor if actor is not None or not own else local, side, name=entry["name"], dbid=entry["dbid"],
+                                        **{"class": class_key_of(entry.get("job"))}, server=str(entry["serverId"]) if entry.get("serverId") else None,
+                                        faction=entry.get("faction"), level=entry.get("level"), rating=entry.get("rating"),
+                                        wins=entry.get("wins"), losses=entry.get("losses")))
+                if own:
+                    fighters[-1]["self"] = True
+            kind = "solitude" if len(match["fighters"]) == 2 else "cooperation"
+        else:
+            for row in summary["players"]:
+                try:
+                    actor = int(row["id"])
+                except (TypeError, ValueError):
+                    continue
+                fighters.append(fighter(actor, "ally"))
+            for enemy in summary["enemies"]:
+                if not enemy.get("is_player") or enemy.get("owner"):
+                    continue
+                try:
+                    actor = int(enemy["id"])
+                except (TypeError, ValueError):
+                    continue
+                if str(actor) not in rows:
+                    fighters.append(fighter(actor, "enemy", name=enemy.get("name")))
+            enemies = [f for f in fighters if f["side"] == "enemy"]
+            kind = (("solitude" if len(enemies) == 1 and len(fighters) == 2 else "cooperation") if map_id in PVP_MAPS
+                    else "battlefield")
+        enemies = [f for f in fighters if f["side"] == "enemy"]
+        target = summary.get("current_target") or {}
+        target_key = f"a:{target['entity_id']}" if target.get("is_player") and target.get("entity_id") is not None else None
+        out = {"kind": kind, "label": ARENA_KINDS[kind], "zone": (PVP_MAPS.get(map_id) or {}).get("zone"), "map": map_id,
+               "fighters": fighters,
+               "opponent": enemies[0]["key"] if kind == "solitude" and len(enemies) == 1 else None,
+               "target": target_key if any(f["key"] == target_key for f in enemies) else (enemies[0]["key"] if len(enemies) == 1 else None),
+               "you": next((f["key"] for f in fighters if f["self"]), None)}
+        if mine is not None and out["you"] is None:
+            out["you"] = f"a:{mine['id']}"
+        if match is not None:
+            result = match["result"] or {}
+            own = next((entry["dbid"] for entry in match["fighters"] if entry.get("actor") is not None and entry["actor"] == local),
+                       result.get("dbid"))
+            out.update(match=match["match"], round=len(match["rounds"]) + (0 if result else 1),
+                       won=sum(1 for played in match["rounds"] if played["winner"] == own),
+                       lost=sum(1 for played in match["rounds"] if played["loser"] == own),
+                       result=result.get("result"), rating_after=result.get("rating"))
+        return out
 
     def npc_diagnostics(self, epochs=None):
         from ..combat.npc_diagnostics import clean
@@ -2765,7 +2923,10 @@ class CombatSession:
         run_map = self.runs.get(group["run"], {}).get("map_id")
         best, best_overlap = None, 0
         for match in self.arena_matches.values():
-            if run_map and match["map"] and run_map != match["map"]:
+            # The match's map, and the map the meter held as its roster came: a fight before the arena's own map
+            # record was named (its first round, 9 November) is the match's too (0.2.395).
+            maps = {match["map"], match.get("roster_map")} - {None, 0}
+            if run_map and maps and run_map not in maps:
                 continue
             last = match["rounds"][-1]["timestamp_ms"] if match["rounds"] else match["started_ms"]
             end = ((match["result"] or {}).get("timestamp_ms") or match.get("left_ms")
@@ -3009,6 +3170,15 @@ class CombatSession:
                 from .context import classify
                 context = classify(run.get("map_id"), run.get("instance_id"), group["pvp"], entities.values())
                 category = context.get("encounter_type", category)
+                if arena and category != "pvp_arena":
+                    # A fight inside an arena match is the match's, whatever map the meter held: the first round of a
+                    # match whose roster came before the arena's map record was typed by the town it was queued in.
+                    record = PVP_MAPS.get((self._arena_match(group) or {}).get("map")) or {}
+                    context = {key: value for key, value in context.items() if key not in ("zone", "zone_source")}
+                    context.update(encounter_type="pvp_arena", encounter_type_source="The game's arena records: the fight is inside an arena match")
+                    if record:
+                        context.update(zone=record["zone"], zone_source=record["evidence"])
+                    category = "pvp_arena"
                 entry = run.get("started_at") if run.get("start_observed") else run.get("recorded_entry")
                 run_evidence = {"version":1, "token":run["recording_token"], "origin_sequence":run["origin_sequence"]}
                 if entry is not None:

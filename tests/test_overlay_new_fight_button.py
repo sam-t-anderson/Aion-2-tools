@@ -38,7 +38,7 @@ def test_new_clears_the_overlays_meter_until_the_next_fight_begins():
     assert 'if(clearedFight!==null&&String(snap.selected_segment??"")!==clearedFight)clearedFight=null;' in JS
     assert "const players = cleared?[]:(snap.players || []);" in JS
     assert '"New fight · waiting for combat"' in JS and '"New fight — waiting for the first hit."' in JS
-    for panel in ("const showT=showTarget&&!over&&!cleared&&", "const showD=showDummy&&!over&&!cleared&&", "const showC=showContribution&&!over&&!cleared&&"):
+    for panel in ("const showT=!arena&&showTarget&&!over&&!cleared&&", "const showD=showDummy&&!over&&!cleared&&", "const showC=!arena&&showContribution&&!over&&!cleared&&"):
         assert panel in JS                       # the target, dummy and contribution panels clear with the rows
     assert "shownRates.clear();playerHist.clear();" in JS
 

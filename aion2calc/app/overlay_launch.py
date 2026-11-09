@@ -13,7 +13,8 @@ response just says whether a native window was started (``{"native": true/false}
 
 Two companion windows open beside the meter overlay while their settings are on: the Party-DPS overlay
 (``view=party``, ``overlay_party_enabled``) and, since 0.2.329, the Hidden Cube radar's own small window
-(``view=radar``, ``radar_enabled``). They follow their settings while the meter overlay is open
+(``view=radar``, ``radar_enabled``), and since 0.2.395 the player cards window of a PvP match (``view=players``,
+``overlay_players_enabled``). They follow their settings while the meter overlay is open
 (:func:`sync_companions`), and each one's Hide closes that window alone (:func:`close_view`).
 
 The Pet Tracker window (``view=pets``, Settings → Pet Tracker) is separate from those: it opens and closes with
@@ -43,11 +44,12 @@ _PROCESS: subprocess.Popen | None = None
 _PARTY_PROCESS: subprocess.Popen | None = None
 _RADAR_PROCESS: subprocess.Popen | None = None
 _PETS_PROCESS: subprocess.Popen | None = None      # the Pet Tracker window: its own lifetime, not the meter's
+_PLAYERS_PROCESS: subprocess.Popen | None = None   # the player cards window of a PvP match (0.2.395)
 _LOCK = threading.Lock()
 _RELAUNCHES = RelaunchLimiter()
 _URL = ""                       # the overlay URL of the last launch, for the companions' syncs
 _HIDDEN: set[str] = set()       # companions closed with their own Hide, until Open overlay or their setting flips
-COMPANIONS = ("party", "radar")
+COMPANIONS = ("party", "radar", "players")
 #: When an overlay process last said it cannot open its window (``UNAVAILABLE_EXIT_CODE``, 0.2.390), and why. For
 #: ``UNAVAILABLE_FOR`` seconds after, Open overlay answers ``native: false`` and the page opens its own small window,
 #: instead of starting a process that would fail again (or, before 0.2.390, open a browser window of its own).
@@ -105,25 +107,42 @@ def _radar_enabled() -> bool:
         return False
 
 
+def _players_enabled() -> bool:
+    """The player cards window is wanted: its own setting on, and arena mode on (it shows a PvP match's players)."""
+    try:
+        from .server import ui_settings
+        ui = ui_settings()
+        return bool(ui.get("overlay_players_enabled")) and ui.get("overlay_arena_mode", True) is not False
+    except Exception:
+        return False
+
+
+def _wanted(kind: str) -> bool:
+    return {"party": _party_enabled, "radar": _radar_enabled, "players": _players_enabled}[kind]()
+
+
 def _kind(party) -> str:
-    """The window a slot name or flag means: ``"meter"``, ``"party"``, ``"radar"`` or ``"pets"``."""
+    """The window a slot name or flag means: ``"meter"``, ``"party"``, ``"radar"``, ``"players"`` or ``"pets"``."""
     if isinstance(party, str):
         return party
     return "party" if party else "meter"
 
 
 def _get(kind: str):
-    return {"meter": _PROCESS, "party": _PARTY_PROCESS, "radar": _RADAR_PROCESS, "pets": _PETS_PROCESS}[kind]
+    return {"meter": _PROCESS, "party": _PARTY_PROCESS, "radar": _RADAR_PROCESS, "pets": _PETS_PROCESS,
+            "players": _PLAYERS_PROCESS}[kind]
 
 
 def _set(kind: str, proc) -> None:
-    global _PROCESS, _PARTY_PROCESS, _RADAR_PROCESS, _PETS_PROCESS
+    global _PROCESS, _PARTY_PROCESS, _RADAR_PROCESS, _PETS_PROCESS, _PLAYERS_PROCESS
     if kind == "party":
         _PARTY_PROCESS = proc
     elif kind == "radar":
         _RADAR_PROCESS = proc
     elif kind == "pets":
         _PETS_PROCESS = proc
+    elif kind == "players":
+        _PLAYERS_PROCESS = proc
     else:
         _PROCESS = proc
 
@@ -157,7 +176,8 @@ def _watch(proc: subprocess.Popen, url: str, party="meter") -> None:
         _set(kind, None)
         if code == 0:
             return
-        which = {"meter": "overlay", "party": "party overlay", "radar": "radar overlay", "pets": "Pet Tracker overlay"}[kind]
+        which = {"meter": "overlay", "party": "party overlay", "radar": "radar overlay", "pets": "Pet Tracker overlay",
+                 "players": "player cards overlay"}[kind]
         if code == UNAVAILABLE_EXIT_CODE:
             # It could not open its window at all: starting it again would fail again (0.2.390).
             _UNAVAILABLE.update(at=time.time(), reason=f"the {which} could not open its window (see logs/overlay.log)")
@@ -202,8 +222,8 @@ def sync_companions() -> None:
         if not _URL or not _alive("meter"):
             return
         try:
-            _sync_companion("party", _party_enabled(), _URL)
-            _sync_companion("radar", _radar_enabled(), _URL)
+            for kind in COMPANIONS:
+                _sync_companion(kind, _wanted(kind), _URL)
         except Exception as err:                                              # noqa: BLE001 - report, keep serving
             _log(f"could not sync the companion overlays: {type(err).__name__}: {err}")
 
@@ -280,8 +300,8 @@ def launch(url: str, reload_if_open: bool = False) -> dict:
             elif reload_if_open:
                 _ask_reload()
             # The optional companion windows are managed alongside the main one.
-            _sync_companion("party", _party_enabled(), url)
-            _sync_companion("radar", _radar_enabled(), url)
+            for kind in COMPANIONS:
+                _sync_companion(kind, _wanted(kind), url)
             return {"native": True, "already_open": already, "reason": ""}
         except Exception as err:                                              # noqa: BLE001 - report, keep serving
             _PROCESS = None
@@ -290,10 +310,10 @@ def launch(url: str, reload_if_open: bool = False) -> dict:
 
 def close() -> None:
     """Close the native overlay(s) when the main desktop application exits."""
-    global _PROCESS, _PARTY_PROCESS, _RADAR_PROCESS, _PETS_PROCESS
+    global _PROCESS, _PARTY_PROCESS, _RADAR_PROCESS, _PETS_PROCESS, _PLAYERS_PROCESS
     with _LOCK:
-        procs = (_PROCESS, _PARTY_PROCESS, _RADAR_PROCESS, _PETS_PROCESS)
-        _PROCESS = _PARTY_PROCESS = _RADAR_PROCESS = _PETS_PROCESS = None
+        procs = (_PROCESS, _PARTY_PROCESS, _RADAR_PROCESS, _PETS_PROCESS, _PLAYERS_PROCESS)
+        _PROCESS = _PARTY_PROCESS = _RADAR_PROCESS = _PETS_PROCESS = _PLAYERS_PROCESS = None
         for proc in procs:
             if proc is not None and proc.poll() is None:
                 proc.terminate()

@@ -880,3 +880,31 @@ The 0.2.393 replay drew Ferocious Horn Nuakum's clone only where it struck a pla
 - **Their areas.** Log server 0.2.172 already measures the casts of a boss's other NPCs from their own positions (`aoe_motion.npc_cast_samples`), so the uploads of 0.2.394 give 1802012 and the other adds' skills their measured areas as they accumulate, with no server change. The review's **Boss casts** list counts the adds' skills by kind (the clones as one row, with how many cast) after the bosses' own, and keeps its casts in order to the bosses'; the website's review follows once the log server's pinned analyzer moves to 0.2.394.
 
 The counts come from replaying each capture through the meter's decoder and session, before and after the change, and counting the decoded and exported rows by mob code.
+
+## PvP in the public logs of 29 October to 9 November: an arena roster before its map, the team arenas and map 23 (0.2.395)
+
+A user reported PvP missing from their fights, and team arena and battlefield matches missing from the PvP logs. The
+public logs of the recording player and of their party members (Live Meter logs of 29 October to 9 November) show:
+
+- **An arena match whose roster came before its map (fixed in 0.2.395).** A log of nine one-against-one matches of
+  9 November: one match's roster came while the meter still held the map the player queued on (Altgard, 1110), and the
+  match's first round was fought before the arena's map record (map 60) came. The engine kept the queueing map as the
+  match's and took the arena's map record for leaving it, so the rest of the match lost its fighters (the opponent had no
+  name or class), its rounds, kill credit and result, and its first round was typed open-world PvP in Altgard, carrying
+  the match. The match now moves to the arena's map when that comes first after its roster (`engine._note_map`), a fight on
+  either map inside the match's span is the match's (`session._arena_match`), and such a fight is typed Arena.
+- **Team arenas.** Fights of a party of five against five on maps 60 and 61 (a party member's recording of 29 October) are
+  typed Arena, but with no arena record: the team match's roster, rounds and result are still unseen (the one-against-one
+  records are `19 e3`, `25 e3` and `28 e3`). The overlay's arena mode follows such a match by its map and its players. A
+  recording with **Record TCP payloads** on through a team match would let its records be read.
+- **Map 23.** Three party members' recordings of 4–7 November fought on map 23, entered from and left for the Abyss (map
+  20): long fights against Abyss NPCs (Abyss Swarm, Abyss Klaw, Chandala Drakan troopers and scouts, Undying Guard,
+  Renegade Daeva, Makarah Krall) with players of the other faction now and then. Map 23 is no known map, so those fights are
+  typed *Other PvP* and *PvE unverified*. It looks like a second Abyss layer (the middle and upper layers are staged in
+  `context.STAGED_ZONES`), but no source names it yet, so it is not classified. No battlefield fight was found in the
+  public logs.
+- **Mixed fights stay one kind.** A party's 380-second fight in the Abyss of 4 November, against mobs while players of the
+  other faction dealt 98% of the damage the party took, is typed open-world PvE: a fight is PvE or PvP, and the party's own
+  hits went to mobs and players within seconds of each other (`MIXED_KIND_WINDOW_MS`). Unchanged.
+- **Maps 510027, 510028 and 510033** are instanced PvE events (Drakan air raiders and their captain, Grandios and its
+  spirits); one raider was taken for a player once, a fight typed *Other PvP* of 13 seconds.

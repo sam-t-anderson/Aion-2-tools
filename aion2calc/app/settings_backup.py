@@ -29,6 +29,7 @@ _BOOL_KEYS = ("app_window", "auto_update", "update_on_close", "overlay_on_start"
               "character_auto_open", "character_auto_refresh",
               "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
               "overlay_only_in_combat", "overlay_auto_expand", "overlay_boss_only", "overlay_pvp_only",
+              "overlay_arena_mode", "overlay_arena_all3", "overlay_players_enabled",
               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
@@ -55,7 +56,8 @@ _INT_KEYS = {"app_text_scale": (70, 150), "meter_reset_delay": (1, 120), "meter_
 
 # key -> the values a choice setting takes.
 _CHOICE_KEYS = {"overlay_text_autocontrast": ("off", "blend", "luminance"), "rtss_metric": ("dps", "hps", "dtps"),
-                "rtss_style": ("plain", "colored")}
+                "rtss_style": ("plain", "colored"), "overlay_arena_layout": ("stacked", "compact", "versus"),
+                "overlay_players_style": ("list", "grid")}
 
 #: The settings a backup leaves on this computer, and why (every other setting is in a backup).
 LOCAL_ONLY = {

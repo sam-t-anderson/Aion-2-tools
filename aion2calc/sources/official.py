@@ -86,6 +86,13 @@ def key_of(region: str, server_id: int, character_id: str) -> str:
     return f"{region}:{server_id}:{character_id}"
 
 
+def profile(character_id: str, server_id: int, region: str = "nae") -> dict:
+    """A character's profile alone (name, class, level, server, combat power), one request and nothing stored: the
+    overlay's look-up of a PvP opponent (0.2.395) keeps it out of the character database."""
+    info = _get("/api/character/info", characterId=character_id, serverId=server_id, region=region)
+    return info.get("profile") or {}
+
+
 def fetch_character(character_id: str, server_id: int, region: str = "nae", details: bool = True,
                     use_cache: float = 0, progress=None) -> dict:
     """Everything the official profile shows, in one dict (stored in the local DB)."""
