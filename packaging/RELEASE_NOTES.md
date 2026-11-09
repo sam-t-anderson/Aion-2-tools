@@ -10,7 +10,7 @@
 
 **The Live Meter's player breakdown fills the window.** A style meant for Combat Review's small rank badges also matched the Live Meter's breakdown card, which then shrank to its contents, lost its background and centred the skill names. The two no longer share a name. On a wide window the breakdown now shows damage by skill, DPS over the fight, accuracy and defense at once, with every skill underneath; a narrower one keeps the tabs. Accuracy's Hit chance tile, which always read *Unavailable*, is now the number of hits.
 
-**The homepage** shows the overlay in a boss fight and in arena mode, and the Live Meter, as they look now.
+**The homepage** shows the overlay in a boss fight and in arena mode, and the Live Meter, as they look now. A card under the features adds **Fera, the Discord bot**, to a Discord server in one click and links to the bot's guide on GitHub. Fera brings daily and weekly checklists, event sign-ups, boss and event timers with DM reminders, DKP and the official news to a server, and a field boss kill in a combat log uploaded from the app starts that boss's respawn timer by itself.
 
 ## A boss's adds and clones are recorded (0.2.394)
 

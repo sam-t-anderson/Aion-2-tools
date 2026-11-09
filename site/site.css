@@ -15,6 +15,11 @@
 .cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 28px 0; }
 .scard { border: 1px solid var(--frame); border-radius: 10px; padding: 16px 18px; background: linear-gradient(180deg, var(--card-a), var(--card-b)); }
 .scard h3 { font-family: var(--display); letter-spacing: .6px; margin: 0 0 8px; color: var(--gold); font-size: 17px; }
+/* The Fera Discord bot: one card across the grid under the features, its two links at the right (under the text on a phone). */
+.botcard { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 28px; align-items: center; border-color: var(--frame-hi); }
+.botcard p { margin: 0 0 8px; max-width: 80ch; } .botcard p:last-child { margin-bottom: 0; } .botcard code { white-space: nowrap; }
+.botcta { display: flex; flex-direction: column; gap: 10px; }
+.botcta .btn { padding: 10px 18px; font-size: 16px; text-align: center; }
 .shots h2, .dl h2 { font-family: var(--display); color: var(--gold); letter-spacing: 1px; margin: 32px 0 14px; }
 /* The overlay is a narrow window: shown near its own size beside the Live Meter, not stretched to half the page. */
 .shotgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; gap: 14px; }
@@ -33,7 +38,7 @@
 .pagetitle { font-family: var(--display); color: var(--gold); letter-spacing: 1px; margin: 8px 0 14px; }
 .pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .pcard { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--panel2); }
-@media (max-width: 900px) { .cards3, .shotgrid { grid-template-columns: 1fr; } .hero2 { grid-template-columns: 1fr; } .herologo { width: 84px; height: 84px; } }
+@media (max-width: 900px) { .cards3, .shotgrid, .botcard { grid-template-columns: 1fr; } .hero2 { grid-template-columns: 1fr; } .herologo { width: 84px; height: 84px; } }
 
 /* Small breathing room around expandable information panels. */
 details { margin-block:2px; }
