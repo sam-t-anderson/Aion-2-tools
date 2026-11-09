@@ -18,8 +18,8 @@ def _segment(**more):
     return segment
 
 
-def _reasons(segment):
-    capture = {"decoder": "a2tools-python-v1", "app_version": "0.2.396", "transport_monitored": True}
+def _reasons(segment, **capture_more):
+    capture = {"decoder": "a2tools-python-v1", "app_version": "0.2.396", "transport_monitored": True, **capture_more}
     doc = {"meta": {"capture_scope": "party", "capture_quality": capture},
            "players": [{"id": "p", "name": "Me", "server": "2102", "class": "templar"}], "segments": [segment]}
     return assess(doc, segment)["reasons"]
@@ -52,3 +52,11 @@ def test_other_pvp_stays_unranked_and_pve_still_needs_its_difficulty():
     pve = _segment(encounter_type="dungeon", arena=None)
     assert "missing_metadata" in _reasons(pve)
     assert "missing_metadata" not in _reasons({**pve, "difficulty": "normal"})
+
+
+def test_a_whole_arena_match_in_a_later_part_of_a_long_recording_is_ranked_too():
+    """A part after the first crosses a storage boundary; a whole arena match is self-contained all the same."""
+    assert _reasons(_segment(), storage_boundary=True) == []
+    late = _segment()
+    late["arena"]["rounds"] = late["arena"]["rounds"][1:]
+    assert {"storage_boundary", "pvp_boundaries_unverified"} <= set(_reasons(late, storage_boundary=True))

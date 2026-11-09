@@ -210,8 +210,10 @@ def assess(doc, segment):
     # verified end (a kill, or a cleanly completed run) is wholly contained in this part and is not
     # boundary-incomplete, so the part rolling over at its edges must not unrank it. Fights that are
     # not self-contained are still caught here (and by partial_capture / start_/end_unverified).
+    # A whole arena match is self-contained too: the game's records give its start and end (0.2.396).
     self_contained = (segment.get("run_start_observed") is True
-                      and bool(segment.get("run_complete") or segment.get("killed")))
+                      and bool(segment.get("run_complete") or segment.get("killed"))
+                      or segment.get("encounter_type") == "pvp_arena" and arena_match_whole(segment))
     if capture.get("storage_boundary") is True and not self_contained:
         reasons.append("storage_boundary")
     if segment.get("party_roster_late") is True:
