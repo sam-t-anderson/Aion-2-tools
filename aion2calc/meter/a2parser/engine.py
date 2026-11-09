@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_positions, scan_move_delta, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list, scan_arena
+from .parser import PoolCasters, decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_positions, scan_move_delta, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list, scan_arena
 from .framing import walk, bundle_batch, read_varint
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -179,6 +179,9 @@ class MeterEngine:
         self.ping_tracker = PingTracker(perf_clock=perf_clock)
         self.seen_embedded_damage: set[bytes] = set()
         self.seen_embedded_order: deque[bytes] = deque()
+        # Who cast each heal over time and shield in view (0.2.399): a shield's absorb names the attacker whose hit it
+        # took, and only its application names the caster.
+        self.pools = PoolCasters()
         self._saved_encounters: set[tuple[int, int]] = set()
         self.last_damage_time_ms: int | None = None
         self.last_zone_reset_ms: int | None = None
@@ -491,13 +494,15 @@ class MeterEngine:
             self._bind_arena_fighters()
         events = list(decode_stream(complete, timestamp_ms, self.known_entities,
                                    self.seen_embedded_damage, self.seen_embedded_order,
-                                   self.known_players))
+                                   self.known_players, self.pools))
         if arena_live and events:
             self._link_arena_pets(events)
         if self._left_spawns:
             self._carry_left_spawns(events)
         for event in events:
             if isinstance(event, HealEvent):
+                if event.actor_id is None:
+                    continue            # an absorb whose shield the capture did not see cast: nobody's healing
                 actor = self._actor_for(event.actor_id)
                 actor.healing += event.amount
                 if event.is_hot:
@@ -1063,6 +1068,7 @@ class MeterEngine:
         self.healers.clear()
         self.live_hp.clear()
         self.break_gauges.clear()
+        self.pools.clear()               # its casters' entity ids are the zone's
         # Keep the typed NPCs that are not dead: a load that keeps every actor id sends no spawn record for
         # an NPC still standing there (``_carry_left_spawns``). Whose id the player has is known only
         # after the load, and a guess from casts tells nothing.

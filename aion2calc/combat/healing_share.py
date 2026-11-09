@@ -40,16 +40,18 @@ def _player(doc: dict, name: str, server: str | None) -> dict | None:
 
 def _pool(doc: dict, pid: str) -> dict:
     """One recording's heals by ``pid``: per-skill amounts, total, the seconds of the fights it healed in."""
-    from .healing import drop_restores
+    from .healing import drop_restores, unattributed_heals
     skills: dict[str, float] = {}
     total = seconds = 0.0
     fights = 0
+    players = {p.get("id") for p in doc.get("players") or [] if isinstance(p, dict)}
     for seg in doc.get("segments") or []:
         if not isinstance(seg, dict) or float(seg.get("duration") or 0) < MIN_SECONDS:
             continue
         seg = {**seg, "events": [dict(e) for e in (seg.get("events") or []) if isinstance(e, dict)]}
         try:
             drop_restores(seg)                 # MP and stamina restores are recorded as heals too
+            unattributed_heals(seg, players)   # and before 0.2.399 an opponent's shield as your heal on them
         except Exception:                      # noqa: BLE001 - a malformed segment is pooled as it is
             pass
         healed = 0.0

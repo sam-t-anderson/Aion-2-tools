@@ -78,15 +78,18 @@ def rename_zones(doc):
 
 def relabel(doc):
     """``doc`` with each entity named "???" given its label, each arena match against players the
-    capture could not name typed so, each zone name the catalog has replaced made current and the Stamina
-    and MP restores left out of its heals, in place (returned for chaining)."""
-    from .healing import drop_restores
+    capture could not name typed so, each zone name the catalog has replaced made current, the Stamina
+    and MP restores left out of its heals, and in PvP the heals between the two sides (a shield's absorb
+    as a meter before 0.2.399 recorded it) left out and counted, in place (returned for chaining)."""
+    from .healing import drop_restores, unattributed_heals
+    players = {p.get("id") for p in (doc.get("players") if isinstance(doc, dict) else None) or [] if isinstance(p, dict)}
     for segment in (doc.get("segments") if isinstance(doc, dict) else None) or []:
         if not isinstance(segment, dict):
             continue
         renamed_zone(segment)
         arena_matches(segment)
         drop_restores(segment)
+        unattributed_heals(segment, players)
         pending = [e for e in segment.get("entities") or [] if isinstance(e, dict) and unnamed(e.get("name"))]
         if not pending:
             continue

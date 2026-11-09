@@ -913,3 +913,76 @@ public logs of the recording player and of their party members (Live Meter logs 
   alone out of its log lists.
 - **Maps 510027, 510028 and 510033** are instanced PvE events (Drakan air raiders and their captain, Grandios and its
   spirits); one raider was taken for a player once, a fight typed *Other PvP* of 13 seconds.
+
+## Heals over time and shields in the `05 38` records: the caster, and what each update took (9 November, 0.2.399)
+
+A user reported that in PvP their party's own shields counted as the opponent's healing. In a public log of nine PvP
+fights, eight of them Arena of Solitude matches (9 November, a Templar recording), 925 heal records on the Templar named an opponent as their
+source, every one with a Templar skill (Nezekan's Shield, Poach, Guarding Seal and Doom Shield's effect 12070007); in
+the third fight 121 records, 810,328 in all, named the Ranger, 108 of them at the instant of one of the Ranger's hits.
+The review's opponent view had left them out of the opponent's healing since 0.2.397, crediting them to no one.
+
+**What the records hold.** A heal over time and a shield each hold an HP pool, and both are reported in `05 38`
+records: target, effect type (u8), actor, the effect's instance (a varint the decoder had skipped), the effect number
+(u32: the skill times 100 plus the effect's index), an amount and, for an update, a varint more, then the skill that
+applied it (u32). Type `09` applies the effect: its actor is the caster, its amount the whole pool or the shield's size.
+Type `0b` updates it: its amount is what is left, the varint after it what this update took. A tick of a heal over time
+names its caster; a shield's absorb names the attacker whose hit it took. Type `0a`, with what was left, ends a pool
+(and is a damage over time's tick, of its own amount, for the damage-over-time skills). The `2b 38` effect records
+seldom carry these instance numbers, so they name no caster here. Read from the 15, 20, 21 and 31 October captures with
+raw TCP (28,705 updates; a census that skips the compressed bundles, which needs `lz4`, sees a tenth of them in the
+21 October recording):
+
+- **Each update's varint is what it took.** For one effect (target, instance and effect number), the amount before an
+  update less its varint is the amount it leaves in 5,288 of 5,297 updates of three captures; each of the other nine
+  differs by a whole number of its own takes, ticks the capture lost.
+- **HP rises by what the ticks took**, in 1,854 reads of three captures with the target's HP read before and after and
+  no damage between, and by their amounts in none. Light of Regeneration's 5,946 heals 396 a tick for 15 ticks and
+  leaves 6. An application changes no HP (1,122 of 1,319 came with no HP record in their read), nor does an absorb
+  (494 of 509 came with none: the shield took the hit).
+- **Who cast it.** Of the 27,205 updates whose application was seen, 24,014 name the caster, every one of a heal over
+  time's effect (19 effects: Light of Regeneration, Recuperation, Absolution, Warding Strike, Spirit's Benediction,
+  potions and others), and 3,163 name another actor, every one of a shield's effect (13 effects: Guarding Seal, Poach's
+  shield, Doom Shield, Nezekan's Shield, Grapple, Impeding Authority, the Chanter's Protection Circle, Prayer of
+  Concentration, Yustiel's Power, Steel Barrier's shield, Siphon). No shield's effect names its caster. The other 28
+  are another healer's ticks of Recuperation and Spirit's Benediction under an instance someone else applied, in the
+  crowd at Watcher Kaira. One skill can hold both: Steel Barrier's effect 11 is a shield, its effect 14 ticks. Only 800
+  of the 3,163 absorbs came in the same read as a hit by their actor on the target; in the Abyss crowd most came with
+  no hit of their actor's decoded near them.
+- **The stored log reads the same.** Each of its 925 records on the Templar is below the record before it of the same
+  shield on the Templar: what was left after each hit. The opponents' shields absorbing the Templar's hits are 287 more
+  records, the other way round, credited to the Templar: 1,551,474 in two fights against Templars and one against a
+  Chanter, whose Protection Circle they are.
+
+**What it did.** The meter counted each application as a heal of the whole pool and each update as a heal of what was
+left, by the actor. A heal over time counted its pool, then what was left at each tick, about ten times what it healed;
+a shield's absorbs counted what was left for the attacker. So in PvP your shields were the opponent's healing on you and
+theirs your healing on them, and in PvE a shield's absorbs were the NPC's healing, which no review credits.
+
+**Since 0.2.399** an update is the heal of what it took, credited to the caster its application named (`parser.PoolCasters`,
+`parser._pool_update`), and an absorb is marked as one (`absorb` on the log's heal event: no HP restored). The application
+is no heal. An update naming the caster is a tick, and its effect is then known to tick; one naming someone else is the
+caster's absorb, unless its effect is known to tick and no hit of that actor's on the target came in the same read: then
+another healer's tick, theirs. With no application seen, an update by an actor that struck the target in the same read,
+or of a skill known to absorb (eight seeded from these captures, the rest learned from their first absorb) whose effect
+is not known to tick, is an absorb with no caster; any other is its actor's tick. On the four captures that calls every
+update of a shield's effect an absorb and every update of a heal over time's a tick of its own caster. Replayed: in the
+arena capture the Templar's shields took 101,797 of the opponents' damage, which the meter had recorded as 930,063 of the
+opponents' healing on the Templar; in the 20 October dungeon run the Cleric heals 2.6 million, not 9.2 million (Light of
+Regeneration 665,116, not 7.1 million) and the Chanter 593,003, not 1.6 million.
+
+**Stored logs** cannot be fixed: an absorb's record never named the shield's caster. A heal between the two sides of a
+PvP fight is nobody's: the review leaves it out of both sides and says how many there were, and a log read by the app or a
+0.2.399 log server drops them and keeps the count (`combat.healing.unattributed_heals`). Their heals over time still read
+high; the review's effective-healing note says so.
+
+**Still open.**
+- *Doom Shield's phantom hit.* A hit a shield absorbed carries, after its value, a count and the absorbing effect's number
+  (u32). Doom Shield's, 1,207,000,711, begins with the bytes `87 5e`, which read as a hit of 12,039, so each hit it absorbs
+  decodes as one more hit of 12,039: 49 hits in the arena capture, each inflating the attacker's damage and the Templar's
+  damage taken. Guarding Seal's, Poach's and Nezekan's Shield's numbers fail the multi-hit's range.
+- *The healers' rates* ([methodology, 0.2.386](methodology.md#heal-amounts-from-the-recorded-heals-02386)) were measured from
+  the older meters' heal records, where a heal over time's ticks counted what was left of it (Light of Regeneration's
+  59.1 full-value applications a minute among them), and are not re-measured yet.
+- Effect type `01` came twice in the arena capture, a Warding Strike with actor 0 and nothing after its amount; the
+  decoder keeps reading it as a heal of its amount, as before. A team arena's records are unseen.

@@ -13,7 +13,7 @@ LIMIT = 100
 NOTE = ("Analysis describes retained evidence in this encounter, not optimal play. "
         "Effects can include multi-hit attacks, periodic damage and pets. Equal timestamps do not establish order. "
         "Healing is the recorded amount; effective healing and overheal on players are derived from the party HP feed "
-        "(the HP each heal could restore), and shields are not decoded. Casts, buff and debuff windows and "
+        "(the HP each heal could restore), and a shield counts the damage it absorbed, credited to its caster (meter 0.2.399 and later). Casts, buff and debuff windows and "
         "break-gauge readings are the game's own records when the live meter recorded them (0.2.306 or later), the "
         "recording player's MP and the bosses' casts since 0.2.307; imported "
         "buff windows come from imports. Crowd-control states and listed Stagger Gauge Damage come from the bundled skill "
@@ -139,7 +139,8 @@ def summarize(doc):
             {"feature": "Break-gauge readings", "records": len(segment.get("gauge", [])), "basis": "Recorded boss break-gauge values"},
             {"feature": "MP readings", "records": len(segment.get("resources", [])), "basis": "The recording player's MP (the game sends no one else's)"},
             {"feature": "Boss casts", "records": len(segment.get("npc_casts", [])), "basis": "Recorded skill casts by bosses and their adds and clones; most boss skills have no name in the bundled tables"},
-            {"feature": "Shields", "records": None, "basis": "Verified live decoding unavailable"}]
+            {"feature": "Shield absorbs", "records": sum(e["kind"] == "heal" and e.get("absorb") is True for e in events),
+             "basis": "The damage a shield took off each hit, credited to its caster; recorded by the meter since 0.2.399"}]
         segments.append({"segment":index, "catalog":coverage(segment), "capabilities": capabilities,
             "pressure": pressure_summary(segment, events, friendly), **{key:rows[:LIMIT] for key,rows in ordered.items()},
             "omitted":{key:max(0,len(rows)-LIMIT) for key,rows in ordered.items()},
