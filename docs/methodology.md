@@ -1699,6 +1699,12 @@ Attack multiplier); World PvP counts the part that heals the caster. A different
 damage taken change both the rate and how much lands on missing HP. The other classes' heals are their potions and
 a few self-heals ([World PvP](#every-classs-defensives-in-world-pvp-02386)).
 
+*Light of Regeneration's and Recuperation's rates in this table counted heal records that held a heal over time's
+whole pool when it was cast and then what was left of it at each tick
+([0.2.399](#heals-over-time-and-shields-what-they-took-credited-to-the-caster-02399)); what the paragraph above reads
+as ticks capped by missing HP is that sequence. Since [0.2.400](#heal-rates-from-what-the-heals-over-time-took-02400)
+they count what the ticks took, 6.3 and 20.4; the other rates stand.*
+
 ### The Assassin's Flash Slice and Storm Slice (0.2.386)
 
 **Flash Slice's level-12 specialization gives two presses a cooldown.** Its "+1 consecutive use" reads "Can be used
@@ -1956,6 +1962,112 @@ text and players' reports; one calculator claims shield users block twice as oft
 varies with gear grade (metabot says it does; the tests found half on bosses); the Perfect Block Korea added in March,
 from any side; the heals on Block, which need how often the attackers hit; monsters' Accuracy, so Block cannot score
 against them; and the official profile's PvP Block id, read as `PvPBlock` after the boards' `PvPAccuracy`.
+
+### Heal rates from what the heals over time took (0.2.400)
+
+[0.2.386](#heal-amounts-from-the-recorded-heals-02386) measured how often healers heal from the log server's heal
+records, and until [0.2.399](#heals-over-time-and-shields-what-they-took-credited-to-the-caster-02399) a meter
+recorded a heal over time as a heal of its whole pool when it was cast and then, at each tick, a heal of what was
+left of it. Light of Regeneration's 59.1 full-value applications a minute and Recuperation's 32.0 counted that
+sequence. What 0.2.386 read as ticks capped by the HP their targets were missing (a median of 0.55–0.70 of the
+formula, the tenth largest at it) was the pool and what was left of it.
+
+**What the stored records hold.** Within one pool the records step down by whole ticks: a cast of N ticks takes the
+pool divided by N, rounded down, every 2 s from 2 s after it is cast, and leaves the remainder, below N. So the drop
+from one record of a pool to the next is what the ticks between them took, including ticks whose own records were
+lost. The 15 and 20 October captures, replayed through the 0.2.398 decoder (as the old meters recorded them) and the
+0.2.399 decoder, and the 6 November logs below show the details:
+
+* **Light of Regeneration**, fifteen ticks over 30 s: its pool is the formula's value. Over 1,796 pools whose
+  application the logs hold, the pool over the tooltip's mid value × (1 + Attack / 2,000) has a median of 1.04
+  (quartiles 0.95–1.13). The tooltip's range, which reads "every 2s", is the whole pool. Its "+20 % amount healed
+  when HP is 50 % or less" applies a second pool beside the first (the skill's effect 12) under the same skill id,
+  and each tick takes from one of the two.
+* **Recuperation**: its heal and its "+5 % HP restored" are heals of their own under 18120000, and its heal over time
+  is a pool of 4 ticks, 6 with "+4s healing duration", whose option shows in the pool's skill id. With "+1 consecutive
+  use and Heal over Time can stack up to 2 times", two pools of one caster run on one target. Its tooltip's "Restores
+  {3} HP every 2s for 8s" is the whole pool, not a tick: 1,001 four-tick pools hold a median 0.95 of it × the
+  multiplier. `kit/healing.py` keeps 0.2.386's unit (the heal and four times {3}, over five), in which the rate is
+  measured.
+* **Benevolence**'s ticks are recorded one by one with their own amounts: of 1,271 runs of three records 2 s apart, 2
+  stepped down evenly. Neither its records nor the instant heals' were misread. The sample holds no record of
+  Absolution's heal over time (its level-20 option).
+* **Edge cases.** None of the 341 pools of the two captures that took a tick ends empty, so none lost a tick to the
+  old meters' dropping of a zero amount. A pool's application is missing from a fight when it was cast before the
+  fight's first hit, which the meter leaves out of the fight; nine in ten of the pools whose first record is already
+  a tick start in the fight's first 30 s.
+
+**The rebuild.** Each (caster, target, skill id) chain of a fight's records is read in order, and each record goes
+to the open pool it continues, else it opens one:
+
+* a pool whose tick is known takes a record a whole number of its ticks below it, no more ticks than the 2 s slots
+  since its last record;
+* a pool seen once takes a record a whole number of 2 s slots later when the drop is its first record divided by N,
+  rounded down (that record was the application; Light of Regeneration's second pool can wait several slots for
+  its first tick); or, 2 s later, when both records' remainders are below N and the pool holds fewer than N ticks
+  (that record was already a tick).
+
+A pool healed the sum of its drops, plus one tick when its first record was already a tick, which is what a 0.2.399
+meter records of that tick. A record that nothing continues healed nothing: an application as the fight ended, or
+Light of Regeneration's second pool left unused. Under Recuperation's own id 18120000, such a record is its heal or
+its "+5 % HP restored" and counts as recorded. On the captures' 0.2.398 exports the rebuild gives what the 0.2.399
+decoder records:
+
+| Capture | Heal | Recorded | 0.2.399 decoder | Rebuilt |
+|---|---|---:|---:|---:|
+| 20 October | Light of Regeneration | 7,056,085 | 665,116 | 665,025 |
+| 20 October | Recuperation | 928,593 | 363,231 | 363,231 |
+| 15 October | Light of Regeneration | 4,781,518 | 525,266 | 530,665 |
+| 15 October | Recuperation | 513,860 | 197,913 | 196,130 |
+
+The 15 October differences are ticks the capture lost, which the drops show and the decoder cannot count (+1.0 %),
+and pools seen in one record (−0.9 %). The instant heals match exactly.
+
+**The sample.** 0.2.386 names 20 recordings of 6 November 2026. The log server holds 28 public uploads of that day
+(UTC) with a Cleric's or a Chanter's final or mini-boss fights and the healer's official profile. 20 of them come
+from the two meters then current, 0.2.384 and 0.2.385, and are taken here as its sample; the other 8 come from 0.2.371
+and 0.2.376. Counted as 0.2.386 describes (each healer's boss fights, a fight several party members uploaded counted
+once), they hold 199 Cleric-minutes (14 Clerics) and 115 Chanter-minutes (18 Chanters), where 0.2.386 gives 335 and
+334; how it counted its minutes is not recorded. Their recorded heals give its rates within 6 % for five of the seven
+heals. In them the rebuild keeps 10.5 % of Light of Regeneration's recorded healing (12.9 million of 122.6 million,
+in 2,293 pools) and 65.8 % of Recuperation's (6.9 million of 10.5 million, 5.0 million of it its instant heals).
+Weighted as the rates are, per healer and fight:
+
+| Heal | 0.2.386 | Recorded, the 20 logs | Rebuilt, the 20 logs | Kept | 0.2.400 |
+|---|---:|---:|---:|---:|---:|
+| Light of Regeneration | 59.1 | 56.4 | 6.0 | 10.6 % | **6.3** |
+| Recuperation | 32.0 | 30.3 | 19.3 | 63.6 % | **20.4** |
+| Radiant Benediction | 36.4 | 34.4 | 34.4 | 100 % | 36.4 |
+| Radiant Recovery | 15.2 | 14.4 | 14.4 | 100 % | 15.2 |
+| Healing Light | 11.5 | 9.1 | 9.1 | 100 % | 11.5 |
+| Benevolence (when slotted) | 32.3 | 32.5 | 32.5 | 100 % | 32.3 |
+| Absolution (when slotted) | 1.0 | 1.8 | 1.8 | 100 % | 1.0 |
+
+**The rates.** The old meters misread how much a heal over time healed, not how often or how long the healers
+healed. So each heal over time takes 0.2.386's rate times the share of its recorded healing the rebuild keeps in
+these logs, and the instant heals keep their rates. The share holds steady where the rate does not:
+
+* Light of Regeneration: 0.106 (0.103–0.109 over 2,000 resamplings of the 20 logs by log; 0.105 for all 28 uploads
+  of the day, 0.107 with the uploads to 06:00 on 7 November).
+* Recuperation: 0.636 (0.604–0.665; 0.59 for the others).
+* The rebuilt rates themselves range 5.2–6.7 and 15.7–22.1 a minute over the same resamplings.
+
+Light of Regeneration's 6.3 full heals a minute is about 1.3 casts a minute on five players, within the 10 a
+minute its 30 s cooldown allows on five; 59.1 was not.
+
+The caster's shares stay the tooltip's: the rebuild leaves the share of the healing on the caster where it was
+(Light of Regeneration 24.2 % recorded, 24.1 % rebuilt; Recuperation 22.6 % and 22.7 %).
+
+**What it changes.**
+
+* The typical Cleric on median gear heals 115,039 a minute in a boss fight (1,917 HPS), not 400,859 (6,681). Light
+  of Regeneration is 30 % of it, not 80 %, after Radiant Recovery's 33 %.
+* The typical Chanter heals 29,310 a minute (488 HPS), not 45,976 (766).
+* World PvP counts the part that heals the caster. Over its 3-minute fight that is 81,835 HP for the typical Cleric,
+  not 253,327: its effective HP is 141,732, not 395,350, and its own heals are 85 % of it, not 95 %. For the Chanter
+  it is 14,655, not 22,988: effective HP 72,027, not 85,668, with its own heals 33 % of it, not 44 %.
+* The typical builds still score 1 against themselves; a Cleric's or Chanter's heals now weigh less against its
+  other defensives.
 
 ## Optimization and macro planning
 
@@ -2431,8 +2543,8 @@ recorded 9.2 million: Light of Regeneration 665,116, not 7.1 million. Its Chante
 1.6 million. Heals the game sends whole (Healing Light, Radiant Recovery, Radiant Benediction) do not
 change. In the 31 October arena matches the Templar's shields took 101,797 of the opponents' damage,
 which the meter had recorded as 930,063 of the opponents' healing on the Templar. The heal rates of
-[0.2.386](#heal-amounts-from-the-recorded-heals-02386) were measured from records of the older meters
-and are not re-measured yet.
+[0.2.386](#heal-amounts-from-the-recorded-heals-02386) were measured from records of the older meters;
+[0.2.400](#heal-rates-from-what-the-heals-over-time-took-02400) re-measures them from what the ticks took.
 
 ### Stamina and MP restores are not healing (0.2.355)
 
