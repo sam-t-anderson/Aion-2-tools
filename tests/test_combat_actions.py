@@ -1,17 +1,21 @@
 """Combat actions (0.2.306): the cast, cast-end, chain-window, effect and break-gauge records are
-decoded, kept for the party, exported per segment, cleaned by the a2log validator, and summarised
-into rotation, buff/debuff/crowd-control and break-gauge reviews. The layouts come from the
-supplied diagnostic captures (docs/open-investigations.md)."""
+decoded, kept for the party, exported per segment (a PvP fight's opponents' casts too, since
+0.2.398), cleaned by the a2log validator, and summarised into rotation, buff/debuff/crowd-control
+and break-gauge reviews. The layouts come from the supplied diagnostic captures
+(docs/open-investigations.md)."""
 from aion2calc.combat import a2log
 from aion2calc.combat.actions import cc_state, stagger_value, summarize
 from aion2calc.meter.a2parser.engine import MeterEngine
-from aion2calc.meter.a2parser.models import DamageEvent
+from aion2calc.meter.a2parser.models import DamageEvent, HealEvent
 from aion2calc.meter.a2parser.parser import scan_actions
 from aion2calc.meter.session import CombatSession
 
 ME, ALLY, BOSS = 4062, 4063, 51000
+FOE, HELPER = 7001, 7002                                     # a PvP opponent; a player outside the party who heals it
 OVERHEAD_SLAM, RENDING_BLOW, RUINOUS_BLOW = 11170000, 11010000, 11100000
 WAVE_BLOW, ICE_CHAIN, PROTECTION = 18080000, 15090000, 17410000
+VICIOUS_STRIKE, DODGE, HEALING_LIGHT = 12010000, 11000100, 17100000
+IMPETUSIUM_ARENA, ALTGARD = 61, 1110
 
 
 def _varint(value):
@@ -181,6 +185,81 @@ def test_a_held_effect_is_one_row_and_a_reused_instance_ends_the_earlier_one():
                     (ICE_CHAIN, 21.0, 23.0, None),                       # ended when the instance was reused
                     (WAVE_BLOW, 23.0, 24.0, "removed")]                  # the removal is the knockdown's
     assert [e.get("refreshes") for e in segment["effects"]] == [9, None, None, None]
+
+
+def _decoded_cast(actor, skill, seq, target=None, **extra):
+    """A decoded cast record; ``target`` None for a cast aimed at no one."""
+    return {"kind": "cast", "actor": actor, "skill": skill, "seq": seq, "at_target": target is not None,
+            "target": actor if target is None else target, **extra}
+
+
+def test_a_pvp_segment_exports_the_opponents_casts_beside_the_partys():
+    """A PvP fight's opponents' casts are exported to ``casts`` as the party's are (0.2.398), so the review can show an
+    opponent's skills, cast timeline and rotation: the time, the opponent as the source, the skill, the target and the
+    cooldown the game sent. They have no cast time: the game sends cast ends for the recording player alone, and one
+    for an opponent is not used. The analyzer's rotation stays the party's."""
+    engine, s = _engine(), CombatSession()
+    s.pvp = False
+    engine.map_id, engine.dungeon_id = IMPETUSIUM_ARENA, 0                                  # a one-against-one arena match
+    engine.names, engine.known_players, engine.roster, engine.spawn_info = {ME: "Me", FOE: "Foe"}, {ME, FOE}, {"Me": {}}, {}
+    strike = lambda actor, target, skill, t: DamageEvent(actor_id=actor, target_id=target, skill_code=skill,  # noqa: E731
+                                                         damage=1500, timestamp_ms=t)
+    _observe(s, engine, 101_000)
+    _observe(s, engine, 109_500, actions=[_decoded_cast(FOE, OVERHEAD_SLAM + 20, 4, ME, cooldown_ms=9000)])  # before the first hit
+    _observe(s, engine, 109_800, actions=[_decoded_cast(ME, VICIOUS_STRIKE, 7, FOE, cooldown_ms=6000)])
+    _observe(s, engine, 110_000, events=[strike(ME, FOE, VICIOUS_STRIKE, 110_000)],
+             actions=[{"kind": "cast_end", "actor": ME, "skill": VICIOUS_STRIKE, "seq": 7, "flag": 12},
+                      {"kind": "cast_end", "actor": FOE, "skill": OVERHEAD_SLAM + 20, "seq": 4, "flag": 12}])
+    _observe(s, engine, 110_400, events=[strike(FOE, ME, OVERHEAD_SLAM, 110_400)])
+    _observe(s, engine, 111_000, actions=[_decoded_cast(FOE, RENDING_BLOW, 5)])                              # aimed at no one
+    _observe(s, engine, 112_000, actions=[_decoded_cast(FOE, DODGE, 6, FOE, cooldown_ms=500),                # at themselves
+                                          _decoded_cast(9999, OVERHEAD_SLAM, 1, ME)])                        # no one in the fight
+    _observe(s, engine, 113_000, events=[strike(FOE, ME, RENDING_BLOW, 113_000), strike(ME, FOE, VICIOUS_STRIKE, 113_200)])
+    doc = s.to_a2log()
+    segment = doc["segments"][-1]
+    me = next(p["id"] for p in doc["players"] if p["name"] == "Me")
+    foe = next(e["id"] for e in segment["entities"] if e["name"] == "Foe")
+    assert segment["encounter_type"] == "pvp_arena"
+    assert next(e for e in segment["entities"] if e["id"] == foe)["kind"] == "enemy"            # the review's opponent
+    assert [c for c in segment["casts"] if c["source"] == foe] == [
+        {"t": -0.5, "source": foe, "skill_id": OVERHEAD_SLAM, "skill": "Overhead Slam", "target": me, "cooldown_ms": 9000},
+        {"t": 1.0, "source": foe, "skill_id": RENDING_BLOW, "skill": "Rending Blow"},
+        {"t": 2.0, "source": foe, "skill_id": DODGE, "skill": "Dodge", "cooldown_ms": 500}]
+    assert [(c["source"], c["skill_id"], c.get("target"), c.get("cooldown_ms"), c.get("cast_ms"), c["t"])
+            for c in segment["casts"] if c["source"] != foe] == [(me, VICIOUS_STRIKE, foe, 6000, 200, -0.2)]
+    rotation = summarize(segment, {me}, {me}, {e["id"]: e for e in segment["entities"]})["rotation"]
+    assert [t["source"] for t in rotation["totals"]] == [me] and {k["source"] for k in rotation["skills"]} == {me}
+    assert rotation["dodges"] == []                                                             # the opponent's Dodge
+
+
+def test_a_fight_past_the_cast_limit_keeps_the_partys_casts_and_the_opponents_first_ones(monkeypatch):
+    # a long fight against a crowd of the other faction: the opponents' latest casts give way, never the party's
+    monkeypatch.setitem(a2log.LIMITS, "casts", 4)
+    casts = [{"t": float(t), "source": source} for t, source in enumerate(["me", "foe", "foe", "me", "foe", "me"])]
+    assert [(c["t"], c["source"]) for c in CombatSession._cap_opponent_casts(casts, {"foe"})] == [
+        (0.0, "me"), (1.0, "foe"), (3.0, "me"), (5.0, "me")]
+
+
+def test_a_pve_segment_still_exports_the_partys_casts_alone():
+    """Outside PvP the export is as before: a named player outside the party, here one healing it in the open world,
+    is a player of the fight but no opponent, and their casts stay out of its log."""
+    engine, s = _engine(), CombatSession()
+    s.pvp = False
+    engine.map_id, engine.dungeon_id = ALTGARD, 0
+    engine.names, engine.known_players = {**engine.names, HELPER: "Helper"}, {*engine.known_players, HELPER}
+    _observe(s, engine, 101_000)
+    _observe(s, engine, 109_800, actions=[_decoded_cast(ME, RUINOUS_BLOW, 8, BOSS, cooldown_ms=40900),
+                                          _decoded_cast(HELPER, HEALING_LIGHT, 2, ME)])
+    _observe(s, engine, 110_000, events=[_hit(ME, RUINOUS_BLOW, 110_000),
+                                         HealEvent(actor_id=HELPER, target_id=ME, skill_code=HEALING_LIGHT, amount=800,
+                                                   timestamp_ms=110_000)])
+    _observe(s, engine, 112_000, events=[_hit(ME, RENDING_BLOW, 112_000)])
+    doc = s.to_a2log()
+    segment = doc["segments"][-1]
+    me = next(p["id"] for p in doc["players"] if p["name"] == "Me")
+    helper = next(e for e in segment["entities"] if e["name"] == "Helper")
+    assert segment["encounter_type"].startswith("pve_") and (helper["kind"], helper["is_player"]) == ("player", True)
+    assert [c["source"] for c in segment["casts"]] == [me]
 
 
 def test_the_validator_drops_unreferenced_or_malformed_action_rows():

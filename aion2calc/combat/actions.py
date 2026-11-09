@@ -90,7 +90,9 @@ def pressed(records: list) -> tuple[list, str]:
 
 def rotation(segment: dict, players: set) -> dict:
     """Per player: casts by skill with cooldown usage, chain-skill use and dodges. Pets and summons
-    act on their own, so their casts are left out of the rotation."""
+    act on their own, so their casts are left out of the rotation. ``players`` is the party: a PvP
+    fight's opponents' casts (in ``casts`` since 0.2.398) are left out too, and the review summarises
+    an opponent's own casts when one is chosen."""
     duration = max(0.001, segment["duration"])
     by_source = defaultdict(list)
     for cast in segment.get("casts") or []:
