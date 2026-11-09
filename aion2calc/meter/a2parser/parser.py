@@ -58,6 +58,12 @@ def _varint_ending_at(data: bytes, end: int, minimum_start: int,
 ABSORBED_BY = 0x40
 #: The most shields one hit's record names; the archived captures hold up to three.
 ABSORBED_BY_MAX = 8
+#: Modifier bit 0x20 of a layout-6 hit (decoded as ``SpecialDamage.SMITE``): the varint after the modifiers is then
+#: what the hit lost before it reached HP, a fifth of its value when no shield took it, and the target's HP drops by
+#: the value less it (0.2.401). Without the bit the varint is 0. From 128 on it takes two bytes, which the decoder read
+#: as one: the values then began with a second 0, and it took the power scalar for the hit's damage
+#: (docs/open-investigations.md).
+LOST_BEFORE_HP = 0x20
 
 
 def _shields_at(data: bytes, pos: int) -> bool:
@@ -222,6 +228,7 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
         damage_type, offset = dtype
         skip = {4: 8, 5: 12, 6: 10, 7: 14}[layout]
         specials: set[SpecialDamage] = set()
+        lost = 0
         if layout in (5, 6, 7) and offset < len(frame):
             mods = frame[offset]
             for mask, flag in ((2, SpecialDamage.PARRY), (4, SpecialDamage.PERFECT),
@@ -229,10 +236,19 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
                                (64, SpecialDamage.POWER_SHARD)):
                 if mods & mask:
                     specials.add(flag)
-            if offset + 2 < len(frame):
-                if frame[offset + 2] == 1:
+            direction_at = offset + 2
+            if layout == 6 and mods & LOST_BEFORE_HP:
+                # After the modifiers comes a varint (LOST_BEFORE_HP): from 128 it takes two bytes, and the direction,
+                # the hit's own effect and the values come after it. Without the bit it is a single 0.
+                field = _var(frame, offset + 1)
+                if field is not None:
+                    direction_at = field[1]
+                    skip += field[1] - (offset + 2)
+                    lost = field[0]
+            if direction_at < len(frame):
+                if frame[direction_at] == 1:
                     specials.add(SpecialDamage.BACK)
-                elif frame[offset + 2] == 2:
+                elif frame[direction_at] == 2:
                     specials.add(SpecialDamage.FRONTAL)
         if damage_type == 3:
             specials.add(SpecialDamage.CRITICAL)
@@ -337,6 +353,8 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
         if compact_resolved:
             damage = second_value - multi_damage
             skill = compact_context[1]
+        if 0 < lost <= damage:
+            damage -= lost                  # what the hit took off HP; its multi-hits stay as recorded
         normalized_skill = skill if compact_resolved else normalize_skill(skill)
         heal_amount = 0
         if offset + 1 < len(frame) and frame[offset:offset + 2] == b"\x03\x00":
