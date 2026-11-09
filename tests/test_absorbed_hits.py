@@ -50,17 +50,19 @@ SHIELDS = {
 
 
 def _hit(damage, *, hits=(), shields=(), switch=LAYOUT_6, values=None, end=b"\x01\x00"):
-    """One ``04 38`` hit of layout 6, the Ranger's on the Templar: target, switch, an unused varint, actor, skill (u32),
-    uid, damage type, ten bytes (modifiers and the hit's own effect), the values (a 0, the power scalar and the hit's
-    whole damage, multi-hits included); then with 0x20 the multi-hits (a count and each hit), with 0x40 the shields
-    that absorbed it (a count and each effect number, u32), and the record's end."""
+    """One ``04 38`` hit, of layout 6 unless the switch says otherwise, the Ranger's on the Templar: target, switch, an
+    unused varint, actor, skill (u32), uid, damage type, the layout's fixed bytes (ten for layout 6: modifiers and the
+    hit's own effect), the values (a 0, the power scalar and the hit's whole damage, multi-hits included); then with
+    0x20 the multi-hits (a count and each hit), with 0x40 the shields that absorbed it (a count and each effect number,
+    u32), and the record's end."""
     if hits:
         switch |= MULTI_HITS
     if shields:
         switch |= ABSORBED
     values = (0, 10_000, damage) if values is None else values
     body = (_varint(TEMPLAR) + _varint(switch) + _varint(0) + _varint(RANGER) + TEMPEST_SHOT.to_bytes(4, "little")
-            + b"\x00" + _varint(2) + bytes(10) + b"".join(_varint(v) for v in values))
+            + b"\x00" + _varint(2) + bytes({4: 8, 5: 12, 6: 10, 7: 14}[switch & 0x0F])
+            + b"".join(_varint(v) for v in values))
     if hits:
         body += _varint(len(hits)) + b"".join(_varint(h) for h in hits)
     if shields:
@@ -130,3 +132,27 @@ def test_the_hit_is_what_the_shield_took():
     hit, heal = decode_stream(absorb + _hit(236, shields=[DOOM_SHIELD_EFFECT]), 5, set(), pools=pools)
     assert isinstance(hit, DamageEvent) and (hit.total_damage, hit.multi_hit_count) == (236, 0)
     assert heal == HealEvent(TEMPLAR, DOOM_SHIELD, 236, 5, is_hot=False, target_id=TEMPLAR, absorb=True)
+
+
+def test_the_strict_walk_keeps_the_small_multi_hits_before_the_shields():
+    """0.2.403: the strict walk of a hit's record reads the shields after its multi-hits, so a hit a shield absorbed keeps
+    the multi-hits its record carries. The fallback dropped those under 50: a hit of 167 with one of 16 read as 167."""
+    assert _decoded(_hit(167, hits=[16], shields=[DOOM_SHIELD_EFFECT], end=b"\x02\x00")) == (151, 1, 16, 167)
+
+
+def test_the_strict_walk_reads_the_count_the_fallback_took_for_a_field():
+    """With switch bits 0x10 and 0x20 the fallback skipped the multi-hits' count as a field: a hit of 2,366 with four
+    multi-hits of 236 read as none."""
+    assert _decoded(_hit(2_366, hits=[236] * 4, shields=[GUARDING_SEAL_EFFECT], switch=0x16)) == (1_422, 4, 944, 2_366)
+
+
+def test_the_hp_a_hit_drained_is_read_after_the_shields():
+    """A hit's record ends with ``03 00`` and the HP the hit drained when it drained one, after the shields too: the
+    attacker's heal, as on a hit no shield took."""
+    for layout in (6, 5):                   # the strict walk, and the fallback (layout 5)
+        hit, drain = parse_damage_packet(_hit(1_000, shields=[DOOM_SHIELD_EFFECT], switch=layout,
+                                              end=b"\x03\x00" + _varint(167)), timestamp_ms=5)
+        assert (hit.total_damage, hit.multi_hit_count) == (1_000, 0)
+        assert drain == HealEvent(RANGER, TEMPEST_SHOT, 167, 5)
+    # Without the drain the record ends after the shields with no heal
+    assert len(parse_damage_packet(_hit(1_000, shields=[DOOM_SHIELD_EFFECT]), timestamp_ms=5)) == 1
