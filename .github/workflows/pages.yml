@@ -69,7 +69,7 @@ jobs:
           cp aion2calc/app/static/fonts/*.woff2 aion2calc/app/static/fonts/OFL.txt _site/static/fonts/
           # the stylesheet's font URL is absolute (/static/...) for the app; make it relative for the Pages subpath
           sed 's#url("/static/fonts/#url("fonts/#g' aion2calc/app/static/app.css > _site/static/app.css
-          cp docs/screenshots/overlay.png docs/screenshots/live_meter.png _site/screenshots/
+          cp docs/screenshots/overlay.png docs/screenshots/overlay_pvp.png docs/screenshots/live_meter.png _site/screenshots/
       - name: Default share server (repo variables)
         # The planner defaults Publish/Browse to this server; the visitor can still override it in
         # their browser. The upload key is served in a public file by design (a community upload key),

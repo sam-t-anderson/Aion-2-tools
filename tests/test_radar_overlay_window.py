@@ -108,7 +108,7 @@ def test_hide_on_the_radar_window_closes_it_alone_until_open_overlay_or_the_sett
 
 def test_the_hide_route_tells_the_windows_apart():
     src = open(os.path.join(STATIC, "..", "server.py"), encoding="utf-8").read()
-    assert 'close_view(view) if isinstance(view, str) and view in ("party", "radar") else close()' in src
+    assert 'close_view(view) if isinstance(view, str) and view in ("party", "radar", "players") else close()' in src
     js = _read("overlay.js")
     assert 'body:JSON.stringify({action:"hide",view})' in js
 
@@ -117,7 +117,7 @@ def test_the_native_host_knows_the_radar_window(monkeypatch, tmp_path):
     monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
     from aion2calc.paths import write_user_json
     # (the Pet Tracker window, 0.2.337, has a remembered position of its own too)
-    assert overlay._overlay_prefs()["positions"] == {"meter": None, "party": None, "radar": None, "pets": None}
+    assert overlay._overlay_prefs()["positions"] == {"meter": None, "party": None, "radar": None, "pets": None, "players": None}
     write_user_json({"overlay_radar_pos_x": 300, "overlay_radar_pos_y": 40,
                      "overlay_radar_pos_layout": [[0, 0, 2560, 1440]]}, "ui.json")
     assert overlay._overlay_prefs()["positions"]["radar"] == {"xy": (300, 40), "layout": [[0, 0, 2560, 1440]]}
@@ -166,7 +166,7 @@ def test_the_radar_position_is_accepted_by_the_app_and_stays_out_of_backups(monk
 
 def test_the_overlay_page_draws_the_radar_in_its_own_window_only():
     js, css, html = _read("overlay.js"), _read("overlay.css"), _read("overlay.html")
-    assert 'const partyMode = view === "party", radarMode = view === "radar";' in js
+    assert 'const partyMode = view === "party", radarMode = view === "radar", playersMode = view === "players";' in js
     assert 'document.getElementById("ov").classList.add("ov-radar")' in js
     assert 'const OPACITY_KEY = radarMode ? "ovopacity-radar" : "ovopacity";' in js      # its own opacity
     assert js.count("localStorage.getItem(OPACITY_KEY)") == 1 and js.count("localStorage.setItem(OPACITY_KEY, op)") == 1

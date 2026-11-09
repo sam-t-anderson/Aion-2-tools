@@ -15,9 +15,9 @@
   // all of PvE, so the best parses lead whatever the class or encounter.
   const parseTier=(p,rank)=>(rank===1||p>=100)?'gold':p>=99?'pink':p>=95?'orange':p>=75?'purple':p>=50?'blue':p>=25?'green':'grey';
   const parseHTML=e=>{
-    if(e.parse===null || e.parse===undefined)return '<span class="parse q-none" title="No parse: this metric is not ranked, or the encounter has no comparable public parses yet">·</span>';
+    if(e.parse===null || e.parse===undefined)return '<span class="parse-badge q-none" title="No parse: this metric is not ranked, or the encounter has no comparable public parses yet">·</span>';
     const runs=e.parse_runs??e.parse_characters??0, few=runs<5, rank=e.parse_rank;
-    return `<span class="parse q-${parseTier(e.parse,rank)}${few?' provisional':''}" title="Parse ${e.parse}${rank?` · rank ${n0(rank)} of`:' among'} ${n0(runs)} ranked ${esc(cap(e.class||''))} run${runs===1?'':'s'} on this encounter${few?' (provisional: fewer than 5 runs; small brackets read toward the middle)':''}">${Math.round(e.parse)}</span>`;
+    return `<span class="parse-badge q-${parseTier(e.parse,rank)}${few?' provisional':''}" title="Parse ${e.parse}${rank?` · rank ${n0(rank)} of`:' among'} ${n0(runs)} ranked ${esc(cap(e.class||''))} run${runs===1?'':'s'} on this encounter${few?' (provisional: fewer than 5 runs; small brackets read toward the middle)':''}">${Math.round(e.parse)}</span>`;
   };
   // The matched cohort's rank and percentile, or why there is none (0.2.372): most unranked rows were fights whose
   // party list the recording never had complete (party size unknown, so no cohort of the same party size), the rest

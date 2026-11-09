@@ -15,10 +15,15 @@
 .cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 28px 0; }
 .scard { border: 1px solid var(--frame); border-radius: 10px; padding: 16px 18px; background: linear-gradient(180deg, var(--card-a), var(--card-b)); }
 .scard h3 { font-family: var(--display); letter-spacing: .6px; margin: 0 0 8px; color: var(--gold); font-size: 17px; }
+/* The Fera Discord bot: one card across the grid under the features, its two links at the right (under the text on a phone). */
+.botcard { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 28px; align-items: center; border-color: var(--frame-hi); }
+.botcard p { margin: 0 0 8px; max-width: 80ch; } .botcard p:last-child { margin-bottom: 0; } .botcard code { white-space: nowrap; }
+.botcta { display: flex; flex-direction: column; gap: 10px; }
+.botcta .btn { padding: 10px 18px; font-size: 16px; text-align: center; }
 .shots h2, .dl h2 { font-family: var(--display); color: var(--gold); letter-spacing: 1px; margin: 32px 0 14px; }
 /* The overlay is a narrow window: shown near its own size beside the Live Meter, not stretched to half the page. */
-.shotgrid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); align-items: start; gap: 14px; }
-.shotoverlay { max-width: 360px; }
+.shotgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; gap: 14px; }
+.shotmeter { grid-column: 1 / -1; }
 .shotgrid img { width: 100%; height: auto; border: 1px solid var(--frame); border-radius: 8px; display: block; }
 .dlrow { display: flex; flex-wrap: wrap; gap: 10px; }
 /* The header's name links home; it keeps the brand's gold and spacing rather than a link's colour. */
@@ -33,7 +38,7 @@
 .pagetitle { font-family: var(--display); color: var(--gold); letter-spacing: 1px; margin: 8px 0 14px; }
 .pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
 .pcard { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--panel2); }
-@media (max-width: 900px) { .cards3, .shotgrid { grid-template-columns: 1fr; } .hero2 { grid-template-columns: 1fr; } .herologo { width: 84px; height: 84px; } }
+@media (max-width: 900px) { .cards3, .shotgrid, .botcard { grid-template-columns: 1fr; } .hero2 { grid-template-columns: 1fr; } .herologo { width: 84px; height: 84px; } }
 
 /* Small breathing room around expandable information panels. */
 details { margin-block:2px; }
@@ -48,9 +53,10 @@ details[open] > summary { margin-bottom:2px; }
 @media (max-width: 640px) { .topbar .dau { display: none; } }
 
 
-/* Parse (WCL-style percentile colours), shared with the combat review's player table. */
-.parse{display:inline-block;min-width:2.4em;padding:1px 7px;border-radius:999px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;color:var(--q);border:1px solid color-mix(in srgb,var(--q) 55%,transparent);background:color-mix(in srgb,var(--q) 14%,transparent)}
-.parse.provisional{opacity:.6;font-weight:600}
+/* Parse (WCL-style percentile colours), shared with the combat review's player table. A badge of its own class:
+   .parse is the app's breakdown card (app.css). */
+.parse-badge{display:inline-block;min-width:2.4em;padding:1px 7px;border-radius:999px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;color:var(--q);border:1px solid color-mix(in srgb,var(--q) 55%,transparent);background:color-mix(in srgb,var(--q) 14%,transparent)}
+.parse-badge.provisional{opacity:.6;font-weight:600}
 .q-grey{--q:#999ea9}.q-green{--q:#1eff00}.q-blue{--q:#5c9eff}.q-purple{--q:#c67ef6}.q-orange{--q:#ff8000}.q-pink{--q:#e577b1}.q-gold{--q:#e5cc80}.q-none{--q:#9a9ea9}
 /* Light theme: darker shades of the same colours, so a parse reads at 4.5:1 or better on a light page. */
 @media (prefers-color-scheme: light){:root:not([data-theme=dark]) .q-grey{--q:#54575f}:root:not([data-theme=dark]) .q-green{--q:#0c6600}:root:not([data-theme=dark]) .q-blue{--q:#26569e}:root:not([data-theme=dark]) .q-purple{--q:#7b35a9}:root:not([data-theme=dark]) .q-orange{--q:#8a4500}:root:not([data-theme=dark]) .q-pink{--q:#883e65}:root:not([data-theme=dark]) .q-gold{--q:#735510}:root:not([data-theme=dark]) .q-none{--q:#555865}}

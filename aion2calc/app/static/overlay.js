@@ -35,14 +35,19 @@
   // Which window this page is: the meter overlay, the separate Party-DPS overlay (?view=party) or the
   // Hidden Cube radar's own small window (?view=radar, 0.2.329): the radar with Lock, Hide and its own opacity.
   const view = new URLSearchParams(location.search).get("view") || "meter";
-  const partyMode = view === "party", radarMode = view === "radar";
+  const partyMode = view === "party", radarMode = view === "radar", playersMode = view === "players";
   if (partyMode) document.getElementById("ov").classList.add("ov-party");
+  // The player cards window of a PvP match (?view=players, 0.2.395): a card for every player the match holds.
+  if (playersMode) document.getElementById("ov").classList.add("ov-players");
   if (radarMode) { document.getElementById("ov").classList.add("ov-radar"); const vt=$("#ovviewtitle"); if(vt){vt.textContent="Hidden Cube radar";vt.hidden=false;} }
   const OPACITY_KEY = radarMode ? "ovopacity-radar" : "ovopacity";   // the radar window keeps its own opacity
   try { const saved=localStorage.getItem("ovmetric"); if(["dps","hps","taken"].includes(saved))metric=saved; } catch(e) { /* optional storage */ }
   try { const v = parseFloat(localStorage.getItem(OPACITY_KEY)); if (v >= 0.2 && v <= 1) op = v; } catch (e) { /* optional storage */ }
   let showContribution=true, showTarget=true, showDeaths=true, showEnemyHp=false, showTtk=false, showDummy=true, showCombatPower=true, planAutoplay=true;
   let showGraph=false;
+  // Arena mode (0.2.395, on by default): the Arena of Solitude, the Arena of Cooperation and a battlefield get your DPS,
+  // damage taken and HPS at once and the opponent's (or your target's) card, in the layout picked in the options.
+  let arenaMode=true, arenaLayout="compact", arenaAll3=false, playersWindow=false, playersStyle="list";
   // Skill-cooldown strip and the target's break gauge (both off by default), and when the
   // last reading arrived, so the strip counts down between polls.
   let showCooldowns=false, showGauge=false, cooldownsTop=false, cooldownsAt=0;
@@ -236,6 +241,13 @@
     document.getElementById('ov').classList.toggle('ov-bg-top',bgMode==="top");
     document.getElementById('ov').classList.toggle('ov-bg-none',bgMode==="none");
     nmMode=!partyMode&&!radarMode;
+    arenaMode=ui.overlay_arena_mode!==false;
+    arenaLayout=["stacked","compact","versus"].includes(ui.overlay_arena_layout)?ui.overlay_arena_layout:"compact";
+    arenaAll3=ui.overlay_arena_all3===true;
+    playersWindow=ui.overlay_players_enabled===true;
+    playersStyle=ui.overlay_players_style==="grid"?"grid":"list";
+    for(const [id,on] of [["#ovarena",arenaMode],["#ovarenaall3",arenaAll3],["#ovplayerswin",playersWindow]]){const el=$(id);if(el&&!el.disabled)el.checked=on;}
+    for(const [id,value] of [["#ovarenalayout",arenaLayout],["#ovplayersstyle",playersStyle]]){const el=$(id);if(el&&!el.disabled&&document.activeElement!==el)el.value=value;}
     document.getElementById('ov').classList.toggle('ov-nm',nmMode);
     document.getElementById('ov').classList.toggle('ov-whole',nmMode&&bgMode==="card");   // the card behind all of it
     if(!nmMode){document.getElementById('ov').classList.remove('ov-tools-open');const ob=$("#ovsettings");if(ob)ob.setAttribute("aria-expanded","false");}
@@ -297,7 +309,7 @@
     if($("#ovbossonly")&&!$("#ovbossonly").disabled)$("#ovbossonly").checked=ui.overlay_boss_only===true;
     if($("#ovpvponly")&&!$("#ovpvponly").disabled)$("#ovpvponly").checked=ui.overlay_pvp_only===true;
     autoExpand=ui.overlay_auto_expand===true;
-    document.documentElement.style.setProperty('--ov-width',radarMode?'232px':(userWidth??clampInt(ui.overlay_width,260,800,340))+'px');
+    document.documentElement.style.setProperty('--ov-width',radarMode?'232px':playersMode?(playersStyle==="grid"?'540px':'340px'):(userWidth??clampInt(ui.overlay_width,260,800,340))+'px');
     const h=userHeight??clampInt(ui.overlay_height,0,800,0);
     document.documentElement.style.setProperty('--ov-height',h>0?h+'px':'0px');
     document.documentElement.style.setProperty('--ov-row-h',clampInt(ui.overlay_row_height,14,48,22)+'px');
@@ -392,6 +404,22 @@
     catch(e){message.textContent=e.message;}
     finally{input.disabled=false;}
   };
+  // Arena mode's options (0.2.395), saved settings too: arena mode itself, all three metrics for the party, the
+  // player cards window (the app opens or closes it), the layout and the cards' style.
+  for(const [id,key] of [["#ovarena","overlay_arena_mode"],["#ovarenaall3","overlay_arena_all3"],["#ovplayerswin","overlay_players_enabled"],
+                         ["#ovarenalayout","overlay_arena_layout"],["#ovplayersstyle","overlay_players_style"]]){
+    const input=$(id); if(!input)continue;
+    input.onchange=async()=>{
+      const message=$("#ovpetstatus"), value=input.type==="checkbox"?input.checked:input.value, before=input.type==="checkbox"?!input.checked:null;
+      input.disabled=true;
+      try{const response=await fetch("/api/ui",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({[key]:value})});if(!response.ok)throw Error("Could not change the arena setting");await response.json();message.textContent="";
+        if(key==="overlay_arena_mode")arenaMode=value;else if(key==="overlay_arena_all3")arenaAll3=value;else if(key==="overlay_players_enabled")playersWindow=value;
+        else if(key==="overlay_arena_layout")arenaLayout=value;else if(key==="overlay_players_style")playersStyle=value;
+        renderMeter();fit();}
+      catch(e){message.textContent=e.message;if(before!==null)input.checked=before;}
+      finally{input.disabled=false;}
+    };
+  }
   // The damage filters (0.2.390): saved settings, so every overlay window (and RTSS) follows them and they last;
   // the app applies them to the views that follow the latest fight.
   for(const [id,key] of [["#ovbossonly","overlay_boss_only"],["#ovpvponly","overlay_pvp_only"]]){
@@ -729,12 +757,43 @@
   }
   function classIcon(cls){
     const key=String(cls||'').toLowerCase(); if(!key) return '';
+    const art=classArt(key); if(!art) return '';
+    return `<i class="ovcicon" style="background-image:url(${esc(art)});--bar:${barColor(key)}" title="${esc(key)}"></i>`;
+  }
+  // The bundled class emblem's address, for the arena card's portrait too.
+  function classArt(cls){
+    const key=String(cls||'').toLowerCase(); if(!key) return '';
     const files=window.A2BundledAssets&&window.A2BundledAssets.files, base=window.A2BundledAssets&&window.A2BundledAssets.base;
-    const file=files&&files[`https://metabot.gg/web/aion2/classes/${key}.webp`]; if(!file||!base) return '';
-    return `<i class="ovcicon" style="background-image:url(${esc(base+file)});--bar:${barColor(key)}" title="${esc(key)}"></i>`;
+    const file=files&&files[`https://metabot.gg/web/aion2/classes/${key}.webp`];
+    return file&&base?base+file:'';
+  }
+  // What arena mode's builders (arena-view.js) draw with: the overlay's own helpers and the options picked.
+  function arenaContext(snap, players, isMe){
+    return {esc,kfmt,sfmt,rateText,cap,classIcon,classArt,barColor,isMe,name:p=>p.self&&/^Player #\d+$/.test(String(p.name||''))?"You":String(p.name||''),
+      layout:arenaLayout,all3:arenaAll3,metric,style:playersStyle,showCombatPower,players,duration:Number(snap.duration)||0};
+  }
+  // The arena reading the meter overlay draws, or null: arena mode on, the meter view, a PvP match the meter names.
+  function arenaOf(snap, cleared){
+    const a=snap&&snap.arena;
+    return arenaMode&&window.A2Arena&&tab==="meter"&&!cleared&&a&&Array.isArray(a.fighters)&&a.fighters.length?a:null;
+  }
+  // The player cards window (0.2.395): the match's players as cards, allies then enemies, or a short wait line.
+  function renderPlayers(){
+    const s = lastSnap || {}, snap = s.snapshot || {};
+    // (the Odyle, Shugo and Nightmare lines sit in #ovlines, which this window's stylesheet hides)
+    for(const id of ["#ovmetrics","#ovping","#ovidentity","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovcooldowns","#ovclock","#ovgraph","#ovdetail"])$(id).hidden=true;
+    const arena=arenaMode&&window.A2Arena&&snap.arena&&Array.isArray(snap.arena.fighters)&&snap.arena.fighters.length?snap.arena:null;
+    const meName=snap.identity_status&&snap.identity_status.local_name?String(snap.identity_status.local_name).toLocaleLowerCase():"";
+    const ctx=arenaContext(snap, snap.players||[], p=>meName&&String(p.name||'').toLocaleLowerCase()===meName);
+    const head=$("#ovtarget"); head.hidden=false;
+    setHtml(head,arena?A2Arena.playersHead(arena,ctx):`<div class="arn-head"><span class="ovtname">Players</span><span class="arn-badge">PvP</span></div>`);
+    setText($("#ovstatus"),arena?`${arena.label} · ${arena.fighters.length} players`:"Player cards · waiting for a PvP match");
+    viewContent("players", arena?A2Arena.players(arena,ctx):`<div class="muted">${esc(arenaMode?"Waiting for an arena or battlefield match: its players show here as cards.":"Arena mode is off (the overlay's options): turn it on for the player cards.")}</div>`);
+    $("#ov").classList.toggle("ov-players-grid",playersStyle==="grid");
   }
   function renderMeter() {
     if(partyMode)return renderParty();
+    if(playersMode)return renderPlayers();
     if(radarMode)return;                       // the radar's window shows the radar alone (its own poll)
     const s = lastSnap || {}, snap = s.snapshot || {};
     // After New, an empty meter until the next fight begins: the live encounter's id changes with its first hit.
@@ -835,7 +894,11 @@
     const body=over ? `<div class="muted">${esc(empty)}</div>` : (players.length && snap.warning ? `<div class="muted">${esc(snap.warning)}</div>` : "") + (rows || `<div class="muted">${esc(empty)}</div>`);
     const shape=body.replace(/ style="width:[^"]*"/g,"").replace(/data-target="[^"]*" data-amt="[^"]*"/g,"").replace(/<span class="ovrate"[^>]*>[^<]*<\/span>\/s <span class="sub">[^<]*<\/span>(?:<span class="ovpct">[^<]*<\/span>)?/g,"").replace(/ title="[^"]*"/g,"");
     let changed=false;
+    // Arena mode (0.2.395): in a PvP match the rows are the arena's (arena-view.js), drawn whole on each poll.
+    const arena=arenaOf(snap, cleared), actx=arena?arenaContext(snap, players, isMe):null;
+    $("#ov").classList.toggle("ov-arena",!!arena);
     if(collapse){/* the idle collapse below empties the area */}
+    else if(arena){changed=viewContent("arena",A2Arena.body(arena,actx)||`<div class="muted">${esc(empty)}</div>`)||changed;}
     else if(content&&(content._a2shape!==shape||content._a2view!=="meter")){content._a2view="meter";content._a2shape=shape;content._a2html=body;content.innerHTML=body;changed=true;}
     else if(content&&content._a2html!==body){
       content._a2html=body;
@@ -859,8 +922,11 @@
     // Current target (the enemy you are hitting most) with each contributor's DPS
     // to it; packet-sourced, shown when there is recorded damage and enabled.
     const target=snap.current_target;
-    const showT=showTarget&&!over&&!cleared&&target&&!target.is_player&&(target.contributors||[]).length;
-    $("#ovtarget").hidden=!showT;
+    const showT=!arena&&showTarget&&!over&&!cleared&&target&&!target.is_player&&(target.contributors||[]).length;
+    const arenaCard=arena&&showTarget?A2Arena.card(arena,actx):"";
+    $("#ovtarget").hidden=!showT&&!arenaCard;
+    const card=$("#ovtarget");
+    if(arenaCard){changed=setHtml(card,arenaCard)||changed;card.title=arena.kind==="solitude"?"Your opponent: the game's arena roster (name, class, server, level, arena rating), their HP, and their combat power from the official character service":"Your current target among the enemy players: their HP, combat power where known, and their share of the damage you took";}
     if(showT){
       const top=(target.contributors||[]).slice(0,3)
         .map(c=>`${esc(c.name)} ${kfmt(c.dps)}/s`).join(' · ');
@@ -945,7 +1011,7 @@
     }
     // Your contribution: your share of the shown encounter's damage.
     const c=snap.contribution;
-    const showC=showContribution&&!over&&!cleared&&c&&c.damage>0&&metric==='dps';
+    const showC=!arena&&showContribution&&!over&&!cleared&&c&&c.damage>0&&metric==='dps';
     $("#ovcontribution").hidden=!showC;
     if(showC) setText($("#ovcontribution"),`Your contribution: ${Math.round((c.share||0)*100)}% · ${kfmt(c.damage)} (${kfmt(c.dps)}/s)`);
     // The compact layout's fight clock (0.2.370): the fight's time beside a mark that is green while the fight runs,
@@ -960,7 +1026,8 @@
         const behind=snap.decode_backlog&&snap.decode_backlog.catching_up?`<span class="ovclknote">catching up (${esc(snap.decode_backlog.queue_depth)})</span>`:'';
         // The damage filters, named in short where the compact layout has room (its status line is folded away).
         const only=metric==="dps"&&filtered?`<span class="ovclknote ovclkfilter" title="${esc(filtered)}">${filtered==="Boss damage only"?"Boss only":filtered==="Player damage only"?"PvP only":"Bosses + PvP"}</span>`:'';
-        setHtml(clk,`<i class="ovclkbar${live?' on':snap.paused?' paused':''}" aria-hidden="true"></i><span class="ovclktime">${clockText(duration)}</span>${snap.paused&&metric==="dps"?'<span class="ovclknote">Paused</span>':''}${only}${behind}${s.error?`<span class="ovclknote ovclkerr" title="${esc(s.error)}">Capture stopped</span>`:''}<span class="ovclkparty">Party ${short} <b>${kfmt(partyRate)}</b></span>`);
+        const tail=arena?A2Arena.clock(arena,actx):`<span class="ovclkparty">Party ${short} <b>${kfmt(partyRate)}</b></span>`;
+        setHtml(clk,`<i class="ovclkbar${live?' on':snap.paused?' paused':''}" aria-hidden="true"></i><span class="ovclktime">${clockText(duration)}</span>${snap.paused&&metric==="dps"?'<span class="ovclknote">Paused</span>':''}${arena?'':only}${behind}${s.error?`<span class="ovclknote ovclkerr" title="${esc(s.error)}">Capture stopped</span>`:''}${tail}`);
         clk.title=status;
       }
     }
@@ -1521,7 +1588,8 @@
     if(interpolate&&tab==="meter"&&!locked){
       const dt=projecting?Math.max(0,(performance.now()-lastRenderAt)/1000):0;
       const seen=new Set();
-      document.querySelectorAll("#ovcontent .ovrate").forEach(el=>{
+      // The meter's own rows only (their rates carry data-k): arena mode's rows are drawn whole on each poll.
+      document.querySelectorAll("#ovcontent .ovrate[data-k]").forEach(el=>{
         const key=el.getAttribute("data-k"), target=parseFloat(el.getAttribute("data-target"))||0;
         const amt=parseFloat(el.getAttribute("data-amt"))||0;
         seen.add(key);

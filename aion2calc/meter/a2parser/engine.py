@@ -30,6 +30,10 @@ OBSERVED_OPEN_WORLD_MAPS = {
     20: "the Abyss: an 18 October capture fought the community field-boss list's two Chaotic Lower "
         "Reshanta bosses there (Watcher Kaira, killed; Argo, the Spirit King), with no instance and "
         "players of both factions in combat",
+    23: "Upper Reshanta, the Abyss's upper layer (Chaotic Upper Reshanta): named by a player (9 November); three party "
+        "members' recordings of 4-7 November fought its Abyss NPCs (Abyss Swarm, Abyss Klaw, Chandala Drakan troopers, "
+        "Undying Guard, Renegade Daeva) and the other faction's players there, with no instance, coming from and going "
+        "back to the Abyss's lower layer (map 20)",
 }
 OPEN_WORLD_MAPS |= set(OBSERVED_OPEN_WORLD_MAPS)
 
@@ -950,7 +954,10 @@ class MeterEngine:
                 return
             entered = (self.last_zone_reset_ms is not None and self._map_since_ms is not None
                        and self.last_zone_reset_ms >= self._map_since_ms)
-            self.arena = {"match": record["match"], "map": self.map_id, "started_ms": timestamp_ms, "entered": entered,
+            # ``roster_map``: the map the meter held as the roster came. The roster can come before the arena's own map
+            # record (9 November recording: queued in Altgard, the first round fought before map 60 was named), and
+            # ``_note_map`` then moves the match to the arena's map instead of taking it for left.
+            self.arena = {"match": record["match"], "map": self.map_id, "roster_map": self.map_id, "started_ms": timestamp_ms, "entered": entered,
                           "fighters": [{**fighter, "actor": None} for fighter in record["fighters"]],
                           "rounds": [], "result": None, "revision": 1}
             self._bind_arena_fighters()
@@ -1138,7 +1145,11 @@ class MeterEngine:
             self._map_since_ms = timestamp_ms
             match = self.arena
             if match is not None and match["result"] is None and match.get("left_ms") is None and map_id != match["map"]:
-                match["left_ms"] = timestamp_ms if timestamp_ms is not None else match["started_ms"]   # left without a result
+                from ..context import PVP_MAPS
+                if match["map"] not in PVP_MAPS and map_id in PVP_MAPS:
+                    match["map"] = map_id      # the arena's own map, named after its roster came (0.2.395)
+                else:
+                    match["left_ms"] = timestamp_ms if timestamp_ms is not None else match["started_ms"]   # left without a result
                 match["revision"] += 1
         self.map_id = map_id
         if map_id in OPEN_WORLD_MAPS:

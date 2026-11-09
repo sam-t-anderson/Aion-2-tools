@@ -1257,6 +1257,26 @@ class Runner:
         finally:
             self.lock.release()
 
+    def _arena_profiles(self, arena: dict, ui: dict | None) -> None:
+        """Fill in an arena match's fighters (0.2.395): the world name of each one's server and, with arena mode on, the
+        combat power of those the game gave none for, from the official character service (``pvp_profiles``)."""
+        from . import pvp_profiles
+        if ui is None:
+            from .server import ui_settings
+            ui = ui_settings()
+        look_up = ui.get("overlay_arena_mode", True) is not False
+        for fighter in arena.get("fighters") or []:
+            server = fighter.get("server")
+            meta = self.capture_metadata.snapshot(server) if self.capture_metadata is not None and server else {}
+            if meta.get("server_name") and not fighter.get("server_name"):
+                fighter["server_name"] = meta["server_name"]
+            if look_up and not fighter.get("combat_power") and not fighter.get("self"):
+                found = pvp_profiles.known(fighter.get("name"), server, fighter.get("class"), meta.get("region"))
+                if found and found.get("combat_power"):
+                    fighter.update(combat_power=found["combat_power"], cp_source="official")
+                    if found.get("level") and not fighter.get("level"):
+                        fighter["level"] = found["level"]
+
     def status(self, *, follow_latest: bool = False, compact: bool = False) -> dict:
         if not self.lock.acquire(timeout=0.5):
             # The capture thread is mid-burst. Rather than failing (which freezes the
@@ -1340,6 +1360,10 @@ class Runner:
                             name = self.capture_metadata.snapshot(server).get("server_name")
                             if name:
                                 p["server_name"] = name
+            # Arena mode (0.2.395): each fighter's world name, and an opponent's combat power from the official
+            # character service (looked up on a worker; the game sends it for your own party only).
+            if isinstance(snap.get("arena"), dict):
+                self._arena_profiles(snap["arena"], ui)
             if self.packet_engine is not None and not follow_latest:
                 self.enemy_id = snap.get("selected_enemy")
             if compact:

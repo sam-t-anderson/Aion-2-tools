@@ -573,8 +573,9 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 16px; backgrou
 @media (max-width: 1100px) { .raidwrap { grid-template-columns: 1fr; } }
 
 /* ---- AionFlex-style parse breakdown (Combat Logs + Live Meter) ---- */
+/* The card answers its own width (container pcard): with room for them it shows every section at once, below. */
 .parse { background: linear-gradient(180deg, var(--card-a), var(--card-b)); border: 1px solid var(--line);
-  border-radius: 10px; padding: 12px 14px; margin-top: 10px; }
+  border-radius: 10px; padding: 12px 14px; margin-top: 10px; container: pcard / inline-size; }
 .phead { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
   border-bottom: 1px solid var(--line); padding-bottom: 10px; }
 .pwho { display: flex; align-items: center; gap: 9px; min-width: 0; }
@@ -591,6 +592,12 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 16px; backgrou
   padding: 5px 14px; cursor: pointer; font-weight: 600; font-size: 16px; }
 .ptabs button.on { background: linear-gradient(180deg, var(--btn-a), var(--btn-b)); color: var(--gold); border-color: var(--frame-hi); }
 .ppanel[hidden] { display: none; }
+/* A section's heading, in the windows' gold capitals (.wh h2): shown only with every section at once, where the
+   tabs are gone; its tooltip then holds the note the tab shows under the section. */
+.psh { display: none; margin: 0 0 10px; font-family: var(--display); font-size: 16px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--gold); }
+.psh[title] { cursor: help; }
+.pspark { margin: 4px 0 12px; }
 .phi { background: var(--inset); border: 1px solid var(--line); border-radius: 8px; text-align: center; padding: 10px; margin-bottom: 12px; }
 .phi .k { color: var(--faint); font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
 .phi .v { font-size: 26px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
@@ -629,6 +636,34 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 16px; backgrou
 .pmeters .pm { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: center; padding: 3px 0; cursor: pointer; }
 .pmeters .pm.on .nmc b { color: var(--gold); }
 @media (max-width: 760px) { .psplit { grid-template-columns: 1fr; } .pdonut { width: 160px; height: 160px; } }
+/* A card 900 px wide or more shows every section at once, in two columns under a full-width header: damage by
+   skill over the DPS chart on the left, accuracy over defense on the right, the skill table across the width under
+   them. The chart's row takes what the right column needs beyond the donut, so neither column ends early. */
+@container pcard (min-width: 900px) {
+  .pgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 28px;
+    grid-template-rows: auto auto auto 1fr auto auto;
+    grid-template-areas: "head head" "dmg acc" "dmg def" "chart def" "skl skl" "rot rot"; }
+  /* Without the chart, damage by skill sits beside accuracy and defense takes the width under them. */
+  .pgrid.nochart { grid-template-rows: none; grid-template-areas: "head head" "dmg acc" "def def" "skl skl" "rot rot"; }
+  .ptabs, .pnotes { display: none; }
+  /* the tabs' panes give their sections to the grid, the panes the tabs hid too (over [hidden]'s !important) */
+  .ppanel, .ppanel[hidden] { display: contents !important; }
+  .psh { display: block; }
+  .psec { display: flex; flex-direction: column; min-width: 0; margin-top: 16px; }
+  .phead { grid-area: head; } .pdmg { grid-area: dmg; } .pchart { grid-area: chart; } .pskl { grid-area: skl; }
+  .pacc { grid-area: acc; } .pdef { grid-area: def; } .prot { grid-area: rot; }
+  .psplit { grid-template-columns: 165px minmax(0, 1fr); gap: 20px; margin-bottom: 0; }
+  .pdonut { width: 165px; height: 165px; }
+  .ptop .pc { text-align: right; }
+  .pspark { flex: 1; display: flex; flex-direction: column; margin: 0; }
+  .pspark .chart { flex: 1 1 150px; height: auto; min-height: 150px; max-height: 360px; }
+  .prates { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* a label that wraps (Damage taken) keeps its value level with the others' */
+  .prates .rc { display: flex; flex-direction: column; justify-content: space-between; }
+  .pdef table.t { margin-top: 12px; }
+  .pdef table.t th:last-child, .pdef table.t td:last-child { text-align: right; }
+  .pdef .pnote { flex: 1; display: flex; align-items: center; justify-content: center; }
+}
 
 /* Game-style hotbar and numbered macro instructions. */
 .hotbar-wrap { overflow-x: auto; padding: 12px 0; }

@@ -660,3 +660,98 @@ html.native-windows #ov.ov-nm.ov-stripes .ovrow:nth-child(even) { background: rg
 @keyframes ovHoverArm { from { box-shadow: inset 0 0 0 2px rgba(232, 207, 142, 0); }
   to { box-shadow: inset 0 0 0 2px rgba(232, 207, 142, .5); } }
 @media (prefers-reduced-motion: reduce) { #ov.ov-hover-arming .ovcard, #ov.ov-hover-arming .ovcard > *, #ov.ov-hover-arming .ovrow { animation: none; } }
+
+/* Arena mode (0.2.395): the Arena of Solitude, the Arena of Cooperation and a battlefield. The opponent's (or your
+   target's) card reuses the target card; the rows are the meter's own, in three layouts (stacked, compact, versus). */
+#ov .arn-sec { display: flex; align-items: center; gap: 6px; margin: 7px 3px 4px; color: #aab3bd; font-size: calc(10px * var(--nm-scale, 1));
+  font-weight: 800; letter-spacing: .9px; text-transform: uppercase; text-shadow: var(--nm-shadow); }
+#ov .arn-sec::after { content: ""; flex: 1; height: 1px; background: var(--nm-line, rgba(255, 255, 255, .08)); }
+#ov .arn-sec .d, #ov .arn-thead .d { color: #f1d27c; }
+#ov .arn-sec .t, #ov .arn-thead .t { color: #ff8f86; }
+#ov .arn-sec .h, #ov .arn-thead .h { color: #7fe0a0; }
+#ov .arn-vsword { margin: 0 4px; color: var(--nm-gold, #f1d27c); }
+#ov .arn-tag { margin-left: 7px; padding: 1px 5px; border-radius: 4px; background: rgba(232, 90, 90, .18); color: #ff9a92;
+  font-size: .62em; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; vertical-align: 2px; }
+#ov .arn-who { margin-left: 7px; color: #a3abb5; font-size: .78em; font-weight: 600; }
+#ov .ovtarget .ovtline b { color: #e9edf1; font-weight: 700; }
+#ov .ovtarget .ovtline .ovcp { margin-left: 0; margin-right: 6px; font-size: 1em; }
+#ov .ovhp.arn-dead { color: #ff8f86; }
+#ov .arn-tri { display: flex; margin-left: auto; }
+#ov .arn-tri b { min-width: 3.6em; text-align: right; font-size: .92em; }
+#ov .arn-tri b.t { color: #ff8f86; }
+#ov .arn-tri b.h { color: #7fe0a0; }
+#ov .arn-thead { display: grid; grid-template-columns: 44% 1fr 1fr 1fr; gap: 8px; margin: 6px 3px 3px; padding-right: 9px; color: #aab3bd;
+  font-size: calc(9.5px * var(--nm-scale, 1)); font-weight: 800; letter-spacing: .8px; text-align: right; text-transform: uppercase; }
+#ov .arn-thead span:first-child { text-align: left; padding-left: 4px; }
+#ov .ovrow.arn-table .ovname { flex: 0 0 44%; }
+#ov .arn-cols { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 9px 0 4px; align-items: center; }
+#ov .arn-cell { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; font-weight: 800; font-size: 1.02em; color: #fff;
+  text-shadow: var(--nm-row-shadow); font-variant-numeric: tabular-nums; }
+#ov .arn-cell i { position: relative; display: block; align-self: stretch; height: 3px; margin-top: 3px; border-radius: 2px;
+  background: rgba(255, 255, 255, .1); overflow: hidden; }
+#ov .arn-cell i b { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: #f1d27c; }
+#ov .arn-cell.t i b { background: #ff8f86; }
+#ov .arn-cell.h i b { background: #7fe0a0; }
+#ov .arn-vs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; width: 100%; }
+#ov .arn-side { display: flex; align-items: center; gap: 7px; min-width: 0; }
+#ov .arn-side.r { flex-direction: row-reverse; text-align: right; }
+#ov .arn-side .ovtport { flex: none; }
+#ov .arn-sidemain { min-width: 0; }
+#ov .arn-side .nm { color: #eef1f4; font-size: 1.05em; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ov .arn-side .ln { margin-top: 1px; color: #aab3bd; font-size: .8em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ov .arn-side .ln b { color: #e9edf1; }
+#ov .arn-side .ln b.d { color: #f1d27c; }
+#ov .arn-side .ln b.t { color: #ff8f86; }
+#ov .arn-side .ln b.h { color: #7fe0a0; }
+#ov .arn-side .hp { position: relative; display: block; height: 4px; margin-top: 4px; border-radius: 2px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+#ov .arn-side .hp b { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: #5bd16b; }
+#ov .arn-side.r .hp b { inset: 0 0 0 auto; background: var(--ov-hp-color, #e05a5a); }
+#ov .arn-vsmark { color: var(--nm-gold, #f1d27c); font-size: .95em; font-weight: 900; letter-spacing: 1px; text-shadow: var(--nm-shadow); }
+#ov .arn-tug { position: relative; display: flex; align-items: center; min-height: var(--nm-row-h, 28px); margin: 0 0 4px; border-radius: 7px;
+  background: var(--nm-row); overflow: hidden; color: #fff; font-weight: 800; text-shadow: var(--nm-row-shadow); font-variant-numeric: tabular-nums; }
+#ov .arn-tug .l, #ov .arn-tug .r { position: absolute; top: 0; bottom: 0; opacity: .85; }
+#ov .arn-tug .l { left: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--a) 85%, #000), var(--a)); }
+#ov .arn-tug .r { right: 0; background: linear-gradient(270deg, color-mix(in srgb, var(--b) 85%, #000), var(--b)); }
+#ov .arn-tug span { position: relative; padding: 0 9px; font-size: 1.02em; }
+#ov .arn-tug .mid { flex: 1; text-align: center; color: #f3f5f7; font-size: .72em; letter-spacing: 1px; text-transform: uppercase; }
+/* The player cards window (?view=players): its own header, the cards, and of the toolbar only Lock and Hide. */
+#ov.ov-nm.ov-players .ovhd .ovtabs, #ov.ov-nm.ov-players .ovhd #ovmetrics, #ov.ov-players .ovtabs, #ov.ov-players #ovmetrics, #ov.ov-players #ovsplit, #ov.ov-players #ovcopy, #ov.ov-players #ovsettings,
+#ov.ov-players #ovcapture, #ov.ov-players #ovping, #ov.ov-players .ovoptions, #ov.ov-players #ovlines, #ov.ov-players #ovfps,
+#ov.ov-players #ovidentity, #ov.ov-players #ovevents, #ov.ov-players #ovradar, #ov.ov-players #ovclock, #ov.ov-players #ovgraph,
+#ov.ov-players #ovcooldowns, #ov.ov-players #ovdetail, #ov.ov-players #ovcontribution, #ov.ov-players #ovdummy { display: none; }
+#ov .arn-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 2px 2px 0; }
+#ov .arn-head .ovtname { font-size: 1.12em; font-weight: 700; }
+#ov .arn-badge { padding: 1px 6px; border-radius: 4px; background: rgba(99, 211, 230, .16); color: var(--nm-teal, #63d3e6); font-size: .7em;
+  font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
+#ov .arn-allies { color: #7cc4ff; }
+#ov .arn-enemies { color: #ff8f86; }
+#ov .arn-you { color: var(--nm-teal, #63d3e6); font-weight: 700; }
+#ov .arn-deadtxt { color: #ff8f86; }
+#ov .arn-card { display: flex; align-items: center; gap: 8px; margin: 0 0 5px; padding: 6px 9px 6px 7px; border-radius: 8px;
+  background: var(--nm-row); border-left: 3px solid #5aa9e6; }
+#ov .arn-card.foe { border-left-color: #e05a5a; }
+#ov .arn-card.dead, #ov .arn-mini.dead { opacity: .42; }
+#ov .arn-card .ovcicon { flex: none; }
+#ov .arn-card .who { flex: 1; min-width: 0; }
+#ov .arn-card .l1 { display: flex; align-items: baseline; gap: 6px; color: #eef1f4; font-weight: 700; white-space: nowrap; }
+#ov .arn-card .l1 small { color: #a3abb5; font-size: .8em; font-weight: 600; }
+#ov .arn-card .l2 { display: flex; align-items: center; gap: 6px; margin-top: 2px; color: #aab3bd; font-size: .8em; white-space: nowrap; }
+#ov .arn-card .l2 b { color: #e9edf1; }
+#ov .arn-card .l2 .ovcp { margin-left: 0; font-size: 1em; }
+#ov .arn-card .hp, #ov .arn-mini .hp { position: relative; display: block; height: 3px; margin-top: 4px; border-radius: 2px;
+  background: rgba(255, 255, 255, .1); overflow: hidden; }
+#ov .arn-card .hp b, #ov .arn-mini .hp b { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: #5bd16b; }
+#ov .arn-card .dmg { color: #fff; font-size: 1.02em; font-weight: 800; line-height: 1.1; text-align: right; }
+#ov .arn-card .dmg small { display: block; color: #aab3bd; font-size: .72em; font-weight: 600; }
+#ov .arn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#ov .arn-grid .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+#ov .arn-mini { padding: 6px 7px; border-radius: 8px; background: var(--nm-row); border-top: 3px solid #5aa9e6; }
+#ov .arn-mini.foe { border-top-color: #e05a5a; }
+#ov .arn-mini .l1 { display: flex; align-items: center; gap: 6px; color: #eef1f4; font-weight: 700; white-space: nowrap; overflow: hidden; }
+#ov .arn-mini .l1 .nm { overflow: hidden; text-overflow: ellipsis; }
+#ov .arn-mini .l2 { margin-top: 3px; color: #aab3bd; font-size: .78em; line-height: 1.35; white-space: nowrap; }
+#ov .arn-mini .l2 b { color: #e9edf1; }
+#ov .arn-mini .l2 .ovcp { margin-left: 0; font-size: 1em; }
+/* The options' choices (arena layout, player cards style), beside the checkboxes. */
+.ovoptions .ovsel select { margin-left: 3px; padding: 0 2px; border: 1px solid rgba(255, 255, 255, .18); border-radius: 4px;
+  background: rgba(10, 12, 15, .7); color: #e9edf1; font: inherit; font-size: 1em; vertical-align: middle; }

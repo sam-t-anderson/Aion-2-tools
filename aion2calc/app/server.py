@@ -1121,7 +1121,7 @@ class Handler(BaseHTTPRequestHandler):
                 # The meter overlay's Hide closes every overlay window; a companion window's Hide (the
                 # Party-DPS overlay, the radar's window) closes that window alone.
                 view = body.get("view")
-                close_view(view) if isinstance(view, str) and view in ("party", "radar") else close()
+                close_view(view) if isinstance(view, str) and view in ("party", "radar", "players") else close()
                 return self._json({"hidden": True})
             port = self.server.server_address[1]
             # Open overlay while it is open asks the overlay to reload its page (a blank one comes back).
@@ -1392,6 +1392,7 @@ class Handler(BaseHTTPRequestHandler):
                               "overlay_show_shugo_keys", "overlay_show_nightmare_tickets", "character_auto_open", "character_auto_refresh",
                               "meter_reset_after_battle", "meter_reset_on_boss_start", "meter_show_dummy_parse", "overlay_show_combat_power",
                               "overlay_only_in_combat", "overlay_auto_expand", "overlay_boss_only", "overlay_pvp_only",
+                              "overlay_arena_mode", "overlay_arena_all3", "overlay_players_enabled",
                               "overlay_resizable", "overlay_snap_edge", "overlay_expand_up",
                               "overlay_glow", "overlay_long_names_scroll", "overlay_party_enabled",
                               "meter_save_records", "overlay_dps_interpolate", "overlay_show_fps",
@@ -1422,7 +1423,8 @@ class Handler(BaseHTTPRequestHandler):
                               ("overlay_pos_x", -30000, 30000), ("overlay_pos_y", -30000, 30000),
                               ("overlay_party_pos_x", -30000, 30000), ("overlay_party_pos_y", -30000, 30000),
                               ("overlay_radar_pos_x", -30000, 30000), ("overlay_radar_pos_y", -30000, 30000),
-                              ("overlay_pets_pos_x", -30000, 30000), ("overlay_pets_pos_y", -30000, 30000))
+                              ("overlay_pets_pos_x", -30000, 30000), ("overlay_pets_pos_y", -30000, 30000),
+                              ("overlay_players_pos_x", -30000, 30000), ("overlay_players_pos_y", -30000, 30000))
             for key, lo, hi in _ui_int_ranges:
                 if key in body:
                     if not isinstance(body[key], int) or isinstance(body[key], bool) or not lo <= body[key] <= hi:
@@ -1432,7 +1434,9 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError(f"{key} must be a short string")
             from .settings_backup import APP_PAGES
             for key, allowed in (("rtss_metric", ("dps", "hps", "dtps")), ("rtss_style", ("plain", "colored")),
-                                 ("app_default_page", APP_PAGES), ("pettracker_overlay_style", ("app", "pettracker"))):
+                                 ("app_default_page", APP_PAGES), ("pettracker_overlay_style", ("app", "pettracker")),
+                                 ("overlay_arena_layout", ("stacked", "compact", "versus")),
+                                 ("overlay_players_style", ("list", "grid"))):
                 if key in body and body[key] not in allowed:
                     raise ValueError(f"{key} must be one of " + ", ".join(allowed))
             if "pettracker_path" in body:
@@ -1449,7 +1453,8 @@ class Handler(BaseHTTPRequestHandler):
                 cur["hotkeys"] = _hotkeys.clean_hotkeys(body["hotkeys"])
             # Remembered monitor layout for each overlay (machine-specific; restores the
             # position by the monitor layout). A list of [left, top, width, height] rects.
-            for key in ("overlay_pos_layout", "overlay_party_pos_layout", "overlay_radar_pos_layout", "overlay_pets_pos_layout"):
+            for key in ("overlay_pos_layout", "overlay_party_pos_layout", "overlay_radar_pos_layout", "overlay_pets_pos_layout",
+                        "overlay_players_pos_layout"):
                 if key in body:
                     layout = body[key]
                     if not (isinstance(layout, list) and len(layout) <= 16 and all(
@@ -1461,6 +1466,7 @@ class Handler(BaseHTTPRequestHandler):
             cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update",
                                                                "event_region", "event_group", "rtss_metric", "rtss_style",
                                                                "app_default_page", "pettracker_overlay_style",
+                                                               "overlay_arena_layout", "overlay_players_style",
                                                                *(k for k, _, _ in _ui_int_ranges), *_ui_bool_flags)})
             write_user_json(cur, "ui.json")
             if any(k.startswith("rtss_") for k in body):
@@ -1475,7 +1481,8 @@ class Handler(BaseHTTPRequestHandler):
                     traceback.print_exc()
             if any(k in body for k in ("pettracker_enabled", "pettracker_overlay", "pettracker_overlay_style", "pettracker_path")):
                 pettracker_sync()                      # the worker and the Pet Tracker window follow their settings
-            if "overlay_party_enabled" in body:        # the Party-DPS window follows its setting while the overlay is open
+            if "overlay_party_enabled" in body or "overlay_players_enabled" in body:
+                # the Party-DPS window and the player cards window follow their settings while the overlay is open
                 try:
                     from .overlay_launch import sync_companions
                     sync_companions()
@@ -2031,6 +2038,13 @@ def ui_settings() -> dict:
                 # The overlay's damage filters (0.2.390): only the damage dealt to bosses, mini-bosses, field and
                 # world bosses; only the damage dealt to other players. Both on keep both. Off by default.
                 "overlay_boss_only": False, "overlay_pvp_only": False,
+                # Arena mode (0.2.395, on by default): in the Arena of Solitude, the Arena of Cooperation and a
+                # battlefield the overlay shows your DPS, damage taken and HPS at once and the opponent's (or your
+                # target's) card, in the layout picked (stacked, compact or versus); "All 3 for party" gives every
+                # party member the three. The player cards window lists every player of the match (off by default),
+                # as a list or a grid.
+                "overlay_arena_mode": True, "overlay_arena_layout": "compact", "overlay_arena_all3": False,
+                "overlay_players_enabled": False, "overlay_players_style": "list",
                 # Visual group (all inert by default so the overlay looks unchanged until enabled).
                 "overlay_resizable": False, "overlay_snap_edge": False, "overlay_expand_up": False,
                 "overlay_always_visible": True, "overlay_remember_position": True,

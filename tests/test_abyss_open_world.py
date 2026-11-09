@@ -103,3 +103,57 @@ def test_your_area_skill_striking_players_and_mobs_at_once_is_one_fight():
     s.records = records + [_rec(_dmg(ME, BOSS, 21100), seq + 1), _rec(_dmg(ME, RIVAL, 21300), seq + 2),
                            _rec(_dmg(ME, BOSS, 22000), seq + 3)]
     assert [(g["pvp"], len(g["records"])) for g in s.groups("self")] == [(True, len(records)), (False, 3)]
+
+
+def _on_map(map_id):
+    s = _session()
+    s.runs[1]["map_id"] = map_id
+    return s
+
+
+def test_a_mixed_open_world_fight_is_pvp_unless_it_holds_a_field_or_world_boss():
+    """9 November, a player's rule for the Abyss: a fight with players in it is PvP, mobs or not, unless it includes a
+    field or world boss; mobs alone stay PvE. A party's 380-second Abyss fight of 4 November, where the other
+    faction's players dealt 98% of the damage it took while it struck mobs and players in turn, was typed PvE."""
+    def kinds(map_id, *events):
+        s = _on_map(map_id)
+        s.records = [_rec(event, seq) for seq, event in enumerate(events, 1)]
+        return [(g["pvp"], len(g["records"])) for g in s.groups("self")]
+    mixed = (_dmg(ME, MOB, 1000), _dmg(RIVAL, ME, 1500), _dmg(ME, MOB, 2000))
+    assert kinds(20, *mixed) == [(True, 3)]                                                   # a player's hit taken
+    assert kinds(20, _dmg(ME, MOB, 1000), _dmg(ME, RIVAL, 1500), _dmg(ME, MOB, 2000)) == [(True, 3)]   # or dealt
+    assert kinds(20, _dmg(ME, MOB, 1000), _dmg(MOB, ME, 1500, CLAW), _dmg(ME, MOB, 2000)) == [(False, 3)]   # mobs alone
+    assert kinds(20, _dmg(MOB, ME, 1000, CLAW), _dmg(RIVAL, ME, 1050), _dmg(ME, BOSS, 1300), _dmg(RIVAL, ME, 1400),
+                 _dmg(ME, BOSS, 2000)) == [(False, 5)]                                         # the field boss's fight
+    assert kinds(23, *mixed) == [(True, 3)]                                                   # Upper Reshanta too
+    assert kinds(None, *mixed) == [(False, 3)]                # off the open world your own first hit still decides
+
+
+def test_a_mixed_fight_saved_from_the_abyss_lists_only_its_players_as_enemies():
+    from aion2calc.meter.a2parser.engine import MeterEngine
+    s = CombatSession()
+    s.pvp = False
+    engine = MeterEngine()
+    engine.map_id, engine.last_zone_reset_ms, engine.local_player_id = 20, None, ME
+    engine.names, engine.roster = {ME: "Me", RIVAL: "Rival"}, {"Me": {}}
+    engine.spawn_info = {MOB: {"mobCode": 2920150}}
+    t0 = 1_000_000
+    s.observe(engine, [_dmg(ME, MOB, t0), _dmg(RIVAL, ME, t0 + 300, 14340000), _dmg(RIVAL, ME, t0 + 900, 14050000),
+                       _dmg(ME, RIVAL, t0 + 500), _dmg(MOB, ME, t0 + 600, CLAW), _dmg(ME, MOB, t0 + 1500)],
+              timestamp_ms=t0 + 2000)
+    [segment] = [seg for seg in s.to_a2log("party")["segments"] if seg["hits"]]
+    assert segment["encounter_type"] == "pvp_open_world" and segment["zone"] == "Abyss"
+    kinds = {e["id"].split(":")[1]: (e["kind"], e["is_player"]) for e in segment["entities"]}
+    assert kinds[str(RIVAL)] == ("enemy", True) and kinds[str(MOB)] == ("enemy", False)
+
+
+def test_upper_reshanta_is_map_23_and_stored_logs_are_retyped():
+    assert 23 in OBSERVED_OPEN_WORLD_MAPS and 23 in OPEN_WORLD_MAPS
+    pvp, pve = classify(23, 0, True, []), classify(23, 0, False, [])
+    assert (pvp["encounter_type"], pvp["zone"]) == ("pvp_open_world", "Upper Reshanta") and pve["encounter_type"] == "pve_open_world"
+    from aion2calc.meter.context import enrich
+    doc = {"meta": {}, "players": [{"id": "p", "name": "A"}], "segments": [
+        {"map_id": 23, "instance_id": 0, "encounter_type": "pvp_other", "hits": [], "events": [], "entities": []},
+        {"map_id": 23, "instance_id": 0, "encounter_type": "pve_unverified", "hits": [], "events": [], "entities": []}]}
+    first, second = enrich(doc)["segments"]
+    assert (first["encounter_type"], first["zone"]) == ("pvp_open_world", "Upper Reshanta") and second["encounter_type"] == "pve_open_world"
