@@ -106,7 +106,9 @@ try:
                 failures.append(f"{mode}: the overlay window never showed")
                 continue
             if mode == "card":
-                seen = until(hwnd, mode, lambda s: drawn(s) and s["game"] > 0)
+                # Windows can hold the card's outline before the window has shrunk to the card, the game showing in
+                # the band below it for a moment: the card is judged on the shape the window settles to
+                seen = until(hwnd, mode, lambda s: drawn(s) and 0 < s["game"] < 0.05 and not s["backdrop"])
                 if not drawn(seen):
                     failures.append(f"{mode}: the page sent no outline within {READY:.0f} s ({seen})")
                 elif not 0 < seen["game"] < 0.05 or seen["backdrop"]:
