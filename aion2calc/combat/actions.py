@@ -279,41 +279,65 @@ def mp(segment: dict) -> list:
 REPEAT_S = 1.5
 
 
-def boss_casts(segment: dict) -> dict:
+def boss_casts(segment: dict, entities: dict | None = None) -> dict:
     """The skills bosses cast (0.2.307): per boss and skill, how often, when first and last, and
     which players they were aimed at; plus the casts in order (the first 100 rows), quick repeats
-    of one skill at one target folded into one row with their count and end."""
+    of one skill at one target folded into one row with their count and end.
+
+    Since 0.2.394 a recording also holds the casts of a boss's adds and clones (a listed entity not
+    flagged a boss). Their skills follow the bosses', one row per kind of add (its mob code, else its
+    name) and skill, with how many of them cast it (``casters``; Ferocious Horn Nuakum's clone spawns
+    some two hundred times a run). The casts in order stay the bosses' own, which the adds' hundreds
+    of casts would push out of the list; ``add_casts`` counts the adds' casts left out of it."""
+    if entities is None:
+        entities = {e.get("id"): e for e in segment.get("entities") or [] if isinstance(e, dict)}
+
+    def add_kind(source):
+        entity = entities.get(source)
+        if not isinstance(entity, dict) or entity.get("is_boss"):
+            return None                     # a boss, or a caster the segment does not list (as before 0.2.394)
+        return entity.get("mob_code") or entity.get("name") or source
+
     casts = sorted(segment.get("npc_casts") or [], key=lambda r: r["t"])
-    grouped = {}
+    kinds = {source: add_kind(source) for source in {row["source"] for row in casts}}
+    grouped, casters = {}, defaultdict(set)
     for row in casts:
-        key = (row["source"], row["skill_id"])
+        kind = kinds[row["source"]]
+        key = (row["source"], row["skill_id"]) if kind is None else (("add", kind), row["skill_id"])
         entry = grouped.setdefault(key, {"source": row["source"], "skill_id": row["skill_id"], "skill": row.get("skill"),
                                          "casts": 0, "first": row["t"], "last": row["t"], "targets": defaultdict(int)})
         entry["casts"] += 1
         entry["last"] = row["t"]
         if row.get("target"):
             entry["targets"][row["target"]] += 1
+        if kind is not None:
+            casters[key].add(row["source"])
     skills = []
-    for entry in grouped.values():
+    for key, entry in grouped.items():
         targets = sorted(entry.pop("targets").items(), key=lambda kv: -kv[1])
-        skills.append({**entry, "targets": [{"target": t, "casts": n} for t, n in targets[:5]]})
-    skills.sort(key=lambda r: (r["source"], r["first"]))
-    timeline = []
+        extra = {"add": True, "casters": len(casters[key])} if key in casters else {}
+        skills.append({**entry, "targets": [{"target": t, "casts": n} for t, n in targets[:5]], **extra})
+    skills.sort(key=lambda r: (r.get("add", False), "" if r.get("add") else r["source"], r["first"]))
+    timeline, add_casts = [], 0
     for row in casts:
+        if kinds[row["source"]] is not None:
+            add_casts += 1
+            continue
         last = timeline[-1] if timeline else None
         if (last and (last["source"], last["skill_id"], last.get("target")) == (row["source"], row["skill_id"], row.get("target"))
                 and row["t"] - last.get("end", last["t"]) <= REPEAT_S):
             last["end"], last["casts"] = row["t"], last["casts"] + 1
         else:
             timeline.append({**row, "casts": 1})
-    return {"skills": skills, "timeline": timeline[:LIMIT], "omitted_timeline": max(0, len(timeline) - LIMIT)}
+    return {"skills": skills, "timeline": timeline[:LIMIT], "omitted_timeline": max(0, len(timeline) - LIMIT),
+            "add_casts": add_casts}
 
 
 def summarize(segment: dict, players: set, friendly: set, entities: dict) -> dict:
     """The segment's rotation, effects, crowd control, break-gauge, MP and boss-cast summaries
     (empty when the recording carries no such records, e.g. an older log)."""
     result = {"rotation": rotation(segment, players), **effects(segment, friendly, entities),
-              "stagger": stagger(segment, entities), "mp": mp(segment), "boss_casts": boss_casts(segment)}
+              "stagger": stagger(segment, entities), "mp": mp(segment), "boss_casts": boss_casts(segment, entities)}
     omitted = {}
     for key in ("buffs", "incoming", "debuffs", "crowd_control", "crowd_control_by_source"):
         omitted[key] = max(0, len(result[key]) - LIMIT)

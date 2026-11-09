@@ -414,6 +414,10 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     }
     // What the analyzer calls an NPC the game data gives no name (aion2calc/combat/unnamed.py), or an older log's "???".
     const UNNAMED=/^(Unnamed (summon|NPC)|\?\?\?)$/;
+    // A boss's add or clone the game data gives no name is the boss's clone, unless the community catalog names its
+    // code (0.2.393).
+    const addNameOf=e=>{const name=e?npcName(e):"";if(name&&!UNNAMED.test(name)&&!/^#\d+$/.test(name))return name;
+      return (e?.mob_code!=null&&window.A2CommunityNames?.[String(e.mob_code)])||"Clone";};
     function encounters(d) {
       // One row per enemy name: a boss's forms and every spawn of an add are one row, its entities counted and
       // filtered together. A player (a PvP opponent) keeps a row of their own.
@@ -636,9 +640,12 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
           ${c.checks.length?`<h4>Check against this fight's hits</h4><p class="small muted">The same player's plain hits with one skill on one target (no critical, double, perfect or periodic damage, outside breaks) with only that buff group up, against none up. One fight rarely has enough hits without the buff to settle it; <code>python -m aion2calc calibrate --buffs</code> pools many fights.</p>${table(['Buffs','Measured gain','Estimated gain','Hits with / without','Skill-target pairs'],c.checks.map(x=>`<tr><td>${esc(kind[x.group] || x.group)}</td><td>${signed(x.measured_pct)}</td><td>${signed(x.estimated_pct)}</td><td>${number(x.hits_on)} / ${number(x.hits_off)}</td><td>${number(x.pairs)}</td></tr>`))}`:''}`;
       } else if(state.actions==='boss') {
         const b=s.boss_casts || {skills:[],timeline:[]};
-        body=`<p class="small muted">The skills bosses cast, from the game's own cast records (recorded since 0.2.307 for catalog bosses). Most boss skills have no name in the bundled tables and show their ID. <i>Aimed at</i> is the player a cast targeted; area skills often name none.</p>`+
-          (b.skills.length?`${table(['Boss','Skill','Casts','First → last','Aimed at'],b.skills.map(k=>`<tr><td>${actorHTML(d.r[k.source])}</td><td>${skillCell(k)}</td><td>${number(k.casts)}</td><td>${signedClock(k.first)} → ${signedClock(k.last)}</td><td>${k.targets.map(x=>`${actorHTML(d.r[x.target])} ×${x.casts}`).join(' ') || '—'}</td></tr>`))}
-          <h4>Casts in order</h4><p class="small muted">Quick repeats of one skill at one target (a channelled skill sends a cast every few hundredths of a second) are one row.</p>${table(['Time','Boss','Skill','Casts','Aimed at'],b.timeline.filter(c=>!state.actor || c.target===state.actor).map(c=>`<tr><td>${signedClock(c.t)}${c.end!=null?` → ${signedClock(c.end)}`:''}</td><td>${actorHTML(d.r[c.source])}</td><td>${skillCell(c)}</td><td>${c.casts>1?'×'+number(c.casts):''}</td><td>${c.target?actorHTML(d.r[c.target]):'—'}</td></tr>`))}${b.omitted_timeline?`<p class="small muted">${number(b.omitted_timeline)} later rows are not listed.</p>`:''}`:'<p>No boss casts were recorded in this encounter.</p>');
+        // an add that never struck the party and was never struck is not in the fight's roster: its entity names it
+        const caster=id=>d.r[id] || (seg.entities || []).find(e=>e?.id===id);
+        const casterHTML=k=>k.add?`${esc(addNameOf(caster(k.source)))} <span class="small muted">boss's add${k.casters>1?`, ${number(k.casters)} of them`:''}</span>`:actorHTML(caster(k.source));
+        body=`<p class="small muted">The skills bosses cast, from the game's own cast records (recorded since 0.2.307 for catalog bosses, and since 0.2.394 for their adds and clones). Most boss skills have no name in the bundled tables and show their ID. <i>Aimed at</i> is the player a cast targeted; area skills often name none.</p>`+
+          (b.skills.length?`${table(['Caster','Skill','Casts','First → last','Aimed at'],b.skills.map(k=>`<tr><td>${casterHTML(k)}</td><td>${skillCell(k)}</td><td>${number(k.casts)}</td><td>${signedClock(k.first)} → ${signedClock(k.last)}</td><td>${k.targets.map(x=>`${actorHTML(d.r[x.target])} ×${x.casts}`).join(' ') || '—'}</td></tr>`))}
+          <h4>Casts in order</h4><p class="small muted">Quick repeats of one skill at one target (a channelled skill sends a cast every few hundredths of a second) are one row.</p>${table(['Time','Caster','Skill','Casts','Aimed at'],b.timeline.filter(c=>!state.actor || c.target===state.actor).map(c=>`<tr><td>${signedClock(c.t)}${c.end!=null?` → ${signedClock(c.end)}`:''}</td><td>${actorHTML(caster(c.source))}</td><td>${skillCell(c)}</td><td>${c.casts>1?'×'+number(c.casts):''}</td><td>${c.target?actorHTML(d.r[c.target]):'—'}</td></tr>`))}${b.omitted_timeline?`<p class="small muted">${number(b.omitted_timeline)} later rows are not listed.</p>`:''}${b.add_casts?`<p class="small muted">Not listed here: ${number(b.add_casts)} cast${b.add_casts===1?'':'s'} by the bosses' adds and clones, counted in the skills above and listed on the movement replay.</p>`:''}`:'<p>No boss casts were recorded in this encounter.</p>');
       } else if(state.actions==='stagger') {
         body=`<p class="small muted">The break gauge is the game's own reading. A drop belongs to the hits on that enemy in the same read; when several hits share one, it is split by each skill's listed Stagger Gauge Damage (from the skill descriptions), else by what that skill drained alone. A break runs from the gauge emptying to it refilling.</p>`+
           (s.stagger.length?s.stagger.map(b=>`<h4>${esc(label(d.r[b.entity]))}${b.boss?'':' <span class="small muted">elite</span>'}</h4><p class="small">Gauge ${number(b.max)} · ${number(b.readings)} readings · ${number(b.drained)} drained${b.unattributed?` (${number(b.unattributed)} with no matching hit)`:''} · ${b.breaks.length} break${b.breaks.length===1?'':'s'}${b.breaks.length?': '+b.breaks.map(x=>`${signedClock(x.t)} for ${x.seconds.toFixed(1)}s`).join(', '):''}</p>${gaugeChart(d,b)}
@@ -1079,10 +1086,13 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       // A summon of the recording side (or of neither) is a pet in its owner's class colour; one of the enemy side is
       // drawn and listed with the enemies (0.2.393: an ally summoner's spirits were listed as enemies that appeared).
       // An NPC of the boss's side, no one's summon, that struck the party in a boss fight is the boss's add or clone,
-      // drawn in the boss's colour (0.2.393): the Ferocious Horn Den's clones strike under the plain Attack, with no
-      // cast and mostly no position of their own.
+      // drawn in the boss's colour (0.2.393): the Ferocious Horn Den's clones strike under the plain Attack. Since 0.2.394
+      // the meter also records the casts and positions of a boss's adds and clones (NPCs spawned near the boss, striking
+      // the party or casting at it while the boss is fought) and of no other NPC, so a caster in a boss fight's npc_casts that is not
+      // a boss, a player or a summon is one too.
       const bossFight=Object.values(r).some(e=>e?.is_boss);
       const struckParty=new Set(bossFight?evs.filter(ev=>ev.kind==="damage"&&friendly.has(ev.target)).map(ev=>ev.source):[]);
+      if(bossFight)for(const c of d.segment.npc_casts || [])if(!r[c.source]?.is_boss&&!r[c.source]?.owner&&r[c.source]?.kind!=="pet")struckParty.add(c.source);
       const kindOf=id=>{const e=r[id];return e?.is_boss?"boss":character(e)?"player":(e?.kind==="pet"||e?.owner)&&sideOf(id)!=="enemy"?"pet"
         :!e?.owner&&e?.kind!=="pet"&&struckParty.has(id)?"add":"enemy";};
       const shown=id=>{const k=kindOf(id);return k==="player"?!replayHidden.has("id:"+id)&&!replayHidden.has("class:"+r[id].class):!replayHidden.has(k);};
@@ -1126,7 +1136,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         const dot=(fill,radius,extra="")=>swatch(`<circle cx="5" cy="5" r="${radius}" fill="${fill}"${extra}/>`);
         const item=(icon,text,key)=>key?`<li><label><input type="checkbox" data-key-toggle="${esc(key)}" ${replayHidden.has(key)?"":"checked"}>${icon}<span>${text}</span></label></li>`:`<li>${icon}<span>${text}</span></li>`;
         const kinds=[of("boss").length&&item(dot("#ef6262",4.5),"Boss","boss"),tokens[me]&&item(dot(shade(me),3,ring),"Recording player"),
-          of("pet").length&&item(dot("currentColor",2.1),"Pet or summon, in its owner's class colour","pet"),of("add").length&&item(dot("#ef6262",1.8),"Boss add or clone: an enemy that struck the party during the boss fight","add"),of("enemy").length&&item(dot("#9a9a9a",2.1),"Other enemy","enemy"),
+          of("pet").length&&item(dot("currentColor",2.1),"Pet or summon, in its owner's class colour","pet"),of("add").length&&item(dot("#ef6262",1.8),"Boss add or clone: an enemy that struck the party, or cast, during the boss fight","add"),of("enemy").length&&item(dot("#9a9a9a",2.1),"Other enemy","enemy"),
           world.length&&(of("boss").length||of("player").length)&&item(swatch('<polyline points="1,8 4,4 6.5,6 9,2" fill="none" stroke="currentColor" stroke-opacity=".6" stroke-width="1.2"/>'),"Movement in the last 6 seconds","trail"),
           item(dot("currentColor",3,' fill-opacity=".35"'),`Faded: last seen over 8 seconds ago, or outside the fight area; gone once unseen for ${GONE} seconds (a minute for players and bosses)`),
           rooms&&item('<svg viewBox="0 0 10 10" width="16" height="16" aria-hidden="true" data-key-room></svg>',"Arena","arena"),
@@ -1136,7 +1146,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
             +swatch('<path d="M5,5 L9.3,3.4 A4.6,4.6 0 0 0 6.6,0.7 Z M5,5 L0.7,6.6 A4.6,4.6 0 0 0 3.4,9.3 Z" fill="#f06060" fill-opacity=".3" stroke="#f06060" stroke-width=".6"/>'),"Measured area: a dash or trail along the boss's path; wedges with safe gaps between them"),
           spawns.length&&item(swatch('<circle cx="5" cy="5" r="3.6" fill="none" stroke="#9fd36f" stroke-width=".9" stroke-dasharray="1.2 .8"/>'),"Appeared: an enemy first seen here during the fight (an add, or a summon of the other side)","spawns"),
           lives.length&&item(swatch('<path d="M2.6,2.6 L7.4,7.4 M7.4,2.6 L2.6,7.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>'),"Death: a ✕ where a player fell, their token greyed until revived; a ring when revived","lives"),
-          addHits.length&&item(swatch('<circle cx="5" cy="5" r="3.4" fill="none" stroke="#ef6262" stroke-width=".9"/><circle cx="5" cy="5" r="1.4" fill="#ef6262"/>'),"Struck by an add or a boss's clone: where it hit a player (the game sends no position of many of them)","hits")].filter(Boolean);
+          addHits.length&&item(swatch('<circle cx="5" cy="5" r="3.4" fill="none" stroke="#ef6262" stroke-width=".9"/><circle cx="5" cy="5" r="1.4" fill="#ef6262"/>'),"Struck by an add or a boss's clone: where it hit a player (recordings before 0.2.394 hold no position of most adds)","hits")].filter(Boolean);
         const players=of("player").sort((a,b)=>(b===me)-(a===me)||label(r[a]).localeCompare(label(r[b])));
         const classes=[...new Set(players.map(id=>r[id].class).filter(Boolean))].sort(),named=c=>esc(c[0].toUpperCase()+c.slice(1));
         const who=players.length>12?classes.map(c=>item(dot(color(c),3),named(c),"class:"+c)):players.map(id=>item(dot(shade(id),3,id===me?ring:""),`<span translate="no">${esc(label(r[id]))}</span>${r[id].class?` · <span>${named(r[id].class)}</span>`:""}`,"id:"+id));
@@ -1164,9 +1174,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         const trail=world.length&&!replayHidden.has("trail")&&(e?.is_boss||character(e))?frames.slice(first,i+1).map(at).concat([[x,y]]).map(([a,b])=>`${a.toFixed(2)},${b.toFixed(2)}`).join(" "):"";
         return `${trail?`<polyline points="${trail}" fill="none" stroke="${shade(id)}" stroke-opacity=".35" stroke-width=".6"/>`:""}<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${size}" fill="${shade(id)}" fill-opacity="${dead?.2:stale>8||out?.35:1}"${id===d.segment.ping_recorder?' stroke="#fff" stroke-dasharray="1 1" stroke-width=".5"':""}><title>${esc(k==="add"?addName(id):label(e))}${dead?` · dead since ${dead.t.toFixed(1)}s`:""}${last.src?` · ${esc(last.src)} at ${last.t.toFixed(1)}s`:""}${last.via?` · from ${esc(sourceName(last.via))}`:""}${out?" · outside the fight area":""}</title></circle>`;}).join("");drawMarks(t);};
       // the casts and appearances around t: markers on the arena, and the strip under the slider
-      // an add or clone the game data gives no name is the boss's clone, unless the community catalog names its code
-      const addName=id=>{const e=r[id]||{},name=npcName(e);if(name&&!UNNAMED.test(name)&&!/^#\d+$/.test(name))return name;
-        return (e.mob_code!=null&&window.A2CommunityNames?.[String(e.mob_code)])||"Clone";};
+      const addName=id=>addNameOf(r[id]);
       const worldAt=(frames,t)=>{const i=before(frames,t);return i<0?null:frames[i];},nameOf=id=>kindOf(id)==="add"?addName(id):r[id]?.name||label(r[id]);
       const f2=v=>v.toFixed(2),rad=deg=>deg*Math.PI/180;
       // A measured area where the cast happened: around its aim or its caster, or along the caster's facing (the cast's

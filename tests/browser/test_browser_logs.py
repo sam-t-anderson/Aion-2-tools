@@ -1006,7 +1006,7 @@ def test_the_replay_marks_deaths_revives_and_where_a_clone_struck(app_page, app_
         assert {"6.0", "10.0", "16.0"} <= set(ticks)
         key = box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts()
         assert "Death: a ✕ where a player fell, their token greyed until revived; a ring when revived" in key
-        assert "Struck by an add or a boss's clone: where it hit a player (the game sends no position of many of them)" in key
+        assert "Struck by an add or a boss's clone: where it hit a player (recordings before 0.2.394 hold no position of most adds)" in key
         ally = box.locator("[data-tokens] circle", has=page.locator("title", has_text="Testally"))
         scrub(6.5)                                                   # the clone's hit, ringed at the party member
         hit = box.locator("[data-marks] .cr-hit")
@@ -1256,7 +1256,7 @@ def test_a_boss_add_or_clone_is_drawn_in_the_bosss_colour(app_page, app_url, app
         box = page.locator("[data-replay]")
         box.locator("[data-tokens] circle").first.wait_for()
         key = box.locator('.cr-key ul[aria-label="Key"] li').all_inner_texts()
-        assert "Boss add or clone: an enemy that struck the party during the boss fight" in key and "Other enemy" in key
+        assert "Boss add or clone: an enemy that struck the party, or cast, during the boss fight" in key and "Other enemy" in key
         rows = [" ".join(t.split()) for t in box.locator("[data-events] li").all_inner_texts()]
         assert "13.0s Test Echo appeared" in rows and "15.0s Test Echo hit Testally · Cleric" in rows
         assert "12.0s Summoned Spike appeared" in rows
@@ -1266,6 +1266,55 @@ def test_a_boss_add_or_clone_is_drawn_in_the_bosss_colour(app_page, app_url, app
         assert "Test Echo hit Testally · Cleric · 15.0s" in box.locator("[data-marks] .cr-hit title").text_content()
         box.locator('.cr-key [data-key-toggle="add"]').uncheck()
         assert token("Test Echo").count() == 0 and token("Summoned Spike").count() == 1
+    finally:
+        page.goto("about:blank")
+        path.unlink()
+
+
+def test_an_add_with_casts_of_its_own_is_drawn_and_listed_as_the_bosss(app_page, app_url, app_home):
+    """From 0.2.394 the meter records the casts and positions of a boss's adds and clones: an add that cast in the
+    boss fight, though it struck nobody, is drawn in the boss's colour where it was recorded, and its casts are
+    listed with the boss's."""
+    page = app_page
+    name = "session-20261109-010000-abcdef.a2log.json"
+    path = app_home / "logs" / name
+    path.parent.mkdir(exist_ok=True)
+    doc = moving_recording(casts=True)
+    fight = doc["segments"][1]
+    fight["entities"].append({"id": "cl3", "name": "Unnamed summon", "kind": "enemy", "mob_code": 2920604})
+    fight["movement"] = sorted(fight["movement"] + [{"t": float(t), "entity": "cl3", "x": 1200.0 + 10 * t, "y": 900.0, "z": 50.0,
+                                                     "src": "spawn" if t == 16 else "targeted"} for t in range(16, 21)],
+                               key=lambda m: m["t"])
+    fight["npc_casts"] = sorted(fight["npc_casts"] + [{"t": 17.0, "source": "cl3", "skill_id": 1802012, "skill": "Leap",
+                                                       "pos": [1370.0, 900.0, 50.0], "facing": 0.0}], key=lambda c: c["t"])
+    from aion2calc.combat.insights import summarize
+    doc["encounter_insights"] = summarize(doc)                 # the analysis the meter saves with the log
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    page.add_init_script("window.A2CommunityNames = {'2920604': 'Test Leaper'};")
+
+    def scrub(t):
+        page.evaluate("t => {const s = document.querySelector('[data-scrub]'); s.value = t; s.dispatchEvent(new Event('input'));}", t)
+    token = lambda text: page.locator("[data-replay] [data-tokens] circle", has=page.locator("title", has_text=text))   # noqa: E731
+    try:
+        go(page, app_url, f"#/combat-log/local/{name}?segment=1")
+        box = page.locator("[data-replay]")
+        box.locator("[data-tokens] circle").first.wait_for()
+        rows = [" ".join(t.split()) for t in box.locator("[data-events] li").all_inner_texts()]
+        assert any(row.startswith("17.0s Test Leaper: Leap") for row in rows), rows
+        scrub(18.5)
+        assert token("Test Leaper").get_attribute("fill") == "#ef6262"          # the boss's colour, though it struck no one
+        before = token("Test Leaper").get_attribute("cx")
+        scrub(20.0)
+        assert token("Test Leaper").get_attribute("cx") != before               # its recorded positions move it
+        # the Boss casts panel lists the add's skill after the boss's, and its casts in order stay the boss's
+        page.locator('[data-actions="boss"]').click()
+        panel = page.locator(".cr-actions", has=page.locator('[data-actions="boss"]'))
+        panel.locator("table").first.wait_for()
+        skills = [" ".join(t.split()) for t in panel.locator("table").first.locator("tbody tr").all_inner_texts()]
+        assert skills[-1].startswith("Test Leaper boss's add Leap"), skills
+        order = [" ".join(t.split()) for t in panel.locator("table").nth(1).locator("tbody tr").all_inner_texts()]
+        assert order and not any("Test Leaper" in row for row in order), order
+        assert "Not listed here: 1 cast by the bosses' adds and clones" in panel.inner_text()
     finally:
         page.goto("about:blank")
         path.unlink()

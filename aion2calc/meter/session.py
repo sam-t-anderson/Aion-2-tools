@@ -220,6 +220,7 @@ class CombatSession:
         result.reset_splits = self.reset_splits
         result._pending_reset = self._pending_reset
         result._boss_hit_ms = dict(self._boss_hit_ms)
+        result._boss_adds = dict(self._boss_adds)
         result.boss_splits = self.boss_splits
         result.boss_kills = self.boss_kills
         result._boss_killed_ms = self._boss_killed_ms
@@ -349,6 +350,12 @@ class CombatSession:
         # full HP only counts as a leash/reset after a real lull (>= RESET_LULL_MS) in that
         # damage, so a stale/erratic "full" reading during continuous combat never splits it.
         self._boss_hit_ms = {}
+        # (epoch, NPC) the meter treats as a boss's add or clone (0.2.394): spawned near the boss, striking the party
+        # or casting at it while a catalog boss is being fought. Their casts and positions are kept like the boss's.
+        # Insertion-ordered (a dict), so the oldest are forgotten first; a kept cast carries its own mark.
+        self._boss_adds = {}
+        self._fight_cache = None          # (key, the bosses in play): _bosses_in_play answers once a second
+        self._npc_spot = {}               # (epoch, NPC) -> its last kept (x, y): where the boss being fought is
         self.reset_splits = 0
         # Staged ("potential") reset: the local player revived after dying during a boss
         # engagement (a graveyard release / runback). Never resets on its own — a
@@ -492,19 +499,83 @@ class CombatSession:
                 in_play.append(key)
         return in_play
 
+    def _bosses_in_play(self, now_ms, identity):
+        """The catalog bosses of this epoch being fought at ``now_ms``, as (epoch, entity): the party damaged (or
+        engaged) them within BOSS_HOLD_MS and they have not died. Answered once a second (an NPC's every hit on the
+        party asks)."""
+        cache_key = (self.epoch, int(now_ms) // 1000, len(self._boss_hit_ms), len(self._dead))
+        if self._fight_cache is not None and self._fight_cache[0] == cache_key:
+            return self._fight_cache[1]
+        spawns, found = identity["spawns"], []
+        for key, last in self._boss_hit_ms.items():
+            if key[0] != self.epoch or key in self._dead or now_ms - last >= BOSS_HOLD_MS:
+                continue
+            code = (spawns.get(key[1]) or {}).get("mobCode")
+            if code and npc_info(code).get("isBoss"):
+                found.append(key)
+        self._fight_cache = (cache_key, tuple(found))
+        return self._fight_cache[1]
+
+    #: Most a boss's add or clone spawns from the boss (game units, about 100 a metre). In the October dungeon runs
+    #: the clones spawned up to 56 m from Kromede's Desire and 70 m from Ferocious Horn Nuakum, the bosses' other
+    #: helpers mostly at the boss, while the dungeons' other NPCs came into view 50 to 120 m away; an open world's
+    #: crowd spawns anywhere.
+    ADD_SPAWN_RANGE = 10_000
+    #: How many adds the session remembers; the oldest are forgotten first (their kept casts keep their mark).
+    MAX_BOSS_ADDS = 20_000
+
+    def _mark_boss_add(self, identity, entity):
+        """Treat an NPC as a boss's add or clone from now on (0.2.394): not a player, not a player's summon and not a
+        catalog boss (whose records are kept anyway). Returns whether it is one."""
+        key = (self.epoch, entity)
+        if key in self._boss_adds:
+            return True
+        if entity in identity["names"] or entity in identity["owners"] or entity == identity.get("local_id"):
+            return False
+        code = (identity["spawns"].get(entity) or {}).get("mobCode")
+        if not code or npc_info(code).get("isBoss"):
+            return False
+        if len(self._boss_adds) >= self.MAX_BOSS_ADDS:
+            for old in list(self._boss_adds)[:self.MAX_BOSS_ADDS // 4]:
+                del self._boss_adds[old]
+        self._boss_adds[key] = None
+        return True
+
+    def _mark_spawned_adds(self, positions, identity):
+        """An NPC spawned near a catalog boss being fought is the boss's add or clone (a boss's leaping clone in
+        Ferocious Horn Den spawns some two hundred times a run). Marked before this read's casts are kept, so a
+        clone's first cast, sent with its spawn, is kept too. Where no position of the boss is known yet, any spawn
+        counts."""
+        spawned = [p for p in positions if p.get("src") == "spawn" and p.get("timestamp_ms") is not None]
+        if not spawned:
+            return
+        bosses = self._bosses_in_play(int(spawned[-1]["timestamp_ms"]), identity)
+        if not bosses:
+            return
+        spots = [self._npc_spot[key] for key in bosses if key in self._npc_spot]
+        for p in spawned:
+            if spots and min(math.hypot(p["x"] - x, p["y"] - y) for x, y in spots) > self.ADD_SPAWN_RANGE:
+                continue
+            self._mark_boss_add(identity, p["entity"])
+
     def _keep_actions(self, actions, identity):
         """Keep the decoded actions that concern the party: casts and cast ends by players and pets,
-        casts by catalog bosses, the local player's chain windows and MP, effects on players and pets
-        or applied by them (an enemy's own buffs are kept only once the party has hit that enemy),
-        and break-gauge readings."""
+        casts by catalog bosses and their adds and clones (0.2.394, marked ``add``), the local player's
+        chain windows and MP, effects on players and pets or applied by them (an enemy's own buffs are
+        kept only once the party has hit that enemy), and break-gauge readings."""
         players, owners, epoch = identity["names"], identity["owners"], self.epoch
         local = identity.get("local_id")
         ours = lambda actor: actor in players or actor in owners or actor == local
         for action in actions:
-            kind = action["kind"]
+            kind, add = action["kind"], False
             if kind == "cast" and not ours(action["actor"]):
                 code = (identity["spawns"].get(action["actor"]) or {}).get("mobCode")
-                keep = bool(code) and bool(npc_info(code).get("isBoss"))
+                add = (epoch, action["actor"]) in self._boss_adds
+                # An NPC casting at the party while a boss is fought is that boss's add (0.2.394).
+                if (not add and code and action.get("at_target") and ours(action.get("target"))
+                        and self._bosses_in_play(action["timestamp_ms"], identity)):
+                    add = self._mark_boss_add(identity, action["actor"])
+                keep = add or (bool(code) and bool(npc_info(code).get("isBoss")))
             elif kind in ("cast", "cast_end"):
                 keep = ours(action["actor"])
             elif kind == "mp":
@@ -534,6 +605,8 @@ class CombatSession:
             if len(self.actions) == self.actions.maxlen:
                 self.discarded_actions += 1
             stored = {**action, "epoch": epoch}
+            if add:
+                stored["add"] = True             # a boss's add's cast (0.2.394): exported with the boss's
             self.actions.append(stored)
             if kind == "effect":
                 if len(self._effects_held) >= 10_000:
@@ -544,8 +617,8 @@ class CombatSession:
     POSITION_EVERY_MS = 250
 
     def _keep_positions(self, positions, identity):
-        """Keep where the party's players and pets were, and the enemies that matter: catalog bosses, and
-        anything the party has hit (an open-world crowd's other movement is left out)."""
+        """Keep where the party's players and pets were, and the enemies that matter: catalog bosses, their adds
+        and clones (0.2.394), and anything the party has hit (an open-world crowd's other movement is left out)."""
         players, owners, spawns, epoch = identity["names"], identity["owners"], identity["spawns"], self.epoch
         local = identity.get("local_id")
         if len(self._position_kept) > 50_000:
@@ -555,11 +628,15 @@ class CombatSession:
             if ms is None or p["src"] not in _SOURCE_INDEX or not 0 <= entity <= 0xFFFFFFFF:
                 continue
             ms = int(ms)
-            if not (entity in players or entity in owners or entity == local or (epoch, entity) in self._boss_hit_ms):
-                code = (spawns.get(entity) or {}).get("mobCode")
-                if not (code and npc_info(code).get("isBoss")):
-                    continue
             key = (epoch, entity)
+            if not (entity in players or entity in owners or entity == local):
+                if not (key in self._boss_hit_ms or key in self._boss_adds):
+                    code = (spawns.get(entity) or {}).get("mobCode")
+                    if not (code and npc_info(code).get("isBoss")):
+                        continue
+                if len(self._npc_spot) >= 4096:
+                    self._npc_spot.clear()
+                self._npc_spot[key] = (p["x"], p["y"])
             last = self._position_kept.get(key)
             if last is not None and ms - last < self.POSITION_EVERY_MS and p["src"] not in ("start", "stop", "land", "spawn"):
                 continue
@@ -947,6 +1024,11 @@ class CombatSession:
                 # does not flag mini-bosses. Quick trash dies well inside that span.
                 target_code = identity["spawns"].get(event.target_id, {}).get("mobCode")
                 ekey = (self.epoch, event.target_id)
+                if (event.target_id in allowed and event.actor_id not in allowed
+                        and identity["spawns"].get(event.actor_id, {}).get("mobCode")
+                        and (self.epoch, event.actor_id) not in self._boss_adds
+                        and self._bosses_in_play(event.timestamp_ms, identity)):
+                    self._mark_boss_add(identity, event.actor_id)     # it strikes the party mid-boss: an add (0.2.394)
                 if event.actor_id in allowed and target_code:
                     self._boss_hit_ms[ekey] = event.timestamp_ms      # last party damage to this enemy
                     if len(self._boss_hit_ms) > 2048:                 # bound; keep this enemy's mark
@@ -1110,6 +1192,8 @@ class CombatSession:
         # The engine's lists hold one read's actions and positions: an observe without a new read (a settings
         # change names the character) must not keep them a second time.
         engine_actions, engine_positions = getattr(engine, "actions", None), getattr(engine, "positions", None)
+        if engine_positions and engine_positions is not self._kept_from[1]:
+            self._mark_spawned_adds(engine_positions, identity)
         if engine_actions and engine_actions is not self._kept_from[0]:
             self._keep_actions(engine_actions, identity)
         if engine_positions and engine_positions is not self._kept_from[1]:
@@ -2528,6 +2612,18 @@ class CombatSession:
                 during.append(row)
         return (list(before.values()) + during)[:LIMITS["movement"]]
 
+    @staticmethod
+    def _cap_npc_casts(npc_casts, entities, events):
+        """At most LIMITS["npc_casts"] boss and add casts a fight: every boss cast first, then the casts of the adds
+        that struck the party, then the rest, each in time order (0.2.394)."""
+        from ..combat.a2log import LIMITS
+        limit = LIMITS["npc_casts"]
+        if len(npc_casts) <= limit:
+            return npc_casts
+        struck = {e.get("source") for e in events if e.get("kind") == "damage"}
+        rank = lambda row: (0 if (entities.get(row["source"]) or {}).get("is_boss") else 1 if row["source"] in struck else 2)
+        return sorted(sorted(npc_casts, key=lambda row: (rank(row), row["t"]))[:limit], key=lambda row: row["t"])
+
     def _segment_actions(self, group, identity, actor_refs, players, entities, by_epoch):
         """A segment's casts, effects, break-gauge readings and chain windows for its a2log, on the
         segment's clock (seconds from its start). Only actors the segment already references appear:
@@ -2557,6 +2653,7 @@ class CombatSession:
         casts, effects, gauge, chains, last_gauge, chain_open = [], [], [], [], {}, {}
         resources, npc_casts, mp_before, mp_last = [], [], {}, {}
         local = actor_refs.get(identity.get("local_id"))
+        boss_fight = any(e.get("is_boss") for e in entities.values())    # a boss's adds' casts only in its fight (0.2.394)
         for a in window:
             kind, ms = a["kind"], a["timestamp_ms"]
             if kind == "mp":
@@ -2575,7 +2672,9 @@ class CombatSession:
                 continue
             if kind == "cast" and start - 3000 <= ms <= end + 1000 and party_ref(a["actor"]) is None:
                 source = actor_refs.get(a["actor"])
-                if source in entities and entities[source].get("is_boss") and start <= ms:
+                add = (a.get("add") and boss_fight and source in entities
+                       and entities[source].get("kind") == "enemy" and not entities[source].get("is_player"))
+                if source in entities and (entities[source].get("is_boss") or add) and start <= ms:
                     row = {"t": at(ms), "source": source, "skill_id": a["skill"], "skill": skill_name(a["skill"])}
                     target = actor_refs.get(a["target"])
                     if a["at_target"] and target and target != source:
@@ -2882,7 +2981,23 @@ class CombatSession:
                     health.append({"t": t, "entity": eid, "current": sample["current"],
                         "max": sample.get("max") or identity["spawns"].get(sample["entity"], {}).get("reportedMaxHp")})
             arena = self._segment_arena(group, identity, reference, events, entities)
+            # A boss fight lists the boss's adds and clones with casts or positions in it even when they never struck
+            # or were struck by the party (0.2.394), so their casts and movement have an entity to name. A fight with
+            # no boss lists none: its enemies are the ones the party fought.
+            # The a2log lists at most 2000 entities a fight (its validator drops the rest and their rows): the adds
+            # come after everyone the party fought, those that cast first.
+            if any(e.get("is_boss") for e in entities.values()):
+                times, rows = by_epoch.get(group["epoch"], ([], []))
+                for a in rows[bisect.bisect_left(times, group["start"]):bisect.bisect_right(times, group["end"] + 1000)]:
+                    if a["kind"] == "cast" and a.get("add") and a["actor"] not in actor_refs and len(entities) < 2000:
+                        reference(a["actor"])
+                adds = {entity for epoch, entity in self._boss_adds if epoch == group["epoch"]}
+                ptimes, prows = positions_by_epoch.get(group["epoch"], ([], [])) if adds else ([], [])
+                for row in prows[bisect.bisect_left(ptimes, group["start"]):bisect.bisect_right(ptimes, group["end"])]:
+                    if row[2] in adds and row[2] not in actor_refs and len(entities) < 2000:
+                        reference(row[2])
             casts, effects, gauge, chains, resources, npc_casts = self._segment_actions(group, identity, actor_refs, players, entities, by_epoch)
+            npc_casts = self._cap_npc_casts(npc_casts, entities, events)
             movement = self._segment_movement(group, actor_refs, players, entities, positions_by_epoch)
             if hits or events:
                 bosses = [e for e in entities.values() if e.get("is_boss")]
