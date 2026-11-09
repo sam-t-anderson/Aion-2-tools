@@ -819,6 +819,8 @@ def test_a_pvp_opponent_is_chosen_under_player_and_shows_their_side_of_the_fight
                 "(Templar skills: Nezekan's Shield ×3). An opponent does not heal your side.") in text
         [row] = [squash(r) for r in page.locator(SUMMARY).all_inner_texts()]
         assert row.startswith("Testranger") and row.endswith("Ranger 13,000 867 12,000 1,500 38 1")
+        # in the Ranger's colour: an entity's class is capitalised ("Ranger"), the colour table's keys are not
+        assert page.locator(SUMMARY).first.locator("td").first.evaluate("td => getComputedStyle(td).color") == "rgb(170, 211, 114)"
         assert "red: their HP" in page.locator(".cr-graph").inner_text()
         details = page.locator(".cr-details")
         details.locator('[data-detail="abilities"]').click()

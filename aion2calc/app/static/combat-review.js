@@ -222,7 +222,8 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
   const PIECE_LABELS = {after_kill: " (after the kill)", opening_blow: " (the boss's opening blow)"};
   const bossKeyIsMiniboss = key => MINIBOSS_CODES.has(String(key || "").replace(/^npc:/, ""));
   function preferences() { try {return JSON.parse(localStorage.getItem("a2-combat-colors")) || {};} catch (_) {return {}; } }
-  function color(cls) { const pref=preferences(); const candidate=(pref.colors || {})[cls] || defaults[cls] || "#e8cf8e"; return pref.enabled === false ? "#e8cf8e" : /^#[0-9a-f]{6}$/i.test(candidate) ? candidate : "#e8cf8e"; }
+  // A log names a party player's class in lower case ("ranger") and an entity's capitalised ("Ranger"), as an opponent's is.
+  function color(cls) { const key=String(cls || "").toLowerCase(); const pref=preferences(); const candidate=(pref.colors || {})[key] || defaults[key] || "#e8cf8e"; return pref.enabled === false ? "#e8cf8e" : /^#[0-9a-f]{6}$/i.test(candidate) ? candidate : "#e8cf8e"; }
   function settings(root,onSave) {
     const pref=preferences();
     root.innerHTML=`<label><input type="checkbox" data-enable ${pref.enabled!==false?"checked":""}> Use class colors</label><div class="row" style="gap:6px;margin:6px 0"><label>Palette <select data-palette><option value="">Choose a palette…</option>${Object.keys(PALETTES).map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("")}</select></label><button class="btn small" data-apply-palette>Apply</button></div><div class="cr-colors">${Object.keys(defaults).map(c=>`<label>${esc(c)} <input type="color" data-color="${c}" value="${color(c)}"></label>`).join("")}</div><button class="btn small" data-reset>Reset class colors</button>`;
