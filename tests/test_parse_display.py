@@ -46,7 +46,7 @@ def test_leaderboard_shows_parse_kill_time_date_and_can_sort_by_parse():
     # Parse is the first option, so the page opens on the best parses across all of PvE; Metric stays.
     assert '<select id="sort"><option value="parse">Parse</option><option value="score">Metric</option></select>' in LEADERBOARD_HTML
     assert "every ranked" in LEADERBOARD_JS and "every character's best" not in LEADERBOARD_JS
-    assert ".parse{" in SITE_CSS and ".q-gold{--q:#e5cc80}" in SITE_CSS
+    assert ".parse-badge{" in SITE_CSS and ".q-gold{--q:#e5cc80}" in SITE_CSS
 
 
 def test_review_player_table_shows_each_players_parse_above_ability_contribution():
@@ -56,4 +56,4 @@ def test_review_player_table_shows_each_players_parse_above_ability_contribution
     assert '...(parseColumn?["Parse"]:[])' in REVIEW_JS and "parseHTML(p)" in REVIEW_JS
     assert "const parseColumn=!!options.rankings" in REVIEW_JS
     assert REVIEW_JS.index("parseHTML(p)") < REVIEW_JS.index("Ability contribution")
-    assert ".parse{" in REVIEW_CSS and ".q-gold{--q:#e5cc80}" in REVIEW_CSS
+    assert ".parse-badge{" in REVIEW_CSS and ".q-gold{--q:#e5cc80}" in REVIEW_CSS

@@ -248,8 +248,11 @@ def test_top_parses_are_a_tab_of_their_own(browser, app_url):
         rows = page.locator("table.acct-parses tbody tr")
         assert rows.count() == 25
         assert page.locator("[data-pp-status]").inner_text() == "Page 1 of 2 · 30 parses"
-        best = [float(t) for t in page.locator("table.acct-parses tbody .parse:not(.q-none)").all_inner_texts()[:3]]
+        best = [float(t) for t in page.locator("table.acct-parses tbody .parse-badge:not(.q-none)").all_inner_texts()[:3]]
         assert best == sorted(best, reverse=True)                     # the best parses first
+        # a pill of its own class: none of the breakdown card's .parse (its margin, say) reaches it
+        badge = page.locator("table.acct-parses tbody .parse-badge").first
+        assert badge.evaluate("b => ['display', 'marginTop', 'borderTopLeftRadius'].map(k => getComputedStyle(b)[k])") == ["inline-block", "0px", "999px"]
         assert page.locator("[data-pp=prev]").is_disabled()
         page.click("[data-pp=next]")
         page.locator("[data-pp-status]").filter(has_text="Page 2 of 2").wait_for()
@@ -327,7 +330,7 @@ def test_a_0_2_170_servers_whole_list_is_paged_here(browser, app_url):
         page.wait_for_selector("table.acct-parses")
         assert page.locator("[data-pp-status]").inner_text() == "Page 1 of 2 · 30 parses"
         assert page.locator("table.acct-parses tbody tr").count() == 25
-        here = [float(t) for t in page.locator("table.acct-parses tbody .parse:not(.q-none)").all_inner_texts()]
+        here = [float(t) for t in page.locator("table.acct-parses tbody .parse-badge:not(.q-none)").all_inner_texts()]
         assert here == sorted(here, reverse=True)
         page.click('button[data-sort="dps"]')
         page.click('button[data-sort="dps"]')
