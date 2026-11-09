@@ -976,13 +976,82 @@ PvP fight is nobody's: the review leaves it out of both sides and says how many 
 0.2.399 log server drops them and keeps the count (`combat.healing.unattributed_heals`). Their heals over time still read
 high; the review's effective-healing note says so.
 
+*Doom Shield's phantom hit, left open here, is gone since 0.2.400: a hit's record names the shields that absorbed it,
+and the decoder no longer reads them as hits ([next section](#a-hit-a-shield-absorbed-the-shields-its-record-names-9-november-02400)).*
+
 **Still open.**
-- *Doom Shield's phantom hit.* A hit a shield absorbed carries, after its value, a count and the absorbing effect's number
-  (u32). Doom Shield's, 1,207,000,711, begins with the bytes `87 5e`, which read as a hit of 12,039, so each hit it absorbs
-  decodes as one more hit of 12,039: 49 hits in the arena capture, each inflating the attacker's damage and the Templar's
-  damage taken. Guarding Seal's, Poach's and Nezekan's Shield's numbers fail the multi-hit's range.
 - *The healers' rates* ([methodology, 0.2.386](methodology.md#heal-amounts-from-the-recorded-heals-02386)) were measured from
   the older meters' heal records, where a heal over time's ticks counted what was left of it (Light of Regeneration's
   59.1 full-value applications a minute among them), and are not re-measured yet.
 - Effect type `01` came twice in the arena capture, a Warding Strike with actor 0 and nothing after its amount; the
   decoder keeps reading it as a heal of its amount, as before. A team arena's records are unseen.
+
+## A hit a shield absorbed: the shields its record names (9 November, 0.2.400)
+
+The section above left open why a hit Doom Shield absorbed decoded as one more hit of 12,039. A hit's `04 38` record
+names the shields that absorbed it, and the decoder read them as Multi-Hits. Read from the 15, 20, 21 and 31
+October captures (raw TCP, with `lz4` for the compressed bundles):
+
+- **Bit 0x40 of the switch.** The switch is the varint after a hit's target: its low four bits are the layout, bit 0x20
+  says the record carries Multi-Hits (a count and each hit), and bit 0x40 that a shield absorbed the hit. After the hit's
+  values and its Multi-Hits the record then names the shields: a count (one byte) and each one's effect number (u32, the
+  skill times 100 plus the effect's index, as in the `05 38` records), before the two bytes that end a hit's record
+  (`01 00`, `02 00`, `03 00` and the HP the hit drained). All 1,209 hits with the bit read directly (of layouts 4 and 6;
+  more are read from inside other records) name one shield, 48 of them two or three, every one an effect the `05 38`
+  records show absorbing, and end there: 1,195 with a first byte of 1 to 7, 14 of 8 to 39. None of the other 58,497
+  names one. In the arena capture 286 of its 346 came in the same read as a named shield's absorb of the hit's whole
+  damage.
+- **What the decoder read.** With no Multi-Hits, it took the shields' count for a hit count and the first shield's
+  leading bytes, as a varint, for a hit, kept when it fell in the Multi-Hit's range (50 up to the larger of 500,000 and
+  the hit's damage). A hit smaller than that counted it on top; a larger one had it carved out of its damage as a
+  Multi-Hit. The shields the hits name, and what their numbers read as:
+
+  | Shield | Effect number | Read as |
+  |---|---:|---:|
+  | Doom Shield (Templar) | 1,207,000,711 | 12,039; with a second shield after it 21,240 |
+  | Grapple (Templar) | 1,222,000,021 | 7,829 |
+  | Guarding Seal (Templar) | 1,275,000,111 / 1,275,000,121 | 47 / 57 |
+  | Poach's shield (Templar) | 1,213,004,021 | 1,260,661 |
+  | Nezekan's Shield (Templar) | 1,232,000,021 / 031 / 041 | 21 / 31 / 41 |
+  | Steel Barrier (Sorcerer) | 1,516,001,011 to 1,516,004,011 | 11,123 to 12,587 |
+  | Siphon (Elementalist) | 1,606,003,011 | 67 |
+  | Yustiel's Power (Cleric) | 1,742,001,011 | 115 |
+  | Prayer of Concentration (Cleric) | 1,777,000,111 | 221,949,743 |
+  | Impeding Authority (Chanter) | 1,824,000,011 / 1,824,001,011 / 1,824,003,011 | 11 / 1,523 / 2,499 |
+  | Protection Circle (Chanter) | 1,873,000,211 / 1,873,000,311 | 19 / 119 |
+  | Ambush Kick (Ranger), one hit in the Abyss | 1,412,002,711 | 14,743 |
+
+- **Before and after.** Each capture replayed through 0.2.399 and 0.2.400 (the meter engine and session): every hit
+  that changes names shields and loses what the decoder read of them, and no other hit or heal changes.
+
+  | Capture | Hits counted too high | Damage no hit dealt | Multi-Hits carved out of a hit |
+  |---|---|---:|---:|
+  | 31 October, six arena matches by a Templar | 59: Doom Shield 54, Protection Circle 5 | 650,701 | 10 |
+  | 20 October, a dungeon run with a Templar | 41: Doom Shield 36 (4 with a second shield), Yustiel's Power 5 | 470,783 | 31 |
+  | 21 October, the Abyss | 71: Steel Barrier 28, Doom Shield 19, Protection Circle 11, Grapple 7, Yustiel's Power 2, Siphon 2, Impeding Authority 1, Ambush Kick 1 | 637,327 | 34 |
+  | 15 October, a dungeon run | none | 0 | 3 |
+
+  In the arena recording's review the Templar's damage taken drops by 14 to 35 % in five of the six matches (in the
+  first from 513,367 to 332,782), and the Templar's damage on the Chanter by 595. In the 20 October run the party's
+  damage taken drops in nine of the boss fights, by up to 44 %. The Abyss's are hits outside the party: its review does
+  not change. 0.2.399's count of 49 was of pairs of a hit and Doom Shield's absorb of its damage in the same read; they
+  are 47 hits (where a read holds two absorbs of the same amount, its hits count twice), and 7 more name Doom Shield
+  with no absorb in their read.
+
+**Since 0.2.400** the decoder's Multi-Hit parse stops where the shields begin (`parser.ABSORBED_BY`,
+`parser._shields_at`): with no Multi-Hits the shields' count is no hit count, nor is it one after a value the decoder
+skips, and no hit is read where they begin. A hit's damage is what it dealt; its Multi-Hits before the shields are read as
+before. A log holds a hit's total only, so a log recorded before 0.2.400 keeps these hits as they were.
+
+**Still open.**
+- *The rest of a hit a shield absorbed.* The strict walk of a hit's record (`parser._hit_tail`) does not read the
+  shields, so a hit with bit 0x40 takes the fallback, which loses some of the Multi-Hits the record carries (those under
+  50, and with switch 0x76 the count, taken for a field), and stops at the shields, leaving the HP the hit drained
+  (`03 00` and an amount after them) unread. Read through the strict walk and past the shields, the arena capture's
+  totals stay as they are, 63 of its hits a shield absorbed carry Multi-Hits, and 10 drains appear: three of 167 and one
+  of 178, as the same skill's hits no shield took drain, and six of 1 HP, a drain no hit without a shield shows. Not done
+  here: it changes the Multi-Hit counts and the healing of these hits.
+- *A hit's values beginning with two zeros.* The decoder reads a hit's values as a 0 (in most hits of layout 6), the
+  power scalar and the damage. 172 hits of the four captures begin with one 0 more, and the decoder, reading one, takes
+  the power scalar (9,000 to 17,060) for the damage and leaves the damage (a median of 2,407) unread: 233,960 too much in
+  the arena capture, 1.35 million in the four. 20 of them are hits a shield absorbed. Not checked against the HP feed yet.

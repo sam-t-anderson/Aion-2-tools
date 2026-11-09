@@ -51,6 +51,28 @@ def _varint_ending_at(data: bytes, end: int, minimum_start: int,
     return fallback
 
 
+#: Switch bit 0x40 of a ``04 38`` hit: a shield absorbed it (0.2.400). After the hit's values and its multi-hits, the
+#: record names the shields: a count (u8) and that many effect numbers (u32, the skill times 100 plus the effect's
+#: index), Doom Shield's 1,207,000,711 or Guarding Seal's 1,275,000,111. Read as multi-hits, Doom Shield's bytes
+#: ``87 5e`` were one more hit of 12,039 (docs/open-investigations.md).
+ABSORBED_BY = 0x40
+#: The most shields one hit's record names; the archived captures hold up to three.
+ABSORBED_BY_MAX = 8
+
+
+def _shields_at(data: bytes, pos: int) -> bool:
+    """Whether the shields a hit's record names (``ABSORBED_BY``) start at ``pos``: a count of 1 to ``ABSORBED_BY_MAX``,
+    that many effect numbers, each of a skill id of seven digits or more, and the record's end. The end is the data's,
+    the next ``04 38`` record, or a byte and a 0: in the captures, 1 to 7 after 1,195 hits a shield absorbed, and 8 to
+    39 after 14."""
+    if pos >= len(data) or not 1 <= data[pos] <= ABSORBED_BY_MAX:
+        return False
+    end = pos + 1 + 4 * data[pos]
+    rest = data[end:end + 2]
+    return (end <= len(data) and (not rest or rest == b"\x04\x38" or (len(rest) == 2 and rest[0] != 0 and rest[1] == 0))
+            and all(int.from_bytes(data[at:at + 4], "little") >= 100_000_000 for at in range(pos + 1, end, 4)))
+
+
 def _hit_tail(data: bytes, offset: int, layout: int, switch: int, value: int):
     def parse_as(candidate_layout: int):
         pos, field = offset, 0
@@ -251,15 +273,20 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
                 offset = field[1]
         hit_count = 0
         pre_hit_offset = offset
+        # A hit a shield absorbed names the shields after its values and multi-hits (ABSORBED_BY), and its multi-hits
+        # end there: the shields' count is no hit count, and their effect numbers are no hits.
+        absorbed = strict_tail is None and bool(switch_value & ABSORBED_BY)
+        shields_first = absorbed and not switch_value & 0x20 and _shields_at(frame, offset)    # no multi-hits
         marker = offset + 1 < len(frame) and frame[offset + 1] == 0 and 1 <= frame[offset] <= 7
-        if strict_tail is None and offset < len(frame) and not marker:
+        if strict_tail is None and not shields_first and offset < len(frame) and not marker:
             peek = _var(frame, offset)
             if peek and 0 <= peek[0] <= 25:
                 hit_count, offset = peek
             elif peek:
                 marker_after = (peek[1] + 1 < len(frame) and frame[peek[1] + 1] == 0
                                 and 1 <= frame[peek[1]] <= 7)
-                actual = _var(frame, peek[1]) if not marker_after else None
+                shields_after = absorbed and _shields_at(frame, peek[1])
+                actual = _var(frame, peek[1]) if not marker_after and not shields_after else None
                 if actual and 0 <= actual[0] <= 25:
                     hit_count, offset = actual
                 else:
@@ -272,7 +299,7 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
                 marker_next = (offset + 1 < len(frame) and frame[offset + 1] == 0
                                and 1 <= frame[offset] <= 7)
                 next_packet = frame[offset:offset + 2] == b"\x04\x38"
-                if marker_next or next_packet:
+                if marker_next or next_packet or (absorbed and _shields_at(frame, offset)):
                     break
                 nxt = _var(frame, offset)
                 if not nxt:
