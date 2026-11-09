@@ -267,21 +267,17 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
         if second is None:
             break
         second_value, after_second = second
-        damage = first_value
         if first_value == 0:
             third = _var(frame, after_second)
             if third:
                 first_value, second_value = second_value, third[0]
-                after_first, after_second = after_second, third[1]
+                after_second = third[1]
         offset = after_second
-        first_is_damage = (1_000 <= first_value <= 99_999_999 and 0 <= second_value <= 25
-                           and first_value <= 5_000_000 and layout == 6 and damage_type == 3)
-        power_scalar = first_value if not first_is_damage and 1_000 <= first_value <= 200_000 else 0
-        if not first_is_damage:
-            damage = second_value
-        else:
-            damage = first_value
-            offset = after_first
+        # The first value is the power scalar and the second the hit's damage, a critical hit's too (0.2.405). A rule
+        # took a critical layout-6 hit's first value for its damage when the second was 25 or less, so a critical hit
+        # of 1 counted its attacker's power scalar, 10,000 to 17,250 (docs/open-investigations.md).
+        power_scalar = first_value if 1_000 <= first_value <= 200_000 else 0
+        damage = second_value
         if not 0 <= damage <= 99_999_999:
             break
         multi_count = multi_damage = 0

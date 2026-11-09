@@ -1138,9 +1138,36 @@ Replayed through 0.2.402 and 0.2.403, every change is one of these, and no hit's
   223, as if a drain were a share of the HP a hit takes, and at least 1. The HP feed cannot check a drain either way: the drains
   the decoder read before show in the attacker's HP in 7 of 331 windows between readings.
 
-**Still open.**
-- *A critical hit of 25 or less counts its power scalar.* The decoder takes a critical layout-6 hit's first value for
-  its damage when the second is 25 or less (`first_is_damage` in `parse_damage_packet`), but the first is the power
-  scalar and the second the hit. In the arena capture 79 such hits counted 997,092 more than their values, in the Abyss
-  capture 217 counted 2,953,842 more. In 202 reads where the target's HP readings bracket them, the HP drop equals the
-  small value, and in none the decoded one.
+*A critical hit of 25 or less, left open here, counts its value since 0.2.405
+([next section](#a-critical-hit-of-25-or-less-the-first-value-is-the-power-scalar-9-november-02405)).*
+
+## A critical hit of 25 or less: the first value is the power scalar (9 November, 0.2.405)
+
+The section above left open a rule of `parse_damage_packet`'s, `first_is_damage`: a critical layout-6 hit whose second
+value was 25 or less had its first value taken for its damage, and its second value for the start of its multi-hits.
+Read from the 15, 20, 21 and 31 October captures, the rule was never right:
+
+- **The first value is the power scalar.** In all 298 such hits read directly, the first value is 10,000 to 17,250, the
+  power scalars of the 933 hits that are not critical and have a value of 25 or less too, which the decoder reads as
+  the small value (9,000 to 17,250). The small value is 1 in 141 of the 298.
+- **The second is the hit.** Where a target's HP readings bracket the read, its HP drop equals the hits with the small
+  value in 204 reads and with the decoded one in none. All 51 absorbs of a shield on these hits took the small value.
+- **The fight's totals bear it out.** In the arena capture, a fighter's damage taken now comes to about the HP the feed
+  shows them losing plus the healing they received, as it does for the fighters the rule never touched: the Templar in
+  the match against the Assassin took 146,602 (104,143 lost, 46,391 healed), where 0.2.404 counted 476,029, and in the
+  first match 18,939 (12,376 lost), where it counted 320,537.
+
+**Since 0.2.405** the decoder reads a critical hit's values as any hit's: the power scalar, then the hit. Replayed
+through 0.2.404 and 0.2.405, every change is such a hit, now counting its value with its power scalar recorded:
+
+| Capture | Hits | Damage removed |
+|---|---:|---:|
+| 31 October, six arena matches by a Templar | 80 | 1,011,256 |
+| 21 October, the Abyss | 235 (17 of them read from inside other records) | 3,206,076 |
+| 20 and 15 October, the dungeon runs | none | 0 |
+
+In the arena recording's review the Templar's damage taken drops in four of the six matches, by up to 94 % (the first
+match, 320,537 to 18,939), and their damage dealt in the first by 43 %. One of the Abyss hits read from inside another
+record is malformed past its own effect number (its u32 after it reads 4,065,329,277, where every hit read directly has 1 to 5): it
+read 2,802 before and 3 now, and neither can be trusted. A log holds a hit's total only, so a log recorded before 0.2.405
+keeps these hits as they were.
