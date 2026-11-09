@@ -1,4 +1,4 @@
-"""Healing amounts, measured from the log server's uploads (0.2.386).
+"""Healing amounts, measured from the log server's uploads (0.2.386; the heals over time re-measured in 0.2.401).
 
 **A heal restores its tooltip's value at the skill's level times (1 + Attack / 2,000).** Each healer's recorded
 heals were set against the tooltip's mid value at the healer's own skill level (the official profile's, which the
@@ -11,13 +11,20 @@ and buffs are not on the profile):
   Absolution; recorded over predicted 0.96-1.06 between the quartiles), 1 + Attack / 1,993 over 38 Chanter rows
   (Recuperation). :data:`HEAL_ATTACK_SCALE` is the round 2,000 both sit on.
 
-The game reports what a heal restored, at most the HP its target was missing, so a heal over time's recorded ticks
-sit below the formula (Light of Regeneration's median at 0.55-0.70 of it) while their tenth largest match it
-(6,843 recorded against 6,440 predicted, 8,431 against 8,274). What healers do in a boss fight is therefore kept as
-recorded: :data:`HEAL_RATES` holds, per heal skill, the recorded healing over the healer's predicted full value of one
-application, in applications a minute; a build's modelled healing is those rates times its own values (its skill
-levels and its Attack). Pooled over 335 Cleric-minutes and 334 Chanter-minutes of boss fights in 20 recordings (6
+What healers do in a boss fight is kept as recorded: :data:`HEAL_RATES` holds, per heal skill, the recorded healing
+over the healer's predicted full value of one application, in applications a minute; a build's modelled healing is
+those rates times its own values (its skill levels and its Attack). Pooled over the boss fights of 20 recordings (6
 November 2026; a fight several party members uploaded counts once).
+
+**Heals over time (0.2.401).** A heal over time holds an HP pool. Light of Regeneration's is the formula's value (its
+recorded pools' median at 1.04 of it, over 1,796 pools) and each of its fifteen ticks takes a fifteenth of it. Meters
+before 0.2.399 recorded the pool when it was cast and then what was left of it at every tick, the sequence 0.2.386
+read as ticks capped by missing HP (a median of 0.55-0.70 of the formula, the tenth largest at it), and the rates
+of Light of Regeneration and Recuperation counted it. Each is now 0.2.386's rate times the share of its recorded
+healing that its ticks took in the same 20 recordings, the drops from one record of a pool to the next: Light of
+Regeneration 10.6 % (59.1 to 6.3 full heals a minute), Recuperation 63.6 % with its instant heals (32.0 to 20.4).
+Benevolence's ticks are recorded one by one and the instant heals whole, so their rates stand (docs/methodology.md,
+"Heal rates from what the heals over time took").
 
 Only the healers are modelled: the other classes' heals are their potions and a few self-heals, and the simulator
 spreads a healer's heal presses over the rotation's time without simulating them (``sim.engine.Action.heal``).
@@ -29,10 +36,13 @@ HEAL_ATTACK_SCALE = 2000.0
 
 #: Per class, per heal skill: (full-value applications a minute in a boss fight, the share that heals the caster).
 #: The caster's share is the tooltip's: Healing Light heals the caster and the lowest-HP member (half), the party
-#: heals the caster and the party within 40 m (the recordings reach five players a cast, the Chanter's six).
+#: heals the caster and the party within 40 m (the recordings reach five players a cast, the Chanter's six). The two
+#: heals over time whose records counted what was left of them are 0.2.386's rates times the share of the recorded
+#: healing their ticks took (0.2.401).
 HEAL_RATES = {
     "cleric": {
-        17090000: (59.1, 0.20),       # Light of Regeneration: a tick every 2 s for 30 s on everyone in range
+        17090000: (6.3, 0.20),        # Light of Regeneration: its whole heal, 15 ticks in 30 s, on everyone in
+                                      # range (0.2.386's 59.1 x 10.6 %)
         17800000: (36.4, 0.20),       # Radiant Benediction (passive): a heal on landing an attack, once in 5 s
         17120000: (15.2, 0.20),       # Radiant Recovery
         17100000: (11.5, 0.50),       # Healing Light: the caster and the party member with the lowest HP
@@ -40,19 +50,23 @@ HEAL_RATES = {
         17290000: (1.0, 0.20),        # Absolution (stigma), when slotted (3 healers)
     },
     "chanter": {
-        18120000: (32.0, 1 / 6),      # Recuperation: a heal, then a tick every 2 s for 8 s
+        18120000: (20.4, 1 / 6),      # Recuperation: a heal, then a heal over time ticking every 2 s for 8 s
+                                      # (0.2.386's 32.0 x 63.6 %)
     },
 }
 
 NOTE = ("Healing is modelled for the healers: each heal restores its tooltip's value at the skill's level times "
         "(1 + Attack / 2,000), measured from recorded heals (Clerics 1 + Attack / 1,914, Chanters 1 + Attack / 1,993). "
-        "How often a healer heals and how much of it lands on missing HP are the recorded healers' in boss fights; a "
-        "different party, a different fight or more damage taken change both.")
+        "How often a healer heals is the recorded healers' in boss fights, a heal over time counted by what its ticks "
+        "took; a different party, a different fight or more damage taken change it.")
 
 
 def tooltip_value(cd, sid: int, level: int) -> float | None:
-    """The mid value of one application of a heal at ``level``: an instant heal's range, a tick of a heal over time,
-    or for Recuperation the heal and its four ticks averaged over the five."""
+    """The mid value of one application of a heal at ``level``: an instant heal's range; Light of Regeneration's
+    whole heal over time (its tooltip's range, which by the records is the pool its fifteen ticks share, not a
+    tick); a tick of Benevolence; or for Recuperation 0.2.386's unit, the heal and four times the tooltip's
+    over-time value averaged over the five (by the records that value is the whole heal over time: a pool of four
+    ticks holds 0.95 of it times the multiplier)."""
     try:
         v = cd.vals(sid, level)
     except KeyError:

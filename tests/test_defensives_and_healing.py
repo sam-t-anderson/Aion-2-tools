@@ -1,5 +1,5 @@
 """0.2.386: heal amounts, every class's defensives in World PvP, incoming crowd control, Storm Slice and the boss's
-parries against Accuracy."""
+parries against Accuracy; 0.2.401: the heals over time's rates from what their ticks took."""
 from dataclasses import replace
 
 import pytest
@@ -49,6 +49,28 @@ def test_a_heal_is_its_tooltip_value_times_one_plus_attack_over_two_thousand():
     v = ch.vals(18120000, 10)
     ticks = round(v[5]["ms"] / v[4]["ms"])
     assert H.tooltip_value(ch, 18120000, 10) == pytest.approx(((v[0][0] + v[1][0]) / 2 + ticks * v[3]) / (1 + ticks))
+
+
+def test_the_heals_over_time_count_what_their_ticks_took():
+    """0.2.401: Light of Regeneration's and Recuperation's rates are 0.2.386's times the share of their recorded healing
+    that their ticks took in the same logs (10.6 % and 63.6 %; docs/methodology.md, "Heal rates from what the heals
+    over time took"). The instant heals and Benevolence were read right and keep 0.2.386's rates."""
+    cd = ClassData("cleric")
+    lor = H.HEAL_RATES["cleric"][17090000][0]
+    assert lor == pytest.approx(59.1 * 0.1059, abs=0.05)
+    assert H.HEAL_RATES["chanter"][18120000][0] == pytest.approx(32.0 * 0.6362, abs=0.05)
+    # one whole Light of Regeneration a cooldown on each of the five players it reaches is the most it can heal:
+    # 0.2.386's 59.1 was six times that
+    assert lor <= 60 / min(cd.skills[17090000]["cd"]) * 5
+    assert {sid: rate for sid, (rate, _) in H.HEAL_RATES["cleric"].items() if sid != 17090000} == {
+        17800000: 36.4, 17120000: 15.2, 17100000: 11.5, 17160000: 32.3, 17290000: 1.0}
+    # the caster's shares are the tooltips', which the rebuild does not move
+    assert H.HEAL_RATES["cleric"][17090000][1] == 0.20 and H.HEAL_RATES["chanter"][18120000][1] == pytest.approx(1 / 6)
+    # so Light of Regeneration is no longer most of a typical Cleric's healing (80 % at 59.1)
+    b = typical_build("cleric")
+    _, pb, _, stats = prepare(b, boss("cleric_l45_global_median"))
+    out = H.modelled_healing("cleric", pb, cd, stats.derived())
+    assert next(r for r in out["by_skill"] if r["skill_id"] == 17090000)["share"] < 0.5
 
 
 def test_a_healers_time_and_the_reports_carry_the_modelled_healing():

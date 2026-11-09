@@ -982,7 +982,10 @@ and the decoder no longer reads them as hits ([next section](#a-hit-a-shield-abs
 **Still open.**
 - *The healers' rates* ([methodology, 0.2.386](methodology.md#heal-amounts-from-the-recorded-heals-02386)) were measured from
   the older meters' heal records, where a heal over time's ticks counted what was left of it (Light of Regeneration's
-  59.1 full-value applications a minute among them), and are not re-measured yet.
+  59.1 full-value applications a minute among them). *Re-measured in 0.2.401* from the same stored logs, each pool's
+  records differenced into what its ticks took: Light of Regeneration 6.3, Recuperation 20.4, the instant heals and
+  Benevolence unchanged ([methodology](methodology.md#heal-rates-from-what-the-heals-over-time-took-02401)). Stored
+  logs themselves still show the inflated heals over time; the same differencing could repair them when read.
 - Effect type `01` came twice in the arena capture, a Warding Strike with actor 0 and nothing after its amount; the
   decoder keeps reading it as a heal of its amount, as before. A team arena's records are unseen.
 
