@@ -1,3 +1,11 @@
+## Regeneration is healing, and the hit it answered counts whole (0.2.406)
+
+**Regeneration.** When a player's Regeneration triggers on a hit, the game's record of the hit carries the HP it gave back: a fifth of what got past the player's shields. Since 0.2.402 the meter took that fifth off the hit, as damage the hit never dealt, and counted no healing for it. The hit deals its whole value and Regeneration then heals the fifth: the record keeps the hit whole, where a block or Endurance halves it, and the client's text says Regeneration "Recovers a portion of Damage as HP". Each such hit now counts whole for its attacker and its target, and the fifth is the target's own healing, named *Regeneration*, in the live meter, the overlay, the review and the saved log. The review's effective healing counts it in full, since it gives back part of what the same hit took. The HP the target lost is unchanged.
+
+**What it changes.** Across fourteen archived recordings, 529 hits count 203,979 more damage, and their targets as much more healing: 57 hits and 7,592 HP in six arena matches by a Templar, 70 hits and 44,090 HP in a dungeon run of 20 October.
+
+**Older logs.** A log holds each hit's total, so a log recorded before 0.2.406 keeps these hits as they were recorded, with no Regeneration healing.
+
 ## A critical hit of 25 or less counts its damage, not its attacker's power scalar (0.2.405)
 
 **Small critical hits.** A hit's record carries its attacker's power scalar and then its damage. For a critical hit of 25 or less the meter took the power scalar for the damage, so a critical hit of 1 counted 10,000 to 17,250. In a recording of six arena matches by a Templar, 80 such hits added 1,011,256 of damage no hit dealt, and in an Abyss recording of 21 October 235 added 3,206,076. The Templar's damage taken in the review drops in four of the six matches, by up to 94 % (the first: 320,537 recorded, 18,939 taken), and now comes to about the HP the game shows them losing plus the healing they received. Their damage dealt in the first match drops by 43 %. Each critical hit now counts its damage, in the live meter, the review and the saved log.

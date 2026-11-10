@@ -6,7 +6,7 @@ archived captures the first value was a power scalar (10,000 to 17,250), the tar
 and by the first in none, and a shield's absorb took the second in all 51 it was on. A critical hit of 1 counted 10,000 or
 more (docs/open-investigations.md). Synthetic records only, with the fields the captures carry."""
 from aion2calc.meter.a2parser.models import SpecialDamage
-from test_damage_lost_before_hp import _event, _hit
+from test_regeneration import _event, _hit
 
 CRITICAL = 3
 

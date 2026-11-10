@@ -17,7 +17,8 @@ from importlib.resources import files
 
 from .framing import FrameKind, decompress_bundle, read_varint, walk, walk_inner
 from .models import DamageEvent, HealEvent, SpecialDamage
-from .lookup import has_skill, is_heal_skill, normalize_skill, decode_spec_flags, job_from_roster, restored_resource
+from .lookup import (REGENERATION_SKILL, has_skill, is_heal_skill, normalize_skill, decode_spec_flags, job_from_roster,
+                     restored_resource)
 
 try:
     DOT_SKILLS = set(json.loads(files(__package__).joinpath("data", "dot_skill_ids.json").read_text(encoding="utf-8")))
@@ -58,12 +59,13 @@ def _varint_ending_at(data: bytes, end: int, minimum_start: int,
 ABSORBED_BY = 0x40
 #: The most shields one hit's record names; the archived captures hold up to three.
 ABSORBED_BY_MAX = 8
-#: Modifier bit 0x20 of a layout-6 hit (decoded as ``SpecialDamage.SMITE``): the varint after the modifiers is then
-#: what the hit lost before it reached HP, a fifth of its value when no shield took it, and the target's HP drops by
-#: the value less it (0.2.402). Without the bit the varint is 0. From 128 on it takes two bytes, which the decoder read
-#: as one: the values then began with a second 0, and it took the power scalar for the hit's damage
+#: Modifier bit 0x20 of a layout-6 hit (decoded as ``SpecialDamage.SMITE``): the target's Regeneration gave back part
+#: of the hit, and the varint after the modifiers is the HP it gave back, a fifth of what got past the target's shields
+#: (0.2.406). The hit dealt its whole value, and the target's HP drops by the value less what the shields took and the
+#: fifth. Without the bit the varint is 0. From 128 on it takes two bytes, which the decoder read as one before
+#: 0.2.402: the values then began with a second 0, and it took the power scalar for the hit's damage
 #: (docs/open-investigations.md).
-LOST_BEFORE_HP = 0x20
+REGENERATION = 0x20
 
 
 def _shields_end(data: bytes, pos: int) -> int | None:
@@ -234,7 +236,7 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
         damage_type, offset = dtype
         skip = {4: 8, 5: 12, 6: 10, 7: 14}[layout]
         specials: set[SpecialDamage] = set()
-        lost = 0
+        regenerated = 0
         if layout in (5, 6, 7) and offset < len(frame):
             mods = frame[offset]
             for mask, flag in ((2, SpecialDamage.PARRY), (4, SpecialDamage.PERFECT),
@@ -243,14 +245,15 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
                 if mods & mask:
                     specials.add(flag)
             direction_at = offset + 2
-            if layout == 6 and mods & LOST_BEFORE_HP:
-                # After the modifiers comes a varint (LOST_BEFORE_HP): from 128 it takes two bytes, and the direction,
-                # the hit's own effect and the values come after it. Without the bit it is a single 0.
+            if layout == 6 and mods & REGENERATION:
+                # After the modifiers comes a varint, the HP the target's Regeneration gave back (REGENERATION): from
+                # 128 it takes two bytes, and the direction, the hit's own effect and the values come after it. Without
+                # the bit it is a single 0.
                 field = _var(frame, offset + 1)
                 if field is not None:
                     direction_at = field[1]
                     skip += field[1] - (offset + 2)
-                    lost = field[0]
+                    regenerated = field[0]
             if direction_at < len(frame):
                 if frame[direction_at] == 1:
                     specials.add(SpecialDamage.BACK)
@@ -366,8 +369,9 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
         if compact_resolved:
             damage = second_value - multi_damage
             skill = compact_context[1]
-        if 0 < lost <= damage:
-            damage -= lost                  # what the hit took off HP; its multi-hits stay as recorded
+        # The target's Regeneration gave back part of the hit (REGENERATION): the hit dealt its whole value, and the
+        # target healed itself of what Regeneration gave back (0.2.406). 0.2.402 to 0.2.405 took it off the hit.
+        regeneration = regenerated if 0 < regenerated <= damage else 0
         normalized_skill = skill if compact_resolved else normalize_skill(skill)
         heal_amount = 0
         if offset + 1 < len(frame) and frame[offset:offset + 2] == b"\x03\x00":
@@ -390,6 +394,8 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
                                    multi_count, multi_damage,
                                    decode_spec_flags(compact_context[1] if compact_resolved else raw_skill),
                                    power_scalar))
+            if regeneration:
+                out.append(HealEvent(target_id, REGENERATION_SKILL, regeneration, timestamp_ms, False, target_id))
             if heal_amount:
                 out.append(HealEvent(actor_id, normalized_skill, heal_amount, timestamp_ms))
         elif damage > 1 and known_players is not None and actor_id in known_players:
@@ -1949,7 +1955,9 @@ def decode_stream(data: bytes, timestamp_ms: int | None = None,
                         seen.discard(order.popleft())
                     seen.add(raw_key)
                     order.append(raw_key)
-                    yield from recovered_damage
+                    # Its hits, and the Regeneration each gave its target (0.2.406): the hit counts whole.
+                    yield from (event for event in recovered
+                                if isinstance(event, DamageEvent) or event.skill_code == REGENERATION_SKILL)
             if effect is not None:
                 continue
     read = list(walk_packets(data, inner=False, depth=0))
