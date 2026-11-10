@@ -115,10 +115,10 @@ function renderParse(d) {
     ${rc("Hits", n0(hits))}${rc("Crit", rate(d.rates.crit))}${rc("Back", rate(d.rates.back))}${rc("Front", rate(d.rates.front))}${rc("Double", rate(d.rates.double))}${rc("Perfect", rate(d.rates.perfect))}${rc("Multi", rate(d.rates.multi))}${rc("Parried", rate(d.rates.parry))}</div><p class="small muted pnotes">${accNote}</p></section></div>`;
   const defense = d.incoming;
   const defNote =
-    "Damage received and parry flags are measured from decoded hits. Avoided attacks and pre-mitigation damage are unavailable; armor, mitigation and dodge percentages cannot be inferred from received damage alone.";
+    "Damage received and the parry, shield block and Endurance flags are measured from decoded hits. Avoided attacks and pre-mitigation damage are unavailable; armor, mitigation and dodge percentages cannot be inferred from received damage alone.";
   const defPanel = `<div class="ppanel" data-pane="def"${at === "def" ? "" : " hidden"}><section class="psec pdef">${heading("Defense", defense ? defNote : "")}${
     defense
-      ? `<div class="prates">${rc("Damage taken", kfmt(defense.damage))}${rc("Incoming hits", n0(defense.hits))}${rc("Parried hits", n0(defense.parries))}${rc("Healing done", kfmt(d.healing || 0))}</div><table class="t"><tr><th>Attacker</th><th>Damage taken</th></tr>${Object.entries(
+      ? `<div class="prates">${rc("Damage taken", kfmt(defense.damage))}${rc("Incoming hits", n0(defense.hits))}${rc("Parried hits", n0(defense.parries))}${rc("Shield blocks", n0(defense.shield_blocks))}${rc("Endurance", n0(defense.endurance))}${rc("Healing done", kfmt(d.healing || 0))}</div><table class="t"><tr><th>Attacker</th><th>Damage taken</th></tr>${Object.entries(
           defense.sources || {},
         )
           .sort((a, b) => b[1] - a[1])

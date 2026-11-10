@@ -1098,9 +1098,11 @@
     const target=snap.current_target&&!snap.current_target.is_player?snap.current_target.name:(snap.boss||"");
     const tiles=[["Total damage",kfmt(p.damage)],["DPS",kfmt(p.dps)+"/s"],["Contribution",pct(p.share)],["Combat time",fmtSecs(snap.duration)],
       ["Hits",String(p.hits||0)],["Parry",pct(p.parry)],["Crit",pct(p.crit)],["Front",pct(p.front)],["Back",pct(p.back)],["Perfect",pct(p.perfect)],["Double",pct(p.double)],
-      ["Parried in",String(p.incoming&&p.incoming.parries||0)]];
+      ["Parried in",String(p.incoming&&p.incoming.parries||0)],["Shield blocks",String(p.incoming&&p.incoming.shield_blocks||0)],
+      ["Endurance",String(p.incoming&&p.incoming.endurance||0)]];
     const titles={"Parry":"Share of this player's hits the enemy parried","Front":"Share of hits landed from the front","Back":"Share of hits landed from behind",
-      "Perfect":"Share of perfect hits","Double":"Share of double hits","Parried in":"Hits on this player that they parried","Combat time":active!=null?`Fight time; this player dealt damage in ${fmtSecs(active)} of it`:"Fight time"};
+      "Perfect":"Share of perfect hits","Double":"Share of double hits","Parried in":"Hits on this player that they parried","Shield blocks":"Hits on this player that they blocked with their shield",
+      "Endurance":"Hits on this player that their Endurance halved","Combat time":active!=null?`Fight time; this player dealt damage in ${fmtSecs(active)} of it`:"Fight time"};
     const key=String(p.key||p.id);
     const spark=showGraph?sparkLine(playerHist.get(key),barColor(p.class)):"";   // the DPS trend, with the graph on
     const skills=(Array.isArray(p.skills)?p.skills:[]).slice(0,8);

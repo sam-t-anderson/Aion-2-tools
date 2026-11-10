@@ -87,9 +87,14 @@ def target_filter(targets) -> frozenset:
     return frozenset(t for t in (targets or ()) if t in TARGET_FILTERS)
 
 
-#: Each special-damage flag and the per-hit counter it feeds in a player's row.
+#: Each special-damage flag and the per-hit counter it feeds in a player's row: the share of their hits with it. A
+#: parry, a shield block and Endurance are the target's (0.2.407: the shield block and Endurance were not read).
 _SPECIAL_COUNTS = ((SpecialDamage.CRITICAL, "crit"), (SpecialDamage.BACK, "back"), (SpecialDamage.FRONTAL, "front"),
-                   (SpecialDamage.DOUBLE, "double"), (SpecialDamage.PERFECT, "perfect"), (SpecialDamage.PARRY, "parry"))
+                   (SpecialDamage.DOUBLE, "double"), (SpecialDamage.PERFECT, "perfect"), (SpecialDamage.PARRY, "parry"),
+                   (SpecialDamage.SHIELD_BLOCK, "shield_block"), (SpecialDamage.ENDURANCE, "endurance"))
+#: The player's own defensive procs on the hits they took, each counted in their row's ``incoming``.
+_INCOMING_COUNTS = ((SpecialDamage.PARRY, "parries"), (SpecialDamage.SHIELD_BLOCK, "shield_blocks"),
+                    (SpecialDamage.ENDURANCE, "endurance"))
 
 
 def _summon_label(skill_id: int) -> str:
@@ -1834,8 +1839,10 @@ class CombatSession:
     @staticmethod
     def _actor(actor_id, name, job=None):
         return {"id": str(actor_id), "name": name, "class": class_key_of(job),
-                "damage": 0, "hits": 0, "healing": 0, "skills": {}, "incoming": {"damage": 0, "hits": 0, "parries": 0, "sources": {}},
-                "counts": {key: 0 for key in ("crit", "back", "front", "double", "perfect", "multi", "parry")}}
+                "damage": 0, "hits": 0, "healing": 0, "skills": {},
+                "incoming": {"damage": 0, "hits": 0, **{key: 0 for _, key in _INCOMING_COUNTS}, "sources": {}},
+                "counts": {key: 0 for key in ("crit", "back", "front", "double", "perfect", "multi", "parry",
+                                              "shield_block", "endurance")}}
 
     def _correlate_identities(self, groups, allowed_for, self_ids):
         """Fold a player's re-registered combat actor IDs together for the live view.
@@ -2141,7 +2148,8 @@ class CombatSession:
                     row = player(identity, epoch, event.target_id)
                     incoming = row["incoming"]
                     incoming["damage"] += damage; incoming["hits"] += 1
-                    incoming["parries"] += int(SpecialDamage.PARRY in event.specials)
+                    for flag, key in _INCOMING_COUNTS:
+                        incoming[key] += int(flag in event.specials)
                     source = named(epoch, event.actor_id, True)
                     incoming["sources"][source] = incoming["sources"].get(source, 0) + damage
             offset += max(1, int((group["end"] - group["start"]) / 1000) + 1)

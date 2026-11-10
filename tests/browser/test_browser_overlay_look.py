@@ -19,7 +19,7 @@ def fight(local_name="Nyxara"):
     for i, (name, cls, dps) in enumerate(PARTY):
         rows.append({"id": str(i), "key": str(i), "name": name, "class": cls, "dps": dps, "damage": dps * 75, "hps": 0, "healing": 0,
                      "dtps": 0, "hits": 120 - 20 * i, "share": [0.51, 0.34, 0.15][i], "crit": 0.333, "back": 0.5, "front": 0.5,
-                     "parry": 0.05, "double": 0.1, "perfect": 0.2, "multi": 0, "incoming": {"damage": 4000, "hits": 9, "parries": 4},
+                     "parry": 0.05, "double": 0.1, "perfect": 0.2, "multi": 0, "incoming": {"damage": 4000, "hits": 9, "parries": 4, "shield_blocks": 3, "endurance": 2},
                      "skills": [{"skill_id": 1010003, "skill": "Flame Bolt", "damage": dps * 45, "hits": 60, "share": 0.6,
                                  "crit": 0.4, "back": 0.5, "parry": 0.0},
                                 {"skill_id": 1020002, "skill": "Frost Spear", "damage": dps * 30, "hits": 40, "share": 0.4,
@@ -78,10 +78,12 @@ def test_a_click_on_a_name_opens_that_players_panel_with_tiles_skills_and_buffs(
     assert page.locator("#ovdetail .ovdline").inner_text() == "Target: Atiel · 1m 15s in combat"
     tiles = page.eval_on_selector_all("#ovdetail .ovdtile", "ts => ts.map(t => [t.querySelector('span').textContent, t.querySelector('b').textContent])")
     assert [label for label, _ in tiles] == ["Total damage", "DPS", "Contribution", "Combat time", "Hits", "Parry", "Crit", "Front",
-                                             "Back", "Perfect", "Double", "Parried in"]
+                                             "Back", "Perfect", "Double", "Parried in", "Shield blocks", "Endurance"]
     values = dict(tiles)
     assert (values["Combat time"], values["Hits"], values["Crit"], values["Parry"], values["Contribution"], values["Parried in"]) == (
         "1m 15s", "120", "33%", "5%", "51%", "4")
+    assert (values["Shield blocks"], values["Endurance"]) == ("3", "2")                          # the hits they turned (0.2.407)
+    assert page.locator('#ovdetail .ovdtile[title="Hits on this player that their Endurance halved"]').count() == 1
     assert (values["DPS"], values["Total damage"]) == ("23.40K/s", "1.75M")
     assert page.locator('#ovdetail .ovdtile[title^="Fight time; this player dealt damage in 1m 01s"]').count() == 1
     skills = panel_rows(page, "Top skills")

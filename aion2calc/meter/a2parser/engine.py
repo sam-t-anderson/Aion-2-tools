@@ -1139,6 +1139,7 @@ class MeterEngine:
                                     "minDamage": skill.min_damage if skill.hits else 0,
                                     "maxDamage": skill.max_damage, "crit": skill.crits,
                                     "back": skill.backs, "parry": skill.parries,
+                                    "shieldBlock": skill.shield_blocks, "endurance": skill.endurance,
                                     "perfect": skill.perfects, "double": skill.doubles,
                                     "frontal": skill.frontal}
                                    for skill in actor.skills.values()]}
@@ -1356,7 +1357,8 @@ class MeterEngine:
                         "skills": [{"skillCode": s.skill_code, "name": skill_name(s.skill_code), "damage": s.damage, "hits": s.hits,
                                    "crit": s.crits, "critRate": s.crits / s.hits if s.hits else 0.0,
                                    "back": s.backs, "backRate": s.backs / s.hits if s.hits else 0.0,
-                                   "parry": s.parries, "perfect": s.perfects, "double": s.doubles,
+                                   "parry": s.parries, "shieldBlock": s.shield_blocks, "endurance": s.endurance,
+                                   "perfect": s.perfects, "double": s.doubles,
                         "frontal": s.frontal, "multiHitCount": s.multi_hit_count,
                                    "multiHitDamage": s.multi_hit_damage,
                                    "specializationFlags": list(s.spec_flags),
@@ -1401,6 +1403,8 @@ class MeterEngine:
                         skill.crits += source_skill.crits
                         skill.backs += source_skill.backs
                         skill.parries += source_skill.parries
+                        skill.shield_blocks += source_skill.shield_blocks
+                        skill.endurance += source_skill.endurance
                         skill.perfects += source_skill.perfects
                         skill.doubles += source_skill.doubles
                         skill.frontal += source_skill.frontal
@@ -1482,6 +1486,8 @@ class MeterEngine:
             skill.crits += source.crits
             skill.backs += source.backs
             skill.parries += source.parries
+            skill.shield_blocks += source.shield_blocks
+            skill.endurance += source.endurance
             skill.perfects += source.perfects
             skill.doubles += source.doubles
             skill.frontal += source.frontal

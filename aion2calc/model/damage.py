@@ -39,9 +39,10 @@ class HitContext:
 
 
 def block_chance(block: float, accuracy: float) -> float:
-    """The chance a direct hit from the front or side is blocked, a shield block or a parry (the game records both as
-    a parry): PARRY_PER_ACCURACY a point of the target's Block above the attacker's Accuracy, at most PARRY_CAP
-    (0.2.387, docs/methodology.md "Block against Accuracy")."""
+    """The chance a direct hit from the front or side is blocked, a shield block or a parry, as one roll:
+    PARRY_PER_ACCURACY a point of the target's Block above the attacker's Accuracy, at most PARRY_CAP (0.2.387,
+    docs/methodology.md "Block against Accuracy"). The game records the two apart (a hit's modifier bits 0x01 and
+    0x02, counted apart since 0.2.407); a shield user's second roll is not modelled."""
     from ..sim.engine import PARRY_CAP, PARRY_PER_ACCURACY
     return max(0.0, min(PARRY_CAP, PARRY_PER_ACCURACY * (float(block) - float(accuracy))))
 
