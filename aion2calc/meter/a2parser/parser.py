@@ -66,6 +66,14 @@ ABSORBED_BY_MAX = 8
 #: 0.2.402: the values then began with a second 0, and it took the power scalar for the hit's damage
 #: (docs/open-investigations.md).
 REGENERATION = 0x20
+#: Modifier bit 0x01 of a hit: the target blocked it with its shield, and its value is about half (0.2.407). Of the
+#: hits read directly from the archived captures, only Templars' and Clerics' carry it: 31.9 % and 14.2 % of
+#: monsters' hits on them, none on another class or on a monster. Bit 0x02 is the parry, the weapon block.
+SHIELD_BLOCK = 0x01
+#: Modifier bit 0x10 of a hit: the target's Endurance halved it (0.2.407; the client's text: "Reduces Damage by half").
+#: Of the hits read directly, a player's only, and raised on Templars by Ironclad Defense: 20.7 % of monsters' hits on
+#: them, 0.9 to 10.1 % on the other classes.
+ENDURANCE = 0x10
 
 
 def _shields_end(data: bytes, pos: int) -> int | None:
@@ -239,8 +247,9 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
         regenerated = 0
         if layout in (5, 6, 7) and offset < len(frame):
             mods = frame[offset]
-            for mask, flag in ((2, SpecialDamage.PARRY), (4, SpecialDamage.PERFECT),
-                               (8, SpecialDamage.DOUBLE), (32, SpecialDamage.SMITE),
+            for mask, flag in ((SHIELD_BLOCK, SpecialDamage.SHIELD_BLOCK), (2, SpecialDamage.PARRY),
+                               (4, SpecialDamage.PERFECT), (8, SpecialDamage.DOUBLE),
+                               (ENDURANCE, SpecialDamage.ENDURANCE), (32, SpecialDamage.SMITE),
                                (64, SpecialDamage.POWER_SHARD)):
                 if mods & mask:
                     specials.add(flag)

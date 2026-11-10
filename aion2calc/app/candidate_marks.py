@@ -11,7 +11,8 @@ telemetry -- and keeps a little state per fight:
 * **interrupt** -- a boss cast that ended well short of the length its earlier casts took, right after a party
   member applied an effect on the caster (a stun, a knockdown, a silence);
 * **miss** -- a boss skill that dealt damage on its earlier casts and dealt none on this one;
-* **mitigation** -- a hit far below the earlier hits of the same skill on the same player, not a decoded parry;
+* **mitigation** -- a hit far below the earlier hits of the same skill on the same player, not a decoded parry,
+  shield block or Endurance (each halves a hit; the record says so);
 * **hot** -- a heal over time: ticks of one skill on one target in a steady rhythm (the game sends one record
   for the whole amount, so the ticks it does send are what a labelled capture settles);
 * **mechanic** -- a boss skill whose hits landed on three or more party members at once.
@@ -36,6 +37,8 @@ CC_BEFORE_END_MS = 1_500        # an effect applied on the caster this long befo
 SHORT_CAST = 0.6                # a cast ending in under this share of its usual length looks cut short
 LOW_HIT = 0.55                  # a hit under this share of the skill's median on the player looks reduced
 HP_SETTLE_MS = 1_500            # an HP reading within this after a hit says whether the hit landed on HP
+#: The cuts a hit's own record names, each of about half the hit: no mitigation to ask about, nor a usual hit (0.2.407).
+DECODED_CUTS = frozenset({SpecialDamage.PARRY, SpecialDamage.SHIELD_BLOCK, SpecialDamage.ENDURANCE})
 
 
 def _name(skill):
@@ -184,16 +187,17 @@ class CandidateScanner:
             before = self.hp.get(player)
             self.pending_hp.append({"deadline": t + HP_SETTLE_MS, "player": player, "damage": damage, "before": before,
                                     "skill": skill, "shield": shield, "boss": boss, "t": t})
-        # mitigation: far below this skill's earlier hits on this player, and not a decoded parry
+        # mitigation: far below this skill's earlier hits on this player, and not a cut the record names
         key = (e.skill_code, player)
         earlier = self.amounts.setdefault(key, [])
-        if damage > 0 and len(earlier) >= 4 and SpecialDamage.PARRY not in e.specials:
+        decoded_cut = bool(DECODED_CUTS & e.specials)
+        if damage > 0 and len(earlier) >= 4 and not decoded_cut:
             median = statistics.median(earlier)
             if median > 0 and damage < LOW_HIT * median:
                 self._raise(out, "mitigation", key, boss, t,
                             f"{skill} hit {label(player)} for {damage:,}, against a usual {int(median):,} on them in this fight",
                             {"skill": skill, "player": label(player), "damage": damage, "usual": int(median)})
-        if damage > 0 and SpecialDamage.PARRY not in e.specials:
+        if damage > 0 and not decoded_cut:
             earlier.append(damage)
             del earlier[:-30]
 

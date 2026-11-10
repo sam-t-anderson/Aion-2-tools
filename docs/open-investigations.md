@@ -1242,7 +1242,49 @@ fifth), with no Regeneration.
 - *Hits with no position.* Every proc bit, the attacker's Perfect and Double included, is about three to six times as
   common on hits whose direction byte is 0 as on hits from the front or behind: bit 0x20 on 25 % of those on players
   against 4.4 %, Perfect on 60 % of those on monsters against 14 %. Why is not known.
-- *Shield blocks and Endurance are not counted.* The meter counts bit 0x02 alone as a parry, so a Templar's or Cleric's
-  shield blocks are missing from their parries, and the block model's note that the game records a shield block as a
-  parry (`model.damage.block_chance`) does not hold. Endurance is not read at all. The decoder's names for bits 0x20
-  and 0x40 (Smite and Power Shard; Double, bit 0x08, is the Smite) reach no log or review.
+- *The decoder's names for bits 0x20 and 0x40* (Smite and Power Shard; Double, bit 0x08, is the Smite) reach no log
+  or review.
+
+*The shield blocks and Endurance, left uncounted here, are read and counted since 0.2.407
+([next section](#shield-blocks-and-endurance-read-and-counted-10-november-02407)).*
+
+## Shield blocks and Endurance, read and counted (10 November, 0.2.407)
+
+The section above found the target's shield block (modifier bit 0x01) and Endurance (bit 0x10) among a hit's bits,
+each about half the hit, and left them uncounted. The meter read the parry (0x02) alone, so a Templar's or a Cleric's
+shield blocks were missing from the hits they turned, and Endurance was not read at all.
+
+**Since 0.2.407** the decoder reads both (`parser.SHIELD_BLOCK`, `parser.ENDURANCE`; `SpecialDamage.SHIELD_BLOCK`,
+`SpecialDamage.ENDURANCE`), and the meter counts them where it counts parries:
+
+- a skill's stats (`SkillStats.shield_blocks` and `.endurance`, exported as `shieldBlock` and `endurance` beside
+  `parry`);
+- the share of a player's hits a target turned so (`shield_block` and `endurance` beside `parry` in the live view's
+  row);
+- the hits a player took (`incoming.shield_blocks` and `incoming.endurance` beside `incoming.parries`), which the
+  overlay's player panel and the live meter's Defense panel show.
+
+The candidate marks no longer offer such a hit as unexplained mitigation, nor measure a skill's usual hit with it. No
+damage changes: a hit's value is already the cut one. The block model's note that the game records a shield block as a
+parry (`model.damage.block_chance`) is corrected; the model still rolls Block once. Replayed through 0.2.406 and
+0.2.407, every change is a hit gaining one of the two flags where its record has the bit:
+
+| Capture | Shield blocks | Endurance |
+|---|---:|---:|
+| 31 October, six arena matches by a Templar | 51 (45 on the Templar) | 220 (216 on the Templar) |
+| 23 October, the Abyss | 15 | 17 |
+| 21 October, the Abyss | 199 | 184 |
+| 20 October, a dungeon run | 116 (115 on its Templar) | 106 |
+| 19 October, two hours on three characters | 60 | 48 |
+| 19 October, a Templar for a minute | 1 | 0 |
+| 15 October, a dungeon run | 6 | 17 |
+| 12 October, Vakron | 0 | 2 |
+| 11 October, Transcendent Bakarma | 1 | 0 |
+| 11 October, no party fight decoded | 7 | 53 |
+| 10 October, Krao Cave | 0 | 2 |
+| the other three captures | 0 | 0 |
+
+In the arena recording the Templar took 1,368 hits: the meter counted the 40 they parried, and now also the 45 they
+blocked with their shield and the 216 their Endurance halved. No directly read hit on a monster has either bit. Two
+hits on an NPC in the 21 October recording, read from inside other records, do, with modifier bytes that look misread:
+one carries both Double and Perfect, which never stack.

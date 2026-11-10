@@ -15,6 +15,10 @@ class SpecialDamage(str, Enum):
     FRONTAL = "frontal"
     SMITE = "smite"
     POWER_SHARD = "powershard"
+    #: The target blocked the hit with its shield (a Templar's or a Cleric's), and it took about half (0.2.407).
+    SHIELD_BLOCK = "shieldblock"
+    #: The target's Endurance halved the hit (0.2.407).
+    ENDURANCE = "endurance"
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +64,8 @@ class SkillStats:
     crits: int = 0
     backs: int = 0
     parries: int = 0
+    shield_blocks: int = 0
+    endurance: int = 0
     perfects: int = 0
     doubles: int = 0
     frontal: int = 0
@@ -76,6 +82,8 @@ class SkillStats:
         self.crits += SpecialDamage.CRITICAL in event.specials
         self.backs += SpecialDamage.BACK in event.specials
         self.parries += SpecialDamage.PARRY in event.specials
+        self.shield_blocks += SpecialDamage.SHIELD_BLOCK in event.specials
+        self.endurance += SpecialDamage.ENDURANCE in event.specials
         self.perfects += SpecialDamage.PERFECT in event.specials
         self.doubles += SpecialDamage.DOUBLE in event.specials
         self.frontal += SpecialDamage.FRONTAL in event.specials

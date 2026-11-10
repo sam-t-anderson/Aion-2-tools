@@ -237,7 +237,7 @@ def fighter(i: int, name: str, cls: str, damage: float, hits: int = None) -> dic
     row = {"id": str(20 + i), "key": str(20 + i), "name": name, "class": cls, "server_name": "Zikel", "damage": damage,
            "dps": damage / seconds, "healing": 0, "skills": skills,
            "crit": .41, "back": .21, "front": .52, "double": .11, "perfect": .07, "multi": .14, "parry": .02,
-           "incoming": {"damage": 150000, "hits": 30, "parries": 3,
+           "incoming": {"damage": 150000, "hits": 30, "parries": 3, "shield_blocks": 2, "endurance": 1,
                         "sources": {"Gatekeeper Testlord": 120000, "Testlord's Clone": 30000}},
            "timeline": {"per_second": per_second,
                         "rolling10": [sum(per_second[max(0, s - 9):s + 1]) / min(s + 1, 10) for s in range(seconds)]}}
@@ -297,11 +297,13 @@ def test_the_breakdown_shows_every_section_at_once_where_it_has_room_and_its_tab
     assert tiles.locator(".v").all_text_contents() == ["412", "41%", "21%", "52%", "11%", "7%", "14%", "2%"]
     tops = [tiles.nth(i).bounding_box()["y"] for i in range(8)]
     assert len(set(tops[:4])) == 1 and len(set(tops[4:])) == 1 and tops[4] > tops[0]
-    assert page.locator("#pbd .pdef .rc .v").all_text_contents() == ["150.00K", "30", "3", "0"]
+    assert page.locator("#pbd .pdef .rc .k").all_text_contents() == ["Damage taken", "Incoming hits", "Parried hits", "Shield blocks",
+                                                                   "Endurance", "Healing done"]
+    assert page.locator("#pbd .pdef .rc .v").all_text_contents() == ["150.00K", "30", "3", "2", "1", "0"]
     assert page.locator("#pbd .pdef table tr").all_inner_texts()[1:] == ["Gatekeeper Testlord\t120.00K", "Testlord's Clone\t30.00K"]
     assert page.locator("#pbd .pnotes").evaluate_all("ps => ps.map(p => getComputedStyle(p).display)") == ["none", "none"]
     assert page.locator("#pbd .pacc h3").get_attribute("title").startswith("Rates use decoded outgoing hits.")
-    assert page.locator("#pbd .pdef h3").get_attribute("title").startswith("Damage received and parry flags")
+    assert page.locator("#pbd .pdef h3").get_attribute("title").startswith("Damage received and the parry, shield block and Endurance flags")
     # a player without a hit count of their own: their skills' hits
     page.click('#mview [data-sel="3"]')
     page.locator("#pbd .pwho b", has_text="Testcleric").wait_for()

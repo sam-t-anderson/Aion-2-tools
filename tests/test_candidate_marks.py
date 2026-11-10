@@ -105,6 +105,19 @@ def test_a_hit_far_below_the_usual_is_a_mitigation_candidate_unless_it_was_a_par
     assert [c["label"] for c in out] == ["mitigation"] and out[0]["context"]["usual"] == 10_000
 
 
+def test_a_shield_block_or_endurance_is_neither_a_mitigation_candidate_nor_a_usual_hit():
+    """0.2.407: the record says when the target blocked a hit with their shield or their Endurance halved it, as it
+    says a parry: such a hit is a cut the meter reads, not one to ask about, and no measure of the usual hit."""
+    s, sess = CandidateScanner(), FakeSession()
+    for i in range(4):
+        assert scan(s, sess, 1000 * (i + 1), events=[hit(1000 * (i + 1), TANK, 10_000)]) == []
+    for i, flag in enumerate((SpecialDamage.SHIELD_BLOCK, SpecialDamage.ENDURANCE) * 2):
+        t = 6000 + 1000 * i
+        assert scan(s, sess, t, events=[hit(t, TANK, 4_600, specials=frozenset({flag}))]) == []
+    out = scan(s, sess, 10_000, events=[hit(10_000, TANK, 3_000)])
+    assert [c["label"] for c in out] == ["mitigation"] and out[0]["context"]["usual"] == 10_000
+
+
 def test_steady_equal_heals_of_one_skill_are_a_heal_over_time_candidate_once():
     s, sess = CandidateScanner(), FakeSession()
     out = []
