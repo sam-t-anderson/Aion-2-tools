@@ -323,7 +323,7 @@ The follow-ups above were checked against the private diagnostics archive: the d
 - *Max Attack* (slots 1 and 5): no official profile stat carries it, and no record shows its effect. The item catalog uses "Max Attack" for a weapon's whole damage range ("206–229") and for its enchant steps. Two readings give different advice:
   - as the top of the weapon roll, a +15 line is worth 0.32–0.35%, below Attack Bonus +12 (0.46–0.52%) and PvE Attack +15 for every class;
   - as flat Attack it is worth 0.58–0.65%, the best slot-1 and slot-5 line for the Chanter, Gladiator and Templar.
-- *Power Shard Damage Bonus* (slots 3, 6 and 9; also a gear stat): Power Shards are not simulated. The hit record has a power-shard bit, but none of the 18,247 decoded direct hits in the captures carried it, so nothing measures the bonus.
+- *Power Shard Damage Bonus* (slots 3, 6 and 9; also a gear stat): Power Shards are not simulated. The hit record has a power-shard bit, but none of the 18,247 decoded direct hits in the captures carried it, so nothing measures the bonus. *(Since 0.2.408: that bit, 0x40, is a block that took the whole hit, and no record the meter reads marks a Power Shard; [below](#the-decoders-names-for-bits-0x20-and-0x40-10-november-02408).)*
 - *PvE Accuracy and Accuracy Bonus.* Parries cost half a hit and only touch front and side hits. Bosses parried under 1% of most classes' hits and 2.4–3.8% of the casters'. Misses are not decoded, and how Accuracy lowers either rate is not known. The lines stay unscored rather than credited with a guess.
 
 **In the model since 0.2.308.**
@@ -1209,8 +1209,8 @@ more, of 10 to 23 October): 640 of the 82,712 layout-6 hits read directly have m
 | 0x01 | Shield block | Templar 31.9 %, Cleric 14.2 %, no other class | median 0.46 (93 hits) |
 | 0x02 | Parry (`SpecialDamage.PARRY`) | Gladiator 22.8 %, Templar 21.7 %, Chanter 19.0 %, Cleric 8.9 % | median 0.45 (431) |
 | 0x10 | Endurance | Templar 20.7 %, Assassin 10.1 %, the others 0.9 to 4.5 % | median 0.50 (208) |
-| 0x40 | The block took all of it (only with 0x01 or 0x02) | Templar 10.4 %, Cleric, Chanter, Gladiator 3 to 4 % | 1 HP in all 172 |
-| 0x20 | Regeneration (`SpecialDamage.SMITE`) | 8.9 to 11.7 %, the Elementalist 1.4 % | median 1.00 (171), the fifth beside it |
+| 0x40 | The block took all of it (only with 0x01 or 0x02; `SpecialDamage.FULL_BLOCK` since 0.2.408) | Templar 10.4 %, Cleric, Chanter, Gladiator 3 to 4 % | 1 HP in all 172 |
+| 0x20 | Regeneration (`SpecialDamage.REGENERATION` since 0.2.408) | 8.9 to 11.7 %, the Elementalist 1.4 % | median 1.00 (171), the fifth beside it |
 
 **Since 0.2.406** the hit counts its whole value, and what Regeneration gave back is the target's heal on itself
 (`parser.REGENERATION`; `lookup.REGENERATION_SKILL`, a code of the meter's own named *Regeneration*, since no skill of
@@ -1242,8 +1242,8 @@ fifth), with no Regeneration.
 - *Hits with no position.* Every proc bit, the attacker's Perfect and Double included, is about three to six times as
   common on hits whose direction byte is 0 as on hits from the front or behind: bit 0x20 on 25 % of those on players
   against 4.4 %, Perfect on 60 % of those on monsters against 14 %. Why is not known.
-- *The decoder's names for bits 0x20 and 0x40* (Smite and Power Shard; Double, bit 0x08, is the Smite) reach no log
-  or review.
+*The decoder's names for bits 0x20 and 0x40 (Smite and Power Shard), left here, are fixed since 0.2.408
+([below](#the-decoders-names-for-bits-0x20-and-0x40-10-november-02408)).*
 
 *The shield blocks and Endurance, left uncounted here, are read and counted since 0.2.407
 ([next section](#shield-blocks-and-endurance-read-and-counted-10-november-02407)).*
@@ -1288,3 +1288,22 @@ In the arena recording the Templar took 1,368 hits: the meter counted the 40 the
 blocked with their shield and the 216 their Endurance halved. No directly read hit on a monster has either bit. Two
 hits on an NPC in the 21 October recording, read from inside other records, do, with modifier bytes that look misread:
 one carries both Double and Perfect, which never stack.
+
+## The decoder's names for bits 0x20 and 0x40 (10 November, 0.2.408)
+
+The decoder named two of a hit's modifier bits, from the upstream parser, for what they are not: bit 0x20 Smite and
+bit 0x40 Power Shard. Read from the fourteen captures ([the table above](#a-hit-regeneration-answered-the-fifth-is-the-hp-it-gave-back-10-november-02406)):
+
+- **Bit 0x20 is the target's Regeneration**, which gives back a fifth of what got past the shields, carried after the
+  modifiers. Double, bit 0x08, is the Smite: a median 1.99 of the same skill's plain hits, the ×2 the methodology
+  models.
+- **Bit 0x40 is a block that took the whole hit.** All 172 hits read directly with it come with a parry (0x02) or a
+  shield block (0x01), count 1 HP, and none came from behind.
+
+**Since 0.2.408** they are `SpecialDamage.REGENERATION` and `SpecialDamage.FULL_BLOCK` (`parser.REGENERATION`,
+`parser.FULL_BLOCK`). Neither reaches a log or the review, so no number changes. Replayed through 0.2.407 and 0.2.408,
+every read of the fourteen captures is the same but for the two names: 647 hits' Regeneration and 175 hits' full
+block. The bit the 17 October section took for a Power Shard's is this one, so no record the meter reads marks a Power
+Shard. The planner's reason for leaving Power Shard Damage Bonus unscored says so now, where it said no recorded hit
+had used one. The archive's reference scripts that count hit flags (`scripts/genusvid/hitflags.py` and
+`summarize_flags.py`, `scripts/positions/posflags.py`) use the old names.

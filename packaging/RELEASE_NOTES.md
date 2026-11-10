@@ -1,3 +1,9 @@
+## Two hit flags are named for what they are (0.2.408)
+
+**Regeneration and a full block.** The meter's decoder named two of a hit's flags Smite and Power Shard. The recordings show the first is the target's Regeneration, whose healing the hit's record carries, and the second a block that took the whole hit, which comes only with a parry or a shield block. Neither name reached the review or a saved log, so no number changes.
+
+**Power Shard Damage Bonus.** The planner's Genus Insight advice said no recorded hit had used a Power Shard, reading the second flag as one. It now says no record the meter reads shows when a Power Shard was used. The line stays unscored.
+
 ## A Templar's and a Cleric's shield blocks, and everyone's Endurance, are counted (0.2.407)
 
 **Shield blocks and Endurance.** A hit's record says when its target blocked it with their shield or their Endurance halved it, as it says when they parried it. The live meter read the parry alone, so a Templar's or a Cleric's shield blocks were missing from the hits they turned aside, and Endurance was not read at all. Both are now counted beside the parries: the overlay's player panel shows each player's **Shield blocks** and **Endurance** next to *Parried in*, and the live meter's Defense panel next to *Parried hits*. In a recording of six arena matches by a Templar, who took 1,368 hits, the meter counted the 40 they parried and now also the 45 they blocked with their shield and the 216 their Endurance halved. Such a hit is no longer offered among the candidate marks as an unexplained low hit. Damage is unchanged: each hit already counted what it dealt.

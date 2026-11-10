@@ -35,7 +35,7 @@ GENUS_ONLY = {"Max Attack": ("weapon_max", 1), "PvE Accuracy": ("pve_accuracy", 
 #: Offensive lines the damage model does not score, and why (docs/open-investigations.md).
 UNSCORED = {
     "Power Shard Damage Bonus": ("Not modeled: it adds only to Power Shard damage (\"Increases Damage when using "
-                                 "Power Shard\"), and no recorded hit has used a Power Shard"),
+                                 "Power Shard\"), and no record the meter reads says when a Power Shard was used"),
 }
 #: Block lines (0.2.387): Block parries an attacker's hits when it exceeds the attacker's Accuracy, which World PvP's
 #: survival counts; no source gives monsters' Accuracy, and the advice scores damage.
