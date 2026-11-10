@@ -18,6 +18,9 @@ shield's absorb (meter 0.2.399 and later), else the skill's description tells (p
 none, heal over time). Since 0.2.399 a heal over time is recorded tick by tick and a shield as the
 damage each hit it took lost to it, credited to its caster; a meter before recorded the whole pool or
 shield when it was cast and then, at each tick or absorb, what was left of it.
+
+Regeneration's heal (meter 0.2.406 and later, ``lookup.REGENERATION_SKILL``) gives back a fifth of what the same
+read's hit took off the target, so it lands in full, though the reading before the hit may show full HP.
 """
 from __future__ import annotations
 
@@ -316,6 +319,7 @@ def summarize(segment: dict, players: set, healers: set | None = None) -> dict |
     """Per healer and per healer/recipient pair: recorded, effective and overheal amounts, plus the
     check against the HP feed. ``healers`` limits the sources (the party's players and pets; an
     enemy's records are not healing). None when no instant heal on a player could be measured."""
+    from ..meter.a2parser.lookup import REGENERATION_SKILL
     sources = healers if healers is not None else players
     heals = [e for e in segment.get("events") or []
              if e.get("kind") == "heal" and e.get("target") in players and e.get("source") in sources]
@@ -345,7 +349,12 @@ def summarize(segment: dict, players: set, healers: set | None = None) -> dict |
         prior = rows[i - 1] if i else None
         maximum = known_max[target][i - 1] if prior else None
         effective = None
-        if kind == "instant" and prior and maximum:
+        if kind == "instant" and heal.get("skill_id") == REGENERATION_SKILL:
+            # Regeneration gives back a fifth of what the same read's hit took off this target (0.2.406): it all lands,
+            # whatever HP the target had before the hit, which no earlier reading shows.
+            effective = amount
+            same_read[(target, t)] += effective
+        elif kind == "instant" and prior and maximum:
             before = min(maximum, prior[1] + same_read[(target, t)])
             effective = max(0.0, min(amount, maximum - before))
             same_read[(target, t)] += effective

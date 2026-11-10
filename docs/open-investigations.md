@@ -1106,13 +1106,10 @@ their damage. The zeros came from a field it read as one byte. Read from the 15,
 direction and the values after it, and counts the hit's value less it. The hit's multi-hits stay as recorded, and the
 main hit carries the loss. A log holds a hit's total only, so a log recorded before 0.2.402 keeps these hits as they were.
 
-**Still open.**
-- *What takes the fifth.* The 317 hits came from the front (181), the side (85) and behind (51), from monsters (143)
-  and players (174), critical or not. A block as the [methodology](methodology.md#block-against-accuracy-02387) models it
-  never takes a hit from behind, so this looks more like a damage reduction on the target than a block; which effect it
-  is, and why it takes less of a hit a shield is on, is not settled.
-- *Layouts 5 and 7* read their modifiers and direction as layout 6 does, but no hit of theirs is in these captures, so
-  their field is still read as one byte.
+*What takes the fifth, left open here, is settled since 0.2.406: it is no loss but the target's Regeneration, which
+gives back a fifth of what got past the target's shields, so the hit counts whole and the fifth is the target's heal
+([below](#a-hit-regeneration-answered-the-fifth-is-the-hp-it-gave-back-10-november-02406)). Layouts 5 and 7 stay
+open there.*
 
 ## The rest of a hit a shield absorbed: the strict walk reads the shields (9 November, 0.2.403)
 
@@ -1171,3 +1168,81 @@ match, 320,537 to 18,939), and their damage dealt in the first by 43 %. One of t
 record is malformed past its own effect number (its u32 after it reads 4,065,329,277, where every hit read directly has 1 to 5): it
 read 2,802 before and 3 now, and neither can be trusted. A log holds a hit's total only, so a log recorded before 0.2.405
 keeps these hits as they were.
+
+## A hit Regeneration answered: the fifth is the HP it gave back (10 November, 0.2.406)
+
+The 0.2.402 section left open what takes a fifth off a hit before HP, why it takes less of a hit a shield is on, and
+how layouts 5 and 7 carry it. Read from all fourteen archived captures with payloads (the four used so far and ten
+more, of 10 to 23 October): 640 of the 82,712 layout-6 hits read directly have modifier bit 0x20, 523 with a field.
+
+- **It is the target's Regeneration, which gives part of a hit back as HP.**
+  - *The target's.* No hit on a monster has the bit (63,811 hits; the five that seemed to are on one entity that cast
+    class skills too, a player). Monsters' hits on players have it 8.9 to 11.7 % of the time for every class but the
+    Elementalist (1.4 %), and players' hits on players 1.9 to 6.6 %, as an attacker's Regeneration Penetration would
+    make it.
+  - *No reduction.* The modifiers carry the target's other procs as bits of their own, and each that reduces a hit
+    reduces its value (the table below). A hit with bit 0x20 keeps its whole value, a median 1.00 of its attacker's
+    plain hits of the skill, and carries the fifth beside it.
+  - *Not Endurance.* The Templar's Ironclad Defense raises Endurance. Bit 0x10 is on 21 % of monsters' hits on Templars
+    (17 % of players') and 0.9 to 10.1 % on the other classes; bit 0x20 on 8.9 % of monsters' hits on Templars.
+  - *The client's text*, in metabot's glossary of it: Endurance "Reduces Damage by half"; Regeneration "Recovers a
+    portion of Damage as HP", its chance raised by Life [Yustiel] and lowered by the attacker's Regeneration
+    Penetration (Death [Triniel], Genus Insight's slot 4). The portion is not published; the captures give a fifth.
+  - *No other record* carries it: the reads of 507 of the 523 hits with a fifth hold no heal on the target, those of
+    the other 16 only other heals.
+- **A fifth of what got past the shields.** The field is `value // 5` in all 473 hits no shield took part of, and
+  `(value - what the hit's shields took) // 5` in 49 of the 50 that one did (the 50th shares its shield's absorbs in
+  its read with another hit): a hit of 6,046 that Protection Circle took 1,056 of carries 998. Of the 117 hits with the
+  bit and a field of 0, 68 were under 5 HP, and the shields took the other 49 whole (12 of them by absorbs their read
+  shares with other hits). So the share the 0.2.402 section found on hits a shield was on, 0.05 to 0.18, is a fifth of
+  a part. With a block or Endurance on the hit as well, the value is already halved and the fifth is of that: 49 of
+  the 473 are such hits.
+- **Layouts 5 and 7: none in the archive.** No `04 38` record framed directly in the fourteen captures has layout 5 or
+  7 (81,945 have layout 4 and 83,199 layout 6). 261 records read as layout 5 or 7
+  only when re-read from inside other records, none a hit (skill ids and damage types no hit has), and the decoder keeps
+  none of them. The decoder's skips, 12 and 14 bytes where layouts 4 and 6 take 8 and 10 (from the upstream parser),
+  say the layout's low bit adds four bytes: if so, layout 7 carries the modifiers and the field, and layout 5 neither,
+  though the decoder reads modifiers and a direction for layout 5 too.
+
+| Bit | The target's proc | Monsters' hits on players with it | Its value, of the same skill's plain hits |
+|---|---|---|---|
+| 0x01 | Shield block | Templar 31.9 %, Cleric 14.2 %, no other class | median 0.46 (93 hits) |
+| 0x02 | Parry (`SpecialDamage.PARRY`) | Gladiator 22.8 %, Templar 21.7 %, Chanter 19.0 %, Cleric 8.9 % | median 0.45 (431) |
+| 0x10 | Endurance | Templar 20.7 %, Assassin 10.1 %, the others 0.9 to 4.5 % | median 0.50 (208) |
+| 0x40 | The block took all of it (only with 0x01 or 0x02) | Templar 10.4 %, Cleric, Chanter, Gladiator 3 to 4 % | 1 HP in all 172 |
+| 0x20 | Regeneration (`SpecialDamage.SMITE`) | 8.9 to 11.7 %, the Elementalist 1.4 % | median 1.00 (171), the fifth beside it |
+
+**Since 0.2.406** the hit counts its whole value, and what Regeneration gave back is the target's heal on itself
+(`parser.REGENERATION`; `lookup.REGENERATION_SKILL`, a code of the meter's own named *Regeneration*, since no skill of
+the game's casts it), as a shield's absorb is its caster's beside the whole hit. A hit read from inside another record
+brings its heal with it, and the review's effective healing counts the heal in full: it gives back part of what the
+same read's hit took, whatever the reading before showed. The target's HP drop is as before. Where its readings bracket
+a read with such a heal, the drop equals the read's hits less its heals, Regeneration's included, in 311 reads, and in
+none the hits less the other heals or the hits alone (54 have something else in between). Replayed through 0.2.405 and
+0.2.406, every change is such a hit, now counting its fifth, and its target's heal of the fifth:
+
+| Capture | Hits counted whole | Damage restored, and the targets' Regeneration healing |
+|---|---:|---:|
+| 31 October, six arena matches by a Templar | 57 | 7,592 |
+| 23 October, the Abyss | 4 | 1,481 |
+| 21 October, the Abyss | 156 (6 read from inside other records) | 25,660 |
+| 20 October, a dungeon run | 70 | 44,090 |
+| 19 October, two hours on three characters | 110 | 68,684 |
+| 15 October, a dungeon run | 40 | 39,761 |
+| 12 October, Vakron | 5 | 6,079 |
+| 11 October, Transcendent Bakarma | 3 | 2,170 |
+| 11 October, no party fight decoded | 84 | 8,462 |
+| the other five captures | none | 0 |
+
+A log holds a hit's total only, so a log recorded before 0.2.406 keeps these hits as they were (since 0.2.402 less the
+fifth), with no Regeneration.
+
+**Still open.**
+- *Layouts 5 and 7*, as above: a recording with such a hit would settle them.
+- *Hits with no position.* Every proc bit, the attacker's Perfect and Double included, is about three to six times as
+  common on hits whose direction byte is 0 as on hits from the front or behind: bit 0x20 on 25 % of those on players
+  against 4.4 %, Perfect on 60 % of those on monsters against 14 %. Why is not known.
+- *Shield blocks and Endurance are not counted.* The meter counts bit 0x02 alone as a parry, so a Templar's or Cleric's
+  shield blocks are missing from their parries, and the block model's note that the game records a shield block as a
+  parry (`model.damage.block_chance`) does not hold. Endurance is not read at all. The decoder's names for bits 0x20
+  and 0x40 (Smite and Power Shard; Double, bit 0x08, is the Smite) reach no log or review.

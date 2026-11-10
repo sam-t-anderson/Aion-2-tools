@@ -39,7 +39,17 @@ def _table(category: str, locale: str):
         return {}
 
 
+#: The HP a target's Regeneration gave back of a hit (0.2.406). The hit's own record carries it after its modifiers
+#: (``parser.REGENERATION``), and no skill of the game's heals it, so the meter books it as the target's heal on
+#: itself under a code of its own, above every skill id the game's tables hold.
+REGENERATION_SKILL = 900_000_001
+#: The names of the meter's own codes, in every locale (the game's tables name none of them).
+_METER_SKILLS = {REGENERATION_SKILL: "Regeneration"}
+
+
 def skill_name(skill_id: int, locale: str = "en") -> str:
+    if skill_id in _METER_SKILLS:
+        return _METER_SKILLS[skill_id]
     return _table("skills", locale).get(str(skill_id), f"Skill {skill_id}")
 
 
