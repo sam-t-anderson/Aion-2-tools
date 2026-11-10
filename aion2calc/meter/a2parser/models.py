@@ -13,8 +13,12 @@ class SpecialDamage(str, Enum):
     PERFECT = "perfect"
     DOUBLE = "double"
     FRONTAL = "frontal"
-    SMITE = "smite"
-    POWER_SHARD = "powershard"
+    #: The target's Regeneration gave back part of the hit (modifier bit 0x20, ``parser.REGENERATION``), and the hit's
+    #: record carries the HP it gave back (0.2.406). Named Smite before 0.2.408: Double (bit 0x08) is the Smite.
+    REGENERATION = "regeneration"
+    #: The target's parry or shield block took all of the hit but 1 HP (modifier bit 0x40, ``parser.FULL_BLOCK``,
+    #: only ever with bit 0x01 or 0x02). Named Power Shard before 0.2.408; no record the meter reads marks a Power Shard.
+    FULL_BLOCK = "fullblock"
     #: The target blocked the hit with its shield (a Templar's or a Cleric's), and it took about half (0.2.407).
     SHIELD_BLOCK = "shieldblock"
     #: The target's Endurance halved the hit (0.2.407).

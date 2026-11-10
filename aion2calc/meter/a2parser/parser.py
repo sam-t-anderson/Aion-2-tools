@@ -59,7 +59,7 @@ def _varint_ending_at(data: bytes, end: int, minimum_start: int,
 ABSORBED_BY = 0x40
 #: The most shields one hit's record names; the archived captures hold up to three.
 ABSORBED_BY_MAX = 8
-#: Modifier bit 0x20 of a layout-6 hit (decoded as ``SpecialDamage.SMITE``): the target's Regeneration gave back part
+#: Modifier bit 0x20 of a layout-6 hit (``SpecialDamage.REGENERATION``): the target's Regeneration gave back part
 #: of the hit, and the varint after the modifiers is the HP it gave back, a fifth of what got past the target's shields
 #: (0.2.406). The hit dealt its whole value, and the target's HP drops by the value less what the shields took and the
 #: fifth. Without the bit the varint is 0. From 128 on it takes two bytes, which the decoder read as one before
@@ -70,6 +70,10 @@ REGENERATION = 0x20
 #: hits read directly from the archived captures, only Templars' and Clerics' carry it: 31.9 % and 14.2 % of
 #: monsters' hits on them, none on another class or on a monster. Bit 0x02 is the parry, the weapon block.
 SHIELD_BLOCK = 0x01
+#: Modifier bit 0x40 of a hit: the target's parry (0x02) or shield block (0x01) took all of it but 1 HP. In the
+#: archived captures all 172 hits read directly with it come with one of the two and count 1, none from behind. The
+#: decoder named it Power Shard before 0.2.408 (``SpecialDamage.FULL_BLOCK``).
+FULL_BLOCK = 0x40
 #: Modifier bit 0x10 of a hit: the target's Endurance halved it (0.2.407; the client's text: "Reduces Damage by half").
 #: Of the hits read directly, a player's only, and raised on Templars by Ironclad Defense: 20.7 % of monsters' hits on
 #: them, 0.9 to 10.1 % on the other classes.
@@ -249,8 +253,8 @@ def parse_damage_packet(frame: bytes, timestamp_ms: int | None = None,
             mods = frame[offset]
             for mask, flag in ((SHIELD_BLOCK, SpecialDamage.SHIELD_BLOCK), (2, SpecialDamage.PARRY),
                                (4, SpecialDamage.PERFECT), (8, SpecialDamage.DOUBLE),
-                               (ENDURANCE, SpecialDamage.ENDURANCE), (32, SpecialDamage.SMITE),
-                               (64, SpecialDamage.POWER_SHARD)):
+                               (ENDURANCE, SpecialDamage.ENDURANCE), (REGENERATION, SpecialDamage.REGENERATION),
+                               (FULL_BLOCK, SpecialDamage.FULL_BLOCK)):
                 if mods & mask:
                     specials.add(flag)
             direction_at = offset + 2

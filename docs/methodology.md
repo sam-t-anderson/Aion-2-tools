@@ -1855,7 +1855,9 @@ wins back 0.9 % for a Spiritmaster (the Sorcerer's 0.3 % and the Chanter's nothi
 * **The accuracy lines are scored** against the boss's parries ([above](#parries-against-accuracy-02386)): Accuracy
   Bonus, PvE Accuracy (against monsters only) and the genus Accuracy lines.
 * **Power Shard Damage Bonus stays unscored**: by the client's text it only adds to the damage of Power Shards
-  (consumables of +5 % or +10 % damage, one spent an attack), and no recorded hit has carried the power-shard bit.
+  (consumables of +5 % or +10 % damage, one spent an attack), and no record the meter reads says when a Power Shard
+  was used: the bit the decoder had named for one is a block that took the whole hit
+  ([open investigations](open-investigations.md#the-decoders-names-for-bits-0x20-and-0x40-10-november-02408)).
 
 ### Estimated time-to-enrage (0.2.386)
 

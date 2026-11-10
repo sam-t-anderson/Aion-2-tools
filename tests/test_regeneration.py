@@ -1,14 +1,14 @@
 """A hit the target's Regeneration answered counts whole, and what Regeneration gave back is the target's heal (0.2.406).
 
-After a layout-6 hit's modifiers comes a varint. With modifier bit 0x20 (decoded as Smite) it is the HP the target's
-Regeneration gave back of the hit, and without the bit 0. In the 14 archived captures it is a fifth of what got past
-the target's shields in every hit it can be checked on: ``value // 5`` in all 473 hits no shield took part of,
-``(value - what the shields took) // 5`` in 49 of 50 that one did (the 50th shares its shield's absorbs with another
-hit), and 0 where the hit was under 5 HP or the shields took it whole. The bit is the target's, never a monster's;
-the hit's value is whole, where a block or Endurance halves it; and the target's HP drops by the value less what
-the shields took and the fifth. The client's text says Regeneration "Recovers a portion of Damage as HP".
-0.2.402 to 0.2.405 took the fifth off the hit's damage. From 128 on the varint takes two bytes, which the decoder read
-as one before 0.2.402 (docs/open-investigations.md). Synthetic records only, with the fields the captures carry."""
+After a layout-6 hit's modifiers comes a varint. With modifier bit 0x20 (named Smite before 0.2.408) it is the HP the
+target's Regeneration gave back of the hit, and without the bit 0. In the 14 archived captures it is a fifth of what
+got past the target's shields in every hit it can be checked on: ``value // 5`` in all 473 hits no shield took part
+of, ``(value - what the shields took) // 5`` in 49 of 50 that one did (the 50th shares its shield's absorbs with
+another hit), and 0 where the hit was under 5 HP or the shields took it whole. The bit is the target's, never a
+monster's; the hit's value is whole, where a block or Endurance halves it; and the target's HP drops by the value less
+what the shields took and the fifth. The client's text says Regeneration "Recovers a portion of Damage as HP". 0.2.402
+to 0.2.405 took the fifth off the hit's damage. From 128 on the varint takes two bytes, which the decoder read as one
+before 0.2.402 (docs/open-investigations.md). Synthetic records only, with the fields the captures carry."""
 from aion2calc.combat.healing import summarize as healing_summary
 from aion2calc.meter.a2parser.lookup import REGENERATION_SKILL, skill_name
 from aion2calc.meter.a2parser.models import DamageEvent, HealEvent, SpecialDamage
@@ -94,7 +94,7 @@ def test_without_the_bit_or_with_nothing_given_back_there_is_no_heal():
     assert _event(_hit(4, mods=REGENERATION)).total_damage == 4
     # The other modifiers are read as before
     event = _event(_hit(1_480, regenerated=296, mods=0x08 | 0x02))
-    assert {SpecialDamage.DOUBLE, SpecialDamage.PARRY, SpecialDamage.SMITE} <= event.specials
+    assert {SpecialDamage.DOUBLE, SpecialDamage.PARRY, SpecialDamage.REGENERATION} <= event.specials
 
 
 def test_the_direction_is_read_after_the_field():
