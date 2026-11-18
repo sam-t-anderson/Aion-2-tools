@@ -35,7 +35,9 @@ def test_it_is_off_by_default_and_read_again_within_seconds(home, monkeypatch):
     assert MR.performance_mode() is False and CombatSession.POSITION_EVERY_MS == 250
     _choose(True)
     assert MR.performance_mode() is False                      # read at most every five seconds
-    later = time.monotonic() + 5.0
+    # A whole number of seconds, so that adding 5.0 to it is exact: with a fraction, later + 5.0 - later can
+    # round to just under 5.0 and the re-read is (rightly) not yet due.
+    later = float(int(time.monotonic()) + 6)
     monkeypatch.setattr(MR.time, "monotonic", lambda: later)
     assert MR.performance_mode() is True and CombatSession.POSITION_EVERY_MS == 1000
     _choose(False)

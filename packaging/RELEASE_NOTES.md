@@ -1,3 +1,7 @@
+## Filter a fight's events like a spreadsheet (0.2.409)
+
+**Events filters.** A review's **Events** list holds every hit and heal of a fight, hundreds of them for a two-minute dummy parse, with no way to narrow them. Its columns now filter like a spreadsheet's: **Event**, **Caster / attacker**, **Recipient / target** and **Ability** each open a list of their values with how many rows each has, to tick the ones to keep, with a search box and *All*, *None* and *Only the found*. Each list counts what the other filters keep, so once one ability is picked the recipients show how often it landed on each. A **Time** and an **Amount** range narrow it further, and **Sort** puts the largest hits first. A line above the table counts the rows kept and gives their total, average, smallest and largest amounts and the time they span: pick one ability to see how hard it hits and how many times it went off. **Clear filters** shows everything again. The filters are kept per encounter while the review is open.
+
 ## Two hit flags are named for what they are (0.2.408)
 
 **Regeneration and a full block.** The meter's decoder named two of a hit's flags Smite and Power Shard. The recordings show the first is the target's Regeneration, whose healing the hit's record carries, and the second a block that took the whole hit, which comes only with a parry or a shield block. Neither name reached the review or a saved log, so no number changes.
