@@ -1705,3 +1705,44 @@ def test_an_analyzed_fights_breakdown_shows_every_section_at_once_inside_its_win
     assert abs(chart["y"] + chart["height"] - defense["y"] - defense["height"]) < 1   # the columns end together
     strip = page.locator("#focused-log .prot .strip")
     assert strip.evaluate("s => s.scrollWidth > s.clientWidth + 100") and strip.get_attribute("tabindex") == "0"
+
+
+def test_the_events_filter_like_a_spreadsheets_columns_and_sum_what_they_keep(app_page, app_url, app_home):
+    """A player asked how hard one ability hits and how often it went off in a fight (0.2.409): the Events table's
+    columns filter like a spreadsheet's, each value ticked or not with its count, plus a time and an amount range and a
+    sort by amount, and the rows kept are counted and summed."""
+    page = app_page
+    path = _saved(app_home, "session-20261118-120000-abcdef.a2log.json", enemies_recording())
+    try:
+        go(page, app_url, f"#/combat-log/local/{path.name}?segment=1")
+        page.click('[data-view="events"]')
+        summary = page.locator("[data-ef-summary]")
+        summary.wait_for()
+        assert summary.inner_text().startswith("40 events · total 66,200")
+        # the ability column: tick only the summons' attack
+        ability = page.locator('[data-ef-col="skill"]')
+        ability.locator("summary").click()
+        values = ability.locator(".cr-ef-list label")
+        assert values.count() == 2 and values.first.inner_text().split()[-1] == "36"     # most kept first, with counts
+        ability.locator("[data-ef-none]").click()
+        page.locator('[data-ef-col="skill"] .cr-ef-list input').nth(1).check()
+        assert page.locator("[data-ef-summary]").inner_text().startswith("4 of 40 events · total 3,200 · average 800")
+        assert page.locator('[data-ef-col="skill"]').get_attribute("open") is not None   # the open list stays open
+        assert "1 of 2" in page.locator('[data-ef-col="skill"] summary').inner_text()
+        # back to every ability; then an amount range and the largest first
+        page.locator('[data-ef-col="skill"] [data-ef-all]').click()
+        page.fill('[data-ef-range="a0"]', "600")
+        page.press('[data-ef-range="a0"]', "Enter")
+        page.wait_for_function("document.querySelector('[data-ef-summary]').textContent.startsWith('34 of 40')")
+        assert "smallest 800 · largest 2,000" in page.locator("[data-ef-summary]").inner_text()
+        page.select_option("[data-ef-sort]", "amount")
+        first = page.locator("[data-ef-summary] + .cr-scroll table tr").nth(1).inner_text()
+        assert first.rstrip().endswith("2,000")
+        # the recipient column counts what the other filters keep: no add takes a hit of 600 or more
+        recipients = page.locator('[data-ef-col="target"] .cr-ef-list label').all_inner_texts()
+        assert not any("Testling Add" in r for r in recipients)
+        page.click("[data-ef-clear]")
+        assert page.locator("[data-ef-summary]").inner_text().startswith("40 events")
+    finally:
+        page.goto("about:blank")
+        path.unlink()

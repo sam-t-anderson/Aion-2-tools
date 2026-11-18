@@ -268,6 +268,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
     // while it is in view ``own`` holds this recording's document; ``loading`` and ``error`` are its request's.
     const ownFight=()=>({segment:-1,own:null,loading:false,error:''});
     let fight=ownFight();
+    let efOptions={};          // the events filters' values per column, as last drawn (0.2.409)
     // the replay's key entries the viewer unticked: "boss", "pet", "enemy", "trail", "arena", or a player's "id:<id>"
     // ("class:<class>" when the key lists classes); kept while the review is open
     const replayHidden=new Set();
@@ -1026,8 +1027,38 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       const detailTabs=[["contribution","Ability contribution"],["abilities","Abilities"],["skills","Skills"],["casts","Cast timeline"],["","Hide"]];
       const detailBody={contribution:()=>byAbility(skillChart),abilities:()=>byAbility(breakdown),skills:()=>skillsHTML(v),casts:()=>castsHTML(v)}[state.detail];
       const detailsHTML=`<div class="cr-actions cr-details"><h3>Abilities and skills</h3><div class="cr-tabs">${detailTabs.map(([v,l])=>`<button class="btn small ${state.detail===v?'primary':''}" data-detail="${v}">${l}</button>`).join('')}</div>${detailBody?detailBody():''}</div>`;
-      const pageCount=Math.max(1,Math.ceil(events.length/100));state.page=Math.min(state.page,pageCount-1);
-      const eventTable=table(["Time","Event","Caster / attacker","Recipient / target","Ability","Amount"],events.slice(state.page*100,(state.page+1)*100).map(e=>`<tr><td>${e.t.toFixed(3)}s</td><td>${esc(e.kind)}</td><td>${actorHTML(d.r[e.source])}</td><td>${actorHTML(d.r[e.target])}</td><td>${esc(e.skill || e.skill_id || "—")}</td><td>${e.kind==="death"?"—":number(e.amount)}</td></tr>`));
+      // The events' filters (0.2.409), a spreadsheet's column filters: tick the events, casters, recipients and
+      // abilities to keep (each value with its count among the rows the other filters keep), a time and an amount
+      // range, sorted by time or by amount, with the kept rows' count, total, average, smallest and largest. Kept per
+      // encounter while the page is open.
+      if(!state.ef || state.ef.seg!==state.segment)state.ef={seg:state.segment,sel:{},t0:"",t1:"",a0:"",a1:"",sort:"time"};
+      const ef=state.ef,efNum=x=>x===""||x==null||!Number.isFinite(+x)?null:+x;
+      const efKeys={kind:e=>String(e.kind),source:e=>String(e.source??""),target:e=>String(e.target??""),skill:e=>String(e.skill || e.skill_id || "—")};
+      const efNames={kind:"Event",source:"Caster / attacker",target:"Recipient / target",skill:"Ability"};
+      const efLabel={kind:v=>v,source:v=>v?label(d.r[v]):"Unknown / not recorded",target:v=>v?label(d.r[v]):"Unknown / not recorded",skill:v=>v};
+      const efPass=(e,skip)=>{
+        for(const k in efKeys)if(k!==skip && ef.sel[k] && !ef.sel[k].includes(efKeys[k](e)))return false;
+        const t0=efNum(ef.t0),t1=efNum(ef.t1),a0=efNum(ef.a0),a1=efNum(ef.a1);
+        if((t0!==null && e.t<t0) || (t1!==null && e.t>t1))return false;
+        if((a0!==null || a1!==null) && e.kind==="death")return false;
+        return !((a0!==null && (e.amount||0)<a0) || (a1!==null && (e.amount||0)>a1));
+      };
+      let shown=events.filter(e=>efPass(e));
+      if(ef.sort==="amount")shown=shown.slice().sort((x,y)=>(y.amount||0)-(x.amount||0) || x.t-y.t);
+      efOptions={};
+      const efColumn=k=>{
+        const counts=new Map();for(const e of events)if(efPass(e,k)){const v=efKeys[k](e);counts.set(v,(counts.get(v)||0)+1);}
+        for(const v of ef.sel[k]||[])if(!counts.has(v))counts.set(v,0);
+        const opts=[...counts].map(([v,n])=>({v,n,name:String(efLabel[k](v))})).sort((x,y)=>y.n-x.n || x.name.localeCompare(y.name));
+        efOptions[k]=opts;const sel=ef.sel[k];
+        return `<details class="cr-ef" data-ef-col="${k}" ${state.efOpen===k?"open":""}><summary class="btn small ${sel?"primary":""}">${efNames[k]}${sel?` · ${sel.length} of ${opts.length}`:""}</summary><div class="cr-ef-pop"><input type="search" data-ef-search placeholder="Find…" aria-label="Find a value of ${efNames[k]}" value="${esc(state.efSearch?.[k] || "")}"><div class="row"><button class="btn small" type="button" data-ef-all>All</button><button class="btn small" type="button" data-ef-none>None</button><button class="btn small" type="button" data-ef-found title="Keep only the values the search finds">Only the found</button></div><div class="cr-ef-list">${opts.map((o,i)=>`<label data-ef-name="${esc(o.name.toLowerCase())}"><input type="checkbox" data-ef-val="${i}" ${!sel || sel.includes(o.v)?"checked":""}> <span>${esc(o.name)}</span> <span class="muted">${number(o.n)}</span></label>`).join("") || '<p class="small muted">No values.</p>'}</div></div></details>`;
+      };
+      const kept=shown.filter(e=>e.kind!=="death"),keptTotal=kept.reduce((total,e)=>total+(e.amount||0),0);
+      const filtered=Object.values(ef.sel).some(Boolean) || [ef.t0,ef.t1,ef.a0,ef.a1].some(x=>efNum(x)!==null);
+      const efSummary=!shown.length?`<p class="small" role="status">No event matches these filters.</p>`:`<p class="small" role="status" data-ef-summary><b>${number(shown.length)}</b>${filtered?` of ${number(events.length)}`:""} events · total <b>${number(keptTotal)}</b>${kept.length?` · average ${number(keptTotal/kept.length)} · smallest ${number(Math.min(...kept.map(e=>e.amount||0)))} · largest ${number(Math.max(...kept.map(e=>e.amount||0)))}`:""} · ${Math.min(...shown.map(e=>e.t)).toFixed(3)}s to ${Math.max(...shown.map(e=>e.t)).toFixed(3)}s</p>`;
+      const efHTML=`<div class="cr-ef-bar" data-ef><span class="small">Filter:</span>${Object.keys(efKeys).map(efColumn).join("")}<label class="small">Time <input type="number" step="any" min="0" data-ef-range="t0" value="${esc(ef.t0)}" placeholder="from" aria-label="Time from (seconds)"> to <input type="number" step="any" min="0" data-ef-range="t1" value="${esc(ef.t1)}" placeholder="to" aria-label="Time to (seconds)"> s</label><label class="small">Amount <input type="number" step="any" min="0" data-ef-range="a0" value="${esc(ef.a0)}" placeholder="min" aria-label="Smallest amount"> to <input type="number" step="any" min="0" data-ef-range="a1" value="${esc(ef.a1)}" placeholder="max" aria-label="Largest amount"></label><label class="small">Sort <select data-ef-sort><option value="time" ${ef.sort==="time"?"selected":""}>by time</option><option value="amount" ${ef.sort==="amount"?"selected":""}>by amount, largest first</option></select></label>${filtered || ef.sort!=="time"?'<button class="btn small" type="button" data-ef-clear>Clear filters</button>':""}</div>${efSummary}`;
+      const pageCount=Math.max(1,Math.ceil(shown.length/100));state.page=Math.min(state.page,pageCount-1);
+      const eventTable=efHTML+table(["Time","Event","Caster / attacker","Recipient / target","Ability","Amount"],shown.slice(state.page*100,(state.page+1)*100).map(e=>`<tr><td>${e.t.toFixed(3)}s</td><td>${esc(e.kind)}</td><td>${actorHTML(d.r[e.source])}</td><td>${actorHTML(d.r[e.target])}</td><td>${esc(e.skill || e.skill_id || "—")}</td><td>${e.kind==="death"?"—":number(e.amount)}</td></tr>`));
       root.innerHTML=`<section class="win cr-review"><div class="wh"><h2>${esc(doc.meta?.title || "Combat log")}</h2><span>${duration.toFixed(1)}s</span></div><div class="wb">
         <div class="row"><label>Combat mode <select data-control="mode"><option value="" ${!state.mode?'selected':''}>All recorded modes</option><option value="pve" ${state.mode==='pve'?'selected':''}>PvE</option><option value="pvp" ${state.mode==='pvp'?'selected':''}>PvP</option></select></label>${runMenu}${options.live?`<label><input type="checkbox" data-control="followLatest" ${state.followLatest?'checked':''}> Follow latest encounter</label>`:''}<label>Encounter <select data-control="segment">${doc.segments.map((s,i)=>(!matchesMode(s) || (state.run && (s.run_id || "legacy")!==state.run))?"":`<option value="${i}" ${i===state.segment?"selected":""}>${esc(s.label || s.boss || "Combat "+(i+1))}${Number.isInteger(s.continued_in)?(PIECE_LABELS[s.fragment] || ' (piece of a cut fight)'):''}</option>`).join("")}</select></label><label>Player <select data-control="actor"><option value="">All players</option>${d.rows.map(p=>`<option value="${esc(p.id)}" ${p.id===state.actor?"selected":""}>${esc(label(p))}</option>`).join("")}${foes.length?`<optgroup label="Opponents">${foes.map(e=>`<option value="${esc(e.id)}" ${e.id===state.actor?"selected":""}>${esc(label(e))}</option>`).join("")}</optgroup>`:""}</select></label><button class="btn small" data-color-settings>Class colors</button>${window.A2AssetHealth?'<button class="btn small" data-retry-images>Retry images</button><button class="btn small" data-export-images>Export image failures</button>':''}<label><input type="checkbox" data-control="insights" ${state.insights?"checked":""}> Encounter insights</label></div>
         ${(d.segment.encounter_type||doc.meta?.encounter_type||'').startsWith('pvp_')?(d.segment.arena?arenaHTML(d):'<p class="note">PvP recording · matched by mode, arena/encounter, ruleset and game version. Opponents are outside the recorded Self/Party roster. Only observed combat effects are shown; match results, objectives and kill credit are not inferred.</p>'):''}
@@ -1037,7 +1068,7 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
         ${combinedHTML()}${archiveHTML()}${sharedHTML()}${fightHTML()}${qualityHTML}${classificationHTML(d)}${catalogHTML(d)}${state.mode?'<p class="small muted">Showing only encounters recorded as '+state.mode.toUpperCase()+'. Whole-run timing is hidden in this filtered view.</p>':runsHTML(d)}<div class="cr-tabs">${["summary","damage","taken","healing","deaths"].map((v,i)=>`<button class="btn small ${state.metric===v?"primary":""}" data-metric="${v}">${["Summary","Damage Done","Damage Taken","Healing","Death recaps"][i]}</button>`).join("")}<span class="cr-spacer"></span>${["table","timeline","events"].map(v=>`<button class="btn small ${state.view===v?"primary":""}" data-view="${v}">${v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>
         <div class="cr-options">${[["graph","Graph"],["timeline","Timeline"],["skills","Skills"],["deaths","Deaths"],["heals","Healing"],["pets","Pets"],["combine","Combine pets with owner"]].map(([key,label])=>`<label><input type="checkbox" data-control="${key}" ${state[key]?"checked":""}> ${label}</label>`).join("")}</div>
         <div class="row"><span>Character builds:</span>${Object.values(d.r).filter(character).map(actorHTML).join(" ")}</div><div data-profile>${profileHTML()}</div><div data-colors hidden></div>${state.graph && state.metric!=="deaths"?graph(v,events):""}${latencyHTML(d)}${bossHPHTML(d)}${encounters(d)}${state.metric==="deaths"?recapsHTML(v):""}${state.insights?insightsHTML(d):""}
-        ${state.view==="table" ? summary : state.view==="events" ? eventTable+`<div class="row"><button class="btn small" data-prev>Previous</button> ${state.page+1} / ${pageCount} · ${events.length} events <button class="btn small" data-next>Next</button></div>` : ""}
+        ${state.view==="table" ? summary : state.view==="events" ? eventTable+`<div class="row"><button class="btn small" data-prev>Previous</button> ${state.page+1} / ${pageCount} · ${shown.length} events <button class="btn small" data-next>Next</button></div>` : ""}
         ${state.timeline && state.view==="timeline" ? timeline(v,events):""}
         ${detailsHTML}
         ${actionsHTML(v)}
@@ -1076,6 +1107,21 @@ const buildLabel=x=>String(x??'').replace(/version:product:([0-9.]+)/g,(_,v)=>'P
       root.querySelector("[data-clear-enemy]").onclick=()=>{state.enemy="";render();};
       root.querySelectorAll("[data-series]").forEach(e=>e.onclick=()=>{state.hidden.add(e.dataset.series);render();});
       if(root.querySelector("[data-showall]"))root.querySelector("[data-showall]").onclick=()=>{state.hidden.clear();render();};
+      root.querySelectorAll("[data-ef-col]").forEach(box=>{
+        const k=box.dataset.efCol,search=box.querySelector("[data-ef-search]"),vals=()=>[...box.querySelectorAll("[data-ef-val]")];
+        box.addEventListener("toggle",()=>{if(box.open){state.efOpen=k;root.querySelectorAll("[data-ef-col]").forEach(o=>{if(o!==box)o.open=false;});}else if(state.efOpen===k)state.efOpen="";});
+        const find=()=>{const q=search.value.trim().toLowerCase();(state.efSearch||(state.efSearch={}))[k]=search.value;box.querySelectorAll("[data-ef-name]").forEach(l=>{l.hidden=!!q && !l.dataset.efName.includes(q);});};
+        search.oninput=find;find();
+        const keep=list=>{const all=efOptions[k].map(o=>o.v);state.ef.sel[k]=list.length===all.length?undefined:list;state.page=0;render();};
+        vals().forEach(c=>c.onchange=()=>keep(vals().filter(x=>x.checked).map(x=>efOptions[k][+x.dataset.efVal].v)));
+        box.querySelector("[data-ef-all]").onclick=()=>keep(efOptions[k].map(o=>o.v));
+        box.querySelector("[data-ef-none]").onclick=()=>keep([]);
+        box.querySelector("[data-ef-found]").onclick=()=>keep(vals().filter(x=>!x.closest("label").hidden).map(x=>efOptions[k][+x.dataset.efVal].v));
+        if(state.efOpen===k && document.activeElement===document.body)search.focus({preventScroll:true});
+      });
+      root.querySelectorAll("[data-ef-range]").forEach(i=>i.onchange=()=>{state.ef[i.dataset.efRange]=i.value;state.page=0;render();});
+      const efSort=root.querySelector("[data-ef-sort]");if(efSort)efSort.onchange=()=>{state.ef.sort=efSort.value;state.page=0;render();};
+      const efClear=root.querySelector("[data-ef-clear]");if(efClear)efClear.onclick=()=>{state.ef=null;state.efSearch={};state.efOpen="";state.page=0;render();};
       if(root.querySelector("[data-prev]"))root.querySelector("[data-prev]").onclick=()=>{state.page=Math.max(0,state.page-1);render();};
       if(root.querySelector("[data-next]"))root.querySelector("[data-next]").onclick=()=>{state.page++;render();};
       bindImageExport();
