@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 
 from aion2calc.scrape import metabot
+from aion2calc.scrape.http import NotFound
 from aion2calc.scrape.catalog import REPOSITORY, stage
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,20 +50,18 @@ def run(name, *args):
                    check=True, cwd=ROOT)
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--refresh-existing", action="store_true")
-    parser.add_argument("--observed-build", default="",
-                        help="Optional collection context, not a verified source-to-build mapping")
-    args = parser.parse_args()
-    if args.observed_build and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9:._-]{0,99}", args.observed_build):
-        raise ValueError("Invalid build observation label")
-    generated = [STATIC / n for n in ("build-catalog.json", "crafting-catalog.json", "crafting-success.json", "game-assets.json")]
-    previous = {p: p.read_bytes() for p in generated if p.exists()}
-    class_files = sorted((ROOT / "aion2calc/data/global/classes").glob("*.json"))
+class SourceUnavailable(RuntimeError):
+    """The class pages could not be read at all (refused or unreachable), as opposed to read and invalid."""
+
+
+def class_skill_refs(class_files):
+    """Each class page's skill IDs and icon references, validated against their IDs."""
     refs = {}
     for file in class_files:
-        data = metabot.class_data(file.stem, fresh=True)
+        try:
+            data = metabot.class_data(file.stem, fresh=True)
+        except (NotFound, RuntimeError, OSError) as exc:
+            raise SourceUnavailable(str(exc)) from exc
         skills = data.get("skills")
         if not isinstance(skills, list) or not 10 <= len(skills) <= 500:
             raise ValueError("Class source layout changed; retain the previous snapshot")
@@ -79,6 +78,44 @@ def main():
             if value != expected:
                 raise ValueError("Skill image reference disagrees with its source ID")
             refs[key] = {"id": key, "url": value}
+    return refs
+
+
+def previous_skill_refs(manifest_path):
+    """The skill icon references the published snapshot holds, in the form ``class_skill_refs`` returns."""
+    if not manifest_path.exists():
+        raise ValueError("No previous asset snapshot to keep while the skill icon source is unavailable")
+    references = json.loads(manifest_path.read_bytes()).get("references", {})
+    refs = {}
+    for name, row in references.items():
+        if not name.startswith("metabot:skill:"):
+            continue
+        key = int(row["id"])
+        if row.get("url") == f"https://metabot.gg/web/aion2/skills/{key}.webp":
+            refs[key] = {"id": key, "url": row["url"]}
+    return refs
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--refresh-existing", action="store_true")
+    parser.add_argument("--observed-build", default="",
+                        help="Optional collection context, not a verified source-to-build mapping")
+    args = parser.parse_args()
+    if args.observed_build and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9:._-]{0,99}", args.observed_build):
+        raise ValueError("Invalid build observation label")
+    generated = [STATIC / n for n in ("build-catalog.json", "crafting-catalog.json", "crafting-success.json", "game-assets.json")]
+    previous = {p: p.read_bytes() for p in generated if p.exists()}
+    class_files = sorted((ROOT / "aion2calc/data/global/classes").glob("*.json"))
+    try:
+        refs = class_skill_refs(class_files)
+    except SourceUnavailable as exc:
+        # metabot.gg has refused this runner (HTTP 403 since 12 November 2026). Keep the skill icons the
+        # snapshot already references and refresh everything else; the skill icons update again once the
+        # class pages answer. A page that answers with a changed layout still fails the run below.
+        refs = previous_skill_refs(STATIC / "game-assets.json")
+        print(f"::warning::Skill icon source unavailable ({exc}); keeping the {len(refs)} skill icon "
+              "references of the current snapshot")
     with tempfile.TemporaryDirectory(prefix="aion2-assets-") as temp:
         temp = Path(temp)
         additional = temp / "skills.json"

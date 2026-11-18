@@ -48,14 +48,20 @@ def fetch(url):
    if len(data)>256*1024 or not data.startswith(b'RIFF') or data[8:12]!=b'WEBP':raise ValueError('Not a bounded WebP')
    path.write_bytes(data)
  return url,'game-assets/'+name
-result={};failed=[]
+result={};failed=[];kept=[]
 with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
  futures={pool.submit(fetch,u):u for u in sorted(urls)}
  for f in concurrent.futures.as_completed(futures):
   try:u,path=f.result();result[u]=path
-  except Exception:failed.append(futures[f])
+  except Exception:
+   u=futures[f];name=hashlib.sha256(u.encode()).hexdigest()[:24]+'.webp'
+   # Checking an icon it already holds again (--refresh-existing) and the source refusing or failing: keep the
+   # icon it has rather than drop it from the snapshot. Only an icon it never had counts as missing.
+   if (out/name).exists():kept.append(u);result[u]='game-assets/'+name
+   else:failed.append(u)
 manifest={'retrieved_at':datetime.now(timezone.utc).isoformat(),'sources':['https://metabot.gg/','https://gamers4.life/aion-2/database/en/crafting-calculator/'],'note':'Unmodified game icons referenced by bundled catalogs. Game art belongs to its owners; source URL namespaces are kept separate. Missing assets retain remote-source fallback.','references':references,'assets':dict(sorted(result.items())),'missing':sorted(failed)}
 (root/'game-assets.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
 (root/'game-assets.js').write_text('/* Source-attributed, unmodified game icon snapshot. See game-assets.json. */\nwindow.A2BundledAssets={base:new URL(".",document.currentScript.src).href,files:'+json.dumps(manifest['assets'],separators=(',',':'))+'};\n',encoding='utf-8')
 print('Bundled',len(result),'assets;',len(failed),'missing;',sum(p.stat().st_size for p in out.iterdir()),'bytes')
 if failed:print('Missing source URLs:',json.dumps(failed))
+if kept:print(f'::warning::{len(kept)} icons could not be checked again; kept the copies already held')
