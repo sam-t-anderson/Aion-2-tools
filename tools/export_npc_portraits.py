@@ -12,6 +12,7 @@ import argparse
 parser=argparse.ArgumentParser()
 parser.add_argument('source',type=Path,help='Downloaded https://dbaion2.ru/data-en/npcs.json')
 parser.add_argument('--refresh-existing',action='store_true')
+parser.add_argument('--from-snapshot',type=Path,help='The source is the published portraits (DBAion2 unavailable); this file holds the published source record, kept as it was')
 args=parser.parse_args()
 raw=args.source.read_bytes()
 if len(raw)>8*1024*1024:raise ValueError('NPC source exceeds 8 MiB')
@@ -35,12 +36,19 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
  tasks={pool.submit(fetch,u):u for u in sorted(urls)}
  for f in concurrent.futures.as_completed(tasks):
   try:u,path=f.result();assets[u]=path
-  except Exception:missing.append(tasks[f])
+  except Exception:
+   # Checking a portrait it already holds again and DBAion2 failing: keep the copy it has.
+   u=tasks[f];held=static/'game-assets'/(hashlib.sha256(u.encode()).hexdigest()[:24]+'.webp')
+   if held.exists():assets[u]='game-assets/'+held.name
+   else:missing.append(u)
 portraits={k:{'name':r['name'],'icon':'https://dbaion2.ru/icons/'+r['icon']+'.webp'} for k,r in rows.items() if 'https://dbaion2.ru/icons/'+r['icon']+'.webp' in assets}
 target=root/'aion2calc/meter/a2parser/data/i18n/npc-portraits';target.mkdir(exist_ok=True)
 (target/'en.json').write_text(json.dumps(portraits,ensure_ascii=False,separators=(',',':'))+'\n',encoding='utf-8')
 manifest=json.loads((static/'game-assets.json').read_text(encoding='utf-8'))
 manifest['assets'].update(assets);manifest['npc_portrait_source']={'url':'https://dbaion2.ru/data-en/npcs.json','sha256':hashlib.sha256(raw).hexdigest(),'retrieved_at':datetime.now(timezone.utc).isoformat(),'matched_npcs':len(portraits),'rule':'Only existing boss-category NPC IDs with exact case-insensitive English name agreement. Portraits do not alter NPC roles, zone, difficulty or game build.'}
+if args.from_snapshot:
+ kept=json.loads(args.from_snapshot.read_text(encoding='utf-8'))
+ manifest['npc_portrait_source']=kept if isinstance(kept,dict) and kept.get('url')=='https://dbaion2.ru/data-en/npcs.json' else {**manifest['npc_portrait_source'],'sha256':None,'note':'Kept from the previous snapshot; DBAion2 was unavailable'}
 manifest['missing']+=missing
 manifest['assets']=dict(sorted(manifest['assets'].items()))
 manifest['npc_portraits']={k:portraits[k]['icon'] for k in sorted(portraits)}

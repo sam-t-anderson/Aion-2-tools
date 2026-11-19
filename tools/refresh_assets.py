@@ -14,7 +14,9 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from urllib.parse import parse_qs, urlparse
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from aion2calc.scrape import metabot
@@ -25,16 +27,48 @@ ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "aion2calc/app/static"
 
 
+RETRIES = 5
+
+
+def _transient(error):
+    """A dropped connection, a timeout, a rate limit or a server error: worth asking again. A refusal (403) or
+    any other 4xx is not."""
+    if isinstance(error, HTTPError):
+        return error.code == 429 or 500 <= error.code < 600
+    return isinstance(error, (URLError, TimeoutError, ConnectionError, OSError))
+
+
 def download(url, limit, *, github=False):
     headers = {"User-Agent": "aion2calc-asset-refresh"}
     token = os.environ.get("GH_TOKEN")
     if github and token:
         headers["Authorization"] = "Bearer " + token
-    with urlopen(Request(url, headers=headers), timeout=30) as response:
-        raw = response.read(limit + 1)
+    for attempt in range(RETRIES):
+        try:
+            with urlopen(Request(url, headers=headers), timeout=30) as response:
+                raw = response.read(limit + 1)
+            break
+        except Exception as error:  # noqa: BLE001 - re-raised below unless transient
+            # DBAion2 dropped the runner's TLS handshake on 19 November 2026 (SSL: UNEXPECTED_EOF)
+            if attempt + 1 >= RETRIES or not _transient(error):
+                raise
+            time.sleep(2 ** (attempt + 1))  # 2, 4, 8, 16 s
     if len(raw) > limit:
         raise ValueError("Source exceeds its collection limit")
     return raw
+
+
+def previous_npc_rows(portraits_path):
+    """The NPC rows the published portraits were matched from (id, name, icon name), so the portrait step can
+    rebuild them unchanged while DBAion2's NPC table cannot be read."""
+    if not portraits_path.exists():
+        raise ValueError("No previous NPC portraits to keep while DBAion2's NPC table is unavailable")
+    rows = []
+    for key, row in json.loads(portraits_path.read_bytes()).items():
+        icon = re.fullmatch(r"https://dbaion2\.ru/icons/([A-Za-z0-9_]{1,120})\.webp", str(row.get("icon", "")))
+        if re.fullmatch(r"[0-9]{1,19}", key) and icon:
+            rows.append({"id": int(key), "name": row.get("name", ""), "icon": icon[1]})
+    return rows
 
 
 def stable(value):
@@ -147,7 +181,7 @@ def main():
         refs.update({key: {"id": key, "url": f"https://metabot.gg/web/aion2/skills/{key}.webp"}
                      for key in backup if key not in refs})
         print(f"::warning::metabot.gg class pages unavailable ({exc}); {len(refs)} skill icons from the "
-              "snapshot and DBAion2's skill table")
+              + ("snapshot and DBAion2's skill table" if backup else "snapshot"))
     mirrors = {row["url"]: backup[key] for key, row in refs.items() if key in backup}
     with tempfile.TemporaryDirectory(prefix="aion2-assets-") as temp:
         temp = Path(temp)
@@ -164,8 +198,18 @@ def main():
         refresh = ["--refresh-existing"] if args.refresh_existing else []
         run("export_game_assets.py", "--additional", additional, "--mirrors", mirror_file, *refresh)
         npc_source = temp / "npcs.json"
-        npc_source.write_bytes(download("https://dbaion2.ru/data-en/npcs.json", 8 * 1024 * 1024))
-        run("export_npc_portraits.py", npc_source, *refresh)
+        try:
+            npc_source.write_bytes(download("https://dbaion2.ru/data-en/npcs.json", 8 * 1024 * 1024))
+            kept = []
+        except Exception as exc:  # noqa: BLE001 - keep the published portraits rather than drop them all
+            rows = previous_npc_rows(ROOT / "aion2calc/meter/a2parser/data/i18n/npc-portraits/en.json")
+            npc_source.write_text(json.dumps(rows), encoding="utf-8")
+            record = temp / "npc-source.json"
+            old = previous.get(STATIC / "game-assets.json")
+            record.write_text(json.dumps(json.loads(old).get("npc_portrait_source") if old else None), encoding="utf-8")
+            kept = ["--from-snapshot", record]
+            print(f"::warning::DBAion2 NPC table unavailable ({exc}); keeping the {len(rows)} published portraits")
+        run("export_npc_portraits.py", npc_source, *refresh, *kept)
         if json.loads((STATIC / "game-assets.json").read_bytes()).get("missing"):
             raise ValueError("One or more source images failed; retain the prior published snapshot")
         commits = json.loads(download(f"https://api.github.com/repos/{REPOSITORY}/commits?per_page=1",

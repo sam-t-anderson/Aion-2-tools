@@ -11,6 +11,7 @@ import importlib.util
 import json
 import runpy
 import shutil
+import urllib.error
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlparse
@@ -178,3 +179,63 @@ def test_a_mirror_outside_dbaion2s_icons_is_refused(tmp_path, monkeypatch):
     monkeypatch.setattr("sys.argv", [str(script), "--mirrors", str(mirrors)])
     with pytest.raises(ValueError, match="mirror"):
         runpy.run_path(str(script), run_name="__main__")
+
+
+# DBAion2 dropping the connection (19 November 2026: SSL UNEXPECTED_EOF during the handshake).
+
+class _Bytes:
+    def __init__(self, data):
+        self.data = data
+
+    def read(self, _n):
+        return self.data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_a_dropped_connection_is_asked_again_and_a_refusal_is_not(monkeypatch):
+    calls = []
+
+    def flaky(request, timeout=0):
+        calls.append(request.full_url)
+        if len(calls) < 3:
+            raise urllib.error.URLError("[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol")
+        return _Bytes(b"[]")
+    monkeypatch.setattr(refresh_assets, "urlopen", flaky)
+    monkeypatch.setattr(refresh_assets.time, "sleep", lambda _s: None)
+    assert refresh_assets.download("https://dbaion2.ru/data-en/npcs.json", 1024) == b"[]" and len(calls) == 3
+
+    calls.clear()
+
+    def refused(request, timeout=0):
+        calls.append(request.full_url)
+        raise urllib.error.HTTPError(request.full_url, 403, "Forbidden", {}, None)
+    monkeypatch.setattr(refresh_assets, "urlopen", refused)
+    with pytest.raises(urllib.error.HTTPError):
+        refresh_assets.download("https://metabot.gg/x", 1024)
+    assert len(calls) == 1
+
+
+def test_the_published_portraits_give_back_the_rows_they_were_matched_from(tmp_path):
+    portraits = tmp_path / "en.json"
+    portraits.write_text(json.dumps({
+        "2100001": {"name": "A Boss", "icon": "https://dbaion2.ru/icons/UT_256_MOB_Boss_01.webp"},
+        "2100002": {"name": "Elsewhere", "icon": "https://example.com/icons/x.webp"},
+    }), encoding="utf-8")
+    assert refresh_assets.previous_npc_rows(portraits) == [{"id": 2100001, "name": "A Boss",
+                                                            "icon": "UT_256_MOB_Boss_01"}]
+    with pytest.raises(ValueError, match="No previous NPC portraits"):
+        refresh_assets.previous_npc_rows(tmp_path / "absent.json")
+
+
+def test_the_published_portraits_rebuild_unchanged_while_dbaion2_cannot_be_reached():
+    portraits = ROOT / "aion2calc/meter/a2parser/data/i18n/npc-portraits/en.json"
+    rows = refresh_assets.previous_npc_rows(portraits)
+    published = json.loads(portraits.read_text(encoding="utf-8"))
+    assert len(rows) == len(published) > 100
+    assert {str(r["id"]): f"https://dbaion2.ru/icons/{r['icon']}.webp" for r in rows} == \
+        {k: v["icon"] for k, v in published.items()}
