@@ -13,6 +13,7 @@ import runpy
 import shutil
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 
@@ -150,7 +151,7 @@ def test_an_icon_metabot_will_not_serve_comes_from_dbaion2_under_the_url_the_app
 
     def metabot_refuses(request, timeout=0):
         asked.append(request.full_url)
-        if request.full_url.startswith("https://dbaion2.ru/"):
+        if urlparse(request.full_url).hostname == "dbaion2.ru":
             return Response(b"RIFF\0\0\0\0WEBPdbaion2")
         raise urllib.request.HTTPError(request.full_url, 403, "Forbidden", {}, None)
     monkeypatch.setattr(urllib.request, "urlopen", metabot_refuses)
@@ -160,7 +161,9 @@ def test_an_icon_metabot_will_not_serve_comes_from_dbaion2_under_the_url_the_app
     new_name = hashlib.sha256(new.encode()).hexdigest()[:24] + ".webp"
     assert manifest["assets"][new] == "game-assets/" + new_name          # filed under metabot's URL
     assert (static / "game-assets" / new_name).read_bytes() == b"RIFF\0\0\0\0WEBPdbaion2"
-    assert manifest["fetched_from"] == {new: mirror} and "https://dbaion2.ru/" in manifest["sources"]
+    assert manifest["fetched_from"] == {new: mirror}
+    assert manifest["sources"] == ["https://metabot.gg/", "https://gamers4.life/aion-2/database/en/crafting-calculator/",
+                                   "https://dbaion2.ru/"]
     # The icon it already held is kept as it was, not replaced by DBAion2's.
     assert (static / "game-assets" / name).read_bytes() == b"RIFF\0\0\0\0WEBPheld"
     assert "https://dbaion2.ru/icons/ICON_AS_SKILL_001.webp" not in asked
