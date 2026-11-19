@@ -13,6 +13,7 @@ import runpy
 import shutil
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 
@@ -101,3 +102,79 @@ def test_an_icon_the_snapshot_holds_is_kept_when_checking_it_again_is_refused(tm
     assert new in manifest["missing"] and held not in manifest["missing"]
     assert (static / "game-assets" / name).read_bytes() == b"RIFF\0\0\0\0WEBPheld"
     assert "could not be checked again" in capsys.readouterr().out
+
+
+# DBAion2 (dbaion2.ru) as the second source for skill icons.
+
+def _dbaion2_table(*rows):
+    return json.dumps([{"id": 13000000 + n, "name": f"Skill {n}", "icon": f"ICON_AS_SKILL_{n:03d}"}
+                       for n in range(1, 12)] + list(rows)).encode()
+
+
+def test_dbaion2s_table_gives_each_skill_id_its_game_icon():
+    icons = refresh_assets.dbaion2_skill_icons(_dbaion2_table({"id": 13999999, "name": "No icon"}))
+    assert icons[13000001] == "https://dbaion2.ru/icons/ICON_AS_SKILL_001.webp"
+    assert 13999999 not in icons and len(icons) == 11
+
+
+@pytest.mark.parametrize("bad", [{"id": "13010000", "icon": "X"}, {"id": 13010000, "icon": "../x"},
+                                 {"id": 13010000, "icon": "a" * 81}, "not a row"])
+def test_a_dbaion2_table_of_another_shape_is_refused(bad):
+    with pytest.raises(ValueError):
+        refresh_assets.dbaion2_skill_icons(_dbaion2_table(bad))
+    with pytest.raises(ValueError, match="layout changed"):
+        refresh_assets.dbaion2_skill_icons(b'{"skills": []}')
+
+
+def test_an_icon_metabot_will_not_serve_comes_from_dbaion2_under_the_url_the_app_looks_up(tmp_path, monkeypatch,
+                                                                                          capsys):
+    held, new = SKILL.format(1), SKILL.format(2)
+    script, static, name = _exporter_tree(tmp_path, held, new)
+    mirror = "https://dbaion2.ru/icons/ICON_AS_SKILL_002.webp"
+    mirrors = tmp_path / "mirrors.json"
+    mirrors.write_text(json.dumps({held: "https://dbaion2.ru/icons/ICON_AS_SKILL_001.webp", new: mirror}),
+                       encoding="utf-8")
+    asked = []
+
+    class Response:
+        def __init__(self, data):
+            self.data = data
+
+        def read(self, _n):
+            return self.data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def metabot_refuses(request, timeout=0):
+        asked.append(request.full_url)
+        if urlparse(request.full_url).hostname == "dbaion2.ru":
+            return Response(b"RIFF\0\0\0\0WEBPdbaion2")
+        raise urllib.request.HTTPError(request.full_url, 403, "Forbidden", {}, None)
+    monkeypatch.setattr(urllib.request, "urlopen", metabot_refuses)
+    monkeypatch.setattr("sys.argv", [str(script), "--refresh-existing", "--mirrors", str(mirrors)])
+    runpy.run_path(str(script), run_name="__main__")
+    manifest = json.loads((static / "game-assets.json").read_text(encoding="utf-8"))
+    new_name = hashlib.sha256(new.encode()).hexdigest()[:24] + ".webp"
+    assert manifest["assets"][new] == "game-assets/" + new_name          # filed under metabot's URL
+    assert (static / "game-assets" / new_name).read_bytes() == b"RIFF\0\0\0\0WEBPdbaion2"
+    assert manifest["fetched_from"] == {new: mirror}
+    assert manifest["sources"] == ["https://metabot.gg/", "https://gamers4.life/aion-2/database/en/crafting-calculator/",
+                                   "https://dbaion2.ru/"]
+    # The icon it already held is kept as it was, not replaced by DBAion2's.
+    assert (static / "game-assets" / name).read_bytes() == b"RIFF\0\0\0\0WEBPheld"
+    assert "https://dbaion2.ru/icons/ICON_AS_SKILL_001.webp" not in asked
+    assert new not in manifest["missing"]
+    assert "fetched from DBAion2" in capsys.readouterr().out
+
+
+def test_a_mirror_outside_dbaion2s_icons_is_refused(tmp_path, monkeypatch):
+    script, static, _ = _exporter_tree(tmp_path, SKILL.format(1), SKILL.format(2))
+    mirrors = tmp_path / "mirrors.json"
+    mirrors.write_text(json.dumps({SKILL.format(2): "https://example.com/x.webp"}), encoding="utf-8")
+    monkeypatch.setattr("sys.argv", [str(script), "--mirrors", str(mirrors)])
+    with pytest.raises(ValueError, match="mirror"):
+        runpy.run_path(str(script), run_name="__main__")

@@ -81,6 +81,29 @@ def class_skill_refs(class_files):
     return refs
 
 
+DBAION2_SKILLS = "https://dbaion2.ru/data-en/skills.json"
+DBAION2_ICON = "https://dbaion2.ru/icons/{}.webp"
+
+
+def dbaion2_skill_icons(raw):
+    """``{skill id: DBAion2 icon URL}`` from DBAion2's English skill table (the game's skill ids, the same ones
+    metabot.gg files its icons under, and the game's own icon names), or ``ValueError`` for a shape not reviewed."""
+    rows = json.loads(raw)
+    if not isinstance(rows, list) or not 10 <= len(rows) <= 5000:
+        raise ValueError("DBAion2 skill table layout changed")
+    icons = {}
+    for row in rows:
+        key, icon = (row.get("id"), row.get("icon")) if isinstance(row, dict) else (None, None)
+        if type(key) is not int or not 0 < key < 2**63:
+            raise ValueError("Invalid DBAion2 skill ID")
+        if icon is None:
+            continue
+        if not isinstance(icon, str) or not re.fullmatch(r"[A-Za-z0-9_]{1,80}", icon):
+            raise ValueError("Invalid DBAion2 skill icon name")
+        icons[key] = DBAION2_ICON.format(icon)
+    return icons
+
+
 def previous_skill_refs(manifest_path):
     """The skill icon references the published snapshot holds, in the form ``class_skill_refs`` returns."""
     if not manifest_path.exists():
@@ -107,19 +130,31 @@ def main():
     generated = [STATIC / n for n in ("build-catalog.json", "crafting-catalog.json", "crafting-success.json", "game-assets.json")]
     previous = {p: p.read_bytes() for p in generated if p.exists()}
     class_files = sorted((ROOT / "aion2calc/data/global/classes").glob("*.json"))
+    # DBAion2 (dbaion2.ru, already the source of the NPC portraits and item names) is the second source for
+    # skill icons: its table names the game's icon for each skill id. Without it the refresh still runs.
+    try:
+        backup = dbaion2_skill_icons(download(DBAION2_SKILLS, 16 * 1024 * 1024))
+    except Exception as exc:  # noqa: BLE001 - only the second source; metabot.gg remains the first
+        backup = {}
+        print(f"::warning::DBAion2 skill table unavailable ({exc}); no second source for skill icons")
     try:
         refs = class_skill_refs(class_files)
     except SourceUnavailable as exc:
-        # metabot.gg has refused this runner (HTTP 403 since 12 November 2026). Keep the skill icons the
-        # snapshot already references and refresh everything else; the skill icons update again once the
-        # class pages answer. A page that answers with a changed layout still fails the run below.
+        # metabot.gg has refused this runner (HTTP 403 since 12 November 2026). The skill list comes from the
+        # snapshot and DBAion2's table, and an icon metabot.gg will not serve is taken from DBAion2. A class
+        # page that answers with a changed layout still fails the run.
         refs = previous_skill_refs(STATIC / "game-assets.json")
-        print(f"::warning::Skill icon source unavailable ({exc}); keeping the {len(refs)} skill icon "
-              "references of the current snapshot")
+        refs.update({key: {"id": key, "url": f"https://metabot.gg/web/aion2/skills/{key}.webp"}
+                     for key in backup if key not in refs})
+        print(f"::warning::metabot.gg class pages unavailable ({exc}); {len(refs)} skill icons from the "
+              "snapshot and DBAion2's skill table")
+    mirrors = {row["url"]: backup[key] for key, row in refs.items() if key in backup}
     with tempfile.TemporaryDirectory(prefix="aion2-assets-") as temp:
         temp = Path(temp)
         additional = temp / "skills.json"
         additional.write_text(json.dumps(list(refs.values())), encoding="utf-8")
+        mirror_file = temp / "mirrors.json"
+        mirror_file.write_text(json.dumps(mirrors), encoding="utf-8")
         run("export_build_catalog.py")
         run("export_crafting_catalog.py")
         try:
@@ -127,7 +162,7 @@ def main():
         except Exception as exc:  # noqa: BLE001 - community success rates are optional; keep the prior snapshot
             print(f"Crafting success refresh skipped (keeping prior snapshot): {exc}")
         refresh = ["--refresh-existing"] if args.refresh_existing else []
-        run("export_game_assets.py", "--additional", additional, *refresh)
+        run("export_game_assets.py", "--additional", additional, "--mirrors", mirror_file, *refresh)
         npc_source = temp / "npcs.json"
         npc_source.write_bytes(download("https://dbaion2.ru/data-en/npcs.json", 8 * 1024 * 1024))
         run("export_npc_portraits.py", npc_source, *refresh)
