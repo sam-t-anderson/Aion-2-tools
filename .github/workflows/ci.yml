@@ -7,7 +7,20 @@ on:
   push:
     branches: ["**"]
     tags: ["v*"]
+  # Every job skips a pull request from this repository: its branch's push run, or for the asset refresh the
+  # workflow_dispatch run asset-refresh.yml starts, tests it. A pull request the refresh opens (as
+  # github-actions[bot]) would only start a run waiting for someone's approval, shown as failed once the refresh
+  # merges, so a pull request that changes only what the refresh writes starts none.
   pull_request:
+    paths-ignore:
+      - "aion2calc/app/static/build-catalog.json"
+      - "aion2calc/app/static/crafting-catalog.json"
+      - "aion2calc/app/static/crafting-success.json"
+      - "aion2calc/app/static/game-assets/**"
+      - "aion2calc/app/static/game-assets.js"
+      - "aion2calc/app/static/game-assets.json"
+      - "aion2calc/meter/a2parser/data/i18n/npc-portraits/**"
+      - "docs/generated/asset-catalog-audit.json"
   workflow_dispatch:
     inputs:
       assets_only:
