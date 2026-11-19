@@ -1,8 +1,9 @@
 {
-  "retrieved_at": "2026-11-04T17:25:00.210918+00:00",
+  "retrieved_at": "2026-11-19T08:20:35.976912+00:00",
   "sources": [
     "https://metabot.gg/",
-    "https://gamers4.life/aion-2/database/en/crafting-calculator/"
+    "https://gamers4.life/aion-2/database/en/crafting-calculator/",
+    "https://dbaion2.ru/"
   ],
   "note": "Unmodified game icons referenced by bundled catalogs. Game art belongs to its owners; source URL namespaces are kept separate. Missing assets retain remote-source fallback.",
   "references": {
@@ -22626,6 +22627,222 @@
       "id": "yggdrasil-staff",
       "url": "https://metabot.gg/web/aion2/items/icon_wp_st_0052_t04.webp"
     },
+    "metabot:skill:18790000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "18790000",
+      "url": "https://metabot.gg/web/aion2/skills/18790000.webp"
+    },
+    "metabot:skill:19010000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19010000",
+      "url": "https://metabot.gg/web/aion2/skills/19010000.webp"
+    },
+    "metabot:skill:19040000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19040000",
+      "url": "https://metabot.gg/web/aion2/skills/19040000.webp"
+    },
+    "metabot:skill:19070000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19070000",
+      "url": "https://metabot.gg/web/aion2/skills/19070000.webp"
+    },
+    "metabot:skill:19090000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19090000",
+      "url": "https://metabot.gg/web/aion2/skills/19090000.webp"
+    },
+    "metabot:skill:19130000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19130000",
+      "url": "https://metabot.gg/web/aion2/skills/19130000.webp"
+    },
+    "metabot:skill:19160000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19160000",
+      "url": "https://metabot.gg/web/aion2/skills/19160000.webp"
+    },
+    "metabot:skill:19170000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19170000",
+      "url": "https://metabot.gg/web/aion2/skills/19170000.webp"
+    },
+    "metabot:skill:19200000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19200000",
+      "url": "https://metabot.gg/web/aion2/skills/19200000.webp"
+    },
+    "metabot:skill:19230000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19230000",
+      "url": "https://metabot.gg/web/aion2/skills/19230000.webp"
+    },
+    "metabot:skill:19250000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19250000",
+      "url": "https://metabot.gg/web/aion2/skills/19250000.webp"
+    },
+    "metabot:skill:19280000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19280000",
+      "url": "https://metabot.gg/web/aion2/skills/19280000.webp"
+    },
+    "metabot:skill:19290000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19290000",
+      "url": "https://metabot.gg/web/aion2/skills/19290000.webp"
+    },
+    "metabot:skill:19300000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19300000",
+      "url": "https://metabot.gg/web/aion2/skills/19300000.webp"
+    },
+    "metabot:skill:19310000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19310000",
+      "url": "https://metabot.gg/web/aion2/skills/19310000.webp"
+    },
+    "metabot:skill:19320000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19320000",
+      "url": "https://metabot.gg/web/aion2/skills/19320000.webp"
+    },
+    "metabot:skill:19330000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19330000",
+      "url": "https://metabot.gg/web/aion2/skills/19330000.webp"
+    },
+    "metabot:skill:19350000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19350000",
+      "url": "https://metabot.gg/web/aion2/skills/19350000.webp"
+    },
+    "metabot:skill:19360000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19360000",
+      "url": "https://metabot.gg/web/aion2/skills/19360000.webp"
+    },
+    "metabot:skill:19370000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19370000",
+      "url": "https://metabot.gg/web/aion2/skills/19370000.webp"
+    },
+    "metabot:skill:19380000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19380000",
+      "url": "https://metabot.gg/web/aion2/skills/19380000.webp"
+    },
+    "metabot:skill:19390000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19390000",
+      "url": "https://metabot.gg/web/aion2/skills/19390000.webp"
+    },
+    "metabot:skill:19400000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19400000",
+      "url": "https://metabot.gg/web/aion2/skills/19400000.webp"
+    },
+    "metabot:skill:19420000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19420000",
+      "url": "https://metabot.gg/web/aion2/skills/19420000.webp"
+    },
+    "metabot:skill:19450000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19450000",
+      "url": "https://metabot.gg/web/aion2/skills/19450000.webp"
+    },
+    "metabot:skill:19460000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19460000",
+      "url": "https://metabot.gg/web/aion2/skills/19460000.webp"
+    },
+    "metabot:skill:19710000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19710000",
+      "url": "https://metabot.gg/web/aion2/skills/19710000.webp"
+    },
+    "metabot:skill:19720000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19720000",
+      "url": "https://metabot.gg/web/aion2/skills/19720000.webp"
+    },
+    "metabot:skill:19730000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19730000",
+      "url": "https://metabot.gg/web/aion2/skills/19730000.webp"
+    },
+    "metabot:skill:19740000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19740000",
+      "url": "https://metabot.gg/web/aion2/skills/19740000.webp"
+    },
+    "metabot:skill:19750000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19750000",
+      "url": "https://metabot.gg/web/aion2/skills/19750000.webp"
+    },
+    "metabot:skill:19760000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19760000",
+      "url": "https://metabot.gg/web/aion2/skills/19760000.webp"
+    },
+    "metabot:skill:19770000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19770000",
+      "url": "https://metabot.gg/web/aion2/skills/19770000.webp"
+    },
+    "metabot:skill:19780000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19780000",
+      "url": "https://metabot.gg/web/aion2/skills/19780000.webp"
+    },
+    "metabot:skill:19790000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19790000",
+      "url": "https://metabot.gg/web/aion2/skills/19790000.webp"
+    },
+    "metabot:skill:19800000": {
+      "namespace": "metabot",
+      "kind": "skill",
+      "id": "19800000",
+      "url": "https://metabot.gg/web/aion2/skills/19800000.webp"
+    },
     "parser:npc:2090027": {
       "namespace": "parser",
       "kind": "npc",
@@ -34111,13 +34328,87 @@
     "https://metabot.gg/web/aion2/skills/18760000.webp": "game-assets/11151de565a45f2c4aeca6fe.webp",
     "https://metabot.gg/web/aion2/skills/18770000.webp": "game-assets/61b2900fbe7c578a86c0b249.webp",
     "https://metabot.gg/web/aion2/skills/18780000.webp": "game-assets/2cbf680335852f9512e3f95a.webp",
-    "https://metabot.gg/web/aion2/skills/18800000.webp": "game-assets/ff890f363dba18c676abdef6.webp"
+    "https://metabot.gg/web/aion2/skills/18790000.webp": "game-assets/c071aa2000df30ec78e4bffc.webp",
+    "https://metabot.gg/web/aion2/skills/18800000.webp": "game-assets/ff890f363dba18c676abdef6.webp",
+    "https://metabot.gg/web/aion2/skills/19010000.webp": "game-assets/2aa58d5372efb2842df5dbf2.webp",
+    "https://metabot.gg/web/aion2/skills/19040000.webp": "game-assets/edfabe8d9dbd81e9c5674f8e.webp",
+    "https://metabot.gg/web/aion2/skills/19070000.webp": "game-assets/07c86ab9375d0d8210fffdd8.webp",
+    "https://metabot.gg/web/aion2/skills/19090000.webp": "game-assets/7c9ff9dc64e267db4d5f09b3.webp",
+    "https://metabot.gg/web/aion2/skills/19130000.webp": "game-assets/bd587a6b775dda503054a7e0.webp",
+    "https://metabot.gg/web/aion2/skills/19160000.webp": "game-assets/fbc83e251e5d9c49a67d0ce0.webp",
+    "https://metabot.gg/web/aion2/skills/19170000.webp": "game-assets/c08b4b76c1a6ca32d8bf31f7.webp",
+    "https://metabot.gg/web/aion2/skills/19200000.webp": "game-assets/3ed008c1aaf033fa40c7c5ee.webp",
+    "https://metabot.gg/web/aion2/skills/19230000.webp": "game-assets/49acbae10d539fc2f031085b.webp",
+    "https://metabot.gg/web/aion2/skills/19250000.webp": "game-assets/751121180bb8518842a85ee8.webp",
+    "https://metabot.gg/web/aion2/skills/19280000.webp": "game-assets/f453cb18baf23bcabb96390d.webp",
+    "https://metabot.gg/web/aion2/skills/19290000.webp": "game-assets/61f7cfbbd626b8371bfabbfd.webp",
+    "https://metabot.gg/web/aion2/skills/19300000.webp": "game-assets/5aa45526d91cd030ffa643d0.webp",
+    "https://metabot.gg/web/aion2/skills/19310000.webp": "game-assets/d07ccb20e31d3a9d982d6420.webp",
+    "https://metabot.gg/web/aion2/skills/19320000.webp": "game-assets/3e4253c3b1b17463507130af.webp",
+    "https://metabot.gg/web/aion2/skills/19330000.webp": "game-assets/ea70ca097f70357510f3abe5.webp",
+    "https://metabot.gg/web/aion2/skills/19350000.webp": "game-assets/c2f89cbfece295291534c47d.webp",
+    "https://metabot.gg/web/aion2/skills/19360000.webp": "game-assets/020667e249f78f3909522bd7.webp",
+    "https://metabot.gg/web/aion2/skills/19370000.webp": "game-assets/e14fc68a74f4408785c2e91e.webp",
+    "https://metabot.gg/web/aion2/skills/19380000.webp": "game-assets/929a776031abb7bd5de7a7b0.webp",
+    "https://metabot.gg/web/aion2/skills/19390000.webp": "game-assets/e206dfd6a6d9cea7d9f82c9b.webp",
+    "https://metabot.gg/web/aion2/skills/19400000.webp": "game-assets/e2357df67dc9cfc0138acd36.webp",
+    "https://metabot.gg/web/aion2/skills/19420000.webp": "game-assets/53adac5618e041a03cc230e5.webp",
+    "https://metabot.gg/web/aion2/skills/19450000.webp": "game-assets/e3a96c93a59e545151c8d329.webp",
+    "https://metabot.gg/web/aion2/skills/19460000.webp": "game-assets/d4dc72d6e4c97dd4f79028a7.webp",
+    "https://metabot.gg/web/aion2/skills/19710000.webp": "game-assets/0450554f664a964d1803853a.webp",
+    "https://metabot.gg/web/aion2/skills/19720000.webp": "game-assets/e8b74d20757d5b04e1ea5ccf.webp",
+    "https://metabot.gg/web/aion2/skills/19730000.webp": "game-assets/9070caa0f8237154bbcc5560.webp",
+    "https://metabot.gg/web/aion2/skills/19740000.webp": "game-assets/113f7678a6c32cbe93b5b28a.webp",
+    "https://metabot.gg/web/aion2/skills/19750000.webp": "game-assets/311191720c17a7fce1b2312d.webp",
+    "https://metabot.gg/web/aion2/skills/19760000.webp": "game-assets/4b7c0b840a9616e5a3b02722.webp",
+    "https://metabot.gg/web/aion2/skills/19770000.webp": "game-assets/c956661bd1d08516e1deebf3.webp",
+    "https://metabot.gg/web/aion2/skills/19780000.webp": "game-assets/aecf25fcb34de3fb3e38eee0.webp",
+    "https://metabot.gg/web/aion2/skills/19790000.webp": "game-assets/2a600c3248d61f663e66ee95.webp",
+    "https://metabot.gg/web/aion2/skills/19800000.webp": "game-assets/3b3dd5e2ad2b5479ed587452.webp"
   },
   "missing": [],
+  "fetched_from": {
+    "https://metabot.gg/web/aion2/skills/18790000.webp": "https://dbaion2.ru/icons/ICON_GL_SKILL_Passive_009.webp",
+    "https://metabot.gg/web/aion2/skills/19010000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_001.webp",
+    "https://metabot.gg/web/aion2/skills/19040000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_004.webp",
+    "https://metabot.gg/web/aion2/skills/19070000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_007.webp",
+    "https://metabot.gg/web/aion2/skills/19090000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_009.webp",
+    "https://metabot.gg/web/aion2/skills/19130000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_013.webp",
+    "https://metabot.gg/web/aion2/skills/19160000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_016.webp",
+    "https://metabot.gg/web/aion2/skills/19170000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_017.webp",
+    "https://metabot.gg/web/aion2/skills/19200000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_020.webp",
+    "https://metabot.gg/web/aion2/skills/19230000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_023.webp",
+    "https://metabot.gg/web/aion2/skills/19250000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_025.webp",
+    "https://metabot.gg/web/aion2/skills/19280000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_028.webp",
+    "https://metabot.gg/web/aion2/skills/19290000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_029.webp",
+    "https://metabot.gg/web/aion2/skills/19300000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_030.webp",
+    "https://metabot.gg/web/aion2/skills/19310000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_031.webp",
+    "https://metabot.gg/web/aion2/skills/19320000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_032.webp",
+    "https://metabot.gg/web/aion2/skills/19330000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_033.webp",
+    "https://metabot.gg/web/aion2/skills/19350000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_035.webp",
+    "https://metabot.gg/web/aion2/skills/19360000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_036.webp",
+    "https://metabot.gg/web/aion2/skills/19370000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_037.webp",
+    "https://metabot.gg/web/aion2/skills/19380000.webp": "https://dbaion2.ru/icons/ICON_CO_SKILL_003.webp",
+    "https://metabot.gg/web/aion2/skills/19390000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_039.webp",
+    "https://metabot.gg/web/aion2/skills/19400000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_040.webp",
+    "https://metabot.gg/web/aion2/skills/19420000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_042.webp",
+    "https://metabot.gg/web/aion2/skills/19450000.webp": "https://dbaion2.ru/icons/ICON_CO_SKILL_002.webp",
+    "https://metabot.gg/web/aion2/skills/19460000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_046.webp",
+    "https://metabot.gg/web/aion2/skills/19710000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_Passive_001.webp",
+    "https://metabot.gg/web/aion2/skills/19720000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_Passive_002.webp",
+    "https://metabot.gg/web/aion2/skills/19730000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_Passive_003.webp",
+    "https://metabot.gg/web/aion2/skills/19740000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_Passive_004.webp",
+    "https://metabot.gg/web/aion2/skills/19750000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_Passive_005.webp",
+    "https://metabot.gg/web/aion2/skills/19760000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_Passive_006.webp",
+    "https://metabot.gg/web/aion2/skills/19770000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_Passive_007.webp",
+    "https://metabot.gg/web/aion2/skills/19780000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_Passive_008.webp",
+    "https://metabot.gg/web/aion2/skills/19790000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_Passive_009.webp",
+    "https://metabot.gg/web/aion2/skills/19800000.webp": "https://dbaion2.ru/icons/ICON_GT_SKILL_Passive_010.webp"
+  },
   "npc_portrait_source": {
     "url": "https://dbaion2.ru/data-en/npcs.json",
     "sha256": "132cc1b7e2f32b5c2fd1877dd623cca1a91703f79a240abd8f12de478f35d922",
-    "retrieved_at": "2026-11-04T17:24:01.689306+00:00",
+    "retrieved_at": "2026-11-19T08:20:31.959563+00:00",
     "matched_npcs": 1321,
     "rule": "Only existing boss-category NPC IDs with exact case-insensitive English name agreement. Portraits do not alter NPC roles, zone, difficulty or game build."
   },
@@ -37681,7 +37972,43 @@
     "https://metabot.gg/web/aion2/skills/18760000.webp": "a3548e2278d3f6733df920eb589ae18cb82b7022b8eda272777767d99cb58629",
     "https://metabot.gg/web/aion2/skills/18770000.webp": "2be2f1fda5105a215c034e6dc2e232f9a8ba7f6e5a14e9679469aeedcad09e47",
     "https://metabot.gg/web/aion2/skills/18780000.webp": "841154c03e927b0f8020147e16575e5430e1d81f25ac0a369d6d13779aa0e6e8",
-    "https://metabot.gg/web/aion2/skills/18800000.webp": "2d98e9956484b768f46c19b692896be11e4ad65af5e481c05060b8613a945594"
+    "https://metabot.gg/web/aion2/skills/18790000.webp": "697047c441229bfca794b88ea10f9dba88c5c5e1ad9a6941618fcb291d4ed965",
+    "https://metabot.gg/web/aion2/skills/18800000.webp": "2d98e9956484b768f46c19b692896be11e4ad65af5e481c05060b8613a945594",
+    "https://metabot.gg/web/aion2/skills/19010000.webp": "0c32c57751448255dff59a244eddd61ba3b9153a1a98db28c1830ffede38d0e5",
+    "https://metabot.gg/web/aion2/skills/19040000.webp": "d7e155d7a6a48b8e69f28aefb910cb04ce4423ee78328a530bc7de5f00d95e4d",
+    "https://metabot.gg/web/aion2/skills/19070000.webp": "691eb6d8f97ad40aaecb28a160c2c200714ba1fcebe0d39934c62aa9c67abd6a",
+    "https://metabot.gg/web/aion2/skills/19090000.webp": "0668524e15671c2f8d7e35c916cbccba5dd842b8f88834b4fbbbb36a0b890c6b",
+    "https://metabot.gg/web/aion2/skills/19130000.webp": "2f4f095863f91a0b62978ff8969bdcf16a9e1268100d51d6ba10ae08c016e8dc",
+    "https://metabot.gg/web/aion2/skills/19160000.webp": "bbcb07050e40f4333dcfbaa8a1ade371ab7c5b5b0dcb768311708f0d296d66d8",
+    "https://metabot.gg/web/aion2/skills/19170000.webp": "a85bad404a841a674155763b5485dc5d318ffdd92d1315a231dc7d6e6b3a44be",
+    "https://metabot.gg/web/aion2/skills/19200000.webp": "2e81845330c39e9e7de9d7c530649b250b9028b8ea248460355bdb8304d96c42",
+    "https://metabot.gg/web/aion2/skills/19230000.webp": "522bdf39a1d8f100ff4147c2161e95f9007b880e9e6eca09632691f2995f4ebc",
+    "https://metabot.gg/web/aion2/skills/19250000.webp": "010e8870f34d5f13df27af20f915b8fdad73aa7cb6bc6a1370e625f77468c986",
+    "https://metabot.gg/web/aion2/skills/19280000.webp": "b523d1476f51cb5ece7261c7f34b82fc576d7eb5823c7fda959e64438fea05ca",
+    "https://metabot.gg/web/aion2/skills/19290000.webp": "f871308153c3451eb8627f593f634014df14b350fb25d5043147ec7e6f3c05a1",
+    "https://metabot.gg/web/aion2/skills/19300000.webp": "30d43940496c3633d2719f95ad7cf7b7407d1b12e64d56ed7d72811967bac8e2",
+    "https://metabot.gg/web/aion2/skills/19310000.webp": "325ec66e4e9253d1af0b5ef5988f9e89d37dddbd4127c5aa0bf23b397c0415f2",
+    "https://metabot.gg/web/aion2/skills/19320000.webp": "04e6b9fdfa6b236ad723a7baa87ebdb6596ef6fa80aa784d4a5831c9dfd3649d",
+    "https://metabot.gg/web/aion2/skills/19330000.webp": "c4c8e1317a9e179a0276852a03d4088412066377c37e4eeac7957e4d1925080a",
+    "https://metabot.gg/web/aion2/skills/19350000.webp": "fbc7bfc9d4a153f410688b84df8caedcad2b4f19bdfb32348c1212fad5459ee6",
+    "https://metabot.gg/web/aion2/skills/19360000.webp": "64d69b8a3357a57cbabc720bae0f4a0f3d135c79d7971830d407bcf3bfd345a0",
+    "https://metabot.gg/web/aion2/skills/19370000.webp": "1406167e4e468aa85a5864a48367e5af5ff7c1e24c1138a900957d4c2697315f",
+    "https://metabot.gg/web/aion2/skills/19380000.webp": "e0a0b4e79a6885b5d653557356e3c735b1ac4286a4fae5420bb088bdf38115c7",
+    "https://metabot.gg/web/aion2/skills/19390000.webp": "3478baf823965090226e9c222e2883612fc4f523efc7f1ccaf8a6a1da8d26664",
+    "https://metabot.gg/web/aion2/skills/19400000.webp": "8ddd371929ece84cad86e2a871af4198eb7bee2021ff1117e77329a477957bd9",
+    "https://metabot.gg/web/aion2/skills/19420000.webp": "1d47ed35b43d0c47bdca84b4e5b28e44eeebedadb6c6b9dc65d3eb32a28fe120",
+    "https://metabot.gg/web/aion2/skills/19450000.webp": "066f6502bb66f7ec96807852843bd4cdf3ef986f4b4eef74f4660febf32d10e9",
+    "https://metabot.gg/web/aion2/skills/19460000.webp": "a907637b37953d605d47ca8326fd9384cd0e930f5c3dda31930a5afe9cd84a26",
+    "https://metabot.gg/web/aion2/skills/19710000.webp": "17a1dfdee2b109bb1b246aa8d09f6e481adabe9a6b9439b5418ab5437c927c06",
+    "https://metabot.gg/web/aion2/skills/19720000.webp": "be1a08dc9991fc99779f5b2c714175db423fe7379b9482b8dc67232a353d4e4f",
+    "https://metabot.gg/web/aion2/skills/19730000.webp": "2a9f5c6fcba48af03a73dad89a802a8452fae4cdeb37febea3127374bbf86645",
+    "https://metabot.gg/web/aion2/skills/19740000.webp": "843d951fac27d5f8996b2e1061f120b91058d79eaab9c75b500db22839f75e69",
+    "https://metabot.gg/web/aion2/skills/19750000.webp": "98f12ae5a7634230d7ea976163b8f051e5568c6791415b9d3f9e1a44834974bf",
+    "https://metabot.gg/web/aion2/skills/19760000.webp": "18a421cb88d6ec4e6efe90bbb9e1ed50d8a27ace22b41f04678a456067638a09",
+    "https://metabot.gg/web/aion2/skills/19770000.webp": "f533131b467d7170a67ca46d4b0053ece75d94700f5e324f331990c4e1882922",
+    "https://metabot.gg/web/aion2/skills/19780000.webp": "dcc0142c10a77fdd108692090160e3fcf352d0d3781951b15a1cc0e81c136b0c",
+    "https://metabot.gg/web/aion2/skills/19790000.webp": "b731ba969a9328d810426ce5bc5fb80c9bb32d3c3cf708ff5d66b7674578433f",
+    "https://metabot.gg/web/aion2/skills/19800000.webp": "cc85c86459a9ab4c3872e4ac29a893e1268d1f7e7727fa3af041aab3ded49895"
   },
   "collection_context": {
     "observed_build": null,

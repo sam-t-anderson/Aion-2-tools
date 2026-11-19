@@ -5,69 +5,69 @@
     "format": "a2catalog-source",
     "version": 1,
     "repository": "taengu/A2Tools-DPS-Meter",
-    "revision": "8b4f5f831410bcb55cb12a7a90ce4eaf696e0505",
-    "checked_at": "2026-11-18T18:19:20.636079+00:00",
+    "revision": "f2300ff2d395fabc3c87f0ca6d1b76217e46778f",
+    "checked_at": "2026-11-19T08:20:35.855181+00:00",
     "game_build": null,
     "files": [
       {
         "file": "npcs/de.json",
-        "records": 15291,
-        "sha256": "0a61b2c681ac1b720f7c98b26f8bb7172fd77ef71f1e56ae8d1c98b627666c21",
-        "source_sha256": "3c5c7849298c0352f6b320087eda877f070b0fe718f3ceb9e9e1c68bb06e4ed4"
+        "records": 15423,
+        "sha256": "22735fd0938b05b727e0e163c7e1f9902c5dc7af5fd704130165f9d120cdbbff",
+        "source_sha256": "620115116fd2a3e18fffd8484947346fccfbdc1280d153821a2b87b9c899ad69"
       },
       {
         "file": "npcs/en.json",
-        "records": 15291,
-        "sha256": "31bc5996f43b5c52acaf18a97da38088fd0753de58d94bbeae2fd45feb2d288c",
-        "source_sha256": "66cc8af92e242f0832c287275333516e2aded44d1eca98e24382e2b0bb093569"
+        "records": 15423,
+        "sha256": "ebe354e6061b2c4c66d0598f4c2fe433f9f1629126c2d0feb72f01cfcd04b9ac",
+        "source_sha256": "468005941c20bdb48df2c6a68321cd8d24da3a0f1b7f3340fad3c3dda467f779"
       },
       {
         "file": "npcs/es.json",
-        "records": 15291,
-        "sha256": "fdc717a7061bcda32cb7eb41e473debe5c43dacfbda69160b2afaae896b61d2e",
-        "source_sha256": "224eb71ef72224e1ce36fd1ddaf17467980850841028f462ef7e95d880dabed4"
+        "records": 15423,
+        "sha256": "eba35e3595d40b70ee568be3755bc2b18c19be42bd88dea44bfb17fbdebd48d1",
+        "source_sha256": "ceddfe1beb58458f81aebe5b9d38ce846abdfee2b7f66fc04c641876eb2975ad"
       },
       {
         "file": "npcs/fr.json",
-        "records": 15291,
-        "sha256": "0e7f6e69019ba3f0ce14e070fb403d2f1cb8761706459a96bb408088d799630d",
-        "source_sha256": "a24184d728ab912e9f1498ed885027d039c2b3c9287d734e95d188bc1de554f4"
+        "records": 15423,
+        "sha256": "969445a065ddadb39118979046e5e762014bfd74421ecdd58966bb8b88e1ccd4",
+        "source_sha256": "293c2826e9d7d201689d39274dfba4f957c46035cd39c07fb9fb5e31cd8ee32f"
       },
       {
         "file": "npcs/ja.json",
-        "records": 15291,
-        "sha256": "44f2ee858f465ee79b4173ca142e94f74cf6b359e4b39721893eeddf723f36cd",
-        "source_sha256": "46395f4b2e67ee0ed229dea9a91c4674b9afbd445e90fba46fa742cc53a690a9"
+        "records": 15423,
+        "sha256": "8a0b0ed7fddd19f39dff807ac94447342b1063e8b93e1d97bb91d1bb322ee101",
+        "source_sha256": "3b734f64539bcb4e79c9905a48e2ede3a3fa582dad74c6fca5c0a26e53d5d272"
       },
       {
         "file": "npcs/ko.json",
-        "records": 15291,
-        "sha256": "bfbf0e3edd424ac4b1bef704ae12bd023b59d75e53a5d86597b957fda6b8f742",
-        "source_sha256": "db3942b981564a454486d22167975a6fe1ee357a8b0ee34dd1d41b55581617da"
+        "records": 15423,
+        "sha256": "ff832e7ea1f6b1029c09896038e09832188bf46b2d24fc68bfb344a8aa6ce20f",
+        "source_sha256": "f4563a6cc005ede4be636692bf6cc036ac4e22abbcd7061d2cee17b6cc9e4606"
       },
       {
         "file": "npcs/pt.json",
-        "records": 15291,
-        "sha256": "b2691e82d52b171777a32ad7a8e134a14081482d08f0696c3efa7eedd0c8a91f",
-        "source_sha256": "84f964fc1257b1265aa26c0a8f8a7563b91e738bf6b96a12ac76f65abb541e0b"
+        "records": 15423,
+        "sha256": "44500350393221b6b6ed35ab618a600a286b2a7158dd9140cae1c19f1ee35ac1",
+        "source_sha256": "b437ea8a24b8e2355bd8b6a59699850e85e50e24d620d1c187aa762628321bfb"
       },
       {
         "file": "npcs/ru.json",
-        "records": 15291,
-        "sha256": "c5cdd527e5221ee35a036248d7398fe823012f87e4dc13178981179371bc7724",
-        "source_sha256": "a3bf2ccb88b30b713b8bfd408bc1e4b96a6ecc73cc0be5875b974980842c324c"
+        "records": 15423,
+        "sha256": "421b09364831bfc17db7ff02edff837693fb5e963de037c5e7d438eca332cdea",
+        "source_sha256": "dae5382794b4abdd5f49b043835d27c53e9a7fe02970dfa6c3c1c4e2ca960b24"
       },
       {
         "file": "npcs/zh-Hans.json",
-        "records": 15291,
-        "sha256": "529d915e4925009e0c35635276a2e1d9249ced3c915d8f958645c4e180689079",
-        "source_sha256": "8f6001a6abcda0c22976cb483bd5fa31e17851aa19a09f18b3eaf29c307878b5"
+        "records": 15423,
+        "sha256": "9ae5eb0307939fdce8a4419cebd14de7e7d2b3b1347c90ad6bb42dc83ae8c8e3",
+        "source_sha256": "3fc54b6a02d187136c897586929fe7ced8c4310877142e18b0c44e0dd26fea3f"
       },
       {
         "file": "npcs/zh-Hant.json",
-        "records": 15291,
-        "sha256": "0eaf9ba17a0a280f07b529c905e4f9e07f905bc6fd037e577b5ba09b2ce0786c",
-        "source_sha256": "a0633c5bf8a2cd8fa4f6d78937ac6c2babe7d2c4ad5d53acad74437bb83bea7a"
+        "records": 15423,
+        "sha256": "6a87c7a8cfedf5d1fb270c9ce059fbc7f6274811a9d392696b0133076d2032a9",
+        "source_sha256": "76413dd662b5af7253f27e116a891710822d85d8ccf0df9b538cc0850492230f"
       },
       {
         "file": "dungeons/en.json",
@@ -99,7 +99,7 @@
   "diffs": [
     {
       "file": "npcs/de.json",
-      "added": 5511,
+      "added": 5643,
       "removed": 0,
       "changed": 47,
       "changes": [
@@ -504,11 +504,11 @@
           "change": "added"
         }
       ],
-      "omitted": 5458
+      "omitted": 5590
     },
     {
       "file": "npcs/en.json",
-      "added": 5511,
+      "added": 5643,
       "removed": 0,
       "changed": 45,
       "changes": [
@@ -913,11 +913,11 @@
           "change": "added"
         }
       ],
-      "omitted": 5456
+      "omitted": 5588
     },
     {
       "file": "npcs/es.json",
-      "added": 5511,
+      "added": 5643,
       "removed": 0,
       "changed": 47,
       "changes": [
@@ -1322,11 +1322,11 @@
           "change": "added"
         }
       ],
-      "omitted": 5458
+      "omitted": 5590
     },
     {
       "file": "npcs/fr.json",
-      "added": 5511,
+      "added": 5643,
       "removed": 0,
       "changed": 47,
       "changes": [
@@ -1731,11 +1731,11 @@
           "change": "added"
         }
       ],
-      "omitted": 5458
+      "omitted": 5590
     },
     {
       "file": "npcs/ja.json",
-      "added": 5511,
+      "added": 5643,
       "removed": 0,
       "changed": 47,
       "changes": [
@@ -2140,11 +2140,11 @@
           "change": "added"
         }
       ],
-      "omitted": 5458
+      "omitted": 5590
     },
     {
       "file": "npcs/ko.json",
-      "added": 5511,
+      "added": 5643,
       "removed": 0,
       "changed": 26,
       "changes": [
@@ -2549,11 +2549,11 @@
           "change": "added"
         }
       ],
-      "omitted": 5437
+      "omitted": 5569
     },
     {
       "file": "npcs/pt.json",
-      "added": 5511,
+      "added": 5643,
       "removed": 0,
       "changed": 47,
       "changes": [
@@ -2958,11 +2958,11 @@
           "change": "added"
         }
       ],
-      "omitted": 5458
+      "omitted": 5590
     },
     {
       "file": "npcs/ru.json",
-      "added": 5511,
+      "added": 5643,
       "removed": 0,
       "changed": 47,
       "changes": [
@@ -3367,11 +3367,11 @@
           "change": "added"
         }
       ],
-      "omitted": 5458
+      "omitted": 5590
     },
     {
       "file": "npcs/zh-Hans.json",
-      "added": 5511,
+      "added": 5643,
       "removed": 0,
       "changed": 26,
       "changes": [
@@ -3776,11 +3776,11 @@
           "change": "added"
         }
       ],
-      "omitted": 5437
+      "omitted": 5569
     },
     {
       "file": "npcs/zh-Hant.json",
-      "added": 5511,
+      "added": 5643,
       "removed": 0,
       "changed": 26,
       "changes": [
@@ -4185,7 +4185,7 @@
           "change": "added"
         }
       ],
-      "omitted": 5437
+      "omitted": 5569
     },
     {
       "file": "dungeons/en.json",
