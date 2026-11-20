@@ -15,7 +15,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QCoreApplication, QElapsedTimer, Qt  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent, Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from aion2calc import gui, launcher  # noqa: E402
@@ -36,6 +36,22 @@ WEEKLY = {"instance": 600073, "counter": 60000009, "regular": 3, "bonus": 1, "ti
 @pytest.fixture(scope="module")
 def qapp():
     return QApplication.instance() or QApplication([])
+
+
+@pytest.fixture(autouse=True)
+def _windows_closed():
+    """Each test's windows are closed and deleted when it ends, while Qt's application still exists: a window
+    left for Python to collect at exit was destroyed after the application, and the process crashed on its way
+    out (a segmentation fault after every test had passed)."""
+    yield
+    app = QApplication.instance()
+    if app is None:
+        return
+    for widget in app.topLevelWidgets():
+        widget.close()
+        widget.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    QCoreApplication.processEvents()
 
 
 @pytest.fixture
