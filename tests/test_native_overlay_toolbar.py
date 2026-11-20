@@ -338,11 +338,32 @@ def test_the_panel_follows_the_fight_and_keeps_to_the_screen(qapp):
     room = min(800, window.screen().availableGeometry().height() - 16)
     content = window.panel.sizeHint().height()
     assert content > room - 200                                                # taller than the screen leaves it
-    assert window.panel_scroll.height() < content and window.sizeHint().height() <= room   # it scrolls instead
+    assert window.panel_scroll.height() < content and window.height() <= room  # it scrolls instead
+    laid_out_apart(window)
+    long = fight()
+    long["snapshot"]["warning"] = ("A warning long enough to wrap over the overlay's width, three lines of it at the "
+                                   "least, so the window needs more than its parts' minimum heights add up to")
+    long["snapshot"]["players"][0]["skills"] = seraphel["skills"]
+    window.apply_meter(long)
+    assert window.warning.height() > 2 * window.warning.fontMetrics().height()
+    laid_out_apart(window)
     over = fight()
     over["snapshot"]["battle_over"] = True
     window.apply_meter(over)
     assert window.panel_scroll.isHidden()                                      # a finished fight puts it away
+
+
+def laid_out_apart(window):
+    """The card's parts each have their own place: none is laid over the next, and the last ends inside the card
+    (sized with adjustSize, a window taller than two thirds of the screen was cut short, and a wrapped line pushed
+    the parts under it over each other)."""
+    QCoreApplication.processEvents()
+    box = window.card.layout()
+    items = [box.itemAt(i) for i in range(box.count())]
+    places = [item.geometry() for item in items if not item.isEmpty()]
+    for upper, lower in zip(places, places[1:]):
+        assert upper.bottom() < lower.top(), (upper.getRect(), lower.getRect())
+    assert places[-1].bottom() < window.card.height() - box.contentsMargins().bottom() + 1
 
 
 def test_a_press_that_moves_the_window_is_a_move_not_a_click(qapp):

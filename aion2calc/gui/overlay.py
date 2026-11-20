@@ -1158,7 +1158,16 @@ class MeterOverlay(QWidget):
         height until then, and its rows lay on top of each other."""
         self.box.activate()
         self.layout().activate()
-        self.adjustSize()
+        self.resize(self.width(), self._content_height())
+
+    def _content_height(self) -> int:
+        """The window's height for its width, its wrapped lines whole. Not ``adjustSize``: that keeps a window to two
+        thirds of the screen's height, and a taller overlay (the player panel open) had its parts laid over each
+        other; nor the layout's size hint, which counts a wrapped line once."""
+        layout = self.layout()
+        height = (layout.totalHeightForWidth(self.width()) if layout.hasHeightForWidth()
+                  else layout.totalSizeHint().height())
+        return max(height, layout.totalMinimumSize().height())
 
     # ------------------------------------------------------------------ the player panel
     def toggle_detail(self, key: str) -> None:
@@ -1213,7 +1222,8 @@ class MeterOverlay(QWidget):
         room = min(MAX_OVERLAY_HEIGHT, (screen.availableGeometry().height() - 16) if screen is not None
                    else MAX_OVERLAY_HEIGHT)
         self.box.activate()                       # the card's size as it now stands, its panel whole
-        rest = self.card.sizeHint().height() - content
+        self.layout().activate()
+        rest = self._content_height() - content
         self.panel_scroll.setFixedHeight(min(content, max(180, room - rest)))
 
     # ------------------------------------------------------------------ the toolbar
