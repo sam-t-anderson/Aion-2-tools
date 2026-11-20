@@ -979,7 +979,8 @@ class CombatSession:
                 value = batch_allowed[key] = self._allowed(record, scope)
             return value
         for event in events:
-            record = Record(self.epoch, event, party, engine.local_player_id, sequence=self.sequence+1)
+            record = Record(self.epoch, event, party, engine.local_player_id, self.manual_split, self.run,
+                            sequence=self.sequence+1)
             allowed = allowed_in(record, "party")
             if (isinstance(event, DamageEvent) and not event.is_dot
                     and (self.epoch, event.actor_id) in self._dead and event.actor_id in identity["names"]):
@@ -1085,7 +1086,8 @@ class CombatSession:
                 self.discarded += 1
             self.sequence += 1
             self.records.append(Record(self.epoch, event, party, engine.local_player_id, self.manual_split, self.run, self.sequence))
-        probe = Record(self.epoch, _PROBE, party, engine.local_player_id, sequence=self.sequence+1)
+        probe = Record(self.epoch, _PROBE, party, engine.local_player_id, self.manual_split, self.run,
+                       sequence=self.sequence+1)
         for sample in engine.telemetry:
             attempt = self._boss_attempt
             if attempt:
@@ -1367,6 +1369,17 @@ class CombatSession:
         keeps its observed entry, so it must not be mis-flagged a partial capture."""
         return bool(run.get("start_observed") or run.get("recorded_entry"))
 
+    def _group_instance_run(self, run_id) -> bool:
+        """Whether a run was fought in a group instance (a dungeon, a raid), which holds only the party: its map is
+        no open-world map and its instance a catalog group instance (0.2.412). The zone's ``party_instance`` says
+        one was entered since the last zone load, and a zone load used to come between the dungeon and the open
+        world. Since the game's 18 November 2026 patch a recording can go from one to the other without a zone
+        load the meter recognises, and every named player fighting nearby in the open world was then counted a
+        party member; runs end at every change of map or instance, so a record's run says where it was made."""
+        from .a2parser.engine import OPEN_WORLD_MAPS
+        run = self.runs.get(run_id) or {}
+        return run.get("map_id") not in OPEN_WORLD_MAPS and party_instance(run.get("instance_id"))
+
     def _effective_scope(self, scope, epoch):
         if scope != "auto":
             return scope
@@ -1427,7 +1440,7 @@ class CombatSession:
             counts = Counter(name.casefold() for name in identity["names"].values()) if late else {}
             allowed.update(actor_id for actor_id, name in identity["names"].items()
                            if name.casefold() in party and (not late or counts[name.casefold()] == 1))
-            if identity.get("party_instance"):
+            if identity.get("party_instance") and self._group_instance_run(record.run):
                 # A group instance (a dungeon, a raid) holds only the party, so every named player fighting in
                 # it is a member even when the roster packet decoded short. Their effects were otherwise dropped
                 # as out of scope: a roster that read one member of five kept under a third of each boss's damage.
@@ -1460,14 +1473,19 @@ class CombatSession:
     def _allowances(self, scope):
         """Reuse membership sets within one locked read, never across updates. The callable's
         ``key_of`` names what a record's membership depends on (``groups`` keeps one record per key)."""
-        cache, by_record = {}, {}
+        cache, by_record, group_runs = {}, {}, {}
         def key_of(record):
             effective = self._effective_scope(scope, record.epoch)
             actor = (record.event.actor_id if effective == "all"
                      and isinstance(record.event, DamageEvent)
                      and job_from_skill(record.event.skill_code) else None)
+            inside = False
+            if effective == "party":                     # whether its run was in a group instance (``_allowed``)
+                inside = group_runs.get(record.run)
+                if inside is None:
+                    inside = group_runs[record.run] = self._group_instance_run(record.run)
             return (record.epoch, record.local_id, record.party,
-                    self._late_roster(record) if effective == "party" else False, actor)
+                    self._late_roster(record) if effective == "party" else False, actor, inside)
         def allowed(record):
             # A summary asks for the same record's membership several times over; the second
             # answer is a lookup by its sequence rather than the key computed again (0.2.336).
@@ -3064,7 +3082,7 @@ class CombatSession:
             actor_refs = {}
             opponents = set()
             roster_allowed = set().union(*(allowed_for(r) for r in group["records"]))
-            if identity.get("party_instance"):
+            if identity.get("party_instance") and self._group_instance_run(group["run"]):
                 # A player counted only because a group instance holds just the party (``_allowed``) is a member
                 # of the fights they took part in, not of every fight in the zone context: a party that changed
                 # inside one instance otherwise listed both line-ups in every segment.
