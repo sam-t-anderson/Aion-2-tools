@@ -38,6 +38,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHB
 
 from . import theme
 from .api import AppApi, Poller, Requests
+from .host import WindowHost
 
 METRICS = (("dps", "DPS"), ("hps", "HPS"), ("dtps", "Taken"))
 DEFAULT_OPACITY = 0.72                    # the overlay page's own starting opacity (overlay.js ``op``)
@@ -372,21 +373,26 @@ class _Card(QWidget):
         self.opacity = DEFAULT_OPACITY
         self.mode = "card"
         self.rows_top = None                      # where the first player row starts, for the top-only mode
+        self.hover = "off"                        # hover to interact: "arming" while it counts, "open" once open
         self.setAttribute(Qt.WA_TranslucentBackground)
 
     def paintEvent(self, event):
-        if self.mode == "none":
+        if self.mode == "none" and self.hover == "off":
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        if self.mode == "top" and self.rows_top is not None:
+        if self.mode == "top" and self.rows_top is not None and self.hover == "off":
             rect.setHeight(max(0.0, min(rect.height(), self.rows_top - 2.0)))
         path = QPainterPath()
         path.addRoundedRect(rect, 12, 12)
-        r, g, b = theme.OVERLAY_CARD
-        painter.fillPath(path, QColor(r, g, b, int(255 * self.opacity)))
-        painter.setPen(QColor(255, 255, 255, 20))
+        if self.mode != "none":
+            r, g, b = theme.OVERLAY_CARD
+            painter.fillPath(path, QColor(r, g, b, int(255 * self.opacity)))
+        if self.hover != "off":                   # the edge says the overlay is opening to clicks, or open
+            painter.setPen(QPen(QColor(theme.COLORS["accent"] if self.hover == "arming" else theme.COLORS["gold"]), 2))
+        else:
+            painter.setPen(QColor(255, 255, 255, 20))
         painter.drawPath(path)
 
 
@@ -822,7 +828,7 @@ class MeterOverlay(QWidget):
     """The meter overlay window. ``api`` is the app's local API (None in tests, which hand it the readings), and
     ``store`` keeps what the web overlay keeps in the page's own storage: the opacity and the metric shown."""
 
-    def __init__(self, api: AppApi | None = None, parent_process=None, store: QSettings | None = None):
+    def __init__(self, api: AppApi | None = None, parent_process=None, store: QSettings | None = None, win32=None):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
@@ -841,6 +847,7 @@ class MeterOverlay(QWidget):
         self.detail_at = 0.0
         self.detail_busy = False
         self._drag: QPoint | None = None
+        self.host = WindowHost(self, win32)        # its place on the desktop, the game window and click-through
         self._press: QPoint | None = None        # where a press began, to tell a click from a move
         self._capture_busy = False
         self._seqs: dict = {}                    # the app's command counters as first read (the screenshot hotkey)
@@ -1019,6 +1026,7 @@ class MeterOverlay(QWidget):
     def start(self) -> None:
         for poller in self._pollers:
             poller.start()
+        self.host.start()
 
     def _stored(self, key: str, default, kind):
         """A value the overlay kept (``store``), or ``default`` when there is none or it cannot be read."""
@@ -1034,6 +1042,7 @@ class MeterOverlay(QWidget):
             QApplication.quit()
 
     def closeEvent(self, event):
+        self.host.stop()
         for poller in self._pollers:
             poller.stop()
         if self.requests is not None:
@@ -1128,17 +1137,19 @@ class MeterOverlay(QWidget):
             self._graph, self._player_hist = [], {}
         self._style()
         self.set_click_through(ui.get("overlay_click_through") is True)
-        if first and ui.get("overlay_remember_position") is not False:
-            x, y = ui.get("overlay_pos_x"), ui.get("overlay_pos_y")
-            if isinstance(x, int) and isinstance(y, int) and not isinstance(x, bool) and not isinstance(y, bool):
-                self.move(x, y)
+        if first:                                 # where it was last put, if that is still on a monitor
+            self.host.restore(ui)
         self.apply_meter(self.answer)
 
     def set_click_through(self, on: bool) -> None:
-        """Let clicks pass through to the game (the overlay's own setting)."""
+        """Let clicks pass through to the game (the overlay's own setting): by the control on Windows, its buttons
+        still pressed (``WindowHost``), else the whole window."""
         if on == self.click_through:
             return
         self.click_through = on
+        if self.host.native:
+            self.host.set_click_through(on)
+            return
         visible = self.isVisible()
         self.setWindowFlag(Qt.WindowTransparentForInput, on)
         if visible:
@@ -1750,13 +1761,22 @@ class MeterOverlay(QWidget):
             self.toggle_detail(widget.key)
 
     def save_position(self) -> None:
-        """Keep a dragged position where the web overlay keeps it (``overlay_pos_x``/``_y``), best effort."""
+        """Keep the overlay's place where the web overlay keeps it (``overlay_pos_x``/``_y``), with the monitors it
+        was put on (``overlay_pos_layout``), best effort."""
         if self.api is None or self.ui.get("overlay_remember_position") is False:
             return
         try:
-            self.api.post("/api/ui", {"overlay_pos_x": int(self.x()), "overlay_pos_y": int(self.y())})
+            self.api.post("/api/ui", self.host.saved_place())
         except (OSError, ValueError):
             pass
+
+    def set_hover_state(self, state: str) -> None:
+        """Hover to interact as the host has it: "arming" while the pointer rests, "open" once the whole overlay takes
+        clicks, "off" when the pointer leaves; the card's edge shows it."""
+        self.card.hover = state if state in ("arming", "open") else "off"
+        self.card.setToolTip({"arming": "Keep the pointer here to use the overlay",
+                              "open": "The overlay takes clicks until the pointer leaves it"}.get(self.card.hover, ""))
+        self.card.update()
 
 
 def _app_base(url: str) -> str:
@@ -1773,12 +1793,12 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="python -m aion2calc.gui.overlay", description="Aion 2 Calc native overlay")
     parser.add_argument("--url", default=None, help="the app's overlay address (default: the running app's)")
     args = parser.parse_args(argv)
-    from ..overlay import _ParentProcess, _default_url
+    from ..overlay import _ParentProcess, _default_url, native_overlay
     url = args.url or _default_url()
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setQuitOnLastWindowClosed(True)
     window = MeterOverlay(AppApi(_app_base(url)), _ParentProcess(os.environ.get("AION2CALC_PARENT_PID")),
-                          overlay_store())
+                          overlay_store(), native_overlay())
     window.show()
     window.start()
     return app.exec()

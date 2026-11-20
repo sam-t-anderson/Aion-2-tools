@@ -1,3 +1,15 @@
+## The native overlay keeps to the game window (0.2.418)
+
+**Native overlay, fifth part.** The native interface's overlay (Settings → Native interface, a preview) now behaves on the desktop as the web overlay does:
+- **It shows with the game.** On Windows it shows while the game runs, and hides when the game closes or is minimized, so it never sits over other programs. With *Keep the overlay visible even when the game is not in focus* off, it shows only while the game has the focus. Locked for a screenshot, it stays up.
+- **It opens where you put it,** checked against your monitors:
+  - on a rearranged desktop it goes back to the same spot on the same monitor;
+  - a place no monitor shows any more is not used, and with nothing kept it opens by the game window's corner;
+  - the place is kept in the screen's pixels, as the web overlay keeps it, so both open in the same spot.
+
+  With *Remember where I drag the overlay* off it follows the game window instead, snapping to its edges or growing upward as those settings say.
+- **Click-through keeps the buttons.** On Windows, with click-through on, clicks pass through to the game everywhere but over the overlay's buttons, ticks and slider. *Hover to interact* opens the whole overlay to clicks once the pointer has rested on it for five seconds, its edge showing it open. On other systems click-through still takes the whole window.
+
 ## The native overlay's graph, live rates and identity line (0.2.417)
 
 **Native overlay, fourth part.** The native interface's overlay (Settings → Native interface, a preview) now shows more of what the web overlay shows beside the rows:
