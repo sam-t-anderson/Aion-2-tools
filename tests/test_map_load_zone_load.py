@@ -19,7 +19,7 @@ from aion2calc.meter.a2parser.parser import scan_map_load, scan_zone_state
 from aion2calc.meter.session import CombatSession
 
 STREAM = "1.2.3.4:13328->192.168.1.9:57424"
-TOWN, VAKRON = 200003, 600073               # a town the open-world list leaves out, and Vakron Sky Island (hard)
+NIGHTMARE, VAKRON = 200003, 600073          # the Nightmare instance and Vakron Sky Island (hard): neither is open world
 ME, MATE, BOSS = 4062, 4063, 9001
 
 
@@ -57,7 +57,7 @@ def _engine():
 
 # ------------------------------------------------------------------ decoder
 def test_a_map_load_within_its_bounds_names_its_map():
-    assert TOWN not in OPEN_WORLD_MAPS and VAKRON not in OPEN_WORLD_MAPS
+    assert NIGHTMARE not in OPEN_WORLD_MAPS and VAKRON not in OPEN_WORLD_MAPS
     assert scan_map_load(_map(VAKRON, count=43)) == VAKRON
     assert scan_zone_state(_map(VAKRON))[1] == VAKRON                     # the map is still named as before
 
@@ -76,7 +76,7 @@ def test_other_records_are_no_map_load(frame):
 # ------------------------------------------------------------------ engine
 def test_with_map_loads_alone_each_load_resets_the_zone():
     engine = _engine()
-    engine.consume(_map(TOWN), 10_000, STREAM)
+    engine.consume(_map(NIGHTMARE), 10_000, STREAM)
     assert engine.last_zone_reset_ms == 10_000
     engine.consume(_map(VAKRON), 60_000, STREAM)
     assert engine.last_zone_reset_ms == 60_000 and engine.map_id == VAKRON
@@ -86,8 +86,8 @@ def test_with_map_loads_alone_each_load_resets_the_zone():
 
 def test_a_map_load_follows_the_zone_changes_rules():
     engine = _engine()
-    engine.consume(_map(TOWN), 10_000, STREAM)
-    engine.consume(_map(TOWN), 12_000, STREAM)                           # within 4 s of the last load
+    engine.consume(_map(NIGHTMARE), 10_000, STREAM)
+    engine.consume(_map(NIGHTMARE), 12_000, STREAM)                      # within 4 s of the last load
     assert engine.last_zone_reset_ms == 10_000
     engine.last_damage_time_ms = 59_000
     engine.consume(_map(VAKRON), 60_000, STREAM)                         # within 1.5 s of damage
@@ -100,7 +100,7 @@ def test_the_zone_change_after_its_map_load_is_the_same_load():
     engine.names[ME] = "Me"                                              # the new zone's names, read after its map load
     engine.consume(_zone_change(), 66_000, STREAM)                       # 6 s later, as before the patch
     assert engine.last_zone_reset_ms == 60_000 and engine.names[ME] == "Me"
-    engine.consume(_map(TOWN), 200_000, STREAM)
+    engine.consume(_map(NIGHTMARE), 200_000, STREAM)
     engine.consume(_zone_change(), 212_000, STREAM)                      # past the 10 s window: a load of its own
     assert engine.last_zone_reset_ms == 212_000
 
@@ -123,7 +123,7 @@ def test_a_client_that_still_sends_the_zone_change_resets_at_it_as_before():
     """A client from before the patch (or a region not yet patched): once a zone change has followed a map load, the
     map loads wait for theirs, and each load resets where it always did."""
     engine = _engine()
-    engine.consume(_map(TOWN), 10_000, STREAM)                           # the first load: its map load resets
+    engine.consume(_map(NIGHTMARE), 10_000, STREAM)                      # the first load: its map load resets
     engine.consume(_zone_change(), 13_000, STREAM)                       # its zone change: the same load
     assert engine.last_zone_reset_ms == 10_000
     engine.consume(_map(VAKRON), 60_000, STREAM)
@@ -134,16 +134,16 @@ def test_a_client_that_still_sends_the_zone_change_resets_at_it_as_before():
 
 def test_a_client_that_stops_sending_it_is_read_from_its_map_loads():
     engine = _engine()
-    engine.consume(_map(TOWN), 10_000, STREAM)
+    engine.consume(_map(NIGHTMARE), 10_000, STREAM)
     engine.consume(_zone_change(), 13_000, STREAM)
     engine.consume(_map(VAKRON), 60_000, STREAM)                         # no zone change after this one
-    engine.consume(_map(TOWN), 200_000, STREAM)                          # so this map load is the load
+    engine.consume(_map(NIGHTMARE), 200_000, STREAM)                     # so this map load is the load
     assert engine.last_zone_reset_ms == 200_000
 
 
 # ------------------------------------------------------------------ session
-def _enter_vakron_from_town(engine, session):
-    engine.consume(_map(TOWN), 10_000, STREAM)
+def _enter_vakron_from_nightmare(engine, session):
+    engine.consume(_map(NIGHTMARE), 10_000, STREAM)
     session.observe(engine, [], timestamp_ms=10_000)
     engine.consume(_map(VAKRON), 60_000, STREAM)                         # the load into the dungeon, and no zone change
     engine.local_player_id = ME
@@ -155,11 +155,11 @@ def _enter_vakron_from_town(engine, session):
     session.observe(engine, [_hit(ME, BOSS, 70_000), _hit(MATE, BOSS, 71_000)], timestamp_ms=71_000)
 
 
-def test_a_dungeon_entered_from_a_town_with_map_loads_alone_has_its_entry():
+def test_a_dungeon_entered_from_another_instance_with_map_loads_alone_has_its_entry():
     engine, session = _engine(), CombatSession()
     session.begin_capture()
     session.pvp = False
-    _enter_vakron_from_town(engine, session)
+    _enter_vakron_from_nightmare(engine, session)
     run = session.runs[session.run]
     assert run["start_observed"] is True and run["instance_id"] == VAKRON
     assert session.snapshot(scope="party")["partial_capture"] is False
@@ -171,7 +171,7 @@ def test_without_the_map_load_the_same_entry_was_a_partial_capture(monkeypatch):
     engine, session = _engine(), CombatSession()
     session.begin_capture()
     session.pvp = False
-    _enter_vakron_from_town(engine, session)
+    _enter_vakron_from_nightmare(engine, session)
     run = session.runs[session.run]
     assert not run.get("start_observed")
     assert session.snapshot(scope="party")["partial_capture"] is True
