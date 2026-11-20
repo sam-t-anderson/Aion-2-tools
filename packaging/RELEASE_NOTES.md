@@ -1,3 +1,7 @@
+## The dungeon's weekly runs left on the overlay (0.2.411)
+
+**Weekly runs left.** Inside a dungeon, the overlay and the Live Meter page now show how many runs you have left there this week, as the game counts them: *Vakron Sky Island · hard: 3 runs left this week*, beside your Odyle Energy, Shugo Keys and Nightmare tickets, and an icon with the count where the overlay is narrow. The game sends a count for each weekly dungeon entry with those counters, but not which dungeon each count is for. The meter learns that the first time one of them goes down while you are inside a dungeon, when a run's reward is claimed, and remembers it, so from your next run there on the line is shown from the moment you enter and follows the game's count. A dungeon whose rewards spend Odyle Energy instead moves no weekly count, so no line is shown there. **Settings → Overlay** turns it off.
+
 ## Dungeon runs see their entry again since the game's 18 November patch (0.2.410)
 
 **What broke.** The game's 18 November patch changed how it tells the meter that you loaded into a new zone, and since then the meter never noticed you entering or leaving a dungeon. It could still see a run's entry when your party went in straight from the open world. Every run entered from anywhere else, every Vakron Sky Island run among them, was marked a partial capture and left unranked. Nothing cleared the previous zone's players either, so the overlay and the logs kept players who were not in your party.

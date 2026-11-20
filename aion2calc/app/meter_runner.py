@@ -75,6 +75,34 @@ _ROLLOVER_PLAYERS_DUE = 400
 _ROLLOVER_PLAYERS_HARD = 800
 
 
+#: Which weekly dungeon counter is which instance's (0.2.411): the engine learns a pair when a counter goes down inside
+#: a dungeon (``MeterEngine.weekly_counters``), and the app keeps every pair here so the next capture knows it at once.
+WEEKLY_COUNTERS_FILE = ("weekly_counters.json",)
+
+
+def load_weekly_counters() -> dict[int, int]:
+    """The instance -> weekly counter pairs earlier captures learned; empty when none, or the file cannot be read."""
+    from ..paths import data_file, read_json
+    try:
+        if not data_file(*WEEKLY_COUNTERS_FILE).exists():
+            return {}
+        rows = read_json(*WEEKLY_COUNTERS_FILE).get("instances") or {}
+        return {int(instance): int(counter) for instance, counter in rows.items()}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return {}
+
+
+def save_weekly_counters(pairs) -> None:
+    """Keep newly learned instance -> weekly counter pairs; a later pair for an instance replaces the earlier one."""
+    from ..paths import write_user_json
+    known = load_weekly_counters()
+    known.update({int(instance): int(counter) for instance, counter in pairs})
+    write_user_json({"note": "Which of the game's weekly entry counters is which dungeon instance's, learned when one went "
+                             "down inside the dungeon (Aion 2 Calc 0.2.411).",
+                     "instances": {str(instance): counter for instance, counter in sorted(known.items())}},
+                    *WEEKLY_COUNTERS_FILE)
+
+
 def upload_evictor():
     """A callback for :func:`aion2calc.combat.sessions.prune_logs` that uploads each
     recording to the configured share server right before the size cap deletes it, so a
@@ -352,6 +380,7 @@ class Runner:
                 # this, nobody is identified until the next zone load.
                 self.packet_engine.adopt_identity(previous)
             self._seed_boss_hp(self.packet_engine)
+            self.packet_engine.weekly_counters.update(load_weekly_counters())
             if opts.get("character_name"):
                 self.packet_engine.set_local_character_name(str(opts["character_name"]))
         self.target_mode = str(opts.get("target_mode") or "bossTargets")
@@ -656,6 +685,19 @@ class Runner:
         if now - self._last_gathering >= 5.0:
             self._last_gathering = now
             self._flush_gathering(final=False)
+            self._keep_weekly_counters()
+
+    def _keep_weekly_counters(self) -> None:
+        """Save the instance -> weekly counter pairs the engine learned since the last call (0.2.411)."""
+        engine = self.packet_engine
+        learned = getattr(engine, "weekly_learned", None)
+        if not learned:
+            return
+        engine.weekly_learned = []
+        try:
+            save_weekly_counters(learned)
+        except OSError:
+            engine.weekly_learned = learned + engine.weekly_learned     # try again at the next call
 
     def _flush_gathering(self, final: bool) -> None:
         """Move what the player gathered and took from reward cubes into the gathering log, and share it
@@ -943,6 +985,7 @@ class Runner:
 
     def _archive_diagnostics(self) -> None:
         self._flush_gathering(final=True)
+        self._keep_weekly_counters()
         self._save_session(active=False)
         if self.started_at is not None:
             try:
@@ -1349,6 +1392,13 @@ class Runner:
                 # Your Nightmare tickets (counter 4), the game's own count too (on by default).
                 if self.packet_engine.nightmare_tickets and ui.get("overlay_show_nightmare_tickets") is not False:
                     snap["nightmare_tickets"] = dict(self.packet_engine.nightmare_tickets)
+                # Your weekly entries left for the dungeon you are in, the game's own count, once a run has shown which
+                # counter is that dungeon's (on by default, 0.2.411).
+                runs = self.packet_engine.weekly_runs_left()
+                if runs and ui.get("overlay_show_weekly_runs") is not False:
+                    from ..meter.context import classify
+                    place = classify(self.packet_engine.map_id, runs["instance"], False)
+                    snap["weekly_runs"] = {**runs, "zone": place.get("zone"), "difficulty": place.get("difficulty")}
             # When the viewer turns the option on, label each player's home world next to their
             # name, resolved from their captured server id via the same official server list used
             # for region. Off by default; best-effort and local (no network in this path).

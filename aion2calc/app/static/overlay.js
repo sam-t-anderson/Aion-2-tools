@@ -659,7 +659,7 @@
   function renderParty() {
     // The separate Party-DPS overlay: raid-wide aggregates, not per-player rows.
     const s = lastSnap || {}, snap = s.snapshot || {}, players = snap.players || [];
-    for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovconnection","#ovcooldowns","#ovclock"])$(id).hidden=true;
+    for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovweekly","#ovidentity","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovconnection","#ovcooldowns","#ovclock"])$(id).hidden=true;
     const totalDps=players.reduce((n,p)=>n+(Number(p.dps)||0),0);
     const totalHps=players.reduce((n,p)=>n+(Number(p.hps)||0),0);
     const totalTaken=players.reduce((n,p)=>n+(Number(p.dtps)||0),0);
@@ -755,6 +755,13 @@
     const regular=Number(o.regular)||0, bonus=Number(o.bonus)||0;
     return `<i class="ovticketicon" aria-hidden="true"></i><span class="ovoltext">Nightmare Tickets ${(regular+bonus).toLocaleString()}${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${shortCount(regular,bonus)}</span>`;
   }
+  // Your weekly entries left for the dungeon you are in (0.2.411): the game's own count, once a run there has shown which
+  // of its counters is the dungeon's. The dungeon's name and difficulty come from the catalog.
+  function weeklyLine(o){
+    const regular=Number(o.regular)||0, bonus=Number(o.bonus)||0, place=[o.zone,o.difficulty].filter(Boolean).join(' · ');
+    const left=regular+bonus;
+    return `<i class="ovrunicon" aria-hidden="true"></i><span class="ovoltext">${place?esc(place)+': ':''}${left.toLocaleString()} ${left===1?'run':'runs'} left this week${bonus?` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)`:''}</span><span class="ovolshort">${shortCount(regular,bonus)}</span>`;
+  }
   function classIcon(cls){
     const key=String(cls||'').toLowerCase(); if(!key) return '';
     const art=classArt(key); if(!art) return '';
@@ -816,6 +823,8 @@
     if(shugo){setHtml($('#ovshugo'),shugoLine(shugo));$('#ovshugo').title='Your Shugo Festival Reward Keys, as the game sent them: the regular keys, then the bonus ones (the same count the festival window shows)';}
     const tickets=snap.nightmare_tickets;$('#ovnightmare').hidden=!tickets;
     if(tickets){setHtml($('#ovnightmare'),nightmareLine(tickets));$('#ovnightmare').title='Your Nightmare tickets, as the game sent them: the regular tickets, then the bonus ones, spent one at a time, the regular first';}
+    const weekly=snap.weekly_runs;$('#ovweekly').hidden=!weekly;
+    if(weekly){setHtml($('#ovweekly'),weeklyLine(weekly));$('#ovweekly').title="This dungeon's weekly entries left, as the game counts them: learned from the counter that went down when a run here was rewarded, and kept up to date by the game";}
     document.querySelectorAll("[data-metric]").forEach(b=>{b.classList.toggle("on",b.dataset.metric===metric);b.setAttribute("aria-pressed",String(b.dataset.metric===metric));});
     if(!$("#ovcombine").disabled) $("#ovcombine").checked=s.combine_pets!==false;
     const filtered=filterLabel(s), targets=Array.isArray(s.targets)?s.targets:null;
@@ -1044,7 +1053,7 @@
     // the fight, so keep the meter open through it — never collapse mid-boss.
     if(collapse){
       viewContent("idle",'');
-      for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns","#ovdetail","#ovclock"])$(id).hidden=true;
+      for(const id of ["#ovmetrics","#ovping","#ovodyle","#ovshugo","#ovnightmare","#ovweekly","#ovtarget","#ovhpbar","#ovttkbar","#ovgauge","#ovcontribution","#ovdummy","#ovidentity","#ovgraph","#ovcooldowns","#ovdetail","#ovclock"])$(id).hidden=true;
       if(setText($("#ovstatus"),s.running?'Idle · waiting for combat':'Idle')) $("#ovstatus").title=$("#ovstatus").textContent;
     }
   }
@@ -1144,7 +1153,7 @@
     const ov=$("#ov"), card=$(".ovcard"); if(!ov||!card)return;
     ov.classList.remove("ov-lines-row","ov-lines-icons");
     if(!nmMode)return;
-    const lines=["#ovodyle","#ovshugo","#ovnightmare"].map(id=>$(id)).filter(el=>el&&!el.hidden);
+    const lines=["#ovodyle","#ovshugo","#ovnightmare","#ovweekly"].map(id=>$(id)).filter(el=>el&&!el.hidden);
     if(!lines.length)return;
     ov.classList.add("ov-lines-row");
     const cs=getComputedStyle(card), ls=getComputedStyle($("#ovlines"));
@@ -1252,7 +1261,7 @@
     setTimeout(cooldownTick,perfMode?500:250);
   })();
   function renderPlan() {
-    $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovodyle").hidden=true;$("#ovshugo").hidden=true;$("#ovnightmare").hidden=true;$("#ovidentity").hidden=true;
+    $("#ovmetrics").hidden=true;$("#ovping").hidden=true;$("#ovodyle").hidden=true;$("#ovshugo").hidden=true;$("#ovnightmare").hidden=true;$("#ovweekly").hidden=true;$("#ovidentity").hidden=true;
     $("#ovtarget").hidden=true;$("#ovhpbar").hidden=true;$("#ovttkbar").hidden=true;$("#ovcontribution").hidden=true;$("#ovdummy").hidden=true;$("#ovfps").hidden=true;
     $("#ovgraph").hidden=true;$("#ovgauge").hidden=true;$("#ovcooldowns").hidden=true;$("#ovclock").hidden=true;
     $("#ovconnection").hidden=true;

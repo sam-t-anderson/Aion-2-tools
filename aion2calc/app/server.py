@@ -1392,7 +1392,7 @@ class Handler(BaseHTTPRequestHandler):
             _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
                               "overlay_show_cooldowns", "overlay_show_break_gauge", "overlay_show_odyle",
-                              "overlay_show_shugo_keys", "overlay_show_nightmare_tickets", "character_auto_open", "character_auto_refresh",
+                              "overlay_show_shugo_keys", "overlay_show_nightmare_tickets", "overlay_show_weekly_runs", "character_auto_open", "character_auto_refresh",
                               "meter_reset_after_battle", "meter_reset_on_boss_start", "meter_show_dummy_parse", "overlay_show_combat_power",
                               "overlay_only_in_combat", "overlay_auto_expand", "overlay_boss_only", "overlay_pvp_only",
                               "overlay_arena_mode", "overlay_arena_all3", "overlay_players_enabled",
@@ -2021,6 +2021,7 @@ def ui_settings() -> dict:
                 "overlay_cooldowns_position": "bottom", "overlay_show_break_gauge": False,
                 # Your Odyle Energy, Shugo Keys and Nightmare tickets on the overlay and the Live Meter page (on by default).
                 "overlay_show_odyle": True, "overlay_show_shugo_keys": True, "overlay_show_nightmare_tickets": True,
+                "overlay_show_weekly_runs": True,
                 "meter_reset_after_battle": False, "meter_reset_on_boss_start": True, "meter_reset_delay": 5, "meter_max_records": 20,
                 "meter_show_dummy_parse": True, "meter_dummy_record_seconds": 60,
                 "overlay_show_combat_power": True, "overlay_show_community_rank": False, "overlay_live_community_rank": False,
