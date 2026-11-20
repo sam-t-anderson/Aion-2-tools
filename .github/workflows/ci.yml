@@ -56,6 +56,11 @@ jobs:
           cache-dependency-path: pyproject.toml
       - run: pip install -e ".[dev]" pyflakes
       - run: python -m pyflakes aion2calc tools tests
+      - name: Qt's system libraries for the native interface's tests
+        # PySide6's QtGui loads libEGL and libxkbcommon, which the runner image lacks; without them
+        # tests/test_native_interface.py cannot import Qt (the tests draw off screen, QT_QPA_PLATFORM=offscreen).
+        timeout-minutes: 5
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libegl1 libxkbcommon0
       - name: Tests, measuring coverage
         env:
           COVERAGE_CORE: sysmon     # Python 3.12's low-overhead tracer
@@ -209,6 +214,11 @@ jobs:
       - name: Bundle pywebview for the transparent overlay (Windows)
         if: runner.os == 'Windows'
         run: pip install pywebview
+      - name: Bundle PySide6 for the native interface (Windows)
+        # The native interface's windows (aion2calc/gui, a preview behind its setting); PyInstaller's own PySide6
+        # hooks bundle Qt with them. Without it the app opens its web interface as before.
+        if: runner.os == 'Windows'
+        run: pip install "PySide6-Essentials>=6.8"
       - name: Preset the log server for new users (repository variable A2LOGS_PUBLIC_URL)
         # This is the same deliberately public community-upload key used by Pages.
         # Do not configure an administrative or ownership token here.

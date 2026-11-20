@@ -1389,7 +1389,7 @@ class Handler(BaseHTTPRequestHandler):
                 if body["overlay_text_autocontrast"] not in ("off", "blend", "luminance"):
                     raise ValueError("overlay_text_autocontrast must be off, blend or luminance")
                 cur["overlay_text_autocontrast"] = body["overlay_text_autocontrast"]
-            _ui_bool_flags = ("tray_on_close", "overlay_show_contribution", "overlay_show_target",
+            _ui_bool_flags = ("tray_on_close", "interface_native", "overlay_show_contribution", "overlay_show_target",
                               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
                               "overlay_show_cooldowns", "overlay_show_break_gauge", "overlay_show_odyle",
                               "overlay_show_shugo_keys", "overlay_show_nightmare_tickets", "overlay_show_weekly_runs", "character_auto_open", "character_auto_refresh",
@@ -2003,7 +2003,7 @@ def save_plans(plans) -> dict:
 
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
-    defaults = {"app_window": True, "auto_update": True, "update_on_close": True, "overlay_on_start": True, "tray_on_close": False,
+    defaults = {"app_window": True, "interface_native": False, "auto_update": True, "update_on_close": True, "overlay_on_start": True, "tray_on_close": False,
                 "overlay_open_on_app_start": True,
                 # The app's text size (percent of the shipped size) and the page it opens on (0.2.329).
                 "app_text_scale": 100, "app_default_page": "meter",
