@@ -86,9 +86,11 @@ def _spawn(url: str) -> subprocess.Popen:
     # The meter's overlay is the native interface's Qt window while that is on (0.2.413); the companion windows
     # (Party DPS, the radar, Pet Tracker, the PvP player cards) are still overlay pages in pywebview.
     from .. import gui
-    if "view=" not in url and gui.enabled():
+    native = gui.enabled()
+    if "view=" not in url and native:
         return gui.spawn("overlay", url)
-    if not _webview():
+    if native and not _webview():
+        # The native interface made the overlay available without pywebview (``available``), but not this window.
         raise OSError("this window needs pywebview, which is not installed")
     # The app's PID goes along so the overlay process can watch it and end the moment the app's process is
     # gone, whether or not the app got to close it (0.2.331): an overlay that only polled the app's address
