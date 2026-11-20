@@ -162,6 +162,18 @@ def test_the_live_meter_page_shows_the_fight_and_its_buttons(qapp):
     page.apply({"running": False, "snapshot": {}})
     assert page.table.rowCount() == 0 and page.start_button.isEnabled() and page.fight.text() == "No fight yet"
 
+    class Recorder:
+        def __init__(self):
+            self.calls = []
+
+        def post(self, path, payload):
+            self.calls.append((path, payload))
+            return {}
+
+    app = Recorder()
+    MeterPage(app).start_capture()                    # Self + Party, as the web page starts (0.2.416)
+    assert app.calls == [("/api/meter", {"action": "start", "source": "a2tools", "auto_port": True, "scope": "party"})]
+
 
 # ------------------------------------------------------------------ the API and the poll
 class _App(BaseHTTPRequestHandler):

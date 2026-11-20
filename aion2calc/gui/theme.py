@@ -5,6 +5,9 @@ The colours are ``app.css``'s dark theme and the overlay's class colours (``OVER
 """
 from __future__ import annotations
 
+from decimal import ROUND_HALF_UP, Decimal
+import math
+
 #: app.css's dark theme (``:root``).
 COLORS = {
     "bg0": "#070a10", "bg1": "#0d1320", "bg2": "#121a2a", "panel": "#101623", "panel2": "#182032",
@@ -26,20 +29,34 @@ def class_color(cls) -> str:
     return CLASS_COLORS.get(str(cls or "").lower(), FALLBACK_CLASS_COLOR)
 
 
+def fixed(value: float, digits: int) -> str:
+    """JavaScript's ``toFixed``: the value rounded half away from zero, as the web pages round (Python's own
+    formatting rounds a half to the even digit, so 1.125 would read 1.12 where the web overlay reads 1.13)."""
+    value = float(value) or 0.0                  # -0 reads 0, as in JavaScript
+    if not math.isfinite(value) or abs(value) >= 1e21:
+        return str(value)                        # toFixed writes these as String(x) does
+    return str(Decimal(value).quantize(Decimal(1).scaleb(-digits), rounding=ROUND_HALF_UP))
+
+
+def js_round(value: float) -> int:
+    """JavaScript's ``Math.round``: a half goes up (Python's ``round`` goes to the even number)."""
+    return math.floor(float(value) + 0.5)
+
+
 def kfmt(x) -> str:
     """A rate or amount as the overlay writes it: 1.23M, 45.60K, 812; a dash when there is none."""
     try:
         x = float(x)
     except (TypeError, ValueError):
         return "—"
-    if x != x:                                   # NaN
+    if not math.isfinite(x):
         return "—"
     a = abs(x)
     if a >= 1e6:
-        return f"{x / 1e6:.2f}M"
+        return fixed(x / 1e6, 2) + "M"
     if a >= 1e3:
-        return f"{x / 1e3:.2f}K"
-    return str(round(x))
+        return fixed(x / 1e3, 2) + "K"
+    return str(js_round(x))
 
 
 def sfmt(x) -> str:
@@ -48,12 +65,14 @@ def sfmt(x) -> str:
         x = float(x or 0)
     except (TypeError, ValueError):
         x = 0.0
+    if not math.isfinite(x):
+        x = 0.0
     a = abs(x)
     for limit, unit in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
         if a >= limit:
-            text = f"{x / limit:.1f}"
+            text = fixed(x / limit, 1)
             return (text[:-2] if text.endswith(".0") else text) + unit
-    return str(round(x))
+    return str(js_round(x))
 
 
 def count(regular, bonus=0) -> str:

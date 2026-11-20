@@ -2,7 +2,8 @@
 
 ``AppApi`` sends one request at a time and answers with the decoded JSON. ``Poller`` asks for one path at an
 interval off the interface's thread and hands each answer to it as a Qt signal, so a slow answer never freezes
-a window; a poll still waiting when the next is due is not sent twice.
+a window; a poll still waiting when the next is due is not sent twice. ``Requests`` sends a window's one-off
+requests (a button's action, 0.2.416) the same way, each answered under the name the window gave it.
 """
 from __future__ import annotations
 
@@ -12,6 +13,18 @@ import urllib.error
 import urllib.request
 
 from PySide6.QtCore import QObject, QTimer, Signal
+
+
+def why(exc: BaseException) -> str:
+    """What went wrong, as the web pages say it: the app's own ``error`` for a request it refused (the JSON of
+    its answer), else the reason the connection gave."""
+    if isinstance(exc, urllib.error.HTTPError):
+        try:
+            message = json.loads(exc.read().decode("utf-8") or "{}").get("error")
+        except (OSError, ValueError, AttributeError):
+            message = None
+        return str(message or f"HTTP {exc.code}")
+    return str(getattr(exc, "reason", None) or exc)
 
 
 class AppApi:
@@ -62,7 +75,10 @@ class Poller(QObject):
         if self._busy:
             return
         self._busy = True
-        self._pool.submit(self._ask)
+        try:
+            self._pool.submit(self._ask)
+        except RuntimeError:                     # stopped: its window has closed
+            self._busy = False
 
     def _ask(self) -> None:
         try:
@@ -73,3 +89,40 @@ class Poller(QObject):
             return
         self._busy = False
         self.answered.emit(answer)
+
+
+class Requests(QObject):
+    """A window's one-off requests (a button's action), sent off the interface's thread in the order asked. Each
+    is answered as ``replied(name, answer)`` or ``failed(name, why)``, ``name`` being what the window called it.
+    Connect them to a window's own methods: those run on the interface's thread."""
+
+    replied = Signal(str, object)
+    failed = Signal(str, str)
+
+    def __init__(self, api: AppApi, parent: QObject | None = None):
+        super().__init__(parent)
+        self.api = api
+        self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gui-call")
+
+    def get(self, name: str, path: str) -> None:
+        self._submit(name, path, None)
+
+    def post(self, name: str, path: str, payload: dict) -> None:
+        self._submit(name, path, payload)
+
+    def _submit(self, name: str, path: str, payload: dict | None) -> None:
+        try:
+            self._pool.submit(self._send, name, path, payload)
+        except RuntimeError:                     # stopped: its window has closed, and nothing waits for the answer
+            pass
+
+    def stop(self) -> None:
+        self._pool.shutdown(wait=False, cancel_futures=True)
+
+    def _send(self, name: str, path: str, payload: dict | None) -> None:
+        try:
+            answer = self.api.get(path) if payload is None else self.api.post(path, payload)
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            self.failed.emit(name, why(exc))
+            return
+        self.replied.emit(name, answer)
