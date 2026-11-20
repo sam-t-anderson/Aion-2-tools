@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import PoolCasters, decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_actions, scan_positions, scan_move_delta, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list, scan_arena
+from .parser import PoolCasters, decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_map_load, scan_actions, scan_positions, scan_move_delta, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list, scan_arena
 from .framing import walk, bundle_batch, read_varint
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -36,6 +36,9 @@ OBSERVED_OPEN_WORLD_MAPS = {
         "back to the Abyss's lower layer (map 20)",
 }
 OPEN_WORLD_MAPS |= set(OBSERVED_OPEN_WORLD_MAPS)
+#: How long after a map load (``scan_map_load``) its own self zone change (``23 36``) still belongs to the same zone
+#: load: it came 0.1 to 7.7 s after the map load in the October captures.
+MAP_LOAD_ZONE_CHANGE_MS = 10_000
 
 
 #: The cast-ends an actor needs before it is guessed to be the local player, and the lead over the
@@ -185,6 +188,13 @@ class MeterEngine:
         self._saved_encounters: set[tuple[int, int]] = set()
         self.last_damage_time_ms: int | None = None
         self.last_zone_reset_ms: int | None = None
+        # The map loads and the self zone change (``_zone_load``): when a map load alone last reset the zone (the zone
+        # change that follows it is the same load), when the last map load came and whether a zone change followed it,
+        # and whether this client sends a zone change after its map loads at all (None until a load shows it).
+        self._map_load_reset_ms: int | None = None
+        self._map_load_ms: int | None = None
+        self._map_load_answered = False
+        self._zone_change_follows_map_load: bool | None = None
         # The recording player's Odyle Energy ({"regular", "bonus", "timestamp_ms"}), from the counter table
         # sent on entering the world or a zone and its updates. The character's, so a zone reset keeps it.
         self.odyle_energy: dict | None = None
@@ -296,10 +306,8 @@ class MeterEngine:
             # could reset the zone. Only the round trip is read from it.
             return []
         zone_change, map_id = scan_zone_state(complete)
-        if (zone_change
-                and (self.last_damage_time_ms is None or timestamp_ms - self.last_damage_time_ms >= 1_500)
-                and (self.last_zone_reset_ms is None or timestamp_ms - self.last_zone_reset_ms >= 4_000)
-                and not self._arena_round_restart(timestamp_ms, map_id)):
+        loaded_map = scan_map_load(complete) if map_id is not None else None
+        if self._zone_load(timestamp_ms, zone_change, loaded_map, map_id):
             # Actor IDs and summon ownership belong to the loaded zone. Reset
             # before reading this packet's new identities, not after them.
             self._reset_zone(timestamp_ms)
@@ -939,6 +947,54 @@ class MeterEngine:
         """An arena match is on: its roster came, its result has not, and the recording player is on its map."""
         match = self.arena
         return bool(match and match["result"] is None and match.get("left_ms") is None and self.map_id == match["map"])
+
+    def _zone_load(self, timestamp_ms: int, zone_change: bool, loaded_map: int | None, map_id: int | None) -> bool:
+        """Whether this read is a zone load to reset for: the self zone change (``23 36``), or the map load
+        (``scan_map_load``) that comes with every load, which stands in for it since the game's 18 November 2026
+        patch left the zone change unrecognised (0.2.410).
+
+        The capture shows which client it is. While a zone change follows each map load (within
+        ``MAP_LOAD_ZONE_CHANGE_MS``), as before the patch, the zone change alone resets, as it always did. A map load
+        with none after it marks a client that sends none, and from then on the map load resets. Until a load has
+        shown either, the map load resets, so the first load after the meter starts is never missed; a zone change
+        that follows the map load already reset for, with no damage between, is that same load, not a second one.
+        Neither counts within 1.5 s of damage, within 4 s of the last reset or as an arena match's round restart."""
+        if loaded_map is not None:
+            if (self._map_load_ms is not None and not self._map_load_answered
+                    and timestamp_ms - self._map_load_ms > MAP_LOAD_ZONE_CHANGE_MS):
+                self._zone_change_follows_map_load = False      # the last map load had no zone change after it
+            self._map_load_ms, self._map_load_answered = timestamp_ms, False
+        if zone_change and self._map_load_ms is not None and 0 <= timestamp_ms - self._map_load_ms <= MAP_LOAD_ZONE_CHANGE_MS:
+            self._map_load_answered = True
+            self._zone_change_follows_map_load = True
+        if not zone_change and (loaded_map is None or self._zone_change_follows_map_load):
+            return False
+        if self.last_damage_time_ms is not None and timestamp_ms - self.last_damage_time_ms < 1_500:
+            return False
+        if self.last_zone_reset_ms is not None and timestamp_ms - self.last_zone_reset_ms < 4_000:
+            return False
+        if self._arena_round_restart(timestamp_ms, map_id):
+            return False
+        if not zone_change and self._arena_own_map(timestamp_ms, loaded_map):
+            return False
+        if zone_change:
+            same_load = (self._map_load_reset_ms is not None
+                         and timestamp_ms - self._map_load_reset_ms <= MAP_LOAD_ZONE_CHANGE_MS
+                         and (self.last_damage_time_ms is None or self.last_damage_time_ms <= self._map_load_reset_ms))
+            self._map_load_reset_ms = None
+            return not same_load
+        self._map_load_reset_ms = timestamp_ms
+        return True
+
+    def _arena_own_map(self, timestamp_ms: int, map_id: int | None) -> bool:
+        """A map load inside an arena match in progress that names the match's own map, or an arena's map while the match
+        is still on the town's (its roster came before the arena's own map record, as in the 9 November recording, and
+        ``_note_map`` moves the match there): the match's zone, not a new one. A map load stands in for the zone load
+        since 0.2.410, and resetting there cleared the opponent's name in the middle of the match."""
+        from ..context import PVP_MAPS
+        match = self.arena
+        return bool(self.arena_in_progress() and map_id is not None and 0 <= timestamp_ms - match["started_ms"] <= ARENA_MATCH_MS
+                    and (map_id == match["map"] or (match["map"] not in PVP_MAPS and map_id in PVP_MAPS)))
 
     def _arena_round_restart(self, timestamp_ms: int, map_id: int | None) -> bool:
         """A zone load inside an arena match in progress: the recording player brought back for the next round after

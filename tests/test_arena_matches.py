@@ -156,10 +156,9 @@ def test_a_lost_rounds_zone_load_keeps_the_match_in_one_zone():
 def test_the_arenas_own_zone_load_after_its_roster_still_resets():
     engine = MeterEngine()
     engine.set_server_port(13328)
-    engine.consume(_map(ARENA), 1_000, STREAM)
     engine.consume(_roster(), 2_000, STREAM)                                  # the roster before the arena's own load
     assert not engine.arena["entered"]
-    engine.consume(_zone_load(), 3_000, STREAM)
+    engine.consume(_map(ARENA) + _zone_load(), 3_000, STREAM)
     assert engine.last_zone_reset_ms == 3_000 and engine.arena["entered"]
     engine.consume(_map(ARENA), 40_000, STREAM)
     engine.consume(_zone_load(), 40_600, STREAM)
@@ -177,6 +176,27 @@ def test_a_match_left_without_its_result_or_past_its_length_holds_no_zone():
     engine.consume(_map(ARENA), 100_000 + ARENA_MATCH_MS + 5_000, STREAM)
     engine.consume(_zone_load(), 100_000 + ARENA_MATCH_MS + 6_000, STREAM)
     assert engine.last_zone_reset_ms == 100_000 + ARENA_MATCH_MS + 6_000
+
+
+def test_with_map_loads_alone_the_match_is_still_one_zone():
+    """Since the game's 18 November 2026 patch the self zone change is not recognised, and the map load stands in for
+    it (0.2.410): into the arena, back to its map for each lost round and out again, with no zone change at all."""
+    engine = MeterEngine()
+    engine.set_server_port(13328)
+    engine.consume(_map(TOWN), 40_000, STREAM)
+    assert engine.last_zone_reset_ms == 40_000
+    engine.consume(_map(ARENA), 95_000, STREAM)                               # the arena's own load
+    assert engine.last_zone_reset_ms == 95_000
+    engine.consume(_self(ME, "Testme") + _roster(), 100_100, STREAM)
+    engine.consume(_other(FOE, "Testfoe"), 101_000, STREAM)
+    assert engine.arena["entered"] and engine.arena_in_progress()
+    for t in (130_000, 160_000):                                              # two lost rounds, each back on the map
+        engine.consume(_round(FOE_ID, MY_ID), t, STREAM)
+        engine.consume(_map(ARENA), t + 5_000, STREAM)
+        assert engine.last_zone_reset_ms == 95_000 and engine.names[FOE] == "Testfoe" and engine.local_player_id == ME
+    engine.consume(_round(FOE_ID, MY_ID) + _result(LOSS, 1505, 0, 3), 190_000, STREAM)
+    engine.consume(_map(TOWN), 197_000, STREAM)                               # leaving
+    assert engine.last_zone_reset_ms == 197_000 and FOE not in engine.names
 
 
 def test_an_unnamed_actor_striking_with_the_opponents_class_is_the_opponents_summon():

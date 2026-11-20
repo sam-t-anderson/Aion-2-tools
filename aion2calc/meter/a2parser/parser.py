@@ -1891,6 +1891,35 @@ def scan_zone_state(data: bytes) -> tuple[bool, int | None]:
     return zone_change, map_id
 
 
+#: The map-load record ``21 36`` (``<len> 21 36 <u32 count> <u32 map id> ...``) comes with every zone load. In the
+#: October captures it came 0.1 to 7.7 s before the self zone change (``23 36``), in 49-byte frames (once 75) whose
+#: count read 1 to 43. Other records share its two opcode bytes (11- and 30-byte frames, and one of 49) with a
+#: "count" in the billions and a "map" of 620900916 and up: no map was loaded by them. A map load counts as a zone
+#: load only within these bounds.
+MAP_LOAD_MAX_COUNT = 10_000
+MAP_LOAD_MAX_MAP = 100_000_000
+
+
+def scan_map_load(data: bytes) -> int | None:
+    """The map a zone load names: a ``21 36`` record whose count and map id are within ``MAP_LOAD_MAX_COUNT`` and
+    ``MAP_LOAD_MAX_MAP``, or None.
+
+    Since the game's 18 November 2026 patch the self zone change (``scan_zone_state``) is no longer recognised: no
+    recording made since counts a zone load, so every run entered from anywhere but the open world was a partial
+    capture. The map load still comes, and stands in for it (0.2.410)."""
+    for frame in _damage_frames(data, inner=False):
+        length = read_varint(frame, 0)
+        if length.length <= 0:
+            continue
+        pos = length.length
+        if frame[pos:pos + 2] == b"\x21\x36" and pos + 10 <= len(frame):
+            count = int.from_bytes(frame[pos + 2:pos + 6], "little")
+            map_id = int.from_bytes(frame[pos + 6:pos + 10], "little")
+            if count <= MAP_LOAD_MAX_COUNT and 0 < map_id < MAP_LOAD_MAX_MAP:
+                return map_id
+    return None
+
+
 def _restore(event) -> bool:
     """A heal record that is the Stamina or MP its skill restores (``lookup.restored_resource``), not HP:
     the decoder leaves it out, so no meter, export or review counts it as healing (0.2.355)."""
