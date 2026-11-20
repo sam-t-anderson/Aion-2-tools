@@ -1,3 +1,7 @@
+## Settings in the native interface (0.2.414)
+
+**Native Settings.** In the native interface (Settings → Native interface, a preview), the Settings page is now native too: every setting the web page sets with a checkbox, a list or a number, in its order and words, saved the moment you change it. A list at the top shows one group at a time: App, Log server, Overlay, Pet Tracker, Combat records and Backup. The rows it does not draw in full yet still open the web Settings page: the log server, profiles and backups, hotkeys, the overlay's colours and fonts, and its background image.
+
 ## A native interface, first preview (0.2.413)
 
 **The app without a browser.** The app can now open its window and the meter's overlay drawn by Python itself (Qt) instead of a browser: turn on **Settings → Native interface (preview)**, and it takes effect the next time the app or the overlay opens. So far the Live Meter page and the meter overlay are native, and every other page opens in the web interface from the native window, as before; the rest will move over one at a time. The native overlay shows the fight's status, the target with its HP (and the time to kill when that is on), your Odyle Energy, Shugo Keys, Nightmare tickets and the dungeon's weekly runs, and a row per player with their DPS, HPS or damage taken (click the metric to switch). It follows the overlay's width, rows, row height, font size, click-through and remembered position from your settings. The Windows installer now carries Qt for it, so it is larger.
