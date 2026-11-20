@@ -130,7 +130,7 @@ def _overlay(**ui):
 
 
 def test_the_strip_shows_the_next_three_windows_of_the_picked_region(qapp):
-    window = _overlay(event_region="na-east")
+    window = _overlay(event_region="na-east", overlay_width=800)               # room for all three, in any font
     shown = events.strip(CATALOG, "na-east", "", None, window.now)
     assert not window.events.isHidden() and len(shown) <= 3
     assert window.events.text() == events.strip_html(shown)
