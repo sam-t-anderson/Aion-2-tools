@@ -11,7 +11,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QCoreApplication, QElapsedTimer  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from aion2calc.app import server  # noqa: E402
@@ -25,6 +25,21 @@ CONTROLS = [control for row in ROWS for control in row.controls]
 @pytest.fixture(scope="module")
 def qapp():
     return QApplication.instance() or QApplication([])
+
+
+@pytest.fixture(autouse=True)
+def _windows_closed():
+    """Each test's windows are closed and deleted while Qt's application exists, as in test_native_interface.py:
+    a window left for Python to collect at exit crashed the process on its way out."""
+    yield
+    app = QApplication.instance()
+    if app is None:
+        return
+    for widget in app.topLevelWidgets():
+        widget.close()
+        widget.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    QCoreApplication.processEvents()
 
 
 @pytest.fixture
