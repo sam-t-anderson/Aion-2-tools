@@ -289,13 +289,15 @@ def test_the_counter_lines_share_one_row_as_icons_when_the_overlay_is_narrow(app
 def test_the_dungeons_weekly_runs_left_join_the_counter_lines(app_page, app_url):
     """Inside a dungeon whose weekly counter the meter has learned, its runs left join the counter lines (0.2.411):
     the dungeon, its difficulty and the count in its full text and title, an icon with the count where the row has
-    no room for the words, and nothing elsewhere."""
+    no room for the words, and nothing elsewhere. At 420 px the four full lines do not fit, and the four icons do with
+    room to spare: they take 300 of its 398 px in Inter and 326 in DejaVu Sans. At the default 340 px (318 px of
+    room) they still fit in Inter, while in DejaVu Sans the last of them wraps onto a second row."""
     page = app_page
     weekly = {"instance": 600073, "counter": 60000009, "regular": 3, "bonus": 1, "timestamp_ms": 1,
               "zone": "Vakron Sky Island", "difficulty": "hard"}
     meter = counted()
     meter = {**meter, "snapshot": {**meter["snapshot"], "weekly_runs": weekly}}
-    open_overlay(page, app_url, meter)
+    open_overlay(page, app_url, meter, overlay_width=420)
     page.wait_for_function("!document.querySelector('#ovweekly').hidden && document.querySelector('#ov').classList.contains('ov-lines-icons')")
     lines = "['#ovodyle', '#ovshugo', '#ovnightmare', '#ovweekly'].map(s => document.querySelector(s).getBoundingClientRect())"
     boxes = page.evaluate(lines)

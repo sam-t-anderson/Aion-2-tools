@@ -1146,9 +1146,10 @@
   $("#ovdetail")&&$("#ovdetail").addEventListener("click",e=>{if(e.target.closest("[data-close]"))openDetail(null);});
   // In the top-background mode the panel behind the header ends where the player rows begin: measured after
   // each render, so a target panel coming or going moves it.
-  // The Odyle, Shugo and Nightmare lines in the compact layout (the see-through modes since 0.2.369, the whole card
-  // since 0.2.370): one row of full lines when the card is wide enough for all of them, one row of icons with the
-  // counts when it is not; the older layout stacks them.
+  // The Odyle, Shugo, Nightmare and weekly runs lines in the compact layout (the see-through modes since 0.2.369, the
+  // whole card since 0.2.370): one row of full lines when the card is wide enough for all of them, one row of icons
+  // with the counts when it is not (wrapping onto a second row only where even the icons do not fit); the older
+  // layout stacks them.
   function compactLines(){
     const ov=$("#ov"), card=$(".ovcard"); if(!ov||!card)return;
     ov.classList.remove("ov-lines-row","ov-lines-icons");
