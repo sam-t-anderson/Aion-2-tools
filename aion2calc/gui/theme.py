@@ -86,4 +86,7 @@ def app_stylesheet() -> str:
     QTableWidget {{ background: {c['bg2']}; gridline-color: {c['line']}; border: 1px solid {c['line']}; }}
     QHeaderView::section {{ background: {c['card_b']}; color: {c['muted']}; border: none; border-bottom: 1px solid {c['line']}; padding: 4px 6px; }}
     QComboBox, QLineEdit, QSpinBox {{ background: {c['bg2']}; border: 1px solid {c['line2']}; border-radius: 5px; padding: 3px 6px; }}
+    QCheckBox::indicator {{ width: 14px; height: 14px; border: 1px solid {c['line2']}; border-radius: 3px; background: {c['bg2']}; }}
+    QCheckBox::indicator:hover {{ border-color: {c['gold_dim']}; }}
+    QCheckBox::indicator:checked {{ background: {c['gold']}; border-color: {c['gold']}; }}
     """

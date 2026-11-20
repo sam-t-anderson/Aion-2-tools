@@ -1,7 +1,7 @@
 """The native app window (0.2.413, a preview of the native interface): the app's navigation and pages drawn by Qt.
 
 The navigation lists the web interface's sections and pages in its order (``SECTIONS``, after index.html). The
-pages are moved over one at a time; the Live Meter page is the first. A page the native window does not draw yet
+pages are moved over one at a time: the Live Meter page first, then Settings (0.2.414). A page the native window does not draw yet
 says so and opens in the web interface, so every page stays a click away while the move goes on.
 """
 from __future__ import annotations
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHBoxLayout, QHe
 from . import theme
 from .api import AppApi, Poller
 from .overlay import counter_lines
+from .settings_page import SettingsPage
 
 #: The web interface's navigation (index.html): each section's pages, then Settings and Account.
 SECTIONS = (
@@ -209,7 +210,12 @@ class MainWindow(QMainWindow):
                 item.setData(Qt.UserRole, key)
                 self.nav.addItem(item)
                 self.page_rows[key] = self.nav.count() - 1
-                widget = MeterPage(api) if key == "meter" else WebPage(key, title, self.open_web)
+                if key == "meter":
+                    widget = MeterPage(api)
+                elif key == "settings":
+                    widget = SettingsPage(api, self.open_web)
+                else:
+                    widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)
         self.nav.currentItemChanged.connect(self._navigate)
         layout.addWidget(self.nav)
@@ -244,6 +250,7 @@ class MainWindow(QMainWindow):
 
     def start(self) -> None:
         self.page("meter").start()
+        self.page("settings").start()
 
 
 def main(argv=None) -> int:
