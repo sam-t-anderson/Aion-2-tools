@@ -26,6 +26,7 @@
 - The native Live Meter page's Start now captures Self + Party players, as the web page does. It used to start with the app's automatic choice.
 - Numbers round as the web pages round them: a rate of 2.5/s reads 3/s, not 2/s.
 - The overlay window takes its new height in the same moment its rows change. It used to take it a moment later, and a click in between could land on the wrong row.
+- The overlay window takes the whole height it needs, up to the screen's. It used to stop at two thirds of the screen, so a tall overlay, with the player panel open, drew its parts over each other.
 - With click-through on, the native overlay still takes no clicks at all, its buttons included. Hover to interact comes with a later part.
 
 ## The native overlay follows the overlay's settings (0.2.415)
