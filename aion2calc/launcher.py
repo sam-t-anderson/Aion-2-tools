@@ -152,10 +152,19 @@ def window_geometry(area: tuple[int, int] | None) -> tuple[int, int, int, int]:
     return width, height, max(0, (area[0] - width) // 2), max(0, (area[1] - height) // 2)
 
 
-def open_window(url: str, prefer_app: bool = True):
-    """Open the UI: its own app window when Edge/Chrome is there (returns the process), else a browser tab."""
+def open_window(url: str, prefer_app: bool = True, native: bool | None = None):
+    """Open the UI: the native window while the native interface is on (0.2.413; ``native`` None reads the
+    setting), else its own app window when Edge/Chrome is there (returns the process), else a browser tab."""
     import subprocess
+    from . import gui
     from .paths import home
+    if native is None:
+        native = gui.enabled()
+    if native:
+        try:
+            return gui.spawn("window", url)
+        except OSError:
+            pass
     exe = app_browser() if prefer_app else None
     if exe:
         width, height, left, top = window_geometry(work_area())
@@ -386,6 +395,9 @@ def install_pettracker() -> int:
 def main(argv=None) -> int:
     from . import tls
     tls.install()                                 # the system's certificate check for HTTPS, before any request
+    from . import gui
+    if os.environ.get(gui.ENV_KIND):              # the app re-ran the bundle to open a native window (0.2.413)
+        return gui.run_from_env()
     if os.environ.get("AION2CALC_OVERLAY"):       # the app re-ran the bundle to open the native overlay
         from . import overlay
         return overlay.main([])

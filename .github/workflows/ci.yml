@@ -209,6 +209,11 @@ jobs:
       - name: Bundle pywebview for the transparent overlay (Windows)
         if: runner.os == 'Windows'
         run: pip install pywebview
+      - name: Bundle PySide6 for the native interface (Windows)
+        # The native interface's windows (aion2calc/gui, a preview behind its setting); PyInstaller's own PySide6
+        # hooks bundle Qt with them. Without it the app opens its web interface as before.
+        if: runner.os == 'Windows'
+        run: pip install "PySide6-Essentials>=6.8"
       - name: Preset the log server for new users (repository variable A2LOGS_PUBLIC_URL)
         # This is the same deliberately public community-upload key used by Pages.
         # Do not configure an administrative or ownership token here.

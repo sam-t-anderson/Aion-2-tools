@@ -65,15 +65,31 @@ def _native_unavailable(now=None) -> str:
     return _UNAVAILABLE.get("reason") or "the native overlay window could not open"
 
 
-def available() -> bool:
-    """Is pywebview importable in this interpreter (so a transparent window is possible)?"""
+def _webview() -> bool:
+    """Is pywebview importable in this interpreter (so a transparent page window is possible)?"""
     try:
         return importlib.util.find_spec("webview") is not None
     except Exception:
         return False
 
 
+def available() -> bool:
+    """Can the meter's overlay open in a window of its own: pywebview is importable, or the native interface is on
+    (0.2.413), whose overlay is a Qt window (``aion2calc.gui.overlay``)?"""
+    if _webview():
+        return True
+    from .. import gui
+    return gui.enabled()
+
+
 def _spawn(url: str) -> subprocess.Popen:
+    # The meter's overlay is the native interface's Qt window while that is on (0.2.413); the companion windows
+    # (Party DPS, the radar, Pet Tracker, the PvP player cards) are still overlay pages in pywebview.
+    from .. import gui
+    if "view=" not in url and gui.enabled():
+        return gui.spawn("overlay", url)
+    if not _webview():
+        raise OSError("this window needs pywebview, which is not installed")
     # The app's PID goes along so the overlay process can watch it and end the moment the app's process is
     # gone, whether or not the app got to close it (0.2.331): an overlay that only polled the app's address
     # outlived a quit that skipped the close, and attached itself to the next launch on the same port.
