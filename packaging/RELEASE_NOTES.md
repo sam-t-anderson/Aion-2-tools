@@ -1,3 +1,14 @@
+## The native overlay's graph, live rates and identity line (0.2.417)
+
+**Native overlay, fourth part.** The native interface's overlay (Settings → Native interface, a preview) now shows more of what the web overlay shows beside the rows:
+- **The fight's mark** beside the status: green while the fight runs, amber while the DPS clock is paused.
+- **The ping**, the capture's round trip, with its average, lowest and highest in the tooltip.
+- **The identity line** when something is in doubt: your identity not yet received, players the meter could not name, or two players with one name.
+- **The live graph** (Settings → Overlay → Overlay layout, *Show a live DPS/HPS graph*): the party's DPS, HPS or damage taken over the fight, with the current value and the peak. With it on, the player panel also shows that player's DPS over the fight.
+- **Live-ticking rates** between readings, as on the web overlay (on by default: Settings → Overlay → Overlay layout, *Live-ticking DPS numbers*, at the pace set there). Performance mode holds them still and has the overlay read the meter half as often.
+- **Names and standings:** a name two players share carries each one's actor id, and with *Show your community rank for your last uploaded fight* on, the community standing of that fight shows beside your name and your party members'.
+- **The target** counts the other enemies struck in the same instant (*Atiel +2*) and names them in its tooltip.
+
 ## The native overlay's toolbar and player panel (0.2.416)
 
 **Native overlay, third part.** The native interface's overlay (Settings → Native interface, a preview) now has the web overlay's toolbar under the meter:

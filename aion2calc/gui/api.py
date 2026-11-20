@@ -71,6 +71,11 @@ class Poller(QObject):
         self._timer.stop()
         self._pool.shutdown(wait=False, cancel_futures=True)
 
+    def set_interval(self, interval_ms: int) -> None:
+        """Ask at another pace from the next poll on (the overlay reads the meter less often out of a fight)."""
+        if self._timer.interval() != interval_ms:
+            self._timer.setInterval(interval_ms)
+
     def poll(self) -> None:
         if self._busy:
             return
