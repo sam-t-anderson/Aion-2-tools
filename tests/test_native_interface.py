@@ -69,7 +69,7 @@ def _meter():
 # ------------------------------------------------------------------ the overlay
 def test_the_overlay_draws_the_meters_reading(qapp):
     window = MeterOverlay()
-    window.apply_ui({"overlay_width": 340, "overlay_show_ttk": True})
+    window.apply_ui({"overlay_width": 340, "overlay_show_ttk": True, "overlay_show_enemy_hp": True})
     window.apply_meter(_meter())
     rows = [row for row in window.rows if not row.isHidden()]
     assert [row.name for row in rows] == ["Seraphel", "Nyxara", "Velmira"]          # by DPS, highest first
@@ -77,7 +77,7 @@ def test_the_overlay_draws_the_meters_reading(qapp):
     assert rows[0].fill == 1.0 and 0 < rows[2].fill < rows[1].fill < 1
     assert [row.mine for row in rows] == [False, True, False]                         # you, by the local name
     assert window.status.text() == "Atiel · 75s · 45.70K raid DPS"
-    assert window.target.text() == "Atiel  47%  ·  TTK 1:06" and window.hp.fraction == pytest.approx(0.47)
+    assert window.target.text() == "Atiel  ·  47%  ·  TTK 1:06" and window.hp.fraction == pytest.approx(0.47)
     assert window.width() == 340
     window.grab()                                                                     # paints without error
 

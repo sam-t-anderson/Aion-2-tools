@@ -1,3 +1,10 @@
+## The native overlay follows the overlay's settings (0.2.415)
+
+**Native overlay, second part.** The native interface's overlay (Settings → Native interface, a preview) now follows the overlay's own settings, as the web overlay does:
+- **Rows:** how names show (names, class and party number, or the party number), rank numbers, a class swatch and class-coloured names, your own row highlighted, compact rows, zebra stripes, gradient and rounded bars, the dead marked, combat power beside a name, and every player shown when auto-expand is on.
+- **Target:** its HP, the time to kill with the boss's enrage timer, and the break gauge, each behind its setting.
+- **More:** your contribution to the fight or the training-dummy parse, the strip of your skills on cooldown (above or below the meter), only-in-combat, and the three background modes.
+
 ## Settings in the native interface (0.2.414)
 
 **Native Settings.** In the native interface (Settings → Native interface, a preview), the Settings page is now native too: every setting the web page sets with a checkbox, a list or a number, in its order and words, saved the moment you change it. A list at the top shows one group at a time: App, Log server, Overlay, Pet Tracker, Combat records and Backup. The rows it does not draw in full yet still open the web Settings page: the log server, profiles and backups, hotkeys, the overlay's colours and fonts, and its background image.
