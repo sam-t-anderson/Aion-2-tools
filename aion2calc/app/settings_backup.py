@@ -25,7 +25,7 @@ _BOOL_KEYS = ("app_window", "auto_update", "update_on_close", "overlay_on_start"
               "overlay_show_contribution", "overlay_show_target",
               "overlay_show_deaths", "overlay_show_enemy_hp", "overlay_show_ttk",
               "overlay_show_cooldowns", "overlay_show_break_gauge", "overlay_show_odyle", "overlay_show_shugo_keys",
-              "overlay_show_nightmare_tickets",
+              "overlay_show_nightmare_tickets", "overlay_show_weekly_runs",
               "character_auto_open", "character_auto_refresh",
               "meter_reset_after_battle", "meter_show_dummy_parse", "overlay_show_combat_power",
               "overlay_only_in_combat", "overlay_auto_expand", "overlay_boss_only", "overlay_pvp_only",

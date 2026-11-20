@@ -51,6 +51,16 @@ function nightmareLine(o) {
     bonus = Number(o.bonus) || 0;
   return `<p class="small muted odyle" title="Your Nightmare tickets, as the game sent them: the regular tickets, then the bonus ones, spent one at a time, the regular first"><i class="ticketicon" aria-hidden="true"></i> Nightmare Tickets ${(regular + bonus).toLocaleString()}${bonus ? ` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)` : ""}</p>`;
 }
+// Your weekly entries left for the dungeon you are in (0.2.411), the game's own count once a run there has shown which of
+// its counters is the dungeon's, under the Nightmare line.
+function weeklyLine(o) {
+  if (!o) return "";
+  const regular = Number(o.regular) || 0,
+    bonus = Number(o.bonus) || 0,
+    left = regular + bonus,
+    place = [o.zone, o.difficulty].filter(Boolean).join(" · ");
+  return `<p class="small muted odyle" title="This dungeon's weekly entries left, as the game counts them: learned from the counter that went down when a run here was rewarded, and kept up to date by the game"><i class="runicon" aria-hidden="true"></i> ${place ? esc(place) + ": " : ""}${left.toLocaleString()} ${left === 1 ? "run" : "runs"} left this week${bonus ? ` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)` : ""}</p>`;
+}
 function parseFromMeter(snap, idx) {
   const p = (snap.players || [])[idx];
   if (!p) return null;
@@ -1052,7 +1062,7 @@ function renderMeter(s) {
       win(
         "Players",
         `${esc(snap.boss || "")}${snap.boss ? " · " : ""}${(snap.duration || 0).toFixed(0)}s · ${kfmt(snap.dps || 0)} raid DPS`,
-        `<div class="pmeters">${rows}</div>${snap.ping ? `<p class="small muted">Ping ${kfmt(snap.ping.current)} ms now · ${kfmt(snap.ping.avg)} ms capture avg · ${kfmt(snap.ping.min)}–${kfmt(snap.ping.max)} ms range (${snap.ping.samples} samples across this recording connection, logged over time)</p>` : ""}${odyleLine(snap.odyle)}${shugoLine(snap.shugo_keys)}${nightmareLine(snap.nightmare_tickets)}`,
+        `<div class="pmeters">${rows}</div>${snap.ping ? `<p class="small muted">Ping ${kfmt(snap.ping.current)} ms now · ${kfmt(snap.ping.avg)} ms capture avg · ${kfmt(snap.ping.min)}–${kfmt(snap.ping.max)} ms range (${snap.ping.samples} samples across this recording connection, logged over time)</p>` : ""}${odyleLine(snap.odyle)}${shugoLine(snap.shugo_keys)}${nightmareLine(snap.nightmare_tickets)}${weeklyLine(snap.weekly_runs)}`,
       ) +
       `<div id="pbd">${renderParse(parseFromMeter(snap, st.sel))}</div>`,
   );

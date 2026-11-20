@@ -1428,6 +1428,11 @@ SHUGO_KEYS_ID = 1
 #: (0, 0) and (2, 0) for the three characters of the 19 October recording, (4, 8) on 23 October; the two
 #: values are spent one at a time, the first before the second, and gained one at a time (kind-1 updates).
 NIGHTMARE_TICKETS_ID = 4
+#: The weekly dungeon entries: the counter table's ids from 60000002 on (60000002 to 60000010, 60000101, 60000201,
+#: 60001101 and so on to 60006301 in the 20 October recording, each a count of runs left such as 14, 21, 7 or 4).
+#: Which counter is which dungeon's is not in the table: the meter learns it when one goes down inside a dungeon
+#: (``MeterEngine.weekly_counters``, 0.2.411).
+WEEKLY_COUNTERS = range(60_000_002, 61_000_000)
 _COUNTER_FLAGS = 0x0F
 _COUNTER_MAX = 1_000_000_000
 

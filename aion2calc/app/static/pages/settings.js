@@ -813,6 +813,7 @@ async function pageSettings() {
       <label title="The game's own count, sent when you enter the world, at every zone load and whenever it changes"><input type="checkbox" id="ov-odyle" ${ui.overlay_show_odyle !== false ? "checked" : ""}> Show your Odyle Energy on the overlay and the Live Meter page <span class="muted">(on by default)</span></label>
       <label title="The game's own count of your Shugo Festival Reward Keys, sent with the same counters as Odyle Energy"><input type="checkbox" id="ov-shugo" ${ui.overlay_show_shugo_keys !== false ? "checked" : ""}> Show your Shugo Festival keys on the overlay and the Live Meter page <span class="muted">(on by default)</span></label>
       <label title="The game's own count of your Nightmare tickets, sent with the same counters as Odyle Energy"><input type="checkbox" id="ov-nightmare" ${ui.overlay_show_nightmare_tickets !== false ? "checked" : ""}> Show your Nightmare tickets on the overlay and the Live Meter page <span class="muted">(on by default)</span></label>
+      <label title="The game's own count of the runs you have left this week for the dungeon you are in. The meter learns which of the game's counters is a dungeon's the first time a run there is rewarded, then shows it whenever you are inside"><input type="checkbox" id="ov-weekly" ${ui.overlay_show_weekly_runs !== false ? "checked" : ""}> Show the dungeon's weekly runs left on the overlay and the Live Meter page <span class="muted">(on by default)</span></label>
       <label title="After a fight auto-uploads, show your community standing (e.g. “World Top 8%”) for that encounter beside your name"><input type="checkbox" id="ov-community-rank" ${ui.overlay_show_community_rank === true ? "checked" : ""}> Show your community rank for your last uploaded fight <span class="muted">(needs auto-upload; off by default)</span></label>
       <label title="While capturing, refresh your community-rank badge after each ranked fight by uploading it, instead of only when you press Upload"><input type="checkbox" id="ov-live-rank" ${ui.overlay_live_community_rank === true ? "checked" : ""}> Update the rank live after each fight <span class="muted">(needs the rank badge on + a share server; uploads each ranked fight at your upload visibility; off by default)</span></label>
       <label title="Shows the next rift / Shugo / battlefield / field-boss windows for your region when one is active or within 15 minutes"><input type="checkbox" id="ov-events" ${ui.overlay_show_events !== false ? "checked" : ""}> Show regional event notifications on the overlay <span class="muted">(uses the region you pick on the Timers page; community forecast, on by default)</span></label>
@@ -1786,6 +1787,8 @@ async function pageSettings() {
     api("/api/ui", { overlay_show_odyle: $("#ov-odyle").checked }).then(() => toast("Saved"));
   $("#ov-shugo").onchange = () =>
     api("/api/ui", { overlay_show_shugo_keys: $("#ov-shugo").checked }).then(() => toast("Saved"));
+  $("#ov-weekly").onchange = () =>
+    api("/api/ui", { overlay_show_weekly_runs: $("#ov-weekly").checked }).then(() => toast("Saved"));
   $("#ov-nightmare").onchange = () =>
     api("/api/ui", { overlay_show_nightmare_tickets: $("#ov-nightmare").checked }).then(() => toast("Saved"));
   $("#ov-community-rank") &&

@@ -10,7 +10,7 @@ from copy import deepcopy
 import time
 
 from .models import ActorStats, DamageEvent, HealEvent, TargetStats
-from .parser import PoolCasters, decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_map_load, scan_actions, scan_positions, scan_move_delta, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list, scan_arena
+from .parser import PoolCasters, decode_stream, scan_identity, scan_self_profile, scan_character_list, scan_actor_name_bindings, scan_legacy_nicknames, scan_party_roster, scan_summon_links, scan_spawn_metadata, scan_hp_updates, scan_deaths, scan_zone_state, scan_map_load, scan_actions, scan_positions, scan_move_delta, scan_self_vitals, scan_counters, ODYLE_ENERGY_ID, SHUGO_KEYS_ID, NIGHTMARE_TICKETS_ID, WEEKLY_COUNTERS, scan_party_status, hp_record_entity, _damage_frames, scan_gather_node, scan_gather_result, scan_reward_list, scan_arena
 from .framing import walk, bundle_batch, read_varint
 from .lookup import job_from_skill, skill_family, skill_name, npc_info, npc_name, dungeon_final_bosses
 from .ping import PingTracker
@@ -205,6 +205,11 @@ class MeterEngine:
         self.counters: dict[int, dict] = {}
         self.shugo_keys: dict | None = None
         self.nightmare_tickets: dict | None = None
+        # The weekly dungeon entries (``WEEKLY_COUNTERS``): which counter is which instance's, instance id -> counter
+        # id, learned when one goes down inside the instance (``_learn_weekly_counter``, 0.2.411) or kept from an
+        # earlier capture by the app; and the pairs this capture learned, for the app to keep.
+        self.weekly_counters: dict[int, int] = {}
+        self.weekly_learned: list[tuple[int, int]] = []
         self.map_id = 0
         self._map_since_ms: int | None = None      # when the current map was first named
         # The arena match the recording player is in or last played (0.2.361, ``scan_arena``): ``match`` (the game's
@@ -462,6 +467,7 @@ class MeterEngine:
             counters = scan_counters(packet)
             if counters:
                 for counter_id, (first, second) in counters.items():
+                    self._learn_weekly_counter(counter_id, first, second)
                     self.counters[counter_id] = {"first": first, "second": second, "timestamp_ms": timestamp_ms}
                 if ODYLE_ENERGY_ID in counters:
                     regular, bonus = counters[ODYLE_ENERGY_ID]
@@ -672,7 +678,42 @@ class MeterEngine:
             self.shugo_keys = getattr(previous, "shugo_keys", None) or self.shugo_keys
             self.nightmare_tickets = getattr(previous, "nightmare_tickets", None) or self.nightmare_tickets
             self.counters = {**(getattr(previous, "counters", None) or {}), **self.counters}
+            self.weekly_counters = {**(getattr(previous, "weekly_counters", None) or {}), **self.weekly_counters}
             self.gathered.extendleft(reversed(getattr(previous, "gathered", None) or ()))
+
+    def current_instance(self) -> int:
+        """The dungeon instance the recording player is in: the party roster's, else a catalog instance the map names
+        (a solo run), else 0 (the open world, a town)."""
+        from ..context import party_instance
+        if self.dungeon_id:
+            return self.dungeon_id
+        return self.map_id if self.map_id not in OPEN_WORLD_MAPS and party_instance(self.map_id) else 0
+
+    def _learn_weekly_counter(self, counter_id: int, first: int, second: int) -> None:
+        """A weekly dungeon entry counter that goes down inside an instance is that instance's (0.2.411). In the 20
+        October recording counter 60000009 went from 4 to 3 in Fire Temple (600022), a minute and a half after its
+        final boss died, as its reward was claimed; the Ferocious Horn Den run before it spent Odyle Energy instead
+        and moved no weekly counter. A counter that goes up (the weekly reset) teaches nothing."""
+        if counter_id not in WEEKLY_COUNTERS:
+            return
+        before = self.counters.get(counter_id)
+        if before is None or first + second >= before["first"] + before["second"]:
+            return
+        instance = self.current_instance()
+        if instance and self.weekly_counters.get(instance) != counter_id:
+            self.weekly_counters[instance] = counter_id
+            self.weekly_learned.append((instance, counter_id))
+
+    def weekly_runs_left(self) -> dict | None:
+        """The weekly entries left for the instance the recording player is in, as the game counts them, once its
+        counter is known: ``{"instance", "counter", "regular", "bonus", "timestamp_ms"}``; None elsewhere."""
+        instance = self.current_instance()
+        counter = self.weekly_counters.get(instance) if instance else None
+        entry = self.counters.get(counter) if counter is not None else None
+        if entry is None:
+            return None
+        return {"instance": instance, "counter": counter, "regular": entry["first"], "bonus": entry["second"],
+                "timestamp_ms": entry["timestamp_ms"]}
 
     def _observe_gathering(self, packet: bytes, timestamp_ms: int) -> None:
         """A gathering node's spawn, what a gather gave or what a reward cube held, from one record. Every

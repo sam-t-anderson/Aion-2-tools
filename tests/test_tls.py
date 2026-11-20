@@ -16,14 +16,19 @@ import pytest
 import truststore
 
 from aion2calc import launcher, tls
+from aion2calc.meter import metadata
 
 
 @pytest.fixture(autouse=True)
 def pythons_own_check():
-    """Each test starts and ends with Python's own check (the command-line tests install the app's)."""
-    tls.uninstall()
-    yield
-    tls.uninstall()
+    """Each test starts and ends with Python's own check (the command-line tests install the app's). Meanwhile it
+    holds the lock the capture metadata's lookups of the official server lists run under: a capture an earlier
+    test started can still be looking them up in its own thread, and a request it opens while urllib has no shared
+    opener builds Python's default one, which can land in place of the one a test here has just installed."""
+    with metadata._COLLECTION_LOCK:
+        tls.uninstall()
+        yield
+        tls.uninstall()
 
 
 @pytest.fixture
