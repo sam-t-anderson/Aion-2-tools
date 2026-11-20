@@ -1,3 +1,13 @@
+## The native overlay's events strip (0.2.419)
+
+**Native overlay, sixth part.** The native interface's overlay (Settings → Native interface, a preview) now shows the events strip the web overlay shows, on by default:
+- **The next events** of the region you picked on the Timers page: rifts, the Shugo Festival, invasions and sieges, starting within 15 minutes or running now, with when they start, how long the entry stays open, or when they end. Each is a community forecast, not live status, and says so in its tooltip.
+- **Field bosses seen killed** on your server by the meter's uploaders, from 15 minutes before each is due back.
+- **The three soonest** on one line; the strip stays up between fights.
+- **The sound**, with *Play a sound when an event notification appears* on: the system's alert sound when a new event enters the strip. The native interface has no audio yet, so the web overlay's chime and your own uploaded sound are not played.
+
+The schedule is computed as the Timers page computes it, in each region's own time zone, through daylight-saving changes. The native overlay's results were checked against the web pages' engine.
+
 ## The native overlay keeps to the game window (0.2.418)
 
 **Native overlay, fifth part.** The native interface's overlay (Settings → Native interface, a preview) now behaves on the desktop as the web overlay does:

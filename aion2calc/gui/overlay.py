@@ -36,6 +36,7 @@ from PySide6.QtGui import (QColor, QFont, QFontMetricsF, QGuiApplication, QLinea
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton,
                                QScrollArea, QSizePolicy, QSlider, QVBoxLayout, QWidget)
 
+from . import events as schedule
 from . import theme
 from .api import AppApi, Poller, Requests
 from .host import WindowHost
@@ -919,6 +920,12 @@ class MeterOverlay(QWidget):
         box.addWidget(self.graph)
         self.cooldowns = CooldownStrip(self.card)  # below the meter, the web overlay's default; the setting moves it
         box.addWidget(self.cooldowns)
+        self.events = QLabel("")                  # the next events and observed field bosses (overlay.js ``#ovevents``)
+        self.events.setObjectName("ovevents")
+        self.events.setTextFormat(Qt.RichText)
+        self.events.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)   # one line, cut at the card's edge
+        self.events.hide()
+        box.addWidget(self.events)
         foot = QHBoxLayout()                      # the identity line and the ping, over the toolbar
         foot.setSpacing(8)
         self.identity = QLabel("")                # who you are, and the actors in doubt (overlay.js ``#ovidentity``)
@@ -999,6 +1006,15 @@ class MeterOverlay(QWidget):
         self._tick_timer.timeout.connect(self._live_tick)
         self._pollers: list[Poller] = []
         self._meter_poller = self._settings_poller = None
+        self._catalog: dict | None = None        # event-schedules.json, from the app
+        self._catalog_asked = False
+        self._announced: set[str] = set()         # the strip's events as last chimed for
+        self._primed = False
+        self.events_clock = lambda: time.time() * 1000
+        self._events_timer = QTimer(self)
+        self._events_timer.setInterval(1000)
+        self._events_timer.timeout.connect(self.render_events)
+        self._events_timer.start()
         self.requests = Requests(api, self) if api is not None else None
         if self.requests is not None:
             self.requests.replied.connect(self._replied)
@@ -1135,6 +1151,11 @@ class MeterOverlay(QWidget):
         self._cooldown_timer.setInterval(500 if self._perf else 250)
         if ui.get("overlay_dps_graph") is not True:
             self._graph, self._player_hist = [], {}
+        if ui.get("overlay_show_events") is not False and self._catalog is None and not self._catalog_asked \
+                and self.requests is not None:
+            self._catalog_asked = True            # the schedule the Timers page reads, once
+            self.requests.get("catalog", "/static/event-schedules.json")
+        self.render_events()
         self._style()
         self.set_click_through(ui.get("overlay_click_through") is True)
         if first:                                 # where it was last put, if that is still on a monitor
@@ -1465,6 +1486,57 @@ class MeterOverlay(QWidget):
                   else layout.totalSizeHint().height())
         return max(height, layout.totalMinimumSize().height())
 
+    # ------------------------------------------------------------------ the events strip
+    def render_events(self) -> None:
+        """The strip of the next events (overlay.js ``renderEvents``): the windows of the region picked on the Timers
+        page running or starting within 15 minutes, and the field bosses seen killed, three at most. It stays up
+        between fights. A new one entering it chimes once, with the chime on; the first reading does not."""
+        ui = self.ui
+        if ui.get("overlay_show_events") is False:
+            self._hide_events()
+            return
+        snap = self.answer.get("snapshot") if isinstance(self.answer.get("snapshot"), dict) else {}
+        region = ui.get("event_region") if isinstance(ui.get("event_region"), str) else ""
+        group = ui.get("event_group") if isinstance(ui.get("event_group"), str) else ""
+        now, bosses = self.events_clock(), ui.get("overlay_show_field_bosses") is not False
+        if not region and not schedule.observed_kills(snap.get("field_bosses"), now, bosses):
+            self._hide_events()                   # no region picked yet and nothing observed
+            return
+        shown = schedule.strip(self._catalog, region, group, snap.get("field_bosses"), now, bosses)
+        keys = {f"{event['id']}:{'active' if event['active'] else 'soon'}" for event in shown}
+        if not self._primed:
+            self._announced, self._primed = set(keys), True
+        else:
+            fresh = keys - self._announced
+            self._announced = (self._announced & keys) | keys   # one that left can chime when it comes again
+            if fresh and ui.get("overlay_events_sound") is True:
+                QApplication.beep()               # the system's alert: Qt's bundled modules have no audio
+        if not shown:
+            self._show_events(False)
+            return
+        # One line, as the web overlay's (cut with an ellipsis): the events that fit whole, then "…".
+        bold = QFont(self.events.font())
+        bold.setBold(True)                        # measured bold throughout, so a fit is never too tight
+        room, metrics = max(40, self.width() - 24), QFontMetricsF(bold)
+        count = len(shown)
+        while count > 1 and metrics.horizontalAdvance(
+                "Events " + " · ".join(event["text"] for event in shown[:count]) + (" …" if count < len(shown) else "")
+        ) > room:
+            count -= 1
+        self.events.setText(schedule.strip_html(shown[:count]) + (" …" if count < len(shown) else ""))
+        self.events.setToolTip("\n".join(event["tip"] for event in shown))
+        self._show_events(True)
+
+    def _hide_events(self) -> None:
+        self._primed = False
+        self._announced.clear()
+        self._show_events(False)
+
+    def _show_events(self, on: bool) -> None:
+        if on == self.events.isHidden():          # the strip came or went: the window takes its height
+            self.events.setVisible(on)
+            self._relayout()
+
     # ------------------------------------------------------------------ the player panel
     def toggle_detail(self, key: str) -> None:
         """A click on a player's row: their panel opens, or closes when it is theirs already."""
@@ -1651,6 +1723,11 @@ class MeterOverlay(QWidget):
 
     def _replied(self, name: str, answer) -> None:
         """A toolbar request's answer (``Requests``), on the interface's thread."""
+        if name == "catalog":
+            if isinstance(answer, dict) and answer.get("version") == 1:
+                self._catalog = answer
+                self.render_events()
+            return
         if name.startswith("detail:"):
             self._detail_answered(name[len("detail:"):], answer)
         elif name == "capture":
@@ -1674,6 +1751,9 @@ class MeterOverlay(QWidget):
             self._poll_meter()
 
     def _failed(self, name: str, why: str) -> None:
+        if name == "catalog":
+            self._catalog_asked = False           # asked again with the next settings
+            return
         if name.startswith("detail:"):
             key = name[len("detail:"):]
             self.detail_busy = False
