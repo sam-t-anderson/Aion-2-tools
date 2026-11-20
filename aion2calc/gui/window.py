@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHBoxLayout, QHe
 
 from . import theme
 from .api import AppApi, Poller
-from .overlay import counter_lines
+from .overlay import START_SCOPE, counter_lines
 from .settings_page import SettingsPage
 
 #: The web interface's navigation (index.html): each section's pages, then Settings and Account.
@@ -124,7 +124,9 @@ class MeterPage(QWidget):
             return None
 
     def start_capture(self) -> None:
-        self._post({"action": "start", "source": "a2tools", "auto_port": True})
+        # Self + Party, the web Live Meter page's own choice until one is picked there (0.2.416: the app took a
+        # start without one for Automatic)
+        self._post({"action": "start", "source": "a2tools", "auto_port": True, "scope": START_SCOPE})
 
     def stop_capture(self) -> None:
         self._post({"action": "stop"})

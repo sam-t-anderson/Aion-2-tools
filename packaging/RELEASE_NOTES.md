@@ -1,3 +1,23 @@
+## The native overlay's toolbar and player panel (0.2.416)
+
+**Native overlay, third part.** The native interface's overlay (Settings → Native interface, a preview) now has the web overlay's toolbar under the meter:
+- **Lock** holds the overlay where it is, with the reading it shows, for a screenshot; the screenshot hotkey locks and unlocks it too.
+- **New** starts a new fight, as Split now in the app: the meter shows empty until the next fight's first hit.
+- **Copy** puts the leaderboard on the clipboard as text, to paste in chat or Discord.
+- **Options** holds pet grouping, the boss-only and PvP-only damage filters, and the opacity, which the overlay remembers.
+- **Start** or **Stop** runs the capture. Start captures Self + Party players, as the web overlay does when the Live Meter page has not saved a choice.
+- **Hide** closes the overlay windows.
+
+**The player panel.** A click on a player opens their panel under the rows: their totals, DPS, contribution, combat time, hits and special hits as tiles, their top skills, and the buffs on them with their uptime. It follows the fight, and it scrolls where the screen has no more room for it.
+
+**Also in the native interface:**
+- A fight that is over now gives way to "Ready — waiting for the next fight.", and an empty meter says why it is empty, as the web overlay does.
+- The native Live Meter page's Start now captures Self + Party players, as the web page does. It used to start with the app's automatic choice.
+- Numbers round as the web pages round them: a rate of 2.5/s reads 3/s, not 2/s.
+- The overlay window takes its new height in the same moment its rows change. It used to take it a moment later, and a click in between could land on the wrong row.
+- The overlay window takes the whole height it needs, up to the screen's. It used to stop at two thirds of the screen, so a tall overlay, with the player panel open, drew its parts over each other.
+- With click-through on, the native overlay still takes no clicks at all, its buttons included. Hover to interact comes with a later part.
+
 ## The native overlay follows the overlay's settings (0.2.415)
 
 **Native overlay, second part.** The native interface's overlay (Settings → Native interface, a preview) now follows the overlay's own settings, as the web overlay does:
