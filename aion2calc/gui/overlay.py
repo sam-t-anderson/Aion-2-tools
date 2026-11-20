@@ -31,7 +31,8 @@ import time
 from urllib.parse import quote
 
 from PySide6.QtCore import QPoint, QRectF, QSettings, Qt, QTimer
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QLinearGradient, QPainter, QPainterPath
+from PySide6.QtGui import (QColor, QFont, QFontMetricsF, QGuiApplication, QLinearGradient, QPainter, QPainterPath,
+                           QPen)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton,
                                QScrollArea, QSizePolicy, QSlider, QVBoxLayout, QWidget)
 
@@ -41,6 +42,7 @@ from .api import AppApi, Poller, Requests
 METRICS = (("dps", "DPS"), ("hps", "HPS"), ("dtps", "Taken"))
 DEFAULT_OPACITY = 0.72                    # the overlay page's own starting opacity (overlay.js ``op``)
 MAX_OVERLAY_HEIGHT = 800                  # the tallest the overlay window grows (overlay.js ``MAX_OVERLAY_H``)
+GRAPH_LIMIT = 300                         # the readings the live graph keeps (overlay.js ``recordGraph``)
 #: The Players scope Start captures with: the web overlay's own when the app's Live Meter page saved none.
 START_SCOPE = "party"
 #: The toolbar (overlay.html), in the order the web overlay's compact layout gives it: key, text, tooltip.
@@ -73,6 +75,15 @@ def _num(value) -> float:
 def _round(value) -> int:
     """``Math.round`` of a reading's number: a half goes up, as the web overlay rounds."""
     return theme.js_round(_num(value))
+
+
+def _setting(value, low: int, high: int, default: int) -> int:
+    """A whole-number setting in its range, else its default (overlay.js ``clampInt``)."""
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return value if low <= value <= high else default
 
 
 def _text(value) -> str:
@@ -259,6 +270,98 @@ def counter_lines(snapshot: dict) -> list[tuple[str, str, str]]:
     return lines
 
 
+def ping_texts(ping) -> tuple[str, str]:
+    """The ping pill (overlay.js, the compact layout): the current round trip, and the whole of it for the tooltip."""
+    if not isinstance(ping, dict):
+        return "Ping —", "Ping: no recorded samples"
+    ms = {k: theme.fixed(_num(ping.get(k)), 0) for k in ("current", "avg", "min", "max")}
+    return (f"Ping {ms['current']} ms",
+            f"Ping {ms['current']} ms · Avg {ms['avg']} ms · Min {ms['min']} / Max {ms['max']} ms")
+
+
+def identity_line(snap: dict, everyone: list, visible: list, ranked: list, repeated: bool, show_cp: bool) -> tuple[str, bool]:
+    """The identity line (overlay.js ``#ovidentity``) and whether all is well with it. All is well when you are
+    named and no actor is in doubt; the compact layout then leaves the line out, your name, rank and combat power
+    being on your row."""
+    identity = snap.get("identity_status") if isinstance(snap.get("identity_status"), dict) else None
+    missing = bool(everyone) and identity is not None and (
+        not identity.get("self_identified") or _num(identity.get("unnamed_actors")) > 0)
+    inferred = any(p.get("inferred_identity") for p in visible)
+    self_name = identity.get("local_name") if identity else None
+    if missing:
+        first = (f"{'Self identified' if identity.get('self_identified') else 'Self identity not received — teleport or change instances to refresh it'}"
+                 f" · {_text(identity.get('unnamed_actors'))} unnamed actors · {_text(identity.get('linked_pets'))} linked"
+                 f" pets. Grouping needs recorded owner links.")
+    elif self_name:
+        me = next((i for i, p in enumerate(ranked) if str(p.get("name") or "").casefold() == str(self_name).casefold()),
+                  -1)
+        rank = f" · #{me + 1} of {len(ranked)}" if me >= 0 and len(ranked) > 1 else ""
+        cp = identity.get("local_combat_power") if show_cp else None
+        first = (f"You{rank} · your name comes with the next zone load" if _UNNAMED.fullmatch(str(self_name)) else
+                 f"You: {self_name}{rank}{f' · CP {theme.kfmt(cp)}' if cp else ''}")
+    else:
+        first = ""
+    parts = [first,
+             "Matching names have separate combat actor IDs; names alone do not establish shared identity or "
+             "ownership." if repeated else "",
+             "Combined a player’s re-registered actor IDs (matched by name, class and timing)." if inferred else ""]
+    return " ".join(part for part in parts if part), not missing and not repeated and bool(self_name)
+
+
+class SparkGraph(QWidget):
+    """The live graph of the party's total over the fight (overlay.js ``drawGraph``), and the player panel's
+    smaller one of a player's DPS (``sparkLine``): one point per reading, the area under it shaded."""
+
+    def __init__(self, parent=None, height: int = 34):
+        super().__init__(parent)
+        self.series: list[float] = []
+        self.label = ""
+        self.color = QColor(theme.COLORS["gold"])
+        self.setFixedHeight(height)
+
+    def set_series(self, series: list, label: str = "", color: str | None = None) -> None:
+        self.series, self.label = [float(v) for v in series], label
+        self.color = QColor(color or theme.COLORS["gold"])
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = QRectF(self.rect())
+        path = QPainterPath()
+        path.addRoundedRect(rect, 8 if self.height() > 20 else 3, 8 if self.height() > 20 else 3)
+        painter.fillPath(path, QColor(255, 255, 255, 13))
+        painter.setClipPath(path)
+        if len(self.series) >= 2:
+            top, n = max(max(self.series), 1.0), len(self.series)
+            points = [(rect.width() * i / (n - 1), rect.height() - rect.height() * v / top)
+                      for i, v in enumerate(self.series)]
+            line = QPainterPath()
+            line.moveTo(*points[0])
+            for x, y in points[1:]:
+                line.lineTo(x, y)
+            area = QPainterPath(line)
+            area.lineTo(rect.width(), rect.height())
+            area.lineTo(0, rect.height())
+            area.closeSubpath()
+            fill = QColor(self.color)
+            fill.setAlphaF(0.2)
+            painter.fillPath(area, fill)
+            pen = QPen(self.color, 1.4)
+            pen.setJoinStyle(Qt.RoundJoin)
+            pen.setCapStyle(Qt.RoundCap)
+            painter.setPen(pen)
+            painter.drawPath(line)
+        if self.label:
+            font = QFont(self.font())
+            font.setPixelSize(9)
+            painter.setFont(font)
+            painter.setPen(QColor(0, 0, 0, 160))      # the label's shadow, under it
+            painter.drawText(QRectF(5, 3, rect.width() - 10, 12), Qt.AlignLeft | Qt.AlignVCenter, self.label)
+            painter.setPen(QColor("#cdd6e6"))
+            painter.drawText(QRectF(5, 2, rect.width() - 10, 12), Qt.AlignLeft | Qt.AlignVCenter, self.label)
+
+
 class _Card(QWidget):
     """The overlay's rounded card, painted at the overlay's opacity: the whole card, its top portion only (the
     header, the target and the counter lines, down to the first player row) or none (``mode``, the overlay's
@@ -402,6 +505,10 @@ class PlayerPanel(QFrame):
         self.line.setObjectName("ovdsub")
         self.line.setWordWrap(True)
         box.addWidget(self.line)
+        self.spark = SparkGraph(self, 16)         # the player's DPS over the fight, with the live graph on
+        self.spark.setToolTip("This player's DPS over the fight, one point per reading")
+        self.spark.hide()
+        box.addWidget(self.spark)
         self.tiles_box = QGridLayout()
         self.tiles_box.setSpacing(4)
         box.addLayout(self.tiles_box)
@@ -475,6 +582,11 @@ class PlayerPanel(QFrame):
                 widget.show()
             else:
                 widget.hide()
+
+    def set_spark(self, series: list, color: str | None) -> None:
+        self.spark.setVisible(len(series) >= 2)
+        if len(series) >= 2:
+            self.spark.set_series(series, "", color)
 
     def tile_values(self) -> dict:
         return {label: value for label, value, _title in self.reading.get("tiles", [])}
@@ -598,29 +710,47 @@ class PlayerRow(QWidget):
         self.name, self.rate, self.share, self.fill, self.mine = "", "", "", 0.0, False
         self.index, self.dead, self.cp, self.look = 0, False, "", RowLook({})
         self.key, self.open = "", False           # the player's row key, and whether their panel is open
+        self.actor, self.crank = "", ""           # "#id" beside a name two players share; the community standing
+        self.target, self.amount = 0.0, 0.0       # the reading's rate and amount, for the live tick
         self.color = QColor(theme.FALLBACK_CLASS_COLOR)
         self.setFixedHeight(22)
         self.setCursor(Qt.PointingHandCursor)     # a click opens the player's panel
 
     def set_player(self, name: str, cls: str, rate: str, share: str, fill: float, mine: bool,
                    index: int = 0, dead: bool = False, cp: str = "", look: RowLook | None = None,
-                   key: str = "", open_: bool = False) -> None:
+                   key: str = "", open_: bool = False, actor: str = "", crank: str = "") -> None:
         look = look or self.look
         self.key = key
-        state = (name, cls, rate, share, round(fill, 4), mine, index, dead, cp, open_,
+        state = (name, cls, rate, share, round(fill, 4), mine, index, dead, cp, open_, actor, crank,
                  tuple(sorted(vars(look).items())))
         if state == getattr(self, "_state", None):
             return
         self._state = state
         self.name, self.rate, self.share, self.fill, self.mine = name, rate, share, max(0.0, min(1.0, fill)), mine
         self.index, self.dead, self.cp, self.look, self.open = index, dead, cp, look, open_
+        self.actor, self.crank = actor, crank
         self.color = QColor(theme.class_color(cls))
         self.update()
 
+    def set_live(self, rate: str, fill: float) -> None:
+        """Live-ticking DPS between readings: the rate and its bar, eased toward the rate the fight is heading for."""
+        fill = max(0.0, min(1.0, fill))
+        if rate == self.rate and abs(fill - self.fill) < 0.0005:
+            return
+        self.rate, self.fill = rate, fill
+        self._state = None                        # the next reading draws the row whole again
+        self.update()
+
+    def segments(self) -> list[tuple[str, str]]:
+        """The row's left-hand text in its parts, each with what it is: the rank and the name, the actor id beside a
+        name two players share, the community standing and the combat power."""
+        parts = [((f"{self.index + 1}. " if self.look.rank_numbers else "") + self.name, "name")]
+        parts += [(text, kind) for text, kind in ((self.actor, "actor"), (self.crank, "crank"), (self.cp, "cp")) if text]
+        return parts
+
     def label(self) -> str:
-        """The row's left-hand text: the rank, the name and its combat power."""
-        text = (f"{self.index + 1}. " if self.look.rank_numbers else "") + self.name
-        return f"{text}  {self.cp}" if self.cp else text
+        """The row's left-hand text: the rank, the name, the actor id, the community standing and the combat power."""
+        return "  ".join(text for text, _kind in self.segments())
 
     def right(self) -> str:
         """The row's right-hand text: DEAD for the dead, the rate, and the share unless the rows are compact."""
@@ -663,15 +793,29 @@ class PlayerRow(QWidget):
             left += side + 5
         font = QFont(self.font())
         font.setBold(self.mine)
-        font.setUnderline(self.open)              # the row whose panel is open (overlay.css ``.ovrow-detail``)
-        painter.setFont(font)
-        painter.setPen(self.color.lighter(150) if look.class_names else QColor(theme.COLORS["text"]))
-        text_rect = QRectF(left, rect.y(), rect.right() - 7 - left, rect.height())
-        painter.drawText(text_rect, Qt.AlignVCenter | Qt.AlignLeft, self.label())
-        font.setUnderline(False)
         painter.setFont(font)
         painter.setPen(QColor(theme.COLORS["text"]))
-        painter.drawText(text_rect, Qt.AlignVCenter | Qt.AlignRight, self.right())
+        right = self.right()
+        painter.drawText(QRectF(left, rect.y(), rect.right() - 7 - left, rect.height()),
+                         Qt.AlignVCenter | Qt.AlignRight, right)
+        end = rect.right() - 7 - QFontMetricsF(font).horizontalAdvance(right) - 8   # the name stops short of the rate
+        small = QFont(font)
+        small.setBold(False)
+        small.setPixelSize(max(8, round((font.pixelSize() if font.pixelSize() > 0 else 12) * 0.78)))
+        colours = {"name": self.color.lighter(150) if look.class_names else QColor(theme.COLORS["text"]),
+                   "actor": QColor("#aab3c5"), "crank": QColor(theme.COLORS["gold"]), "cp": QColor("#63d3e6")}
+        for text, kind in self.segments():
+            if left >= end:
+                break
+            part = QFont(font if kind == "name" else small)
+            part.setBold(kind == "crank" or (kind == "name" and self.mine))
+            part.setUnderline(kind == "name" and self.open)   # the row whose panel is open (``.ovrow-detail``)
+            metrics = QFontMetricsF(part)
+            text = metrics.elidedText(text, Qt.ElideRight, end - left)
+            painter.setFont(part)
+            painter.setPen(colours[kind])
+            painter.drawText(QRectF(left, rect.y(), end - left, rect.height()), Qt.AlignVCenter | Qt.AlignLeft, text)
+            left += metrics.horizontalAdvance(text) + 5
 
 
 class MeterOverlay(QWidget):
@@ -708,6 +852,11 @@ class MeterOverlay(QWidget):
         box.setContentsMargins(10, 8, 10, 9)
         box.setSpacing(4)
         head = QHBoxLayout()
+        self.mark = QFrame()                      # green while the fight runs, amber while the DPS clock is paused
+        self.mark.setFixedSize(3, 14)
+        self.mark.hide()
+        self._mark_colour = ""
+        head.addWidget(self.mark)
         self.status = QLabel("Waiting for the meter")
         self.status.setObjectName("ovstatus")
         head.addWidget(self.status, 1)
@@ -757,8 +906,23 @@ class MeterOverlay(QWidget):
         self.panel_scroll.viewport().setAutoFillBackground(False)
         self.panel_scroll.hide()
         box.addWidget(self.panel_scroll)
+        self.graph = SparkGraph(self.card)        # the party's total over the fight (overlay_dps_graph)
+        self.graph.setToolTip("The party's total over the fight, one point per reading")
+        self.graph.hide()
+        box.addWidget(self.graph)
         self.cooldowns = CooldownStrip(self.card)  # below the meter, the web overlay's default; the setting moves it
         box.addWidget(self.cooldowns)
+        foot = QHBoxLayout()                      # the identity line and the ping, over the toolbar
+        foot.setSpacing(8)
+        self.identity = QLabel("")                # who you are, and the actors in doubt (overlay.js ``#ovidentity``)
+        self.identity.setObjectName("ovidentity")
+        self.identity.setWordWrap(True)
+        self.identity.hide()
+        foot.addWidget(self.identity, 1)
+        self.ping = QLabel("")                    # the capture's round trip (overlay.js ``#ovping``)
+        self.ping.setObjectName("ovping")
+        foot.addWidget(self.ping, 0, Qt.AlignRight | Qt.AlignTop)
+        box.addLayout(foot)
         self.toolbar = _Pill(self.card)
         tools = QHBoxLayout(self.toolbar)
         tools.setContentsMargins(3, 1, 3, 1)
@@ -817,6 +981,17 @@ class MeterOverlay(QWidget):
         self._cooldown_timer = QTimer(self)
         self._cooldown_timer.timeout.connect(lambda: self.cooldowns.tick(time.monotonic()))
         self._cooldown_timer.start(250)
+        self._graph: list[tuple] = []             # the party's DPS, HPS and damage taken, one reading each
+        self._graph_duration = -1.0
+        self._graphed = None                      # the answer last put on the graph
+        self._player_hist: dict[str, list] = {}   # each player's DPS, for the panel's sparkline
+        self._interpolate, self._perf = False, False
+        self._shown_rates: dict[str, float] = {}  # the rates the rows show while they tick between readings
+        self._render_at, self._projecting, self._cur_max = time.monotonic(), False, 1.0
+        self._tick_timer = QTimer(self)
+        self._tick_timer.timeout.connect(self._live_tick)
+        self._pollers: list[Poller] = []
+        self._meter_poller = self._settings_poller = None
         self.requests = Requests(api, self) if api is not None else None
         if self.requests is not None:
             self.requests.replied.connect(self._replied)
@@ -827,8 +1002,6 @@ class MeterOverlay(QWidget):
         self.set_metric(self._stored("metric", "dps", str))
         self.apply_ui({})
         self.apply_meter({})
-        self._pollers: list[Poller] = []
-        self._meter_poller = self._settings_poller = None
         if api is not None:
             self._meter_poller = Poller(api, "/api/meter?view=latest", 500, self)
             self._meter_poller.answered.connect(self._meter_answered)
@@ -884,6 +1057,8 @@ class MeterOverlay(QWidget):
             f"QLabel#ovstatus {{ color: {c['gold']}; font-weight: 700; }}"
             f"QLabel#ovlines {{ color: #e9edf1; }}"
             f"QLabel#ovextra, QLabel#ovnote {{ color: {c['muted']}; }}"
+            f"QLabel#ovidentity {{ color: {c['gold']}; font-size: {round(px * 0.85)}px; }}"
+            f"QLabel#ovping {{ color: #c9d1db; font-weight: 600; font-size: {round(px * 0.9)}px; }}"
             f"QPushButton {{ color: {c['muted']}; background: transparent; border: none; padding: 0 3px; }}"
             f"QPushButton:checked {{ color: {c['gold']}; text-decoration: underline; }}"
             f"QPushButton#ovtool {{ color: #c9d1db; background: rgba(255, 255, 255, 14); border-radius: 6px;"
@@ -934,11 +1109,23 @@ class MeterOverlay(QWidget):
         if top != self._cooldowns_top:            # the strip above the player rows, or below them
             self._cooldowns_top = top
             self.box.removeWidget(self.cooldowns)
-            self.box.insertWidget(self.box.indexOf(self.extra) + 1 if top else self.box.indexOf(self.toolbar),
+            self.box.insertWidget(self.box.indexOf(self.extra) + 1 if top else self.box.indexOf(self.graph) + 1,
                                   self.cooldowns)
         for check, key in ((self.boss_only, "overlay_boss_only"), (self.pvp_only, "overlay_pvp_only")):
             if check.isEnabled():                 # the saved filters; the meter's answer names them too
                 check.setChecked(ui.get(key) is True)
+        # Performance mode (Settings → App & data): the overlay reads the meter half as often and holds still between
+        # readings, the rows' live tick off, the cooldown strip counting down half as often.
+        self._perf = ui.get("performance_mode") is True
+        self._interpolate = ui.get("overlay_dps_interpolate") is True and not self._perf
+        if self._interpolate:
+            self._tick_timer.start(_setting(ui.get("overlay_interpolate_ms"), 50, 1000, 200))
+        else:
+            self._tick_timer.stop()
+            self._shown_rates.clear()
+        self._cooldown_timer.setInterval(500 if self._perf else 250)
+        if ui.get("overlay_dps_graph") is not True:
+            self._graph, self._player_hist = [], {}
         self._style()
         self.set_click_through(ui.get("overlay_click_through") is True)
         if first and ui.get("overlay_remember_position") is not False:
@@ -963,6 +1150,7 @@ class MeterOverlay(QWidget):
             button.setChecked(key == self.rate_metric)
         if self.store is not None:
             self.store.setValue("metric", self.rate_metric)
+        self._shown_rates.clear()                 # the rows tick from the new metric's rates, not the old one's
         self.apply_meter(self.answer)
 
     def set_opacity(self, value: float) -> None:
@@ -1008,9 +1196,15 @@ class MeterOverlay(QWidget):
             self.cleared_fight = None             # the next fight began: its first hit gave it an id of its own
         cleared = self.cleared_fight is not None
         running, over = answer.get("running") is True, snap.get("battle_over") is True
+        paused = snap.get("paused") is True
         everyone = [] if cleared else [p for p in (snap.get("players") or []) if isinstance(p, dict)]
         players = [p for p in everyone if _amount(p, metric) > 0]
         players.sort(key=lambda p: (_rate(p, metric), _amount(p, metric)), reverse=True)
+        names: dict[str, int] = {}
+        for player in players:
+            name = str(player.get("name") or "").casefold()
+            names[name] = names.get(name, 0) + 1
+        repeated = any(count > 1 for count in names.values())   # two rows of one name: separate actors
         limit = max(1, min(24, int(ui.get("overlay_max_players") or 8)))
         if look.auto_expand:
             limit = min(24, max(limit, len(players)))
@@ -1020,9 +1214,9 @@ class MeterOverlay(QWidget):
         filtered = filter_label(answer)
         # Only in combat (the web overlay's ``collapse``): between fights the overlay keeps its header alone.
         idle = ui.get("overlay_only_in_combat") is True and (
-            not running or over or (snap.get("paused") is True and snap.get("boss_alive") is not True))
+            not running or over or (paused and snap.get("boss_alive") is not True))
         shown = [] if idle or over else players[:limit]   # a fight that is over says it is ready for the next
-        top = max((_rate(p, metric) for p in shown), default=0.0) or 1.0
+        top = max([_rate(p, metric) for p in everyone] + [1.0])   # the rate a whole bar stands for
         if idle:
             status = "Idle · waiting for combat" if running else "Idle"
         elif answer.get("error"):
@@ -1035,15 +1229,20 @@ class MeterOverlay(QWidget):
             status = "Idle · waiting for combat"
         else:
             boss = snap.get("boss") or "Combat"
-            duration = float(snap.get("duration") or 0)
-            paused = "Paused DPS · " if snap.get("paused") is True and metric == "dps" else ""
-            status = f"{paused}{boss} · {duration:.0f}s · {theme.kfmt(total_rate)} raid {label}"
+            pause = "Paused DPS · " if paused and metric == "dps" else ""
+            status = f"{pause}{boss} · {_round(snap.get('duration'))}s · {theme.kfmt(total_rate)} raid {label}"
             if filtered and metric == "dps":
                 status += f" · {filtered}"
             backlog = snap.get("decode_backlog") or {}
             if isinstance(backlog, dict) and backlog.get("catching_up"):
                 status += f" · catching up ({backlog.get('queue_depth')})"
         self.status.setText(status)
+        # The fight's mark (the compact layout's clock): green while it runs, amber while the DPS clock is paused.
+        colour = "#5ee04a" if running and not paused else "#e3b35a" if paused else "#6b7380"
+        if colour != self._mark_colour:
+            self._mark_colour = colour
+            self.mark.setStyleSheet(f"background: {colour}; border-radius: 1px;")
+        self.mark.setVisible(not idle and not over and not cleared and bool(players))
         self.copy_text = leaderboard_text(snap, players, metric, filtered, lambda p: self._names(p)[0])
         target = snap.get("current_target")
         if (idle or over or cleared or not isinstance(target, dict) or target.get("is_player")
@@ -1072,8 +1271,25 @@ class MeterOverlay(QWidget):
             self.cooldowns.set_reading(snap.get("cooldowns"), snap.get("chain_windows"),
                                        ui.get("overlay_cooldowns_max") or 8, time.monotonic())
         self.cooldowns.setVisible(bool(cooling))
+        if answer is not self._graphed:           # a new reading, not the same one drawn again
+            self._graphed = answer
+            self._record_graph(answer, snap, everyone)
+        self._draw_graph(idle)
+        text, fine = identity_line(snap, everyone, players, players, repeated,
+                                   ui.get("overlay_show_combat_power") is not False)
+        self.identity.setText(text)
+        self.identity.setVisible(bool(text) and not fine and not idle)
+        ping, whole = ping_texts(snap.get("ping"))
+        self.ping.setText(ping)
+        self.ping.setVisible(not idle)
+        self.ping.setToolTip(f"{whole} — Passive TCP RTT for this recording connection; average/minimum/maximum "
+                             f"across the capture")
         identity = snap.get("identity_status") or {}
         local_cp = identity.get("local_combat_power")
+        # Live-ticking DPS between readings (overlay_dps_interpolate): the rows ease from the rates they show.
+        self._render_at, self._projecting, self._cur_max = time.monotonic(), running and not paused, top
+        ticking = self._interpolate and not self.locked
+        ranks = ui.get("overlay_show_community_rank") is True
         while len(self.rows) < len(shown):
             row = PlayerRow(self.card)
             row.setFixedHeight(max(16, min(48, int(ui.get("overlay_row_height") or 22))))
@@ -1089,17 +1305,81 @@ class MeterOverlay(QWidget):
             if look.show_cp:
                 cp = float(player.get("combat_power") or (local_cp if mine else 0) or 0)
             key = _key(player)
-            row.set_player(name, str(player.get("class") or ""), f"{theme.kfmt(_rate(player, metric))}/s",
-                           f"{100 * _amount(player, metric) / total_amount:.0f}%", _rate(player, metric) / top,
+            rate = _rate(player, metric)
+            row.target, row.amount = rate, _amount(player, metric)
+            showing = self._shown_rates.get(key, rate) if ticking else rate
+            shared = names.get(str(player.get("name") or "").casefold(), 0) > 1
+            rank = player.get("community_rank") if isinstance(player.get("community_rank"), dict) else {}
+            row.set_player(name, str(player.get("class") or ""), f"{theme.kfmt(showing)}/s",
+                           f"{_round(100 * _amount(player, metric) / total_amount)}%", showing / top,
                            mine, index, look.show_deaths and player.get("dead") is True,
-                           theme.sfmt(cp) if cp > 0 else "", look, key, key == self.detail_key)
+                           theme.sfmt(cp) if cp > 0 else "", look, key, key == self.detail_key,
+                           f"#{player.get('id')}" if look.name_mode == "name" and shared else "",
+                           str(rank.get("text") or "") if ranks else "")
+            row.setToolTip(f"{player.get('name')} · Actor {player.get('key') or player.get('id')}"
+                           f"{' · Includes linked pets' if player.get('includes_pets') else ''}"
+                           f" · Click for this player's details")
             row.show()
         self._show_panel(snap, everyone, idle or over or cleared)
         self._sync_tools()
+        if self._meter_poller is not None:        # twice a second in a fight, once a second out of one
+            self._meter_poller.set_interval((500 if running else 1000) * (2 if self._perf else 1))
         self._relayout()
         first = next((row for row in self.rows if not row.isHidden()), None)
         self.card.rows_top = first.geometry().top() if first is not None else None
         self.card.update()
+
+    def _record_graph(self, answer: dict, snap: dict, everyone: list) -> None:
+        """One reading on the live graph (overlay.js ``recordGraph``): the party's totals while the fight runs, and
+        each player's DPS for their panel. Every point is the meter's own reading; a fight clock that went back means
+        a new fight, and the graph starts over."""
+        if self.ui.get("overlay_dps_graph") is not True:
+            self._graph, self._player_hist = [], {}
+            return
+        duration = _num(snap.get("duration"))
+        if duration + 0.001 < self._graph_duration:
+            self._graph, self._player_hist = [], {}
+        self._graph_duration = duration
+        if answer.get("running") is True and snap.get("paused") is not True and snap.get("battle_over") is not True:
+            self._graph.append(tuple(sum(_num(p.get(key)) for p in everyone) for key in ("dps", "hps", "dtps")))
+            del self._graph[:-GRAPH_LIMIT]
+            for player in everyone:
+                history = self._player_hist.setdefault(_key(player), [])
+                history.append(_num(player.get("dps")))
+                del history[:-GRAPH_LIMIT]
+
+    def _draw_graph(self, hidden: bool) -> None:
+        column = {"dps": 0, "hps": 1, "dtps": 2}[self.rate_metric]
+        series = [sample[column] for sample in self._graph]
+        shown = self.ui.get("overlay_dps_graph") is True and len(series) >= 2 and not hidden
+        if shown:
+            label = {"hps": "HPS", "dtps": "Taken"}.get(self.rate_metric, "DPS")
+            self.graph.set_series(series, f"{label} · now {theme.kfmt(series[-1])} · peak "
+                                          f"{theme.kfmt(max(max(series), 1.0))}")
+        self.graph.setVisible(shown)
+
+    def _live_tick(self) -> None:
+        """Between readings each row's rate heads for what the fight's elapsing time makes of it: the damage stays
+        the meter's, only the time it is divided by goes on (overlay.js ``liveTick``). It runs while the fight does,
+        eases 40% of the way each tick, and holds once there."""
+        if not self._interpolate or self.locked:
+            return
+        elapsed = max(0.0, time.monotonic() - self._render_at) if self._projecting else 0.0
+        seen = set()
+        for row in self.rows:
+            if row.isHidden() or not row.key:
+                continue
+            seen.add(row.key)
+            target, amount = getattr(row, "target", 0.0), getattr(row, "amount", 0.0)
+            live = (amount * target) / (amount + target * elapsed) if elapsed > 0 and amount > 0 and target > 0 \
+                else target
+            current = self._shown_rates.get(row.key, live)
+            step = current + (live - current) * 0.4
+            shown = live if abs(step - live) < 0.5 else step
+            self._shown_rates[row.key] = shown
+            row.set_live(f"{theme.kfmt(shown)}/s", shown / self._cur_max)
+        for key in [key for key in self._shown_rates if key not in seen]:
+            del self._shown_rates[key]
 
     def _show_target(self, target) -> None:
         """The target line: its name, its HP when that is on, the time to kill with the enrage timer, and the break
@@ -1109,7 +1389,12 @@ class MeterOverlay(QWidget):
             for widget in (self.target, self.hp, self.gauge):
                 widget.hide()
             return
-        parts = [str(target["name"])]
+        also = [str(name) for name in (target.get("also_targets") or [])]
+        parts = [str(target["name"]) + (f" +{len(also)}" if also else "")]   # the others struck in the same instant
+        self.target.setToolTip("Most-hit enemy this encounter"
+                               + (f" (and {len(also)} more struck in the same instant: {', '.join(also)})" if also else "")
+                               + ", its remaining HP and time-to-kill from its observed HP-decline rate, and each "
+                                 "contributor's DPS to it")
         hp = target.get("hp_pct")
         show_hp = ui.get("overlay_show_enemy_hp") is True and isinstance(hp, (int, float))
         if show_hp:
@@ -1158,7 +1443,16 @@ class MeterOverlay(QWidget):
         height until then, and its rows lay on top of each other."""
         self.box.activate()
         self.layout().activate()
-        self.adjustSize()
+        self.resize(self.width(), self._content_height())
+
+    def _content_height(self) -> int:
+        """The window's height for its width, its wrapped lines whole. Not ``adjustSize``: that keeps a window to two
+        thirds of the screen's height, and a taller overlay (the player panel open) had its parts laid over each
+        other; nor the layout's size hint, which counts a wrapped line once."""
+        layout = self.layout()
+        height = (layout.totalHeightForWidth(self.width()) if layout.hasHeightForWidth()
+                  else layout.totalSizeHint().height())
+        return max(height, layout.totalMinimumSize().height())
 
     # ------------------------------------------------------------------ the player panel
     def toggle_detail(self, key: str) -> None:
@@ -1203,6 +1497,9 @@ class MeterOverlay(QWidget):
         name, mine, _unnamed = self._names(player) if player is not None else ("Player", False, False)
         columns = max(1, (self.width() - 20 - 20 + 4) // 96)   # the card's and the panel's margins; 92 px tiles
         self.panel.set_reading(panel_reading(snap, player, self.detail_buffs, self.detail_extra, name, mine), columns)
+        graphed = self.ui.get("overlay_dps_graph") is True and player is not None
+        self.panel.set_spark(self._player_hist.get(self.detail_key, []) if graphed else [],
+                             theme.class_color(player.get("class")) if player is not None else None)
         self.panel_scroll.show()
         self.panel.layout().activate()            # its tiles and lines as they now stand (see _relayout)
         width = self.width() - 20
@@ -1213,7 +1510,8 @@ class MeterOverlay(QWidget):
         room = min(MAX_OVERLAY_HEIGHT, (screen.availableGeometry().height() - 16) if screen is not None
                    else MAX_OVERLAY_HEIGHT)
         self.box.activate()                       # the card's size as it now stands, its panel whole
-        rest = self.card.sizeHint().height() - content
+        self.layout().activate()
+        rest = self._content_height() - content
         self.panel_scroll.setFixedHeight(min(content, max(180, room - rest)))
 
     # ------------------------------------------------------------------ the toolbar
@@ -1349,6 +1647,7 @@ class MeterOverlay(QWidget):
         elif name == "split":
             segment = (self.answer.get("snapshot") or {}).get("selected_segment")
             self.cleared_fight = "" if segment is None else str(segment)
+            self._graph, self._player_hist, self._shown_rates = [], {}, {}   # the graph starts clean for it
             self._flash("split", "New ✓", "ok", 1200, self._split_back)
             self.apply_meter(self.answer)
             self._poll_meter()

@@ -338,7 +338,21 @@ def test_the_panel_follows_the_fight_and_keeps_to_the_screen(qapp):
     room = min(800, window.screen().availableGeometry().height() - 16)
     content = window.panel.sizeHint().height()
     assert content > room - 200                                                # taller than the screen leaves it
-    assert window.panel_scroll.height() < content and window.sizeHint().height() <= room   # it scrolls instead
+    assert window.panel_scroll.height() < content and window.height() <= room  # it scrolls instead
+    laid_out_apart(window)
+
+
+def laid_out_apart(window):
+    """The card's parts each have their own place: none is laid over the next, and the last ends inside the window
+    (0.2.417: sized with adjustSize, a window taller than two thirds of the screen was cut short, and its graph lay
+    over the player panel)."""
+    QCoreApplication.processEvents()
+    box = window.card.layout()
+    items = [box.itemAt(i) for i in range(box.count())]
+    places = [item.geometry() for item in items if not item.isEmpty()]
+    for upper, lower in zip(places, places[1:]):
+        assert upper.bottom() < lower.top(), (upper.getRect(), lower.getRect())
+    assert places[-1].bottom() < window.card.height() - box.contentsMargins().bottom() + 1
     over = fight()
     over["snapshot"]["battle_over"] = True
     window.apply_meter(over)
