@@ -127,5 +127,6 @@ def test_the_overlay_and_the_live_meter_page_show_the_line():
     overlay, html, meter = read("overlay.js"), read("overlay.html"), read(os.path.join("pages", "meter.js"))
     assert 'id="ovweekly"' in html and "snap.weekly_runs" in overlay and ".ovrunicon{" in read("overlay.css")
     assert overlay.count('"#ovweekly"') == 4 and '$("#ovweekly").hidden=true' in overlay   # hidden with the rest
-    assert "weeklyLine(snap.weekly_runs)" in meter
+    assert "weeklyLine(snap.weekly_runs)" in meter and 'class="runicon"' in meter
+    assert "p.odyle .runicon {" in read("app.css")
     assert 'id="ov-weekly"' in read(os.path.join("pages", "settings.js"))

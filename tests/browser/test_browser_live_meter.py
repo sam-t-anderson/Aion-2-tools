@@ -211,18 +211,22 @@ PLAYER = {"id": 7, "key": "7", "name": "Sorc", "class": "sorcerer", "dps": 12000
           "total": 120000, "hits": 40}
 
 
-def test_odyle_energy_shugo_keys_and_nightmare_tickets_show_under_the_players(app_page, app_url):
+def test_odyle_energy_shugo_keys_nightmare_tickets_and_weekly_runs_show_under_the_players(app_page, app_url):
     page = app_page
+    weekly = {"instance": 600073, "counter": 60000009, "regular": 3, "bonus": 1, "timestamp_ms": 1,
+              "zone": "Vakron Sky Island", "difficulty": "hard"}
     meter_says(page, {"players": [PLAYER], "duration": 10, "dps": 12000, "odyle": {"regular": 145, "bonus": 50},
-                      "shugo_keys": {"regular": 3, "bonus": 0}, "nightmare_tickets": {"regular": 2, "bonus": 1}})
+                      "shugo_keys": {"regular": 3, "bonus": 0}, "nightmare_tickets": {"regular": 2, "bonus": 1},
+                      "weekly_runs": weekly})
     go(page, app_url, "#/meter")
     page.wait_for_selector("#mview .pmeters")
-    lines = page.locator("#mview p.odyle").all_inner_texts()
-    assert [line.split("  ")[0].strip() for line in lines] == ["Odyle Energy 195 (145 + 50 bonus)", "Shugo Keys 3",
-                                                               "Nightmare Tickets 3 (2 + 1 bonus)"]
+    lines = [line.split("  ")[0].strip() for line in page.locator("#mview p.odyle").all_inner_texts()]
+    assert lines == ["Odyle Energy 195 (145 + 50 bonus)", "Shugo Keys 3", "Nightmare Tickets 3 (2 + 1 bonus)",
+                     "Vakron Sky Island · hard: 4 runs left this week (3 + 1 bonus)"]
     icon = page.locator("#mview p.odyle img")                        # the app's own copy of the game's icon
     assert "/static/game-assets/" in icon.get_attribute("src") and icon.evaluate("i => i.complete && i.naturalWidth > 0")
     assert page.locator("#mview p.odyle i.keyicon").count() == 1 and page.locator("#mview p.odyle i.ticketicon").count() == 1
+    assert page.locator("#mview p.odyle i.runicon").count() == 1
 
 
 def fighter(i: int, name: str, cls: str, damage: float, hits: int = None) -> dict:

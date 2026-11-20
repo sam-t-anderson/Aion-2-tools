@@ -59,7 +59,7 @@ function weeklyLine(o) {
     bonus = Number(o.bonus) || 0,
     left = regular + bonus,
     place = [o.zone, o.difficulty].filter(Boolean).join(" · ");
-  return `<p class="small muted odyle" title="This dungeon's weekly entries left, as the game counts them: learned from the counter that went down when a run here was rewarded, and kept up to date by the game">${place ? esc(place) + ": " : ""}${left.toLocaleString()} ${left === 1 ? "run" : "runs"} left this week${bonus ? ` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)` : ""}</p>`;
+  return `<p class="small muted odyle" title="This dungeon's weekly entries left, as the game counts them: learned from the counter that went down when a run here was rewarded, and kept up to date by the game"><i class="runicon" aria-hidden="true"></i> ${place ? esc(place) + ": " : ""}${left.toLocaleString()} ${left === 1 ? "run" : "runs"} left this week${bonus ? ` (${regular.toLocaleString()} + ${bonus.toLocaleString()} bonus)` : ""}</p>`;
 }
 function parseFromMeter(snap, idx) {
   const p = (snap.players || [])[idx];
