@@ -1,15 +1,21 @@
 """The Account page's words (0.2.447), as pages/account.js and account-view.js write them: the account offered when
-signed out, the account's name and counts, and Sign-in & security (the ways in, where it is signed in, what it did
-lately, closing it). The app keeps the credential and talks to the server (combat/account.py); the page asks the app.
+signed out, the account's name and counts, Sign-in & security (the ways in, where it is signed in, what it did lately,
+closing it), and since 0.2.448 My logs (filtered, paged, each with its visibility) and Top parses (the best run on each
+boss for each character, with its parse). The app keeps the credential and talks to the server (combat/account.py);
+the page asks the app.
 """
 from __future__ import annotations
 
+import math
 import re
 import urllib.parse
+from datetime import datetime, timedelta, timezone
 
+from . import theme
 from .character import js_number
 from .news import when as moment
 from .results import _dict, _list, _truthy, js_text
+from .timers import world_for
 
 SITE = "https://sam-t-anderson.github.io/Aion-2-tools/"
 INTRO = ("An account is optional. With one, your uploads from this app and the ones it made before are in one place, on "
@@ -53,8 +59,7 @@ ACTIVITY = {"created": "Account created", "signed_in": "Signed in", "signed_out"
             "signin_denied": "Website sign-in denied", "link_code": "Link code made", "legion_created": "Legion founded",
             "legion_joined": "Legion joined", "recovered": "Recovered", "disabled": "Disabled by the operator",
             "active": "Enabled by the operator"}
-ON_THE_WEB = {"logs": "My logs open in the web interface for now.", "parses": "Top parses open in the web interface for now.",
-              "legions": "Legions open in the web interface for now."}
+ON_THE_WEB = {"legions": "Legions open in the web interface for now."}
 
 
 def when(t) -> str:
@@ -163,3 +168,277 @@ def revoked(result) -> str:
 def signed_out_answer(message: str) -> bool:
     """A refusal that means the app is no longer signed in (``accountCall``)."""
     return bool(re.search(r"sign in again|signed out|Sign in first", message or "", re.IGNORECASE))
+
+
+# ------------------------------------------------------------------ my logs (0.2.448)
+VISIBILITY = (("public", "Public"), ("unlisted", "Unlisted"), ("legion", "Legion only"), ("private", "Private"))
+LOGS_NOTE = ("Legion only: the members of your legions open it; it is listed nowhere else. Private: only its secret link "
+             "opens it.")
+NO_LOGS = "No logs yet. Uploads from your signed-in app join here, and the app adds the ones it uploaded before."
+NO_LOGS_MATCH = "No logs match."
+SYNC = "Add this app's uploads"
+SYNC_TIP = "The uploads and characters this app holds"
+DESCRIBE_ASK = "A new description for this log (1-80 characters)"
+LOG_COLUMNS = ["Description", "Character", "Uploaded", "Duration", "Visibility", "Edit", "Delete"]
+
+
+def fresh_filter() -> dict:
+    """A log list's filter as it starts (``fresh``): the first page, no boss and no days."""
+    return {"page": 1, "boss": "", "since": "", "until": ""}
+
+
+def filtering(f: dict) -> bool:
+    return bool(f.get("boss") or f.get("since") or f.get("until"))
+
+
+def _midnight(day: str, plus: int) -> str:
+    """The instant a day of the computer's calendar starts (``new Date(y, m - 1, d + plus).toISOString()``)."""
+    y, m, d = (int(x) for x in day.split("-"))
+    start = datetime(y, m, d) + timedelta(days=plus)
+    return start.astimezone().astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+
+def list_query(f: dict, limit: int = 50) -> str:
+    """A log list's query (``listQuery``): its page, the boss, and the instants From and To span, From's midnight up to
+    the midnight after To, in the computer's own days."""
+    query = [("page", str(f.get("page") or 1)), ("limit", str(limit))]
+    if f.get("boss"):
+        query.append(("boss", f["boss"]))
+    if f.get("since"):
+        query.append(("since", _midnight(f["since"], 0)))
+    if f.get("until"):
+        query.append(("until", _midnight(f["until"], 1)))
+    return urllib.parse.urlencode(query)
+
+
+def length(seconds) -> str:
+    """A fight's length (``length``): m:ss, or h:mm:ss from an hour; nothing readable is 0:00."""
+    x = js_number(seconds)
+    s = max(0, theme.js_round(x)) if math.isfinite(x) else 0
+    if s >= 3600:
+        return f"{s // 3600}:{(s % 3600) // 60:02d}:{s % 60:02d}"
+    return f"{s // 60}:{s % 60:02d}"
+
+
+def vis_label(value) -> str:
+    return next((words for key, words in VISIBILITY if key == value), js_text(value))
+
+
+def log_page(log: dict) -> str:
+    """A log's page in the web interface (``logHref``): its shared log, at its encounter."""
+    segment = log.get("segment")
+    return ("combat-log/shared/" + urllib.parse.quote(js_text(log.get("id")), safe="")
+            + (f"?segment={segment}" if isinstance(segment, int) and not isinstance(segment, bool) else ""))
+
+
+def log_rows(answer) -> list[dict]:
+    """The account's logs (``renderLogs``): each one's description (or boss, or id) and page, whether it is under
+    review, its boss, character, upload time, length and visibility."""
+    rows = []
+    for log in _list(_dict(answer).get("logs")):
+        if not isinstance(log, dict):
+            continue
+        rows.append({"id": log.get("id"), "title": js_text(log.get("title") or log.get("boss") or log.get("id")),
+                     "page": log_page(log), "held": bool(log.get("held")), "boss": js_text(log.get("boss") or ""),
+                     "uploader": js_text(log.get("uploader") or "—"), "uploaded": when(log.get("created_at")),
+                     "duration": length(log.get("duration")), "visibility": log.get("visibility"),
+                     "name": js_text(log.get("title") or log.get("id")), "describe": js_text(log.get("title") or "")})
+    return rows
+
+
+def logs_count(answer) -> str:
+    return many(_dict(answer).get("total") or 0, "{0} log", "{0} logs")
+
+
+def page_count(answer) -> int:
+    answer = _dict(answer)
+    return max(1, math.ceil((js_number(answer.get("total")) or 0) / (js_number(answer.get("limit")) or 50)))
+
+
+def delete_question(row: dict) -> str:
+    return f"Delete {row['name']} from the server for everyone? This cannot be undone."
+
+
+def now_visible(row: dict, value: str) -> str:
+    return f"{row['name']} is now {vis_label(value)}"
+
+
+def synced(answer) -> str:
+    answer = _dict(answer)
+    return f"{js_text(answer.get('logs'))} logs and {js_text(answer.get('characters'))} characters added"
+
+
+# ------------------------------------------------------------------ top parses (0.2.448)
+PARSE_SORTS = {"parse": "desc", "dps": "desc", "date": "desc", "boss": "asc", "difficulty": "asc", "character": "asc",
+               "class": "asc"}
+PARSE_COLUMNS = (("boss", "Boss"), ("difficulty", "Difficulty"), ("character", "Character"), ("class", "Class"),
+                 ("dps", "DPS"), ("parse", "Parse"), ("date", "Date"))
+PER_PAGE = (25, 50, 100)
+PARSES_NOTE = ("Your best DPS on each boss and difficulty for each of your characters, from the logs in this account (any "
+               "visibility), in ranking-eligible PvE fights. The parse compares it with every ranked public run of the same "
+               "boss, game version and difficulty by the same class: 100 is above them all.")
+NO_PARSES = ("No ranked boss fights in your logs yet. Your best run on each boss shows here, with its parse against every "
+             "public run of your class.")
+NO_PARSES_MATCH = "No parses match."
+NOT_LISTED = "The community server doesn't list top parses yet."
+LOADING_PARSES = "Loading your top parses…"
+# the parse's colour (combat-review.css ``.q-*``, WCL's): gold for the bracket's best run
+TIER_COLOURS = {"gold": "#e5cc80", "pink": "#e577b1", "orange": "#ff8000", "purple": "#c67ef6", "blue": "#5c9eff",
+                "green": "#1eff00", "grey": "#999ea9", "none": "#9a9ea9"}
+NO_PARSE_TIP = "No parse yet: no other ranked run of this class on this encounter"
+
+
+def fresh_parses(limit: int = 25) -> dict:
+    return {"page": 1, "limit": limit, "sort": "parse", "order": "desc", "boss": "", "difficulty": "", "cls": "", "character": ""}
+
+
+def parse_tier(parse, rank) -> str:
+    p = js_number(parse)
+    first = isinstance(rank, (int, float)) and not isinstance(rank, bool) and rank == 1       # ``rank === 1``
+    return ("gold" if first or p >= 100 else "pink" if p >= 99 else "orange" if p >= 95 else "purple" if p >= 75
+            else "blue" if p >= 50 else "green" if p >= 25 else "grey")
+
+
+def parse_cell(row: dict) -> tuple[str, str, bool, str]:
+    """A run's parse (``parseCell``): its rounded value, colour and whether it is provisional, and its tip; "·" without
+    one."""
+    if row.get("parse") is None:
+        return "·", "none", False, NO_PARSE_TIP
+    rank = row.get("parse_rank")
+    tip = (f"Parse {js_text(row['parse'])}, rank {js_text('—' if rank is None else rank)} of {js_text(row.get('parse_runs'))} "
+           "ranked runs of this class on this encounter") + (" Provisional: fewer than 5 runs." if row.get("provisional") else "")
+    return str(theme.js_round(js_number(row["parse"]))), parse_tier(row["parse"], rank), bool(row.get("provisional")), tip
+
+
+def cap(text) -> str:
+    return js_text(text)[:1].upper() + js_text(text)[1:] if text else "—"
+
+
+def world(server) -> str:
+    return world_for(server, js_text(server)) or "—"
+
+
+def pick(name, server) -> str:
+    return f"{js_text(name)}|{js_text(server)}"
+
+
+def unpick(value) -> tuple[str, str]:
+    value = js_text(value)
+    at = value.rfind("|")
+    return (value, "") if at < 0 else (value[:at], value[at + 1:])
+
+
+def _low(value) -> str:
+    return js_text("" if value is None else value).lower()
+
+
+def _tally(rows: list[dict], key) -> list[tuple]:
+    seen: dict = {}
+    for row in rows:
+        seen[key(row)] = seen.get(key(row), 0) + 1
+    return sorted(seen.items(), key=lambda kv: (_low(kv[0]), js_text(kv[0])))
+
+
+def locally(all_rows: list, p: dict) -> dict:
+    """An older log server's whole list (its best 500 by DPS), filtered, sorted and paged here as log server 0.2.171
+    does it (``locally``), with its filter menus."""
+    rows = [r for r in all_rows if isinstance(r, dict)]
+    facets = {"bosses": [{"value": v, "count": n} for v, n in _tally(rows, lambda r: r.get("boss"))],
+              "difficulties": [{"value": v, "count": n} for v, n in _tally(rows, lambda r: r.get("difficulty"))],
+              "classes": [{"value": v, "count": n} for v, n in _tally(rows, lambda r: r.get("class"))],
+              "characters": [{"character": unpick(v)[0], "server": unpick(v)[1], "count": n}
+                             for v, n in _tally(rows, lambda r: pick(r.get("character"), r.get("server")))]}
+    name, server = unpick(p.get("character"))
+    kept = [r for r in rows if (not p.get("boss") or _low(r.get("boss")) == _low(p["boss"]))
+            and (not p.get("difficulty") or _low(r.get("difficulty")) == _low(p["difficulty"]))
+            and (not p.get("cls") or _low(r.get("class")) == _low(p["cls"]))
+            and (not p.get("character") or (_low(r.get("character")) == _low(name) and js_text(r.get("server")) == server))]
+    base = sorted(kept, key=lambda r: (_low(r.get("boss")), _low(r.get("difficulty")), _low(r.get("character"))))
+    base = sorted(base, key=lambda r: -(js_number(r.get("dps")) or 0))
+    ascending = p.get("order") == "asc"
+    if p.get("sort") == "parse":
+        ranked = [r for r in base if r.get("parse") is not None]
+        ranked = sorted(ranked, key=lambda r: js_number(r["parse"]), reverse=not ascending)
+        shown = ranked + [r for r in base if r.get("parse") is None]
+    else:
+        key = {"dps": lambda r: (js_number(r.get("dps")) or 0,), "date": lambda r: (js_number(r.get("uploaded_at")) or 0,),
+               "boss": lambda r: (_low(r.get("boss")), _low(r.get("difficulty"))),
+               "difficulty": lambda r: (_low(r.get("difficulty")), _low(r.get("boss"))),
+               "character": lambda r: (_low(r.get("character")), js_text(r.get("server"))),
+               "class": lambda r: (_low(r.get("class")),)}[p.get("sort") or "dps"]
+        shown = sorted(base, key=key, reverse=not ascending)
+    limit = int(p.get("limit") or 25)
+    pages = max(1, math.ceil(len(shown) / limit))
+    page = min(int(p.get("page") or 1), pages)
+    return {"parses": shown[(page - 1) * limit: page * limit], "total": len(shown), "page": page, "limit": limit,
+            "pages": pages, "all": len(rows), "facets": facets}
+
+
+def parses_query(p: dict) -> str:
+    """The top parses' query (``fetchParses``): the page, its size, the order and the filters."""
+    query = [("page", str(p["page"])), ("limit", str(p["limit"])), ("sort", p["sort"]), ("order", p["order"])]
+    for key, name in (("boss", "boss"), ("difficulty", "difficulty"), ("cls", "class")):
+        if p.get(key):
+            query.append((name, p[key]))
+    if p.get("character"):
+        name, server = unpick(p["character"])
+        query.append(("character", name))
+        if server:
+            query.append(("server", server))
+    return urllib.parse.urlencode(query)
+
+
+def whole_list(answer) -> bool:
+    """An older log server (0.2.170) answers with its whole list, unpaged and without filter menus."""
+    answer = _dict(answer)
+    return "page" not in answer or not _truthy(answer.get("facets"))
+
+
+def parse_menus(facets, p: dict) -> list[tuple[str, str, str, list[tuple[str, str]]]]:
+    """The filter menus (``menu``): each one's key, label, the word for all, and its choices with their counts."""
+    f = _dict(facets)
+    def items(key, shown):
+        return [(js_text(x.get("value")), f"{shown(x)} ({js_text(x.get('count'))})") for x in _list(f.get(key)) if isinstance(x, dict)]
+    return [("boss", "Boss", "All bosses", items("bosses", lambda x: js_text(x.get("value")))),
+            ("difficulty", "Difficulty", "All difficulties", items("difficulties", lambda x: cap(x.get("value")))),
+            ("cls", "Class", "All classes", items("classes", lambda x: cap(x.get("value")))),
+            ("character", "Character", "All characters",
+             [(pick(x.get("character"), x.get("server")), f"{js_text(x.get('character'))} ({world(x.get('server'))}) "
+               f"({js_text(x.get('count'))})") for x in _list(f.get("characters")) if isinstance(x, dict)])]
+
+
+def parse_rows(answer) -> list[dict]:
+    """The runs shown: boss, difficulty, character and world, class, DPS (best of how many), parse, date and log."""
+    rows = []
+    for x in _list(_dict(answer).get("parses")):
+        if not isinstance(x, dict):
+            continue
+        rows.append({"boss": js_text(x.get("boss") or "—"), "difficulty": cap(x.get("difficulty")),
+                     "character": js_text(x.get("character") or "—"), "world": world(x.get("server")),
+                     "class": cap(x.get("class")), "dps": f"{theme.js_round(js_number(x.get('dps')) or 0):,}",
+                     "attempts": many(x.get("attempts") or 1, "Best of {0} ranked run", "Best of {0} ranked runs"),
+                     "parse": parse_cell(x), "date": when(x.get("uploaded_at")),
+                     "page": log_page({"id": x.get("log"), "segment": x.get("segment")})})
+    return rows
+
+
+def parses_status(answer) -> str:
+    answer = _dict(answer)
+    return f"Page {js_text(answer.get('page'))} of {js_text(answer.get('pages'))} · " + many(answer.get("total") or 0,
+                                                                                         "{0} parse", "{0} parses")
+
+
+def sort_arrow(p: dict, key: str) -> str:
+    return ("▲" if p.get("order") == "asc" else "▼") if p.get("sort") == key else ""
+
+
+def sorted_by(p: dict, key: str) -> dict:
+    """A column's head clicked: the other way round for the column sorted, else its own first direction."""
+    if p.get("sort") == key:
+        return {**p, "order": "desc" if p.get("order") == "asc" else "asc", "page": 1}
+    return {**p, "sort": key, "order": PARSE_SORTS[key], "page": 1}
+
+
+def missing_parses(message: str) -> bool:
+    """A server without top parses (``missing``)."""
+    return bool(re.search(r"not found|404|does not send that request", message or "", re.IGNORECASE))

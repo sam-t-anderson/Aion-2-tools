@@ -1,3 +1,11 @@
+## Account's logs and top parses in the native interface (0.2.448)
+
+**Account's My logs and Top parses open in the app's window too**, as the web page draws them:
+- **My logs:** filtered by boss and by the days they were uploaded (From and To, in your computer's days), fifty to a page with **Previous** and **Next**. Each log links to its page (in the web interface for now) and shows whether it is under review, its boss, character, upload time and length, with its **visibility** to change, **Edit** for its description and **Delete**. **Add this app's uploads** adds the uploads and characters this app holds to the account;
+- **Top parses:** your best run on each boss and difficulty for each of your characters, with its parse in its colour (gold for the best run of its bracket, a provisional one paler). Filter by boss, difficulty, class and character, sort by any column, and page through 25, 50 or 100 at a time. An older log server's whole list is filtered, sorted and paged by the app.
+
+**Legions** still opens in the web interface.
+
 ## Account in the native interface, part 1 (0.2.447)
 
 **Account opens in the app's window now**, as the web page draws it:

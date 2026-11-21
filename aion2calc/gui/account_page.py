@@ -1,4 +1,5 @@
-"""The native Account page, part 1 (0.2.447): Account as pages/account.js and account-view.js show it.
+"""The native Account page (0.2.447; its logs and top parses since 0.2.448): Account as pages/account.js and
+account-view.js show it.
 
 - **Signed out:** why (a sign-in that ended, one on another server than Settings uses, no log server), what an account
   offers, **Create my account** with an optional name, and under **I already have an account**: **Sign in with
@@ -9,7 +10,13 @@
   browser asks and whether it started on this computer's connection; **Open the website signed in**) and the Discord,
   passkeys and desktop apps it has; where it is signed in, each with **Sign out**, and **Sign out everywhere else**;
   its recent activity; and **Close the account**.
-- **My logs**, **Top parses** and **Legions** open in the web interface for now.
+- **My logs** (0.2.448): filtered by boss and upload days, paged; each log with its page, whether it is under review,
+  its character, upload time, length, **visibility** to change, and **Edit** (its description) and **Delete**; and
+  **Add this app's uploads**.
+- **Top parses** (0.2.448): the best run on each boss and difficulty for each character with its parse, filtered by
+  boss, difficulty, class and character, sorted by any column and paged; an older log server's whole list is filtered,
+  sorted and paged here.
+- **Legions** open in the web interface for now.
 
 The app keeps the credential and talks to the server (``/api/account``); this page asks the app. **Sign out** stands
 on the page, where the web page has it in its header's account menu.
@@ -18,9 +25,9 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (QCheckBox, QFrame, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton,
-                               QScrollArea, QVBoxLayout, QWidget)
+from PySide6.QtCore import QDate, Qt, QTimer
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFrame, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
+                               QMessageBox, QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
 from . import account as ac
 from . import theme
@@ -98,11 +105,17 @@ class AccountPage(QWidget):
         self.state: dict | None = None
         self.me: dict = {}
         self.security: dict = {}
+        self.mine = ac.fresh_filter()                    # My logs' page and filters (``st.mine``)
+        self.parses = ac.fresh_parses()                  # Top parses' (``st.parses``); its page size kept for the visit
+        self.parses_all: dict | None = None             # an older log server's whole list (``st.parsesAll``)
+        self.logs_answer: dict = {}
+        self.parses_answer: dict = {}
         self.busy: QPushButton | None = None            # the signed-out view's button whose request runs
         self.acting = None                               # what the action running says when done
         self.approving = False
         self.interval = 3.0
         self.message: QLabel | None = None
+        self.sync_button: QPushButton | None = None
         self.body: QVBoxLayout | None = None
         self.discord = QTimer(self)
         self.discord.setSingleShot(True)
@@ -127,6 +140,11 @@ class AccountPage(QWidget):
             QWidget#acctBody QLabel#chipGold {{ padding: 1px 6px; border-radius: 3px; background: rgba(233, 203, 128, 0.12);
                 color: {theme.COLORS['gold']}; border: 1px solid rgba(206, 182, 122, 0.28); }}
             QFrame#note QToolButton#fold {{ color: #f1d4a3; font-weight: 700; }}
+            QWidget#acctBody QLabel#chip {{ padding: 1px 6px; border-radius: 3px; background: rgba(57, 194, 224, 0.12);
+                color: #9fe3f2; border: 1px solid rgba(57, 194, 224, 0.25); }}
+            QPushButton#sortHead, QPushButton#sortHeadOn {{ background: transparent; border: none; padding: 6px 8px;
+                text-align: left; font-weight: 600; color: {theme.COLORS['gold_dim']}; }}
+            QPushButton#sortHeadOn {{ color: {theme.COLORS['gold']}; }}
             """ + Toast.STYLE)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -161,7 +179,9 @@ class AccountPage(QWidget):
         self._post(name, {"action": "request", "method": method, "path": path, "body": body})
 
     def act(self, name: str, method: str, path: str, body: dict | None, done) -> None:
-        """An action on the account (``act``): what it did, or why not, is said over the tab drawn again."""
+        """An action on the account (``act``): what it did, or why not, is said over the tab drawn again; a log changed,
+        an older server's whole list of parses is asked for again."""
+        self.parses_all = None
         self.acting = done
         self.call(f"act:{name}", method, path, body)
 
@@ -172,12 +192,26 @@ class AccountPage(QWidget):
             done = self.acting
             self.flash = (done(answer) if callable(done) else done) or ""
             self.render()
+        elif name == "logs":
+            self.logs_answer = answer if isinstance(answer, dict) else {}
+            if self.tab == "logs":                       # still the tab shown
+                self._logs()
+        elif name == "sync":
+            self.toast.say(ac.synced(answer))
+            self.render()
+        elif name == "parses":
+            if ac.whole_list(answer):                     # log server 0.2.170: its whole list, paged here
+                self.parses_all = {"parses": (answer or {}).get("parses") or [], "truncated": bool((answer or {}).get("truncated"))}
+                answer = ac.locally(self.parses_all["parses"], self.parses)
+            if self.tab == "parses":
+                self._show_parses(answer)
         elif name == "sessions":
             self.security["sessions"] = answer
             self.call("activity", "GET", "/api/v1/account/activity")
         elif name == "activity":
             self.security["activity"] = answer
-            self._security()
+            if self.tab == "security":
+                self._security()
         elif name in ("register", "link", "recover"):
             self._signed_in(answer)
         elif name == "discord-start":
@@ -209,11 +243,20 @@ class AccountPage(QWidget):
         elif name.startswith("act:"):
             self.flash = words
             self.render()
-        elif name in ("sessions", "activity"):
+        elif name in ("sessions", "activity", "logs"):
             if ac.signed_out_answer(why):
                 self.render()
             else:
                 self._tab_problem(words)
+        elif name == "parses":
+            if ac.signed_out_answer(why):
+                self.render()
+            else:
+                self._tab_problem(ac.NOT_LISTED if ac.missing_parses(why) else words, note=False)
+        elif name == "sync":
+            self.toast.say(why)
+            if self.sync_button is not None:
+                self.sync_button.setEnabled(True)
         elif name in ("register", "link", "recover"):
             self._say(words)
             self._enable()
@@ -277,18 +320,231 @@ class AccountPage(QWidget):
             self.body.addWidget(_label("Loading…", "muted"))
             self.security = {}
             self.call("sessions", "GET", "/api/v1/account/sessions")
+        elif self.tab == "logs":
+            self.body.addWidget(_label("Loading…", "muted"))
+            self.call("logs", "GET", "/api/v1/account/logs?" + ac.list_query(self.mine))
+        elif self.tab == "parses":
+            self.body.addWidget(_label(ac.LOADING_PARSES, "muted"))
+            self.fetch_parses()
         else:
             self.body.addWidget(_label(ac.ON_THE_WEB[self.tab], "muted"))
             self.body.addWidget(_row(_button("Open them on the web page",
                                              lambda: self.open_web(f"account/{self.tab}") if self.open_web else None)))
 
-    def _tab_problem(self, words: str) -> None:
+    def _tab_problem(self, words: str, note: bool = True) -> None:
         _clear(self.body)
-        self.body.addWidget(_note(words))
+        self.body.addWidget(_note(words) if note else _label(words, "muted"))
 
     def show_tab(self, key: str) -> None:
         self.tab = key
         self.render()
+
+    # ---------------------------------------------------------------- my logs
+    def _date_field(self, day: str, words: str) -> QDateEdit:
+        """A day to filter by (``input type="date"``), empty until one is chosen."""
+        field = QDateEdit()
+        field.setCalendarPopup(True)
+        field.setDisplayFormat("yyyy-MM-dd")
+        field.setMinimumDate(QDate(2000, 1, 1))
+        field.setSpecialValueText(" ")                   # the earliest day stands for none
+        field.setAccessibleName(words)
+        field.setDate(QDate.fromString(day, "yyyy-MM-dd") if day else field.minimumDate())
+        return field
+
+    @staticmethod
+    def _day(field: QDateEdit) -> str:
+        return "" if field.date() == field.minimumDate() else field.date().toString("yyyy-MM-dd")
+
+    def _logs(self) -> None:
+        """My logs (``renderLogs``)."""
+        _clear(self.body)
+        f, answer = self.mine, self.logs_answer
+        self.boss_field = QLineEdit(f["boss"])
+        self.boss_field.setPlaceholderText("Boss")
+        self.boss_field.setAccessibleName("Filter your logs by boss")
+        self.boss_field.returnPressed.connect(self.filter_logs)
+        self.since_field = self._date_field(f["since"], "Uploaded on or after")
+        self.until_field = self._date_field(f["until"], "Uploaded on or before")
+        tools = [self.boss_field, _label("From", wrap=False), self.since_field, _label("To", wrap=False), self.until_field,
+                 _button("Filter", self.filter_logs)]
+        if ac.filtering(f):
+            tools.append(_button("Clear", self.clear_logs))
+        self.sync_button = _button(ac.SYNC, self.sync)
+        self.sync_button.setToolTip(ac.SYNC_TIP)
+        tools += [self.sync_button, _label(ac.logs_count(answer), "muted", wrap=False)]
+        self.body.addWidget(_row(*tools))
+        rows = ac.log_rows(answer)
+        if rows:
+            cells = []
+            for row in rows:
+                title = (f"<a href='web:{html.escape(row['page'])}' style='color: {theme.COLORS['accent']};'>"
+                         f"{html.escape(row['title'])}</a>")
+                if row["held"]:
+                    title += " <span style='color: #9fe3f2;'>[under review]</span>"
+                if row["boss"]:
+                    title += f"<br><span style='color: {theme.COLORS['muted']};'>{html.escape(row['boss'])}</span>"
+                link = _label(title, rich=True)
+                link.linkActivated.connect(self._link)
+                visibility = QComboBox()
+                for key, words in ac.VISIBILITY:
+                    visibility.addItem(words, key)
+                index = visibility.findData(row["visibility"])
+                visibility.setCurrentIndex(index if index >= 0 else 0)
+                visibility.setEnabled(not row["held"])
+                visibility.setAccessibleName(f"Who can see {row['name']}")
+                visibility.activated.connect(lambda _index, row=row, box=visibility: self.set_visibility(row, box.currentData()))
+                cells.append([link, row["uploader"], row["uploaded"], row["duration"], visibility,
+                              _button("Edit", lambda row=row: self.describe(row)), _button("Delete", lambda row=row: self.delete(row))])
+            self.body.addWidget(GridTable(ac.LOG_COLUMNS, cells, {0: 4, 1: 2, 2: 2}, left=True))
+            pages = ac.page_count(answer)
+            pager = []
+            if f["page"] > 1:
+                pager.append(_button("Previous", lambda: self.logs_page(f["page"] - 1)))
+            pager.append(_label(f"Page {f['page']} of {pages}", "muted", wrap=False))
+            if f["page"] < pages:
+                pager.append(_button("Next", lambda: self.logs_page(f["page"] + 1)))
+            self.body.addWidget(_row(*pager))
+        else:
+            self.body.addWidget(_label(ac.NO_LOGS_MATCH if ac.filtering(f) else ac.NO_LOGS, "faint"))
+        self.body.addWidget(_label(ac.LOGS_NOTE, "muted"))
+
+    def _link(self, href: str) -> None:
+        if href.startswith("web:") and self.open_web is not None:
+            self.open_web(href[4:])
+
+    def filter_logs(self) -> None:
+        self.mine.update(boss=self.boss_field.text().strip(), since=self._day(self.since_field),
+                         until=self._day(self.until_field), page=1)
+        self.render()
+
+    def clear_logs(self) -> None:
+        self.mine = ac.fresh_filter()
+        self.render()
+
+    def logs_page(self, page: int) -> None:
+        self.mine["page"] = page
+        self.render()
+
+    def set_visibility(self, row: dict, value: str) -> None:
+        if value != row["visibility"]:
+            self.act("visibility", "POST", f"/api/v1/account/logs/{row['id']}/visibility", {"visibility": value},
+                     ac.now_visible(row, value))
+
+    def describe(self, row: dict) -> None:
+        title = self.ask(ac.DESCRIBE_ASK, row["describe"])
+        if title and title.strip():
+            self.act("title", "POST", f"/api/v1/account/logs/{row['id']}/title", {"title": title.strip()}, "Description saved")
+
+    def delete(self, row: dict) -> None:
+        if self.confirm(ac.delete_question(row)):
+            self.act("delete", "POST", f"/api/v1/account/logs/{row['id']}/delete", {}, "Log deleted")
+
+    def sync(self) -> None:
+        """This app's uploads and characters added to the account (``afterLogs``)."""
+        self.sync_button.setEnabled(False)
+        self._post("sync", {"action": "sync"})
+
+    # ---------------------------------------------------------------- top parses
+    def fetch_parses(self) -> None:
+        """The parses asked for (``fetchParses``), or an older server's whole list paged here."""
+        if self.parses_all is not None:
+            self._show_parses(ac.locally(self.parses_all["parses"], self.parses))
+        else:
+            self.call("parses", "GET", "/api/v1/account/top-parses?" + ac.parses_query(self.parses))
+
+    def _show_parses(self, answer: dict) -> None:
+        """Top parses (``renderParses``)."""
+        _clear(self.body)
+        p = self.parses
+        answer = answer if isinstance(answer, dict) else {}
+        self.parses_answer = answer
+        if isinstance(answer.get("page"), int):
+            p["page"] = answer["page"]
+        everything = answer.get("all") if answer.get("all") is not None else answer.get("total")
+        if not everything:
+            self.body.addWidget(_label(ac.NO_PARSES))
+            self.body.addWidget(_label(ac.PARSES_NOTE, "muted"))
+            return
+        menus = []
+        for key, words, every, items in ac.parse_menus(answer.get("facets"), p):
+            menu = QComboBox()
+            menu.addItem(every, "")
+            for value, shown in items:
+                menu.addItem(shown, value)
+            index = menu.findData(p[key])
+            menu.setCurrentIndex(index if index >= 0 else 0)
+            menu.setAccessibleName(words)
+            menu.activated.connect(lambda _index, key=key, box=menu: self.filter_parses(key, box.currentData()))
+            menus += [_label(words, wrap=False), menu]
+        reset = _button("Reset", self.reset_parses)
+        reset.setEnabled(bool(p["boss"] or p["difficulty"] or p["cls"] or p["character"]))
+        self.body.addWidget(_row(*menus, reset))
+        rows = ac.parse_rows(answer)
+        if rows:
+            heads = []
+            for key, words in ac.PARSE_COLUMNS:
+                head = QPushButton(f"{words} {ac.sort_arrow(p, key)}".strip())
+                head.setObjectName("sortHeadOn" if p["sort"] == key else "sortHead")
+                head.setAccessibleName(f"Sort by {words}")
+                head.clicked.connect(lambda _checked=False, key=key: self.sort_parses(key))
+                heads.append(head)
+            log = QPushButton("Log")                     # a head that sorts nothing
+            log.setObjectName("sortHead")
+            log.setFocusPolicy(Qt.NoFocus)
+            cells = [heads + [log]]
+            for row in rows:
+                text, tier, provisional, tip = row["parse"]
+                colour = ac.TIER_COLOURS[tier]
+                badge = _label(f"<span style='color: {colour}; font-weight: {600 if provisional else 700};'>{html.escape(text)}</span>",
+                               rich=True, wrap=False)
+                badge.setToolTip(tip)
+                character = _label(f"{html.escape(row['character'])} <span style='color: {theme.COLORS['muted']};'>"
+                                   f"{html.escape(row['world'])}</span>", rich=True)
+                dps = _label(row["dps"], wrap=False)
+                dps.setToolTip(row["attempts"])
+                link = _label(f"<a href='web:{html.escape(row['page'])}' style='color: {theme.COLORS['accent']};'>Open</a>", rich=True)
+                link.linkActivated.connect(self._link)
+                cells.append([row["boss"], row["difficulty"], character, row["class"], dps, badge, row["date"], link])
+            self.body.addWidget(GridTable([], cells, {0: 3, 2: 3}, left=True))
+        else:
+            self.body.addWidget(_label(ac.NO_PARSES_MATCH))
+        previous = _button("Previous", lambda: self.parses_page(-1))
+        previous.setEnabled(int(answer.get("page") or 1) > 1)
+        following = _button("Next", lambda: self.parses_page(1))
+        following.setEnabled(int(answer.get("page") or 1) < int(answer.get("pages") or 1))
+        size = QComboBox()
+        for n in ac.PER_PAGE:
+            size.addItem(str(n), n)
+        size.setCurrentIndex(max(0, size.findData(p["limit"])))
+        size.setAccessibleName("Per page")
+        size.activated.connect(lambda _index, box=size: self.parses_per_page(box.currentData()))
+        self.body.addWidget(_row(previous, _label(ac.parses_status(answer), "muted", wrap=False), following,
+                                 _label("Per page", wrap=False), size))
+        if self.parses_all is not None and self.parses_all["truncated"]:
+            self.body.addWidget(_label(f"The best {len(self.parses_all['parses'])} by DPS are shown.", "muted"))
+        self.body.addWidget(_label(ac.PARSES_NOTE, "muted"))
+
+    def filter_parses(self, key: str, value: str) -> None:
+        self.parses[key] = value or ""
+        self.parses["page"] = 1
+        self.fetch_parses()
+
+    def reset_parses(self) -> None:
+        self.parses.update(boss="", difficulty="", cls="", character="", page=1)
+        self.fetch_parses()
+
+    def sort_parses(self, key: str) -> None:
+        self.parses = ac.sorted_by(self.parses, key)
+        self.fetch_parses()
+
+    def parses_page(self, step: int) -> None:
+        self.parses["page"] += step
+        self.fetch_parses()
+
+    def parses_per_page(self, limit: int) -> None:
+        """Another page size, kept for the visit (the web page keeps it in its browser)."""
+        self.parses.update(limit=int(limit), page=1)
+        self.fetch_parses()
 
     # ---------------------------------------------------------------- signed out
     def _signed_out(self, s: dict) -> None:
