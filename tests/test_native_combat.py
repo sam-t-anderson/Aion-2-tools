@@ -3409,6 +3409,191 @@ def test_the_review_death_recaps(qapp):
     assert "Player death recaps" not in _labels(view)
 
 
+def _insightful():
+    """The dying fight summarised by the app's own analyzer (``encounter_insights``), with more to read: the sorcerer's heal
+    on the cleric at full HP (all overheal), the spirit's on the sorcerer (no HP reading), the sorcerer's imported buff in
+    two overlapping windows and a reversed window of the cleric's; and the live meter's context for the encounter, which
+    the catalog's NPCs disagree with."""
+    from aion2calc.combat import insights
+    fight = _dying()
+    seg = fight["segments"][0]
+    seg["events"] += [{"kind": "heal", "t": 10.5, "source": "p1", "target": "p2", "amount": 500, "skill": "Mending Light"},
+                      {"kind": "heal", "t": 11.0, "source": "pet1", "target": "p1", "amount": 50, "skill": "Spirit Touch"}]
+    seg["buffs"] = [{"player": "p1", "name": "Rage", "skill_id": 12990001, "start": 0.5, "end": 9.0},
+                    {"player": "p1", "name": "Rage", "skill_id": 12990001, "start": 8.0, "end": 12.0},
+                    {"player": "p2", "name": "Ward", "start": 5.0, "end": 3.0}]
+    seg["classification"] = {
+        "version": 1, "status": "catalog_match", "basis": "recorded_instance", "recorded_map_id": 0,
+        "recorded_instance_id": 300101, "catalog_instance_id": 300101,
+        "npcs": [{"npc_id": 2001, "instance_id": 300101, "category": "boss", "tier": None}], "omitted_npcs": 2,
+        "conflicts": ["Recorded map/instance and NPC catalog instance disagree"], "ambiguities": [],
+        "note": "Context from the recorded instance."}
+    fight["segments"][1]["casts"] = [{"source": "e1", "t": 1.5, "skill_id": 12010001, "skill": "Arrow", "target": "p1"}]
+    fight["encounter_insights"] = insights.summarize(fight)
+    return fight
+
+
+def _seen(fight, **choices):
+    state = cw.fresh_state()
+    state.update(choices)
+    return state, cw.data(fight, state)
+
+
+def test_the_review_insights_words():
+    from aion2calc.combat.insights import NOTE
+    from aion2calc.combat.pressure import NOTE as PRESSURE
+    from aion2calc.gui.results import MUTED
+    fight = _insightful()
+    state, d = _seen(fight)
+    # the automatic encounter context: the live meter's own placing of the encounter
+    c = cw.encounter_context(d)
+    assert c == {"summary": "Automatic encounter context · Catalog match", "note": "Context from the recorded instance.",
+                 "line": "Recorded map: not recorded · Recorded instance: 300101 · Catalog instance candidate: 300101 · "
+                         "Basis: recorded instance.",
+                 "notes": ["Recorded map/instance and NPC catalog instance disagree"],
+                 "npcs": [["2001", "300101", "boss", "Unavailable"]], "omitted": "2 additional NPC rows omitted."}
+    d["segment"]["classification"] = {"status": "guess", "basis": "npc_only"}
+    c = cw.encounter_context(d)
+    assert c["summary"] == "Automatic encounter context · guess · NPC-only suggestion" and c["npcs"] == [] and c["omitted"] == ""
+    assert c["line"].endswith("Catalog instance candidate: not identified · Basis: npc only.")
+    assert cw.encounter_context(_seen(fight, segment=1)[1]) is None
+    # the mapping coverage: the IDs the catalog doesn't name, its source, and the report
+    m = cw.mapping_coverage(fight, state)
+    catalog = fight["encounter_insights"]["segments"][0]["catalog"]
+    assert m["summary"] == "Mapping coverage · 4 unresolved catalog IDs · 0 missing NPC types"
+    assert m["line"] == (f"Catalog {catalog['catalog_revision']} · Map not recorded · Instance not recorded · 0 enemy references "
+                         "have no NPC type. ")
+    assert m["source"].startswith(f"Mapping source: {catalog['catalog_source']['repository']} · commit "
+                                  f"{catalog['catalog_source']['revision'][:12]} · checked ")
+    assert m["rows"] == [["npc", "2001", "1", "4"], ["npc", "2002", "2", "2"], ["npc", "4242", "1", "1"], ["npc", "9001", "1", "1"]]
+    assert m["unidentified"] is None and json.loads(cw.mapping_report(m["report"])) == catalog
+    other = json.loads(json.dumps(fight))
+    coverage = other["encounter_insights"]["segments"][0]["catalog"]
+    coverage.update(omitted=3, npc_entities_without_type=2, unidentified_omitted=1, map_id=600010,
+                    catalog_source={"revision": "abc", "repository": "r", "english_tables_match_source": False},
+                    unidentified_entities=[{"entity": "x9", "effects": None}, {"entity": "x8", "effects": 1200}])
+    m = cw.mapping_coverage(other, state)
+    assert m["summary"] == "Mapping coverage · 4+ unresolved catalog IDs · 2 missing NPC types"
+    assert m["line"].endswith("Map 600010 · Instance not recorded · 2 enemy references have no NPC type. 3 additional IDs omitted.")
+    assert m["source"] == ("Mapping source: r · commit abc · checked not recorded. English table hashes not confirmed against "
+                           "the source snapshot. Community catalog; game-version association not established.")
+    assert m["unidentified"] == {"note": cw.UNIDENTIFIED_NOTE + " 1 additional references omitted.",
+                                 "rows": [["x9", "Unavailable"], ["x8", "1,200"]]}
+    # the insights: the analyzer's note, what the encounter holds, its peak windows and incoming abilities
+    i = cw.insights(fight, d, state)
+    assert i["intro"] == f"{NOTE} {cw.INSIGHTS_FILTERS}" and i["limits"] == ""
+    assert i["coverage"][:2] == [["Outgoing damage hits", "Not recorded", "0", "Recorded hits; not cast starts"],
+                                 ["Damage effects", "Recorded", "8", "Source/recipient attribution can be incomplete"]]
+    p = i["pressure"]
+    assert p["note"] == PRESSURE and p["line"].startswith("0 actor/metric effect references excluded at death timestamps;")
+    assert _words(p["windows"][:1]) == [[("actor", "p1"), "Damage done", "3s", "0.000 → 2.700s", "2.700s", "2,500", "2", "—"]]
+    assert ["1s", "2.100 → 3.100s", "1.000s", "800", "1", "0 · 0 effects"] in [row[2:] for row in p["windows"]]
+    assert _words(p["incoming"]) == [[("actor", "b1"), ("actor", "p2"), "Frost Breath", "800", "1", "800", "3.100 → 3.100s"],
+                                     [("actor", "u1"), ("actor", "p2"), "Spike", "50", "1", "50", "8.000 → 8.000s"]]
+    # the bosses' HP milestones, the healing between players and how much of it was effective
+    assert i["milestones"] == [["Ice Queen", "≤ 75%", "60.000s", "4,000 / 10,000 (40.0%)"],
+                               ["Ice Queen", "≤ 50%", "60.000s", "4,000 / 10,000 (40.0%)"]]
+    assert i["healing_note"].startswith("0 healing effects lack a source; 0 lack a recipient.")
+    assert _words(i["healing"]) == [[("actor", "p2"), ("actor", "p2"), "600", "1"], [("actor", "p1"), ("actor", "p2"), "500", "1"],
+                                    [("actor", "pet1"), ("actor", "p1"), "50", "1"]]
+    e = i["effective"]
+    assert e["note"].startswith(cw.EFFECTIVE_NOTE + " Here 2 heal-over-time records were rebuilt, 900 as recorded, 450 as")
+    assert e["note"].endswith("0 times in full and 0 times topped up to maximum HP; 0 reads had other changes in between "
+                              "(damage, ticks) and 3 could not be checked.")
+    assert _words(e["healers"]) == [
+        [("actor", "p2"), "600", "600", ("html", f"0 <span style='color: {MUTED};'>0.0%</span>"), "0", "0", "0"],
+        [("actor", "p1"), "500", "0", ("html", f"500 <span style='color: {MUTED};'>100.0%</span>"), "0", "0", "0"],
+        [("actor", "pet1"), "50", "0", ("html", "0"), "0", "0", "50"]]
+    assert len(e["pairs"]) == 3 and e["omitted"] == ""
+    # the imported buff windows, merged; each ability's effects; the opening sequence
+    assert i["buffs_note"].endswith(" 1 empty/reversed/outside windows excluded.")
+    assert _words(i["buffs"]) == [[("actor", "p1"), "Rage", "11.50s", "9.6%", "1", "3,300", "5", "3,300"]]
+    assert _words(i["effects"])[:2] == [[("actor", "p1"), "Flame Burst", "damage", "5", "3,300", "0.500 → 9.500s"],
+                                        [("actor", "p2"), "Heal", "heal", "1", "600", "3.500 → 3.500s"]]
+    assert _words(i["opening"])[0] == ["0.500s", ("actor", "p1"), ("actor", "b1"), "Flame Burst", "damage", "1,000"]
+    assert len(i["opening"]) == 9
+    # a player chosen: their rows and their spirit's; the pets left out
+    state, d = _seen(fight, actor="p1")
+    i = cw.insights(fight, d, state)
+    assert {row[0]["actor"] for row in i["effects"]} == {"p1", "pet1"} and {row[1]["actor"] for row in i["opening"]} == {"p1", "pet1"}
+    assert _words(i["healing"]) == [[("actor", "p1"), ("actor", "p2"), "500", "1"], [("actor", "pet1"), ("actor", "p1"), "50", "1"]]
+    assert i["pressure"]["incoming"] == []
+    state, d = _seen(fight, actor="p1", pets=False)
+    i = cw.insights(fight, d, state)
+    assert {row[0]["actor"] for row in i["effects"]} == {"p1"} and len(i["healing"]) == 1 and len(i["effective"]["healers"]) == 1
+    state, d = _seen(fight, actor="pet1", combine=False)
+    assert {row[0]["actor"] for row in cw.insights(fight, d, state)["effects"]} == {"pet1"}
+    # the limits, a feature's count unavailable, an analyzer without the coverage or pressure; an older log
+    limited = json.loads(json.dumps(fight))
+    s = limited["encounter_insights"]["segments"][0]
+    s["omitted"] = {"healing": 0, "skills": 4, "buffs": 0, "milestones": 2}
+    s["omitted_opening"] = 7
+    s["capabilities"][0]["records"] = None
+    del s["capabilities"][1]["records"]
+    i = cw.insights(limited, *reversed(_seen(limited)))
+    assert i["limits"] == ("Session detail limits omitted: 4 skills rows, 2 milestones rows · 7 opening effects. Filters apply "
+                           "after limits; use Events for retained underlying effects.")
+    assert i["coverage"][0][1:3] == ["Unavailable", "—"] and i["coverage"][1][1:3] == ["Not recorded", "0"]
+    del s["capabilities"], s["pressure"], s["healing_effect"]
+    i = cw.insights(limited, *reversed(_seen(limited)))
+    assert i["coverage"] is None and i["pressure"] is None and i["effective"] is None
+    older = json.loads(json.dumps(fight))
+    del older["encounter_insights"]
+    state, d = _seen(older)
+    assert cw.insights(older, d, state) == {"missing": cw.INSIGHTS_OLDER} and cw.mapping_coverage(older, state) is None
+
+
+def test_the_review_insights(qapp, tmp_path):
+    from aion2calc.gui.combat_saved import Section
+    app = FakeApp()
+    app.log_server.review_log = _insightful()
+    page = _page(app)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: view.summary is not None and view.ranks is not None and view.names is not None and not view.awaiting)
+
+    def fold(name):
+        return _find(view, Section, lambda f: f.button.accessibleName() == name)
+    # the encounter's context and mapping coverage, folded
+    context, mapping = fold("Automatic encounter context"), fold("Mapping coverage")
+    assert context.button.text() == "Automatic encounter context · Catalog match" and not context.body.isVisibleTo(view)
+    assert mapping.button.text() == "Mapping coverage · 4 unresolved catalog IDs · 0 missing NPC types"
+    context.button.click()
+    assert "Basis: recorded instance." in " ".join(_labels(view)) and "300101" in _cells(view)
+    # the insights only when asked for: open, with every part
+    assert view.insights_fold is None and "Evidence coverage" not in " ".join(_labels(view))
+    _find(view, QCheckBox, lambda c: c.text() == cw.INSIGHTS).setChecked(True)
+    labels, cells = _labels(view), _cells(view)
+    assert view.state["insights"] and view.insights_fold.body.isVisibleTo(view)
+    assert all(f"<b>{part}</b>" in labels for part in (
+        "Evidence coverage", "Peak recorded pressure windows", "Incoming abilities", "Boss HP milestones", "Healing relationships",
+        "Effective healing and overheal", "Imported buff windows", "Observed ability effects", "Opening effect sequence"))
+    assert all(c in cells for c in ("Damage effects", "Recorded", "0.000 → 2.700s", "≤ 75%", "4,000 / 10,000 (40.0%)", "11.50s",
+                                    "9.6%", "0.500 → 9.500s"))
+    assert any("100.0%" in t for t in labels)
+    _find(view, QCheckBox, lambda c: c.text() == cw.INSIGHTS).setChecked(False)
+    assert view.insights_fold is None and "11.50s" not in _cells(view)
+    # the mapping report saved where asked; nothing when the question is cancelled
+    target = tmp_path / "report.json"
+    view._ask_where = lambda name: str(target) if name == cw.MAPPING_FILE else ""
+    fold("Mapping coverage").button.click()
+    _click(view, cw.EXPORT_MAPPINGS)
+    assert json.loads(target.read_text()) == app.log_server.review_log["encounter_insights"]["segments"][0]["catalog"]
+    assert f"Mapping report saved: {target}" in _labels(view)
+    view._ask_where = lambda name: ""
+    target.unlink()
+    _click(view, cw.EXPORT_MAPPINGS)
+    assert not target.exists()
+    # an older log: the insights' note; no mapping coverage; the arena holds no context
+    older = json.loads(json.dumps(app.log_server.review_log))
+    del older["encounter_insights"]
+    app.log_server.review_log = older
+    view.state["insights"] = True
+    view.reload()
+    settle(lambda: cw.INSIGHTS_OLDER in _labels(view) and not view.awaiting)
+    assert not any(f.button.accessibleName() == "Mapping coverage" for f in view.findChildren(Section) if f.isVisibleTo(view))
+
+
 def _buttons(widget):
     """The buttons shown, once what was drawn last has shown."""
     _shown()

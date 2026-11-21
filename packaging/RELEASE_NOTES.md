@@ -1,3 +1,17 @@
+## A combat log's own page in the native interface, part 7 (0.2.463)
+
+**A log's review in the app's window now has its Encounter insights**, shown when **Encounter insights** beside the player is ticked:
+- what the encounter's log holds, kind by kind (hits, effects, deaths, HP readings, casts, buffs and more), each recorded, not recorded or unavailable;
+- the peak recorded pressure windows (the most damage done, healing done and damage taken in 1, 3 and 5 seconds) and the incoming abilities by source, recipient and ability;
+- the bosses' HP milestones (the first reading at or below 75, 50, 25 and 0%);
+- the healing between players, and how much of it was effective and how much overheal, by healer and by healer and recipient;
+- the imported buff windows, each ability's observed effects, and the opening sequence of effects;
+- the player chosen and the pets shown narrow the rows, as on the web page.
+
+Two notes join the capture quality's, folded: the **automatic encounter context** (how the meter placed the encounter in the catalog, and the catalog's NPCs) and the **mapping coverage** (the recorded IDs the bundled catalog doesn't name), whose **Export mapping report** saves the report as a file.
+
+The review's other sections (rankings, reports, comparisons and movement replay) still open in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 6 (0.2.462)
 
 **A log's review in the app's window now has its Player death recaps**, under the enemy encounters when **Death recaps** is chosen:
