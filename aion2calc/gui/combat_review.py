@@ -22,6 +22,7 @@ These are the review's model and the frame's words:
 - Since 0.2.464 the matched public comparisons (``ranksHTML``), the encounter's metadata and its corrections
   (``metadataHTML``), a shared log's report (``reportHTML``) and a recording's upload (``Publish this log``).
 - Since 0.2.465 the comparisons with other logs (``comparisonHTML``, ``logIdOf``, ``addComparison``).
+- Since 0.2.466 the character builds (``profileHTML``, character-view.js ``details``) and the class colours' palettes.
 """
 from __future__ import annotations
 
@@ -200,7 +201,8 @@ def fresh_state(mode=None, segment=None) -> dict:
             "metric": "summary", "view": "table", "combine": True, "pets": True, "actor": "", "enemy": "", "graph": True,
             "graph_mode": "total", "hidden": set(), "timeline": True, "timeline_window": 30, "timeline_start": 0.0,
             "skills": True, "deaths": True, "heals": True, "page": 0, "ef": None, "ef_search": {}, "ef_open": "",
-            "detail": "contribution", "hide_procs": True, "actions": "rotation", "recap": None, "insights": False}
+            "detail": "contribution", "hide_procs": True, "actions": "rotation", "recap": None, "insights": False,
+            "character": ""}
 
 
 def settle_segment(doc: dict, state: dict) -> None:
@@ -2636,4 +2638,219 @@ def comparisons(doc: dict, d: dict, compared: list) -> list[dict]:
                     "note": (f"Current: {build_label(' · '.join(js_string(x) for x in _context_list(doc, d['segment'])))}. "
                              + ("Encounter metadata differs. " if mismatch else "") + COMPARE_NOTE),
                     "rows": rows})
+    return out
+
+
+# ------------------------------------------------------------------ character builds and class colours (0.2.466)
+PROFILE_REGIONS = {"nae": "North America", "eu": "Europe", "as": "Asia", "la": "Latin America"}
+PROFILE_HOSTS = ("assets.playnccdn.com", "profileimg.plaync.com", "metabot.gg", "a2dil.com")
+CHARACTER_BUILDS = "Character builds:"
+BACK_TO_LOG = "← Back to log"
+PREVIEW_NOTE = "Current profile preview; this is not the historical build for this encounter."
+SAVED_NOTE = ("Saved at upload time. Gear may have changed between the encounter and the official lookup. This snapshot will "
+              "not refresh to newer gear.")
+NO_PROFILE = "No historical official profile was saved with this log."
+FULL_BUILD = "Full recorded build information"
+FULL_BUILD_NOTE = ("Expand a section for equipment rolls, specialties, titles, skins, board nodes and other fields supplied by "
+                   "the official service.")
+EXPORT_PROFILE = "Export this profile JSON"
+PROFILE_FILE = "character-profile.json"
+BACK_TO_SAVED = "Return to saved historical profile"
+FETCH_CURRENT = "Fetch current official profile (not historical)"
+LOOKUP_NOTE = ("Use this character's home server, not your own server. Manual lookup only previews current gear; it does not "
+               "change the saved historical profile.")
+PENDING_NOTE = "The server is fetching this profile. Reopen the shared log in a moment to load its saved result."
+FETCHING = "Fetching current official profile…"
+NO_SERVER = "Choose this character’s home server before fetching."
+NO_DETAILS = "No character profile was supplied."
+CLASS_COLOURS_BUTTON = "Class colors"
+USE_CLASS_COLOURS = "Use class colors"
+CHOOSE_PALETTE = "Choose a palette…"
+RESET_COLOURS = "Reset class colors"
+#: The class colours' palettes (combat-review.js ``PALETTES``), the review's own first.
+PALETTES = {
+    "Default (class colours)": {"gladiator": "#c69b6d", "templar": "#f58cba", "assassin": "#fff468", "ranger": "#aad372",
+                                "sorcerer": "#3fc7eb", "spiritmaster": "#8788ee", "cleric": "#ffffff", "chanter": "#ff7c0a",
+                                "brawler": "#00c98d"},
+    "Colourblind-friendly": {"gladiator": "#e69f00", "templar": "#cc79a7", "assassin": "#f0e442", "ranger": "#009e73",
+                             "sorcerer": "#56b4e9", "spiritmaster": "#0072b2", "cleric": "#bbbbbb", "chanter": "#d55e00",
+                             "brawler": "#aa4499"},
+    "High contrast": {"gladiator": "#ff9f1c", "templar": "#ff5dd2", "assassin": "#ffe600", "ranger": "#4cff4c",
+                      "sorcerer": "#36d6ff", "spiritmaster": "#7c6cff", "cleric": "#ffffff", "chanter": "#ff5a2a",
+                      "brawler": "#00ffc8"},
+    "Pastel": {"gladiator": "#e6c79c", "templar": "#f5b8d6", "assassin": "#fff3a3", "ranger": "#c3e6a3", "sorcerer": "#a7dcef",
+               "spiritmaster": "#bcbdf0", "cleric": "#eaeaea", "chanter": "#ffc49c", "brawler": "#a3f0d4"},
+    "Vivid": {"gladiator": "#ff8c00", "templar": "#ff2fae", "assassin": "#ffe000", "ranger": "#2ecc40", "sorcerer": "#00bfff",
+              "spiritmaster": "#6a5cff", "cleric": "#f5f5f5", "chanter": "#ff4500", "brawler": "#00e6a8"},
+    # The live overlay's own default tints (overlay.js OVERLAY_CLASS_COLORS): the same colours carried into the review.
+    "Overlay (cool)": {"gladiator": "#c8474f", "templar": "#c9772b", "assassin": "#4caf6e", "ranger": "#b9962a",
+                       "sorcerer": "#3a86c8", "spiritmaster": "#7a63d8", "cleric": "#3fb4b0", "chanter": "#b84f9e",
+                       "brawler": "#7f9a3a"}}
+
+
+def profile_image(value) -> str:
+    """An official picture's address (``profileImage``): https on the official and community hosts, no credentials;
+    else nothing."""
+    try:
+        parts = urllib.parse.urlsplit(js_text(value))
+        fits = (parts.scheme == "https" and not parts.username and not parts.password
+                and (parts.hostname or "") in PROFILE_HOSTS)
+    except ValueError:
+        return ""
+    return parts.geturl() if fits else ""
+
+
+def profile_list(value) -> list:
+    """A profile's list (``profileList``): its entries, the empty ones left out, at most a thousand."""
+    return [x for x in value if x is not None][:1000] if isinstance(value, list) else []
+
+
+def stat_label(row: dict) -> str:
+    name = re.sub(r"\s", "", js_string(row.get("name") or ""))
+    return "Gear score (item level)" if name == "아이템레벨" else js_string(_first(row.get("name"), row.get("type"), "Unnamed stat"))
+
+
+def secondary_stat(row) -> str:
+    if isinstance(row, str):
+        return row.strip()
+    row = _dict(row)
+    if _truthy(row.get("name") or row.get("type")) and row.get("value") is not None and row.get("value") != "":
+        return f"{stat_label(row)}: {js_string(row['value'])}"
+    return ""
+
+
+def _nullish(value, fallback):
+    """``value ?? fallback``."""
+    return fallback if value is None else value
+
+
+def _card(entry: dict, slot: str) -> dict:
+    """A piece of equipment, a pet or wings (``item``): its picture, slot, name, and enchantment, grade and level."""
+    line = (("+" + js_string(entry.get("enchantLevel")) + " · ") if "enchantLevel" in entry else "") + \
+        js_string(entry.get("grade") or "") + ((" · Lv " + js_string(entry.get("level"))) if "level" in entry else "")
+    return {"image": profile_image(entry.get("icon")), "alt": js_string(_first(entry.get("name"), slot)), "small": slot,
+            "title": js_string(_first(entry.get("name"), entry.get("itemName"), entry.get("id"), "Unknown")), "line": line,
+            "grade": js_string(entry.get("grade") or "")}
+
+
+def character_details(data, region) -> dict:
+    """A recorded character as the profile shows it (character-view.js ``details``): the portrait and its lines, the
+    stats, the equipment, the skills, the pet and wings, and the Daevanion boards; each part saying when the snapshot
+    holds none."""
+    from .timers import world_for
+    if not isinstance(data, dict):
+        return {"empty": NO_DETAILS}
+    profile = _dict(data.get("profile"))
+    stats = [_dict(x) for x in profile_list(_dict(data.get("stat")).get("statList"))]
+    gear = [_dict(x) for x in profile_list(_dict(data.get("equipment")).get("equipmentList"))]
+    skills = [_dict(x) for x in profile_list(_dict(data.get("skill")).get("skillList"))]
+    boards = [_dict(x) for x in profile_list(_dict(data.get("daevanion")).get("boardList"))]
+    score = profile.get("gearScore")
+    if score is None:
+        found = next((row for row in stats if re.sub(r"\s", "", js_string(row.get("name") or "")) == "아이템레벨"
+                      or re.fullmatch(r"(gear score|item level)", js_string(row.get("name") or "").strip(), re.I)), None)
+        score = found.get("value") if found is not None else None
+    server = profile.get("serverName") or (world_for(profile.get("serverId"), "") if profile.get("serverId") is not None else "") \
+        or profile.get("serverId") or "Unknown server"
+    hero = {"image": profile_image(profile.get("profileImage")),
+            "alt": js_string(_first(profile.get("characterName"), "Character portrait")),
+            "name": js_string(_first(profile.get("characterName"), "Character")),
+            "lines": [f"Lv {js_string(_nullish(profile.get('characterLevel'), 'Unavailable'))} · "
+                      f"{js_string(_first(profile.get('className'), 'Unknown class'))} · {js_string(profile.get('raceName') or '')}",
+                      f"{js_string(server)} · {js_string(_first(profile.get('regionName'), data.get('region'), 'Unknown region'))}",
+                      f"Gear score: {js_string(_nullish(score, 'Unavailable'))}",
+                      f"Combat power: {js_string(_nullish(profile.get('combatPower'), 'Unavailable'))}"]}
+    pet = _dict(_dict(data.get("petwing")).get("pet"))
+    return {
+        "hero": hero,
+        "stats": [(stat_label(row), js_string(_nullish(row.get("value"), "Unavailable")),
+                   [w for w in (secondary_stat(x) for x in profile_list(row.get("statSecondList"))) if w]) for row in stats],
+        "gear": [_card(entry, js_string(_first(entry.get("slotPosName"), "Slot " + _joined(entry.get("slotPos", _ABSENT))))) for entry in gear],
+        "skills": [{"image": profile_image(entry.get("icon")), "alt": js_string(_first(entry.get("name"), "Skill")),
+                    "small": js_string(_first(entry.get("category"), "Skill")),
+                    "title": js_string(_first(entry.get("name"), entry.get("skillName"), entry.get("id"))),
+                    "line": f"Lv {js_string(_nullish(entry.get('skillLevel'), _nullish(entry.get('level'), 'Unavailable')))} · "
+                            + ("Equipped" if entry.get("equip") in (1, True) else "Not equipped" if entry.get("equip") in (0, False)
+                               else "Equip state unavailable")} for entry in skills],
+        "petwing": [_card(entry, js_string(slot)) for slot, entry in _dict(data.get("petwing")).items() if isinstance(entry, dict)],
+        "genus": ("Pet genus is shown only when recorded: "
+                  f"{js_string(_first(pet.get('genusName'), pet.get('genus'), 'not included in the official profile snapshot'))}."),
+        "boards": [{"image": profile_image(entry.get("icon")), "alt": js_string(_first(entry.get("name"), "Board")), "small": "",
+                    "title": js_string(_first(entry.get("name"), entry.get("id"))),
+                    "line": f"{'Open' if _truthy(entry.get('open')) else 'Locked'} · {js_string(_nullish(entry.get('openNodeCount'), '?'))} / "
+                            f"{js_string(_nullish(entry.get('totalNodeCount'), '?'))} nodes"} for entry in boards]}
+
+
+def characters(r: dict, doc: dict) -> list[dict]:
+    """The encounter's characters (``Character builds``): its players and the other players in it, in its roster's order."""
+    return [e for e in r.values() if is_character(e, doc)]
+
+
+def _server_table() -> dict:
+    import json
+    from .combat_records import SERVERS
+    try:
+        table = json.loads(SERVERS.read_text(encoding="utf-8")).get("global_servers")
+    except (OSError, ValueError, AttributeError):
+        return {}
+    return {region: [str(i) for i in _list(ids) if str(i).isdigit()] for region, ids in table.items()} if isinstance(table, dict) else {}
+
+
+def region_of(server) -> str:
+    """The region a server is in (``A2Servers.regionOf``), or nothing."""
+    key = js_text(server).strip()
+    return next((region for region, ids in _server_table().items() if key in ids), "")
+
+
+def server_choices(region: str, chosen) -> list:
+    """The servers to look a character up on (``serverOptions``): "Choose a server", the one recorded when the list hasn't
+    it, then each region's (or the region chosen's) by faction."""
+    from .timers import world_for
+    table = _server_table()
+    picked = js_text(chosen).strip()
+    regions = [region] if region and region in table else list(table)
+    groups, shown = [], set()
+    for r in regions:
+        for side, first in (("Elyos", "1"), ("Asmodian", "2")):
+            ids = sorted((i for i in table[r] if i.startswith(first)), key=int)
+            shown.update(ids)
+            if ids:
+                name = (f"{PROFILE_REGIONS.get(r, r)} · " if len(regions) > 1 else "") + side
+                groups.append((name, [(i, world_for(i, i)) for i in ids]))
+    out = [("", "Choose a server")]
+    if picked and picked not in shown:
+        out.append((picked, world_for(picked, picked)))
+    return out + groups
+
+
+def character_build(doc: dict, r: dict, character, preview) -> dict | None:
+    """A character's build (``profileHTML``): the official profile saved with the log at upload, or a current one looked
+    up (``preview``), with how and when it was read; its details and every field it holds; and the lookup's region and
+    server. None for a character not in the encounter."""
+    from .combat_records import _when
+    actor = r.get(character)
+    if not _truthy(character) or not isinstance(actor, dict):
+        return None
+    saved = actor.get("profile_snapshot")
+    snapshot = preview if _truthy(preview) else saved
+    s, kept = _dict(snapshot), _dict(saved)
+
+    def stamp(x) -> str:
+        return _when(x) if _truthy(x) else "Not recorded"
+    out = {"title": f"Character build · {actor_label(actor)}",
+           "note": PREVIEW_NOTE if _truthy(preview) else SAVED_NOTE if _truthy(saved) else NO_PROFILE,
+           "status": f"Status: {js_string(_first(s.get('status'), 'unavailable'))} · {js_string(s.get('reason') or '')}",
+           "stamps": f"Upload received: {stamp(kept.get('uploaded_at'))} · Official fetch completed: {stamp(s.get('fetched_at'))}",
+           "preview": _truthy(preview), "pending": s.get("status") == "pending", "snapshot": snapshot,
+           "region": js_string(_first(actor.get("region"), region_of(actor.get("server")), _dict(doc.get("meta")).get("region"), "")),
+           "server": js_text(actor.get("server") if actor.get("server") is not None else "")}
+    if _truthy(s.get("data")):
+        import json
+        identity = _dict(s.get("identity"))
+        data = s["data"]
+        out["source"] = (f"{js_string(s.get('source'))} · {js_string(identity.get('name'))} · {js_string(identity.get('region'))} · "
+                         f"Server {world(identity.get('server'))}")
+        out["details"] = character_details(data, _first(identity.get("region"), _dict(data).get("region")))
+        out["fields"] = ([(js_string(key).replace("_", " "), json.dumps(value, indent=2, ensure_ascii=False))
+                          for key, value in data.items()] if isinstance(data, dict) else [])
     return out

@@ -25,6 +25,8 @@ Drawn here so far:
   recording's upload.
 - Since 0.2.465 the comparisons with other logs: a shared log by its link or ID, or an a2log file on this computer, each
   player's DPS against a same-class player chosen in it.
+- Since 0.2.466 the character builds: each character's button, their build in place of the review as the official
+  profile saved with the log (or a current one looked up), and the class colours' panel (**Class colors**).
 
 The rest of the review (its movement replay) opens in the web interface for now, from a button on the page.
 """
@@ -34,10 +36,12 @@ import html
 import math
 import os
 
-from PySide6.QtCore import QRegularExpression, QStandardPaths, Qt, QTimer, Signal
-from PySide6.QtGui import QRegularExpressionValidator
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
-                               QPlainTextEdit, QSlider, QVBoxLayout, QWidget)
+from concurrent.futures import ThreadPoolExecutor
+
+from PySide6.QtCore import QObject, QRegularExpression, QStandardPaths, Qt, QTimer, Signal
+from PySide6.QtGui import QPixmap, QRegularExpressionValidator
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
+                               QLineEdit, QPlainTextEdit, QSlider, QVBoxLayout, QWidget)
 
 from . import combat_review as cw
 from . import combat_records as cr
@@ -46,6 +50,7 @@ from . import theme
 from .account import TIER_COLOURS
 from .account_page import _parse_pill
 from .api import AppApi, Requests
+from .class_colours import ClassColours
 from .combat import safe_link
 from .combat_community import _note
 from .chrome import FlowLayout
@@ -93,6 +98,82 @@ def _noted(widget: QWidget) -> QFrame:
     return frame
 
 
+class OfficialPictures(QObject):
+    """A character's pictures on the official and community hosts (``profileImage``), read off the interface's thread
+    and handed over as ``loaded(url, bytes)``; each asked for once, one that cannot be read said so as ``failed(url)``
+    (the web page's ``onerror``)."""
+
+    loaded = Signal(str, bytes)
+    failed = Signal(str)
+
+    def __init__(self, parent: QObject | None = None, read=None):
+        super().__init__(parent)
+        from .news import _read
+        self.read = read or _read
+        self._asked: set[str] = set()
+        self._pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="gui-profile-pictures")
+
+    def ask(self, url: str) -> None:
+        if not cw.profile_image(url) or url in self._asked:
+            return
+        self._asked.add(url)
+        try:
+            self._pool.submit(self._get, url)
+        except RuntimeError:                     # stopped: its window has closed
+            pass
+
+    def _get(self, url: str) -> None:
+        try:
+            data = self.read(url)
+        except Exception:                        # noqa: BLE001 - a picture that cannot be read is said so
+            data = b""
+        if data:
+            self.loaded.emit(url, data)
+        else:
+            self.failed.emit(url)
+
+    def stop(self) -> None:
+        self._pool.shutdown(wait=False, cancel_futures=True)
+
+
+#: A card's edge by its grade (``.cr-profile-card[data-grade=…]``).
+GRADE_EDGES = {"Unique": "#f0bf4a", "Legend": "#a46cf0", "Epic": "#a46cf0", "Rare": "#4aa3e6"}
+
+
+class AutoGrid(QWidget):
+    """Widgets in equal columns at least ``least`` wide, as many as fit, fewer when there are fewer widgets
+    (``grid-template-columns: repeat(auto-fit, minmax(least, 1fr))``); laid out again as the width changes."""
+
+    def __init__(self, widgets: list[QWidget], least: int, gap: int, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("plain")
+        self.widgets, self.least, self.gap, self.columns = widgets, least, gap, 0
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setHorizontalSpacing(gap)
+        self.grid.setVerticalSpacing(gap)
+        self._place(1)
+
+    def _place(self, columns: int) -> None:
+        if columns == self.columns:
+            return
+        for widget in self.widgets:
+            self.grid.removeWidget(widget)
+        for column in range(max(self.columns, columns)):
+            self.grid.setColumnStretch(column, 1 if column < columns else 0)
+        for index, widget in enumerate(self.widgets):
+            self.grid.addWidget(widget, index // columns, index % columns)
+        self.columns = columns
+
+    def resizeEvent(self, event) -> None:
+        fit = max(1, (event.size().width() + self.gap) // (self.least + self.gap))
+        self._place(max(1, min(len(self.widgets), fit)))
+        super().resizeEvent(event)
+
+
+LOGO = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app", "static", "logo.png")
+
+
 class ReviewPage(QWidget):
     """A log's own page (``pageCombatLog``, ``A2CombatReview.mount``). ``open_web`` opens a page of the app (another log
     opens here again); ``open_in_web`` opens a page in the web interface itself (the full review). ``uploaded`` says this
@@ -101,9 +182,13 @@ class ReviewPage(QWidget):
     uploaded = Signal()
 
     def __init__(self, api: AppApi | None, open_web=None, open_in_web=None, parent: QWidget | None = None,
-                 pictures: Pictures | None = None):
+                 pictures: Pictures | None = None, read_picture=None):
         super().__init__(parent)
         self.setObjectName("plain")
+        self.official = OfficialPictures(self, read_picture)          # a character's pictures off the official hosts
+        self.official.loaded.connect(self._official_picture)
+        self.official.failed.connect(self._official_failed)
+        self.official_kept: dict[str, QPixmap | None] = {}
         self.open_web = open_web or (lambda page: None)
         self.open_in_web = open_in_web or self.open_web
         self.pictures = pictures
@@ -136,6 +221,7 @@ class ReviewPage(QWidget):
 
     def stop(self) -> None:
         self.soon.stop()
+        self.official.stop()
         if self.popup is not None:
             self.popup.hide()
         if self.requests is not None:
@@ -146,6 +232,8 @@ class ReviewPage(QWidget):
         self.report = {"reason": "privacy", "details": "", "status": "", "busy": False}
         self.meta_result, self.meta_open, self.meta_busy = "", False, False
         self.publish = {"visibility": "public", "result": "", "busy": False}
+        self.previews: dict = {}                                     # current profiles looked up, by character
+        self.profile_for, self.profile_message, self.colours_open = "", "", False
         self.compared: list[dict] = []                               # the logs compared (``comparisons``)
         self.compare_result, self.compare_segment = "", 0
         self.compare_status = None
@@ -234,6 +322,15 @@ class ReviewPage(QWidget):
             self.report.update(busy=False, details="",
                                status=f"{cw.js_string(receipt.get('message'))} Receipt: {cw.js_string(receipt.get('id'))}")
             self.draw()
+        elif kind == "profile":                                      # a current profile looked up: shown as a preview
+            self.previews[self.profile_for] = answer
+            self.profile_message = ""
+            self.draw()
+        elif kind == "colours":                                      # the class colours as the app keeps them
+            kept = _dict(answer).get("combat_colors")
+            if isinstance(kept, dict) and kept != self.colours:
+                self.colours = kept
+                self.draw()
         elif kind == "compare":                                      # another log read to compare
             try:
                 self.compared.append(cw.comparison_of(answer, self.compare_segment))
@@ -270,6 +367,9 @@ class ReviewPage(QWidget):
             self._published(html.escape(why))
         elif kind == "compare":
             self._compare_said(why)
+        elif kind == "profile":
+            self.profile_message = why
+            self.draw()
 
     def _refused(self, why: str) -> None:
         _clear(self.box)
@@ -361,6 +461,10 @@ class ReviewPage(QWidget):
             self.box.addWidget(frame)
             return
         d = cw.data(doc, state)
+        self.build_window = self._build(d)
+        if self.build_window is not None:                             # a character's build in place of the review
+            self.box.addWidget(self.build_window)
+            return
         foes = cw.opponents_of(doc, d)
         foe = state["actor"] if any(e.get("id") == state["actor"] for e in foes) else ""
         v = cw.data(doc, state, foe) if foe else d
@@ -406,6 +510,12 @@ class ReviewPage(QWidget):
             body.addWidget(self._runs(d))
         body.addWidget(self._tabs())
         body.addWidget(self._options())
+        body.addWidget(self._builds(d))
+        self.colours_panel = None
+        if self.colours_open:
+            self.colours_panel = ClassColours(self.colours)
+            self.colours_panel.saved.connect(self._colours_saved)
+            body.addWidget(self.colours_panel)                        # ``<div data-colors>``: no frame of its own
         events = cw.visible_events(v, state)
         if state["graph"] and state["metric"] != "deaths":
             body.addWidget(self._graph(v, events))
@@ -500,6 +610,7 @@ class ReviewPage(QWidget):
         groups = [("Opponents", [(js_text(e.get("id")), cw.actor_label(e)) for e in foes])] if foes else None
         line.addWidget(self._pick("Player", [("", "All players")] + players, state["actor"],
                                   lambda value: self._changed("actor", value or ""), groups))
+        line.addWidget(_button(cw.CLASS_COLOURS_BUTTON, self._toggle_colours))   # ``data-color-settings``
         insights = QCheckBox(cw.INSIGHTS)                            # the insights shown (``data-control="insights"``)
         insights.setChecked(bool(state.get("insights")))
         insights.toggled.connect(lambda checked: self._changed("insights", checked))
@@ -1235,6 +1346,273 @@ class ReviewPage(QWidget):
             except RuntimeError:                                     # drawn again meanwhile: the new fold shows it
                 pass
 
+    # ---------------------------------------------------------------- character builds and class colours (0.2.466)
+    def _builds(self, d: dict) -> QWidget:
+        """The encounter's characters, each a button opening their build (``Character builds:``)."""
+        box = QWidget()
+        box.setObjectName("plain")
+        flow = FlowLayout(box, align=Qt.AlignLeft, gap=(6, 6))
+        flow.addWidget(_label(cw.CHARACTER_BUILDS, wrap=False))
+        for actor in cw.characters(d["r"], self.doc):
+            button = _button(cw.actor_label(actor).replace("&", "&&"), lambda key=actor.get("id"): self._open_character(key))
+            button.setAccessibleName(f"Character build of {cw.actor_label(actor)}")
+            button.setStyleSheet(f"QPushButton {{ color: {cr.class_colour(actor.get('class'), self.colours)}; }}")
+            flow.addWidget(button)
+        return box
+
+    def _open_character(self, key) -> None:
+        """A character's build opened (``data-character``), in place of the review (``render``'s first lines)."""
+        self.state["character"] = key
+        self.profile_message = ""
+        self.draw()
+        if self.build_window is not None:
+            QTimer.singleShot(0, lambda: self._scroll_to(self.build_window))
+
+    def _scroll_to(self, widget: QWidget) -> None:
+        """A part of the page brought into view (``scrollIntoView({block: 'nearest'})``)."""
+        parent = self.parentWidget()
+        while parent is not None and not hasattr(parent, "ensureWidgetVisible"):
+            parent = parent.parentWidget()
+        if parent is not None:
+            try:
+                parent.ensureWidgetVisible(widget, 0, 0)
+            except RuntimeError:                                     # drawn again meanwhile
+                pass
+
+    def _close_character(self) -> None:
+        """Back to the log (``data-profile-close``): a lookup still on its way is let go."""
+        self.state["character"] = ""
+        self.asked["profile"] = self.asked.get("profile", 0) + 1
+        self.draw()
+
+    def _build(self, d: dict) -> QWidget | None:
+        """A character's build (``profileHTML``), or nothing when none is open or the encounter hasn't them."""
+        character = self.state.get("character") or ""
+        model = cw.character_build(self.doc, d["r"], character, self.previews.get(character))
+        if model is None:
+            return None
+        frame = Window(model["title"])
+        frame.tool(_button(cw.BACK_TO_LOG, self._close_character))
+        frame.head.addStretch(1)                                     # the button after the title, as the web page has it
+        body = frame.body
+        body.addWidget(_noted(_label(model["note"])))
+        body.addWidget(_label(f"{model['status']}\n{model['stamps']}"))
+        if "source" in model:
+            body.addWidget(_label(model["source"]))
+            body.addWidget(self._details_view(model["details"]))
+            body.addWidget(_head(cw.FULL_BUILD))
+            body.addWidget(_muted(cw.FULL_BUILD_NOTE))
+            for key, text in model["fields"]:
+                fold = Section(key.replace("&", "&&"), None, False)
+                fold.button.setAccessibleName(f"Recorded field {key}")
+                field = _label(text, "profileJson", wrap=False)
+                field.setTextInteractionFlags(Qt.TextSelectableByMouse)
+                field.setStyleSheet("font-family: monospace;")
+                fold.body_layout.addWidget(field)
+                body.addWidget(fold)
+            row, line = _plain(QHBoxLayout)
+            line.addWidget(_button(cw.EXPORT_PROFILE, lambda snapshot=model["snapshot"]: self._export_profile(snapshot)))
+            line.addStretch(1)
+            body.addWidget(row)
+        if model["preview"]:
+            row, line = _plain(QHBoxLayout)
+            line.addWidget(_button(cw.BACK_TO_SAVED, self._back_to_saved))
+            line.addStretch(1)
+            body.addWidget(row)
+        body.addWidget(self._lookup(model))
+        body.addWidget(_muted(cw.LOOKUP_NOTE))
+        if model["pending"]:
+            body.addWidget(_muted(cw.PENDING_NOTE))
+        body.addWidget(_label(self.profile_message))
+        return frame
+
+    def _lookup(self, model: dict) -> QWidget:
+        """A current official profile looked up by region and server (``data-profile-current``)."""
+        box = QWidget()
+        box.setObjectName("plain")
+        flow = FlowLayout(box, align=Qt.AlignLeft, gap=(12, 6))
+        region = QComboBox()
+        region.setAccessibleName("Region")
+        region.addItem("All regions", "")
+        for key, words in cw.PROFILE_REGIONS.items():
+            region.addItem(words, key)
+        region.setCurrentIndex(max(0, region.findData(model["region"])))
+        server = QComboBox()
+        server.setAccessibleName("Character server")
+
+        def fill(chosen) -> None:
+            server.clear()
+            for value, words in cw.server_choices(region.currentData() or "", chosen):
+                if isinstance(words, list):                          # a region's and faction's servers (``optgroup``)
+                    server.addItem(value, None)
+                    server.model().item(server.count() - 1).setEnabled(False)
+                    for key, name in words:
+                        server.addItem(f"  {name}", key)
+                else:
+                    server.addItem(words, value)
+            server.setCurrentIndex(max(0, server.findData(js_text(chosen).strip())))
+        fill(model["server"])
+        region.activated.connect(lambda _i: fill(server.currentData() or ""))
+        flow.addWidget(_field_row("Region", region))
+        flow.addWidget(_field_row("Character server", server))
+        fetch = _button(cw.FETCH_CURRENT, lambda: self._fetch_profile(region.currentData() or "", server.currentData() or "", fetch))
+        flow.addWidget(fetch)
+        return box
+
+    def _fetch_profile(self, region: str, server: str, button) -> None:
+        """The character's current official profile asked of the app (``options.lookupProfile``)."""
+        key = self.state.get("character") or ""
+        actor = cw.refs(self.doc, self.state).get(key)
+        if not server:
+            self.profile_message = cw.NO_SERVER
+            self.draw()
+            return
+        region = region or cw.region_of(server)
+        button.setEnabled(False)
+        self.profile_for, self.profile_message = key, cw.FETCHING
+        self._post_app("profile", "/api/character/profile", {"player": {**_dict(actor), "server": server, "region": region},
+                                                             "region": region})
+        self.draw()
+
+    def _back_to_saved(self) -> None:
+        """The saved profile again (``data-profile-saved``)."""
+        self.previews.pop(self.state.get("character") or "", None)
+        self.draw()
+
+    def _export_profile(self, snapshot) -> None:
+        """The profile shown saved as JSON (``data-profile-download``)."""
+        import json
+        path = self._ask_where(cw.PROFILE_FILE)
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as file:
+                file.write(json.dumps(snapshot, indent=2, ensure_ascii=False))
+        except OSError as problem:
+            self.profile_message = f"The profile could not be saved: {problem}"
+            self.draw()
+
+    def _picture(self, url: str, alt: str, size: int, height: int | None = None) -> QLabel:
+        """A character's picture (``profileIcon``): the app's bundled copy, else the official one once read, else ◇."""
+        label = QLabel()
+        label.setObjectName("plain")
+        label.setFixedSize(size, height or size)
+        label.setAlignment(Qt.AlignCenter)
+        label.setAccessibleName(alt)
+        picture = self.pictures.by_address(url) if self.pictures is not None and url else None
+        if picture is None and url:
+            if url in self.official_kept and self.official_kept[url] is None:   # it could not be read: the app's logo
+                picture = QPixmap(LOGO)
+                label.setToolTip("Source image unavailable")
+            else:
+                picture = self.official_kept.get(url)
+                if picture is None:
+                    self.official.ask(url)
+        if picture is None or picture.isNull():
+            label.setText("◇")
+            label.setAccessibleName("Image unavailable" if not url else alt)
+        else:
+            label.setPixmap(picture.scaled(size, height or size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        return label
+
+    def _official_picture(self, url: str, data: bytes) -> None:
+        picture = QPixmap()
+        self.official_kept[url] = picture if picture.loadFromData(data) else None
+        self.awaiting = True
+        self.soon.start()
+
+    def _official_failed(self, url: str) -> None:
+        self.official_kept[url] = None
+        self.awaiting = True
+        self.soon.start()
+
+    def _details_view(self, details: dict) -> QWidget:
+        """A recorded character (character-view.js ``details``): the portrait and its lines, then each part's cards."""
+        box, column = _plain(spacing=8)
+        if "empty" in details:
+            column.addWidget(_label(details["empty"]))
+            return box
+        hero = details["hero"]
+        top, line = _plain(QHBoxLayout, 20)
+        portrait = self._picture(hero["image"], hero["alt"], 140, 180)            # ``.cr-profile-hero > img``
+        portrait.setStyleSheet(f"QLabel {{ background: {C['panel']}; border-radius: 8px; color: {C['muted']}; font-size: 24px; }}")
+        line.addWidget(portrait)
+        words, lines = _plain(spacing=2)
+        lines.addStretch(1)                                          # beside the portrait's middle (``align-items: center``)
+        lines.addWidget(_label(hero["name"], "combatHead"))
+        lines.addWidget(_label("\n".join(hero["lines"])))
+        lines.addStretch(1)
+        line.addWidget(words, 1)
+        column.addWidget(top)
+        column.addWidget(_head("Character stats"))
+        column.addWidget(self._stat_grid(details["stats"]))
+        for title, key, none in (("Equipment and inventory slots", "gear", "Equipment was not included in this snapshot."),
+                                 ("Skills, passives and stigmas", "skills", "Skills were not included in this snapshot."),
+                                 ("Pet and wings", "petwing", "Pet and wings were not included in this snapshot."),
+                                 ("Daevanion boards", "boards", "Boards were not included in this snapshot.")):
+            column.addWidget(_head(title))
+            column.addWidget(self._cards(details[key], none))
+            if key == "petwing":
+                column.addWidget(_muted(details["genus"]))
+        return box
+
+    @staticmethod
+    def _stat_grid(stats: list) -> QWidget:
+        """The stats (``.cr-profile-stats``): each in its box, at least 160 px wide."""
+        if not stats:
+            return _label("Stats were not included in this snapshot.")
+        boxes = []
+        for name, value, more in stats:
+            cell = QFrame()
+            cell.setObjectName("profileStat")
+            cell.setStyleSheet(f"QFrame#profileStat {{ border: 1px solid {C['line']}; border-radius: 6px; }}")
+            column = QVBoxLayout(cell)
+            column.setContentsMargins(12, 12, 12, 12)
+            column.setSpacing(1)
+            column.addWidget(_label(f"<b>{html.escape(name, quote=False)}</b>", rich=True))
+            column.addWidget(_label(value))
+            for words in more:
+                column.addWidget(_label(words, "small"))
+            column.addStretch(1)
+            boxes.append(cell)
+        return AutoGrid(boxes, 160, 8)
+
+    def _cards(self, cards: list, none: str) -> QWidget:
+        """A part's cards (``.cr-profile-card``): each its picture, slot, name and line."""
+        if not cards:
+            return _label(none)
+        frames = []
+        for card in cards:
+            frame = QFrame()
+            frame.setObjectName("profileCard")
+            edge = GRADE_EDGES.get(card.get("grade") or "", C["line"])
+            frame.setStyleSheet(f"QFrame#profileCard {{ background: {C['panel']}; border: 1px solid {edge}; border-radius: 6px; }}")
+            line = QHBoxLayout(frame)
+            line.setContentsMargins(12, 12, 12, 12)
+            line.setSpacing(12)
+            picture = self._picture(card["image"], card["alt"], 48)
+            picture.setStyleSheet(f"QLabel {{ color: {C['muted']}; font-size: 24px; }}")
+            line.addWidget(picture)
+            words, column = _plain(spacing=1)
+            if card["small"]:
+                column.addWidget(_label(card["small"], "muted"))
+            column.addWidget(_label(f"<b>{html.escape(card['title'], quote=False)}</b>", rich=True))
+            column.addWidget(_label(card["line"], "muted"))
+            line.addWidget(words, 1)
+            frames.append(frame)
+        return AutoGrid(frames, 240, 10)
+
+    def _toggle_colours(self) -> None:
+        """The class colours' panel shown or hidden (``data-color-settings``)."""
+        self.colours_open = not self.colours_open
+        self.draw()
+
+    def _colours_saved(self, preference: dict) -> None:
+        """The class colours chosen: drawn at once and kept by the app (``/api/ui``'s ``combat_colors``)."""
+        self.colours = dict(preference)
+        self._post_app("colours", "/api/ui", {"combat_colors": preference})
+        self.draw()
+
     # ---------------------------------------------------------------- comparisons with other logs (0.2.465)
     def _compare_row(self) -> QWidget:
         """Another log to compare (``data-compare``): its link or ID, or an a2log file on this computer."""
@@ -1384,7 +1762,7 @@ class ReviewPage(QWidget):
     def _ask_where(self, name: str) -> str:
         """Where a file is saved, the computer's Downloads folder offered (where a browser puts a download)."""
         folder = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation) or os.path.expanduser("~")
-        path, _kind = QFileDialog.getSaveFileName(self, cw.EXPORT_MAPPINGS, os.path.join(folder, name), "JSON (*.json)")
+        path, _kind = QFileDialog.getSaveFileName(self, "Export", os.path.join(folder, name), "JSON (*.json)")
         return path
 
     def _export_mappings(self, report: dict) -> None:
