@@ -1440,7 +1440,7 @@ class Handler(BaseHTTPRequestHandler):
             for key, allowed in (("rtss_metric", ("dps", "hps", "dtps")), ("rtss_style", ("plain", "colored")),
                                  ("app_default_page", APP_PAGES), ("pettracker_overlay_style", ("app", "pettracker")),
                                  ("overlay_arena_layout", ("stacked", "compact", "versus")),
-                                 ("overlay_players_style", ("list", "grid"))):
+                                 ("overlay_players_style", ("list", "grid")), ("news_region", ("global", "kr", "tw"))):
                 if key in body and body[key] not in allowed:
                     raise ValueError(f"{key} must be one of " + ", ".join(allowed))
             if "pettracker_path" in body:
@@ -1470,7 +1470,7 @@ class Handler(BaseHTTPRequestHandler):
             cur.update({k: v for k, v in body.items() if k in ("app_window", "auto_update",
                                                                "event_region", "event_group", "rtss_metric", "rtss_style",
                                                                "app_default_page", "pettracker_overlay_style",
-                                                               "overlay_arena_layout", "overlay_players_style",
+                                                               "overlay_arena_layout", "overlay_players_style", "news_region",
                                                                *(k for k, _, _ in _ui_int_ranges), *_ui_bool_flags)})
             if "interface_native" in body:        # chosen, not the default written back: kept from now on
                 cur["interface_native_chosen"] = True
@@ -2032,6 +2032,7 @@ def ui_settings() -> dict:
                 # The region/group the Timers page picked, mirrored here so the separate overlay
                 # window (which does not share the Timers page's localStorage) can read it.
                 "event_region": "", "event_group": "",
+                "news_region": "global",       # the native News page's region (the web page keeps its own, 0.2.427)
                 # In-game text through RivaTuner Statistics Server (Windows; off by default).
                 "rtss_enabled": False, "rtss_rows": 5, "rtss_metric": "dps", "rtss_style": "plain", "rtss_interval_ms": 500,
                 # The Hidden Cube radar: listens to the game's sound for a cube's jingle (Windows; off by default).

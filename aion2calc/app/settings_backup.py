@@ -57,7 +57,7 @@ _INT_KEYS = {"app_text_scale": (70, 150), "meter_reset_delay": (1, 120), "meter_
 # key -> the values a choice setting takes.
 _CHOICE_KEYS = {"overlay_text_autocontrast": ("off", "blend", "luminance"), "rtss_metric": ("dps", "hps", "dtps"),
                 "rtss_style": ("plain", "colored"), "overlay_arena_layout": ("stacked", "compact", "versus"),
-                "overlay_players_style": ("list", "grid")}
+                "overlay_players_style": ("list", "grid"), "news_region": ("global", "kr", "tw")}
 
 #: The settings a backup leaves on this computer, and why (every other setting is in a backup).
 LOCAL_ONLY = {
