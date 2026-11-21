@@ -1276,8 +1276,10 @@ class ResultWindows(QWidget):
         if weights:
             column.addWidget(bar_rows(weights, words_on_bar=False))
         else:
-            column.addWidget(_label("Calculating stat priority…" if v.get("weight_job") else
-                                    "Stat priority is unavailable for this build."))
+            status = _label("Calculating stat priority…" if v.get("weight_job") else
+                            "Stat priority is unavailable for this build.")
+            status.setObjectName("weightStatus")           # [data-weight-status]: the Build Planner writes its job's line
+            column.addWidget(status)
         if v.get("scoring_policy"):
             column.addWidget(_label("Weighted upgrade gains with the saved rotation held fixed; timing is not re-optimized.",
                                     "muted"))
