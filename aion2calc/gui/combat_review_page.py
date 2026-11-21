@@ -18,19 +18,22 @@ Drawn here so far:
 - Since 0.2.461 the casts, buffs and break gauge: the rotation, the buffs and debuffs, the crowd control, the break
   gauge, the boss casts and the buff contribution estimate.
 - Since 0.2.462 the player death recaps, each opened with its effects and HP samples.
+- Since 0.2.463 the encounter insights, shown with **Encounter insights**; and the automatic encounter context and the
+  mapping coverage, folded, the coverage's report exported to a file.
 
-The rest of the review (its insights, rankings, reports, comparisons and movement replay) opens in the web interface for
-now, from a button on the page.
+The rest of the review (its rankings, reports, comparisons and movement replay) opens in the web interface for now, from
+a button on the page.
 """
 from __future__ import annotations
 
 import html
 import math
+import os
 
-from PySide6.QtCore import QRegularExpression, Qt, QTimer
+from PySide6.QtCore import QRegularExpression, QStandardPaths, Qt, QTimer
 from PySide6.QtGui import QRegularExpressionValidator
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QSlider,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
+                               QSlider, QVBoxLayout, QWidget)
 
 from . import combat_review as cw
 from . import combat_records as cr
@@ -325,6 +328,10 @@ class ReviewPage(QWidget):
                 line.addWidget(_button("Open a piece", lambda index=index: self.open_segment(index)))
             line.addStretch(1)
             body.addWidget(row)
+        self.mapping_status = None
+        for part in (self._context(d), self._mapping()):
+            if part is not None:
+                body.addWidget(part)
         if state["mode"]:
             body.addWidget(_muted(f"Showing only encounters recorded as {state['mode'].upper()}. Whole-run timing is hidden in "
                                   "this filtered view."))
@@ -345,6 +352,9 @@ class ReviewPage(QWidget):
         self.recaps_box = None
         if state["metric"] == "deaths":
             body.addWidget(self._recaps(v))
+        self.insights_fold = None
+        if state.get("insights"):
+            body.addWidget(self._insights(d))
         self.summary = self.timeline = None
         self.filter_buttons = {}
         if state["view"] == "table":                                 # the view chosen (``data-view``)
@@ -413,6 +423,10 @@ class ReviewPage(QWidget):
         groups = [("Opponents", [(js_text(e.get("id")), cw.actor_label(e)) for e in foes])] if foes else None
         line.addWidget(self._pick("Player", [("", "All players")] + players, state["actor"],
                                   lambda value: self._changed("actor", value or ""), groups))
+        insights = QCheckBox(cw.INSIGHTS)                            # the insights shown (``data-control="insights"``)
+        insights.setChecked(bool(state.get("insights")))
+        insights.toggled.connect(lambda checked: self._changed("insights", checked))
+        line.addWidget(insights)
         line.addStretch(1)
         return box
 
@@ -965,6 +979,110 @@ class ReviewPage(QWidget):
         if tab and omitted:
             column.addWidget(_muted(omitted))
         return box
+
+    # ---------------------------------------------------------------- the encounter's context, mapping and insights (0.2.463)
+    def _context(self, d: dict) -> QWidget | None:
+        """The automatic encounter context, folded (``classificationHTML``); nothing when the log holds none."""
+        c = cw.encounter_context(d)
+        if c is None:
+            return None
+        fold = Section(c["summary"].replace("&", "&&"), None, False)
+        fold.button.setAccessibleName("Automatic encounter context")
+        layout = fold.body_layout
+        for words in [c["note"], c["line"]] + c["notes"]:
+            layout.addWidget(_label(words))
+        if c["npcs"]:
+            layout.addWidget(self._table(cw.CONTEXT_COLUMNS, c["npcs"]))
+        if c["omitted"]:
+            layout.addWidget(_label(c["omitted"]))
+        return _noted(fold)
+
+    def _mapping(self) -> QWidget | None:
+        """The mapping coverage, folded (``catalogHTML``), with **Export mapping report**; nothing for an older log."""
+        m = cw.mapping_coverage(self.doc, self.state)
+        if m is None:
+            return None
+        fold = Section(m["summary"], None, False)
+        fold.button.setAccessibleName("Mapping coverage")
+        layout = fold.body_layout
+        layout.addWidget(_label(m["note"]))
+        layout.addWidget(_label(m["line"]))
+        if m["source"]:
+            layout.addWidget(_muted(m["source"]))
+        layout.addWidget(self._grid(cw.UNMAPPED_COLUMNS, m["rows"], {c: 1 for c in range(len(cw.UNMAPPED_COLUMNS))}))
+        if m["unidentified"] is not None:
+            layout.addWidget(_label(f"<b>{cw.UNIDENTIFIED_HEAD}</b>", rich=True))
+            layout.addWidget(_muted(m["unidentified"]["note"]))
+            layout.addWidget(self._grid(cw.UNIDENTIFIED_COLUMNS, m["unidentified"]["rows"], {0: 1, 1: 1}))
+        row, line = _plain(QHBoxLayout, 8)
+        line.addWidget(_button(cw.EXPORT_MAPPINGS, lambda report=m["report"]: self._export_mappings(report)))
+        self.mapping_status = _label("", "small")
+        line.addWidget(self.mapping_status, 1)
+        layout.addWidget(row)
+        return _noted(fold)
+
+    def _ask_where(self, name: str) -> str:
+        """Where a file is saved, the computer's Downloads folder offered (where a browser puts a download)."""
+        folder = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation) or os.path.expanduser("~")
+        path, _kind = QFileDialog.getSaveFileName(self, cw.EXPORT_MAPPINGS, os.path.join(folder, name), "JSON (*.json)")
+        return path
+
+    def _export_mappings(self, report: dict) -> None:
+        """The mapping report saved where the computer's user chooses (``data-export-mappings``)."""
+        path = self._ask_where(cw.MAPPING_FILE)
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as file:
+                file.write(cw.mapping_report(report))
+        except OSError as problem:
+            words = f"The mapping report could not be saved: {problem}"
+        else:
+            words = f"Mapping report saved: {path}"
+        if self.mapping_status is not None:
+            self.mapping_status.setText(words)
+
+    def _insights(self, d: dict) -> QWidget:
+        """The encounter insights, open (``insightsHTML``); or why an older log holds none."""
+        model = cw.insights(self.doc, d, self.state)
+        if model.get("missing"):
+            return _note(model["missing"])
+        fold = Section(cw.INSIGHTS_HEAD, None, True)
+        fold.button.setAccessibleName(cw.INSIGHTS)
+        self.insights_fold = fold
+        layout = fold.body_layout
+
+        def part(words: str, note: str, columns=None, rows=None, rich: bool = False) -> None:
+            layout.addWidget(_label(f"<b>{html.escape(words, quote=False)}</b>", rich=True))
+            layout.addWidget(_label(note, "small", rich=rich))
+            if columns is not None:
+                layout.addWidget(self._rows(columns, rows, d))
+        layout.addWidget(_label(model["intro"]))
+        if model["limits"]:
+            layout.addWidget(_label(model["limits"]))
+        part("Evidence coverage", cw.COVERAGE_NOTE)
+        if model["coverage"] is None:
+            layout.addWidget(_label(cw.COVERAGE_OLDER))
+        else:
+            layout.addWidget(self._rows(cw.COVERAGE_COLUMNS, model["coverage"], d))
+        pressure = model["pressure"]
+        if pressure is not None:
+            part("Peak recorded pressure windows", pressure["note"])
+            layout.addWidget(_muted(pressure["line"]))
+            layout.addWidget(self._rows(cw.PRESSURE_COLUMNS, pressure["windows"], d))
+            part("Incoming abilities", cw.INCOMING_NOTE, cw.INCOMING_COLUMNS, pressure["incoming"])
+        part("Boss HP milestones", cw.MILESTONES_NOTE, cw.MILESTONE_COLUMNS, model["milestones"])
+        part("Healing relationships", model["healing_note"], cw.HEALING_COLUMNS, model["healing"])
+        effective = model["effective"]
+        if effective is not None:
+            part("Effective healing and overheal", effective["note"], cw.HEALERS_COLUMNS, effective["healers"], rich=True)
+            layout.addWidget(self._rows(cw.HEALING_PAIRS_COLUMNS, effective["pairs"], d))
+            if effective["omitted"]:
+                layout.addWidget(_muted(effective["omitted"]))
+        part("Imported buff windows", model["buffs_note"], cw.BUFF_WINDOWS_COLUMNS, model["buffs"])
+        part("Observed ability effects", cw.EFFECTS_NOTE, cw.EFFECTS_COLUMNS, model["effects"])
+        part("Opening effect sequence", cw.OPENING_NOTE, cw.OPENING_COLUMNS, model["opening"])
+        return _noted(fold)
 
     # ---------------------------------------------------------------- the death recaps (0.2.462)
     def _recaps(self, v: dict) -> QWidget:

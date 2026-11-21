@@ -17,6 +17,8 @@ These are the review's model and the frame's words:
   buffs and debuffs; the crowd control; the break gauge; the boss casts; and the buff contribution estimate.
 - Since 0.2.462 the player death recaps (``recapsHTML``): the analyzer's recaps of the party's deaths, an opponent's own
   (``recapsOf``) with the party's deaths they struck in, and each recap's effects and HP samples.
+- Since 0.2.463 the encounter insights (``insightsHTML``), the automatic encounter context (``classificationHTML``) and
+  the mapping coverage (``catalogHTML``) with its report.
 """
 from __future__ import annotations
 
@@ -54,7 +56,7 @@ OPPONENT_NOTE = ("The review below reads the fight from their side: the summary,
                  "their deaths, and the buffs, debuffs and crowd control on and from them. Only what the recording holds of "
                  "them is shown.")
 REFRESH = "Refresh rankings"
-ELSEWHERE = "The insights, rankings, reports, comparisons and movement replay of this log open in the web interface for now."
+ELSEWHERE = "The rankings, reports, comparisons and movement replay of this log open in the web interface for now."
 OPEN_WEB = "Open the full review in the web interface"
 SUMMARY_COLUMNS = ["Player / server", "Class", "Damage done", "DPS", "Damage taken", "Healing", "HPS", "Deaths"]
 
@@ -195,7 +197,7 @@ def fresh_state(mode=None, segment=None) -> dict:
             "metric": "summary", "view": "table", "combine": True, "pets": True, "actor": "", "enemy": "", "graph": True,
             "graph_mode": "total", "hidden": set(), "timeline": True, "timeline_window": 30, "timeline_start": 0.0,
             "skills": True, "deaths": True, "heals": True, "page": 0, "ef": None, "ef_search": {}, "ef_open": "",
-            "detail": "contribution", "hide_procs": True, "actions": "rotation", "recap": None}
+            "detail": "contribution", "hide_procs": True, "actions": "rotation", "recap": None, "insights": False}
 
 
 def settle_segment(doc: dict, state: dict) -> None:
@@ -2109,4 +2111,257 @@ def recaps(doc: dict, d: dict, state: dict) -> dict:
             "events": [[relative(e), js_string(e.get("kind")), _cell_actor(e.get("source")),
                         js_string(_first(e.get("skill"), e.get("skill_id"), "Unknown")), number(e.get("amount"))] for e in events],
             "health": [[relative(s), recap_hp(s)] for s in _list(selected.get("health"))]}
+    return out
+
+
+# ------------------------------------------------------------------ the encounter's context, mapping and insights (0.2.463)
+CONTEXT_LABELS = {"catalog_match": "Catalog match", "map_match": "Map match", "ambiguous": "Partial match",
+                  "conflict": "Conflicting evidence", "unavailable": "Not identified"}
+CONTEXT_COLUMNS = ["Recorded NPC ID", "Catalog instance", "Category", "Tier"]
+UNMAPPED_COLUMNS = ["Kind", "Recorded ID", "Entity references", "Recorded effects"]
+UNIDENTIFIED_HEAD = "Enemy references without an NPC type"
+UNIDENTIFIED_NOTE = ("These actor references apply only to this recorded session. They are not NPC catalog IDs; a supported "
+                     "spawn/identity record is needed to identify them.")
+UNIDENTIFIED_COLUMNS = ["Session actor reference", "Recorded effects"]
+EXPORT_MAPPINGS = "Export mapping report"
+MAPPING_FILE = "aion2-mapping-report.json"
+INSIGHTS = "Encounter insights"
+INSIGHTS_HEAD = "Encounter insights · observed evidence"
+INSIGHTS_OLDER = ("Encounter insights are unavailable in this older view. Reopen the local file with the updated app, or update "
+                  "the sharing server.")
+INSIGHTS_FILTERS = ("Player and pet filters apply to effect rows; enemy/metric/graph filters do not change these encounter-wide "
+                    "summaries. Pets retain their own source labels, even with owner grouping enabled. HP milestones describe "
+                    "all marked bosses.")
+COVERAGE_NOTE = ("Counts describe this retained encounter. Not recorded does not prove an effect never happened. Missing "
+                 "attribution can limit player-specific summaries.")
+COVERAGE_COLUMNS = ["Evidence", "Status", "Records", "Basis"]
+COVERAGE_OLDER = "Update the sharing server or reopen the file with the updated app for evidence coverage and pressure summaries."
+PRESSURE_COLUMNS = ["Actor", "Metric", "Window", "Start → end", "Observed span", "Recorded amount", "Effects",
+                    "Recorded healing received"]
+PRESSURE_METRICS = {"damage_done": "Damage done", "healing_done": "Healing done", "damage_taken": "Damage taken"}
+INCOMING_NOTE = ("Recorded damage by source, recipient and ability across this encounter. Largest hit is one recorded damage "
+                 "effect. Totals retain effects at death timestamps; peak windows exclude those ambiguous boundaries. No killing "
+                 "blow or avoidability is inferred.")
+INCOMING_COLUMNS = ["Source", "Recipient", "Ability", "Recorded amount", "Effects", "Largest hit", "First → last"]
+MILESTONES_NOTE = ("First recorded sample at or below each threshold. A capture starting late can show several thresholds at the "
+                   "same time. No interpolation, named phase or exact crossing time is inferred; raw HP without an observed "
+                   "maximum cannot establish percentages.")
+MILESTONE_COLUMNS = ["Boss", "Threshold", "First observed sample", "Observed HP"]
+HEALING_COLUMNS = ["Healer", "Recipient", "Recorded amount", "Effects"]
+EFFECTIVE_NOTE = ("An instant heal on a player restores at most the HP they are missing: that part is effective healing, the rest "
+                  "overheal. Both come from the party HP feed (the target's last HP reading before the heal, and their maximum "
+                  "HP); a heal with no earlier reading or no known maximum is counted under <i>No reading</i>. Heals over time "
+                  "and shields are listed apart and not measured (shields by their records from 0.2.399, else from the skill "
+                  "descriptions; potions heal over time). A log recorded with 0.2.399 or later holds each tick and each absorb, "
+                  "credited to the caster. An older one holds the whole heal over time or shield when it was cast and then, at "
+                  "each tick or absorb, what was left of it: since 0.2.404 its heals over time are read as what each tick took, "
+                  "and its shields still read high.")
+HEALERS_COLUMNS = ["Healer", "Recorded", "Effective", "Overheal", "Over time", "Shields", "No reading"]
+HEALING_PAIRS_COLUMNS = ["Healer", "Recipient", "Recorded", "Effective", "Overheal", "Over time", "Shields"]
+BUFF_WINDOWS_NOTE = ("Overlapping windows for the same buff/recipient are merged and clipped to the encounter. Uptime uses total "
+                     "encounter duration. Overlap uses recipient outgoing damage at or after the window start and before its "
+                     "end. It excludes pets and does not measure damage caused by the buff. Buff caster and live buff coverage "
+                     "are unavailable.")
+BUFF_WINDOWS_COLUMNS = ["Recipient", "Buff", "Observed duration", "Encounter uptime", "Merged windows", "Overlapping damage",
+                        "Damage effects", "Recipient encounter damage"]
+EFFECTS_NOTE = ("Counts describe effects, not casts. First/last timestamps are observed effect times, not cooldown usage or "
+                "action uptime.")
+EFFECTS_COLUMNS = ["Source", "Ability", "Kind", "Effects", "Recorded amount", "First → last"]
+OPENING_NOTE = ("First 20 retained effects per player or pet, capped at 100 per encounter. This is an observed sequence, not a "
+                "recommended rotation. Equal timestamps do not prove order.")
+OPENING_COLUMNS = ["Time", "Source", "Target", "Ability", "Kind", "Amount"]
+
+
+def insights_of(doc: dict, state: dict) -> dict | None:
+    """The analyzer's summary of the encounter chosen (``encounter_insights``), or None for an older log."""
+    for s in _list(_dict(doc.get("encounter_insights")).get("segments")):
+        if isinstance(s, dict) and s.get("segment") == state["segment"]:
+            return s
+    return None
+
+
+def encounter_context(d: dict) -> dict | None:
+    """The automatic encounter context (``classificationHTML``), folded: how the live meter placed the encounter in the
+    catalog, from the recorded map and instance and the NPCs' catalog entries; nothing when the log holds none."""
+    c = d["segment"].get("classification")
+    if not _truthy(c):
+        return None
+    c = _dict(c)
+    status = c.get("status")
+    summary = ("Automatic encounter context · "
+               + js_string(_first(CONTEXT_LABELS.get(status) if isinstance(status, str) else None, status))
+               + (" · NPC-only suggestion" if c.get("basis") == "npc_only" else ""))
+    line = (f"Recorded map: {js_string(_first(c.get('recorded_map_id'), 'not recorded'))} · Recorded instance: "
+            f"{js_string(_first(c.get('recorded_instance_id'), 'not recorded'))} · Catalog instance candidate: "
+            f"{js_string(_first(c.get('catalog_instance_id'), 'not identified'))} · Basis: "
+            f"{js_string(_first(c.get('basis'), 'none')).replace('_', ' ')}.")
+    npcs = [[js_string(r.get("npc_id")), js_string(r.get("instance_id")), js_string(_first(r.get("category"), "Unavailable")),
+             js_string(_first(r.get("tier"), "Unavailable"))] for r in (_dict(x) for x in _list(c.get("npcs")))]
+    return {"summary": summary, "note": js_string(c.get("note")), "line": line,
+            "notes": [js_string(x) for x in _list(c.get("conflicts")) + _list(c.get("ambiguities"))], "npcs": npcs,
+            "omitted": f"{number(c['omitted_npcs'])} additional NPC rows omitted." if _truthy(c.get("omitted_npcs")) else ""}
+
+
+def mapping_coverage(doc: dict, state: dict) -> dict | None:
+    """The mapping coverage (``catalogHTML``), folded: the recorded IDs the bundled catalog doesn't name, the enemy
+    references without an NPC type, and the catalog's source; with the report to export (``report``). Nothing for a log
+    the analyzer hasn't read."""
+    c = _dict(insights_of(doc, state)).get("catalog")
+    if not _truthy(c):
+        return None
+    c = _dict(c)
+    unmapped = [_dict(x) for x in _list(c.get("unmapped"))]
+    missing = c.get("npc_entities_without_type")
+    summary = (f"Mapping coverage · {len(unmapped)}{'+' if _truthy(c.get('omitted')) else ''} unresolved catalog IDs · "
+               f"{number(missing)} missing NPC types")
+    line = (f"Catalog {js_string(c.get('catalog_revision'))} · Map {js_string(_first(c.get('map_id'), 'not recorded'))} · "
+            f"Instance {js_string(_first(c.get('instance_id'), 'not recorded'))} · {number(missing)} enemy references have no "
+            f"NPC type. " + (f"{number(c['omitted'])} additional IDs omitted." if _truthy(c.get("omitted")) else ""))
+    source = _dict(c.get("catalog_source"))
+    source_line = ""
+    if _truthy(source.get("revision")):
+        source_line = (f"Mapping source: {js_string(source.get('repository'))} · commit {js_string(source['revision'])[:12]} · "
+                       f"checked {js_string(_first(source.get('checked_at'), 'not recorded'))}. English table hashes "
+                       + ("match the source snapshot" if source.get("english_tables_match_source") is True
+                          else "not confirmed against the source snapshot")
+                       + f". Community catalog; game-version association {js_string(_first(source.get('game_build'), 'not established'))}.")
+    rows = [[js_string(r.get("kind")), js_string(r.get("code")), number(r.get("entity_count")), number(r.get("effects"))]
+            for r in unmapped]
+    unidentified = None
+    references = [_dict(x) for x in _list(c.get("unidentified_entities"))]
+    if references:
+        more = c.get("unidentified_omitted")
+        unidentified = {"note": f"{UNIDENTIFIED_NOTE} " + (f"{number(more)} additional references omitted." if _truthy(more) else ""),
+                        "rows": [[js_string(r.get("entity")), "Unavailable" if r.get("effects") is None else number(r["effects"])]
+                                 for r in references]}
+    return {"summary": summary, "note": js_string(c.get("note")), "line": line, "source": source_line, "rows": rows,
+            "unidentified": unidentified, "report": c}
+
+
+def mapping_report(report: dict) -> str:
+    """The mapping report's file (``data-export-mappings``): the coverage as JSON, two spaces deep."""
+    import json
+    return json.dumps(report, indent=2, ensure_ascii=False)
+
+
+def insights(doc: dict, d: dict, state: dict) -> dict:
+    """The encounter insights (``insightsHTML``), the analyzer's evidence for the whole encounter: what it holds, the
+    peak pressure windows and incoming abilities, the bosses' HP milestones, the healing between players and how much of
+    it was effective, the imported buff windows, each ability's effects and the opening sequence. The player chosen and
+    the pets shown narrow the rows; nothing else does."""
+    analysis = _dict(doc.get("encounter_insights"))
+    s = insights_of(doc, state)
+    if s is None:
+        return {"missing": INSIGHTS_OLDER}
+    r = d["r"]
+
+    def selected(identifier) -> bool:
+        return not state["actor"] or d["owner"](identifier) == state["actor"]
+
+    def pet(identifier) -> bool:
+        return not state.get("pets", True) and _truthy(_dict(r.get(identifier)).get("owner"))
+
+    def ability(x) -> str:
+        return js_string(_first(x.get("skill"), x.get("name"), x.get("skill_id"), "Unknown ability"))
+
+    def span(x) -> str:
+        return f"{fixed(x.get('first'), 3)} → {fixed(x.get('last'), 3)}s"
+
+    def rows_of(key):
+        return [_dict(x) for x in _list(s.get(key))]
+    omitted = ", ".join(f"{js_string(n)} {key} rows" for key, n in _dict(s.get("omitted")).items() if _truthy(n))
+    opening_left = s.get("omitted_opening")
+    out = {"intro": f"{js_string(analysis.get('note'))} {INSIGHTS_FILTERS}", "limits": ""}
+    if omitted or _truthy(opening_left):
+        out["limits"] = (f"Session detail limits omitted: {omitted}"
+                         + (f" · {js_string(opening_left)} opening effects" if _truthy(opening_left) else "")
+                         + ". Filters apply after limits; use Events for retained underlying effects.")
+    coverage = s.get("capabilities")
+    if _truthy(coverage):
+        out["coverage"] = []
+        for x in (_dict(y) for y in _list(coverage)):
+            records = x.get("records", _ABSENT)
+            null = "records" in x and records is None
+            out["coverage"].append([js_string(x.get("feature")),
+                                    "Unavailable" if null else "Recorded" if (_num(records) or 0) > 0 else "Not recorded",
+                                    "—" if null else number(None if records is _ABSENT else records), js_string(x.get("basis"))])
+    else:
+        out["coverage"] = None
+    p = s.get("pressure")
+    out["pressure"] = None
+    if _truthy(p):
+        p = _dict(p)
+
+        def healing_received(x) -> str:
+            if x.get("recorded_healing") is None:
+                return "—"
+            return f"{number(x['recorded_healing'])} · {number(x.get('healing_effects'))} effects"
+        windows = [x for x in (_dict(y) for y in _list(p.get("windows"))) if selected(x.get("actor")) and not pet(x.get("actor"))]
+        incoming = [x for x in (_dict(y) for y in _list(p.get("incoming")))
+                    if selected(x.get("target")) and not pet(x.get("target")) and not pet(x.get("source"))]
+        out["pressure"] = {
+            "note": js_string(p.get("note")),
+            "line": (f"{number(p.get('death_boundary_effect_references'))} actor/metric effect references excluded at death "
+                     f"timestamps; {number(p.get('outside_duration_effects'))} effects outside encounter duration excluded. "
+                     f"{number(p.get('omitted_windows'))} window rows and {number(p.get('omitted_incoming'))} incoming-ability "
+                     "rows omitted before filters."),
+            "windows": [[_cell_actor(x.get("actor")),
+                         js_string(_first(PRESSURE_METRICS.get(x.get("metric")) if isinstance(x.get("metric"), str) else None,
+                                          x.get("metric"))),
+                         f"{number(x.get('window_s'))}s", f"{fixed(x.get('start_s'), 3)} → {fixed(x.get('end_s'), 3)}s",
+                         f"{fixed(x.get('observed_span_s'), 3)}s", number(x.get("amount")), number(x.get("effects")),
+                         healing_received(x)] for x in windows],
+            "incoming": [[_cell_actor(x.get("source")), _cell_actor(x.get("target")), ability(x), number(x.get("amount")),
+                          number(x.get("effects")), number(x.get("largest_hit")), span(x)] for x in incoming]}
+    out["milestones"] = [[actor_label(r.get(x.get("entity"))), f"≤ {js_string(x.get('threshold_pct'))}%", f"{fixed(x.get('t'), 3)}s",
+                          f"{number(x.get('current'))} / {number(x.get('max'))} ({fixed(x.get('observed_pct'), 1)}%)"]
+                         for x in rows_of("milestones")]
+    out["healing_note"] = (f"{js_string(s.get('healing_without_source'))} healing effects lack a source; "
+                           f"{js_string(s.get('healing_without_target'))} lack a recipient. These are excluded from pairs, not "
+                           "assigned to a player. Recorded amounts include overheal; effective healing on players is below.")
+    out["healing"] = [[_cell_actor(x.get("source")), _cell_actor(x.get("target")), number(x.get("amount")), js_string(x.get("effects"))]
+                      for x in rows_of("healing") if (selected(x.get("source")) or selected(x.get("target")))
+                      and not pet(x.get("source")) and not pet(x.get("target"))]
+    h = s.get("healing_effect")
+    out["effective"] = None
+    if _truthy(h):
+        h = _dict(h)
+        c = _dict(h.get("check"))
+        rebuilt = _dict(d["segment"].get("heals_over_time"))
+
+        def over(x) -> dict:
+            pct = x.get("overheal_pct")
+            return {"html": number(x.get("overheal")) + ("" if pct is None else _muted_html(f"{fixed(pct, 1)}%"))}
+        note = (EFFECTIVE_NOTE
+                + (f" Here {number(rebuilt['records'])} heal-over-time records were rebuilt, {number(rebuilt.get('amount'))} as "
+                   f"recorded, {number(rebuilt.get('rebuilt'))} as the ticks took." if _truthy(rebuilt.get("records")) else "")
+                + f" Check, per read that healed a player: the HP after it matched the HP before plus its effective healing "
+                  f"{number(c.get('exact'))} times in full and {number(c.get('capped'))} times topped up to maximum HP; "
+                  f"{number(c.get('other'))} reads had other changes in between (damage, ticks) and {number(c.get('unchecked'))} "
+                  "could not be checked.")
+        healers = [x for x in (_dict(y) for y in _list(h.get("healers"))) if selected(x.get("source")) and not pet(x.get("source"))]
+        pairs = [x for x in (_dict(y) for y in _list(h.get("pairs")))
+                 if (selected(x.get("source")) or selected(x.get("target"))) and not pet(x.get("source"))]
+        out["effective"] = {
+            "note": note,
+            "healers": [[_cell_actor(x.get("source")), number(x.get("amount")), number(x.get("effective")), over(x),
+                         number(x.get("over_time")), number(x.get("shield")), number(x.get("unknown"))] for x in healers],
+            "pairs": [[_cell_actor(x.get("source")), _cell_actor(x.get("target")), number(x.get("amount")), number(x.get("effective")),
+                       over(x), number(x.get("over_time")), number(x.get("shield"))] for x in pairs],
+            "omitted": (f"{number(h['omitted_pairs'])} smaller pairs are not listed." if _truthy(h.get("omitted_pairs")) else "")}
+
+    def unavailable(x, key, show) -> str:
+        return "Unavailable" if x.get(key) is None else show(x[key])
+    out["buffs_note"] = f"{BUFF_WINDOWS_NOTE} {js_string(s.get('invalid_buff_windows'))} empty/reversed/outside windows excluded."
+    out["buffs"] = [[_cell_actor(x.get("player")), ability(x), f"{fixed(x.get('seconds'), 2)}s",
+                     "Unavailable" if "uptime_pct" in x and x["uptime_pct"] is None else f"{fixed(x.get('uptime_pct'), 1)}%",
+                     js_string(x.get("windows")), unavailable(x, "overlap_damage", number),
+                     unavailable(x, "overlap_effects", number), unavailable(x, "recipient_damage_total", number)]
+                    for x in rows_of("buffs") if selected(x.get("player")) and not pet(x.get("player"))]
+    out["effects"] = [[_cell_actor(x.get("source")), ability(x), js_string(x.get("kind")), js_string(x.get("effects")),
+                       number(x.get("amount")), span(x)]
+                      for x in rows_of("skills") if selected(x.get("source")) and not pet(x.get("source"))]
+    out["opening"] = [[f"{fixed(x.get('t'), 3)}s", _cell_actor(x.get("source")), _cell_actor(x.get("target")), ability(x),
+                       js_string(x.get("kind")), number(x.get("amount"))]
+                      for x in rows_of("opening") if selected(x.get("source")) and not pet(x.get("source"))]
     return out
