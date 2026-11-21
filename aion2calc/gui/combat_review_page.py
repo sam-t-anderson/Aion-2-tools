@@ -1784,8 +1784,9 @@ class ReviewPage(QWidget):
             line.addWidget(_button(cw.BACK_TO_SAVED, self._back_to_saved))
             line.addStretch(1)
             body.addWidget(row)
-        body.addWidget(self._lookup(model))
-        body.addWidget(_muted(cw.LOOKUP_NOTE))
+        if not cw.reconstructed(self.doc):                           # ``options.lookupProfile``: never a combined review's
+            body.addWidget(self._lookup(model))
+            body.addWidget(_muted(cw.LOOKUP_NOTE))
         if model["pending"]:
             body.addWidget(_muted(cw.PENDING_NOTE))
         body.addWidget(_label(self.profile_message))

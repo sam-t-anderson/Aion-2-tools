@@ -4243,6 +4243,10 @@ def test_a_recordings_parts_and_their_combined_review(qapp, tmp_path):
     assert view.state["segment"] == 1 and view.state["actor"] == "" and "12:34.3" in _cells(view)
     assert any(t.startswith("3 encounters · 2:10.0 active outgoing seconds") for t in labels)
     assert not view.rankings() and cw.STANDINGS_HEAD not in labels                # a combined review ranks nothing
+    _find(view, QPushButton, lambda b: b.accessibleName().startswith("Character build of TestSorc")).click()
+    assert view.build_window is not None and cw.LOOKUP_NOTE not in _labels(view)   # nor looks a profile up
+    assert not [b for b in view.findChildren(QPushButton) if b.isVisible() and b.text() == cw.FETCH_CURRENT]
+    _click(view, cw.BACK_TO_LOG)
     target = tmp_path / "combined.json"
     view._ask_where = lambda name: str(target) if name == cw.COMBINED_FILE else ""
     _click(view, cw.EXPORT_COMBINED)
