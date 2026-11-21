@@ -1,3 +1,14 @@
+## Gear & Advice in the native interface (0.2.443)
+
+**Gear & Advice is native now**, but for the advice's full view. The app's window draws Character → Gear & Advice itself, as the web page shows it:
+- **The character** to advise, chosen among those imported on My Character, and **Run advice**: its progress as it runs, with its log. The advice kept from the last run says when it was calculated and what has changed since. Opening the page, or another character, shows the advice kept, or runs it when there is none;
+- **The inventory:** the items the character wears and those added from the bag and warehouse, each with its rolls, skill options and source. **Edit** and **Remove** work on those added, and the catalog's search adds more;
+- **The item panel:** an item's enchant level with the catalog's stats at that level, its random rolls (each a stat of its pool and its value), its skill options and a note;
+- **Genus Insight:** the Genus editor and the row that reads it from the game, as on My Character. Saving the lines sets the advice aside until it runs again;
+- **Titles you own:** the Title window's pages read from the game, whether each was read with "Show unacquired titles only" ticked, the titles they say you own (put in the list, or added to it), and the list kept with **Save titles**.
+
+The advice's full view (the paper doll, upgrade path, arcana, pantheon, genus, titles and fights) still opens in the web interface: **Open the advice** shows it there.
+
 ## My Character's Pet Genus Insight editor in the native interface (0.2.442)
 
 **My Character's Pet Genus Insight panel is whole in the native interface.** Under its title, below whether the saved lines count and the PvE enemy mix, are the character's saved lines in the **Genus editor**, as the web page draws it:
