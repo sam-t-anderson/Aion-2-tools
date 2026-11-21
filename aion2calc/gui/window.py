@@ -26,6 +26,7 @@ from .database_page import DatabasePage
 from .gathering_page import GatheringPage
 from .history_page import HistoryPage
 from .maps_page import MapsPage
+from .planner_page import PlannerPage
 from .pets_page import PetsPage
 from .timers_page import TimersPage
 from .overlay import START_SCOPE, counter_lines
@@ -242,6 +243,8 @@ class MainWindow(QMainWindow):
                     widget = MapsPage(api)
                 elif key == "history":
                     widget = HistoryPage(api, self.open_web)
+                elif key == "planner":
+                    widget = PlannerPage(api, self.show_page, self.open_web)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)
