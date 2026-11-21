@@ -1,3 +1,13 @@
+## Account in the native interface, part 1 (0.2.447)
+
+**Account opens in the app's window now**, as the web page draws it:
+- **Signed out:** what an account offers, **Create my account** with an optional name, and under **I already have an account**: **Sign in with Discord** (your browser opens; the page waits for it), **Link with a code** from the website, and **Recover with my uploads**. It says why it is signed out: a sign-in that ended, one on another server than Settings uses (with **Sign out**), or no log server chosen;
+- **Signed in:** the account's name with its logs and characters, and its tabs;
+- **Sign-in & security:** the name with **Rename**; **Approve a website sign-in** by the code the website shows (it first says which browser asks, and whether it started on this computer's internet connection) and **Open the website signed in**; the Discord, passkeys and desktop apps it has; where it is signed in, each with **Sign out**, and **Sign out everywhere else**; its recent activity; and **Close the account**;
+- **Sign out** stands on the page, where the web page has it in its header's account menu.
+
+**My logs**, **Top parses** and **Legions** still open in the web interface: **Open them on the web page**.
+
 ## The whole advice in the native interface (0.2.446)
 
 **Gear & Advice is whole in the native interface now**: its advice's last window, **Genus Insight**, is drawn in the app's window too, as the web page draws it:
