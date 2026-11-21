@@ -528,6 +528,8 @@ class FakeApp:
         self.calls.append(path)
         if path == "/api/logs":
             return {"folder": "/data/logs", "files": 12}
+        if path == "/static/aoe-shapes.json":                         # the bosses' skills' measured areas (none here)
+            return json.loads(json.dumps(getattr(self, "aoe_shapes", {"shapes": {}})))
         if path == "/api/logserver":
             return dict(self.server)
         if path == "/api/encounters":

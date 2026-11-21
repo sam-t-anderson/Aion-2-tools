@@ -1,3 +1,13 @@
+## A combat log's own page in the native interface, part 13 (0.2.469)
+
+**A log's movement replay in the app's window now shows why everyone moved**, as the web page's replay does:
+- **the boss casts:** each drawn for a few seconds from its time, a ring on the caster, a wedge the way it faced, and a line to where it was aimed with a marker there;
+- **the measured areas:** where a boss skill's hits landed across the public recordings, drawn where it was cast for as long as it stays: a circle around the aim or the caster, a ring, a cone, a line ahead of the caster, a dash or a trail along the boss's path, or wedges with safe gaps between them. The pointer names the skill, where it was aimed, the area and how well it fits;
+- **the events:** an enemy ringed where it appeared, a ✕ where a player fell until they are revived, a ring as they are revived, and where a boss's add or clone struck a player;
+- **the list beside the arena:** each cast and event in time order, the same at the same moment one row with a count, and where each cast was aimed and its area. The rows in progress are marked as the replay plays and the list follows them; choosing a row goes to its time. The time slider carries a tick at each. In a narrow window the list goes under the arena.
+
+The replay's key, other recordings' movement and its Raid Planner file still open in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 12 (0.2.468)
 
 **A log's review in the app's window now plays the fight's movement back**, as the web page's replay does:
