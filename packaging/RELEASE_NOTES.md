@@ -1,3 +1,16 @@
+## Combat Logs' Saved Logs whole in the native interface (0.2.451)
+
+**Saved Logs is whole in the app's window now**: its recorded encounters and its upload queue are drawn there too, as the web page draws them:
+- **Recorded encounters by type:** every fight of every recording this computer saved, fifty recordings at a time (**Load more recordings**), in sections by kind (PvP, world and field bosses, raids, the dungeons, the open world), the first section open. Each row shows the boss's portrait, its role, difficulty, length and when it was saved, and **view** opens it at that fight. Filter by boss, kind, role, difficulty and the days saved. Mini-bosses are hidden unless **show** is ticked, and that choice is kept;
+- **Upload recordings:** the saved parts, twenty-five to a page (**Newer**, **Older**) or one recording's parts (**Show recording**), filtered by name, recording or encounter type. Put up to a hundred in the queue, then **Upload selected / retry remaining** sends each as its own report to your log server, as the web page does:
+  - a file that changed since it was queued stops the batch;
+  - an upload whose outcome is unknown is retried only once you tick that you checked My uploads;
+  - a connection, sign-in or rate-limit refusal stops the batch;
+  - **Cancel after current upload** stops it before the next file;
+  - the queue's recovery checkpoint is kept by the app (never a key, a private link or a credential). **Restore saved queue** brings it back, and it can be imported or exported as a file. **Export upload results** saves what each upload did.
+
+Saved Logs stays as it is while you look at another list or view, so an upload under way goes on. Its recordings, folder, log server and encounters are read again when you come back to the page.
+
 ## Combat Logs in the native interface, part 1 (0.2.450)
 
 **Combat Logs opens in the app's window now**, with its views (Browse logs, Completed-run speed, Boss progression, Highest observed build points and Personal records) and its lists (Community Combat Logs, My Uploads, Saved Logs and My Character Identities) as the web page has them. **Saved Logs** is drawn there:

@@ -7,81 +7,42 @@
   then its analysis; the folder every analyzed log is saved in, with **Open folder**; the **log server** shared to,
   with its upload key (only whether one is saved is shown) and who sees the uploads; and the **encounters analyzed**,
   each opened.
-- The other views and lists, the recorded encounters by type, the recordings to upload, and an encounter's analysis
-  open in the web interface for now.
+- Since 0.2.451 its **recorded encounters by type** and its **upload queue** too (combat_saved.py). The Saved Logs
+  list stays as it is while the page lives, its upload going on while another list or view is shown, and its
+  recordings, folder, log server and encounters are read again when the page is shown again.
+- The other views and lists, and an encounter's analysis, open in the web interface for now.
 """
 from __future__ import annotations
 
 import html
 import os
 
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QComboBox, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QComboBox, QFileDialog, QFrame, QHBoxLayout, QLineEdit, QPushButton, QScrollArea, QVBoxLayout,
+                               QWidget)
 
 from . import combat as cb
 from . import theme
 from .api import AppApi, Job, Requests
+from .combat_saved import RecordedEncounters, UploadQueue, _button, _clear, _head, _label, _row
 from .database_page import Window
 from .gathering_page import GatheringPage
 from .pets_page import Toast
 from .result_windows import STYLE as RESULT_STYLE, GridTable
 
 
-def _label(text: str = "", name: str = "", rich: bool = False, wrap: bool = True) -> QLabel:
-    label = QLabel(text)
-    label.setTextFormat(Qt.RichText if rich else Qt.PlainText)
-    label.setWordWrap(wrap)
-    if name:
-        label.setObjectName(name)
-    return label
-
-
-def _button(words: str, action, name: str = "small") -> QPushButton:
-    button = QPushButton(words)
-    button.setObjectName(name)
-    button.clicked.connect(lambda _checked=False: action())
-    return button
-
-
-def _head(words: str) -> QLabel:
-    """A heading (``h3``); its margin would make it a frame, which indents a label's words."""
-    label = _label(words, "combatHead")
-    label.setIndent(0)
-    return label
-
-
-def _row(*widgets: QWidget) -> QWidget:
-    row = QWidget()
-    row.setObjectName("plain")
-    line = QHBoxLayout(row)
-    line.setContentsMargins(0, 0, 0, 0)
-    line.setSpacing(8)
-    for widget in widgets:
-        line.addWidget(widget)
-    line.addStretch(1)
-    return row
-
-
-def _clear(layout) -> None:
-    while layout.count():
-        child = layout.takeAt(0)
-        widget = child.widget()
-        if widget is not None:
-            widget.hide()
-            widget.setParent(None)
-            widget.deleteLater()
-
-
 class CombatPage(QWidget):
-    """Combat Logs. ``open_web`` opens a page of the web interface; ``choose_file`` and ``open_link`` stand in for the
-    file dialog and the browser."""
+    """Combat Logs. ``open_web`` opens a page of the web interface; ``choose_file``, ``choose_recovery`` and
+    ``save_file`` stand in for the file dialogs (a log to analyze, a recovery file to import, where an export goes) and
+    ``open_link`` for the browser; ``store`` keeps the choices the web page keeps in its browser."""
 
-    def __init__(self, api: AppApi | None, open_web=None, choose_file=None, open_link=None, parent: QWidget | None = None):
+    def __init__(self, api: AppApi | None, open_web=None, choose_file=None, open_link=None, parent: QWidget | None = None,
+                 store=None, choose_recovery=None, save_file=None):
         super().__init__(parent)
-        self.api, self.open_web = api, open_web
+        self.api, self.open_web, self.store = api, open_web, store
         self.choose_file = choose_file or self._ask_file
+        self.choose_recovery, self.save_file = choose_recovery, save_file
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.view, self.list = "community", "community"              # ``st.logsTab``, ``st.listTab``
         self.requests = Requests(api, self) if api is not None else None
@@ -96,10 +57,23 @@ class CombatPage(QWidget):
         self.setStyleSheet(GatheringPage._stylesheet() + RESULT_STYLE + f"""
             QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
                 border: 1px solid rgba(233, 203, 128, 0.65); color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
+            QPushButton#primary:disabled {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(107, 85, 35, 0.5),
+                stop:1 rgba(63, 50, 21, 0.5)); border-color: rgba(233, 203, 128, 0.33); color: rgba(255, 243, 207, 0.5); }}
             QPushButton#small[chosen="true"] {{ font-weight: 700; text-decoration: underline; }}
             QLabel#combatHead {{ color: {theme.COLORS['text']}; font-size: 15px; font-weight: 700; margin-top: 6px; }}
             QLabel#combatMessage {{ color: {theme.COLORS['muted']}; }}
             QLabel#faint {{ color: {theme.COLORS['faint']}; }}
+            QLabel#small, QFrame#note QLabel#small {{ color: {theme.COLORS['muted']}; font-size: 12px; }}
+            QLabel#empty {{ color: {theme.COLORS['faint']}; padding: 18px; }}
+            QLabel#slBadge {{ color: rgba(233, 230, 223, 0.85); border: 1px solid rgba(233, 230, 223, 0.85);
+                border-radius: 9px; padding: 0px 6px; }}
+            QToolButton#fold {{ color: {theme.COLORS['text']}; font-weight: 600; border: none; background: transparent;
+                padding: 2px 0px; }}
+            QFrame#note {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
+                border-radius: 5px; padding: 9px 12px; }}
+            QFrame#note QLabel, QFrame#note QCheckBox {{ background: transparent; color: #f1d4a3; }}
+            QFrame#note QWidget#plain {{ background: transparent; }}
+            QFrame#note QLabel#queueHead {{ color: #f1d4a3; font-size: 15px; font-weight: 700; }}
             """ + Toast.STYLE)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -124,7 +98,23 @@ class CombatPage(QWidget):
         self.body.setContentsMargins(0, 6, 0, 0)
         self.body.setSpacing(10)
         self.frame.body.addWidget(holder)
-        self.message: QLabel | None = None
+        self.lists_box = QWidget()                       # the lists' tabs, under Browse logs
+        self.lists_box.setObjectName("plain")
+        self.lists = QHBoxLayout(self.lists_box)
+        self.lists.setContentsMargins(0, 0, 0, 0)
+        self.lists.setSpacing(6)
+        self.body.addWidget(self.lists_box)
+        self.elsewhere_box = QWidget()                   # a view or a list the web page shows for now
+        self.elsewhere_box.setObjectName("plain")
+        self.elsewhere = QVBoxLayout(self.elsewhere_box)
+        self.elsewhere.setContentsMargins(0, 0, 0, 0)
+        self.elsewhere.setSpacing(10)
+        self.body.addWidget(self.elsewhere_box)
+        self.saved_panel: QWidget | None = None          # Saved Logs, drawn once and kept
+        self.recorded: RecordedEncounters | None = None
+        self.queue: UploadQueue | None = None
+        self.message = None
+        self.seen = False
         self.toast = Toast(self)
         self.draw()
 
@@ -144,25 +134,24 @@ class CombatPage(QWidget):
 
     def draw(self) -> None:
         self._tabs(self.views, cb.VIEWS, self.view, self.show_view, underlined=True)
-        _clear(self.body)
-        self.message = None
-        if self.view != "community":
-            self.body.addWidget(_label(cb.ON_THE_WEB_VIEW, "muted"))
-            self.body.addWidget(_row(_button("Open it on the web page", lambda: self._web("combat"))))
-            return
-        lists = QHBoxLayout()
-        lists.setContentsMargins(0, 0, 0, 0)
-        lists.setSpacing(6)
-        holder = QWidget()
-        holder.setObjectName("plain")
-        holder.setLayout(lists)
-        self._tabs(lists, cb.LISTS, self.list, self.show_list)
-        self.body.addWidget(holder)
-        if self.list != "saved":
-            self.body.addWidget(_label(cb.ON_THE_WEB_LIST, "muted"))
-            self.body.addWidget(_row(_button("Open it on the web page", lambda: self._web(cb.list_page(self.list)))))
-            return
-        self._saved()
+        _clear(self.elsewhere)
+        community = self.view == "community"
+        saved = community and self.list == "saved"
+        self.lists_box.setVisible(community)
+        if community:
+            self._tabs(self.lists, cb.LISTS, self.list, self.show_list)
+        if not community:
+            self.elsewhere.addWidget(_label(cb.ON_THE_WEB_VIEW, "muted"))
+            self.elsewhere.addWidget(_row(_button("Open it on the web page", lambda: self._web("combat"))))
+        elif not saved:
+            self.elsewhere.addWidget(_label(cb.ON_THE_WEB_LIST, "muted"))
+            self.elsewhere.addWidget(_row(_button("Open it on the web page", lambda: self._web(cb.list_page(self.list)))))
+        if saved and self.saved_panel is None:
+            self.saved_panel = self._saved()
+            self.body.addWidget(self.saved_panel)
+        if self.saved_panel is not None:
+            self.saved_panel.setVisible(saved)
+        self.elsewhere_box.setVisible(not saved)
 
     def show_view(self, key: str) -> None:
         self.view = key
@@ -177,8 +166,14 @@ class CombatPage(QWidget):
             self.open_web(page)
 
     # ---------------------------------------------------------------- saved logs
-    def _saved(self) -> None:
-        """Saved Logs: a fight analyzed, where the logs are kept, the log server, and the encounters analyzed."""
+    def _saved(self) -> QWidget:
+        """Saved Logs: a fight analyzed, where the logs are kept, the log server, the recorded encounters by type, the
+        recordings to upload, and the encounters analyzed."""
+        panel = QWidget()
+        panel.setObjectName("plain")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
         self.ref = QLineEdit()
         self.ref.setPlaceholderText(cb.REF_HINT)
         self.ref.setAccessibleName("AbyssLogs or A2DIL link")
@@ -189,29 +184,48 @@ class CombatPage(QWidget):
         self.player.setMaximumWidth(180)
         self.analyze = _button("Analyze", self.import_link, "primary")
         self.message = _label("", "combatMessage", wrap=False)
-        self.body.addWidget(_row(self.ref, self.player, self.analyze, _label("or", "muted", wrap=False),
-                                 _button("Choose a file…", self.import_file), self.message))
+        layout.addWidget(_row(self.ref, self.player, self.analyze, _label("or", "muted", wrap=False),
+                              _button("Choose a file…", self.import_file), self.message))
         note = _label(cb.IMPORT_NOTE, "faint", rich=True)
         note.linkActivated.connect(self.open_link)
-        self.body.addWidget(note)
+        layout.addWidget(note)
         self.folder = _row()
-        self.body.addWidget(self.folder)
+        layout.addWidget(self.folder)
         self.server = _row()
-        self.body.addWidget(self.server)
-        for head in ("Recorded encounters by type", "Upload recordings"):
-            self.body.addWidget(_head(head))
-            self.body.addWidget(_row(_label(cb.ON_THE_WEB_PART, "muted", wrap=False),
-                                     _button("Open them on the web page", lambda: self._web(cb.list_page("saved")))))
-        self.body.addWidget(_head("Analyzed encounters"))
+        layout.addWidget(self.server)
+        layout.addWidget(_head("Recorded encounters by type"))
+        self.recorded = RecordedEncounters(self.api, self.open_web, store=self.store)
+        layout.addWidget(self.recorded)
+        layout.addWidget(_head("Upload recordings"))
+        self.queue = UploadQueue(self.api, self.open_web, open_link=self.open_link, choose_file=self.choose_recovery,
+                                 save_file=self.save_file)
+        layout.addWidget(self.queue)
+        layout.addWidget(_head("Analyzed encounters"))
         self.encounters_box = QWidget()
         self.encounters_box.setObjectName("plain")
         self.encounters = QVBoxLayout(self.encounters_box)
         self.encounters.setContentsMargins(0, 0, 0, 0)
-        self.body.addWidget(self.encounters_box)
+        layout.addWidget(self.encounters_box)
+        self._read_saved()
+        return panel
+
+    def _read_saved(self) -> None:
         if self.requests is not None:
             self.requests.get("logs", "/api/logs")
             self.requests.get("logserver", "/api/logserver")
             self.requests.get("encounters", "/api/encounters")
+
+    def showEvent(self, event) -> None:
+        """Saved Logs read again when the page is shown again, as the web page reads them when it opens; an upload
+        under way goes on."""
+        super().showEvent(event)
+        if self.seen and self.saved_panel is not None:
+            self._read_saved()
+            if self.recorded is not None:
+                self.recorded.load(True)
+            if self.queue is not None and not self.queue.busy:
+                self.queue.load(self.queue.offset)
+        self.seen = True
 
     def _replied(self, name: str, answer) -> None:
         if name == "logs":
@@ -239,7 +253,7 @@ class CombatPage(QWidget):
             return False
 
     def _folder(self, answer) -> None:
-        if self.list != "saved" or not self._alive(getattr(self, "folder", None)):
+        if not self._alive(getattr(self, "folder", None)):
             return
         folder, files = cb.folder_line(answer)
         line = self.folder.layout()
@@ -251,7 +265,7 @@ class CombatPage(QWidget):
         line.addStretch(1)
 
     def _server(self, answer) -> None:
-        if self.list != "saved" or not self._alive(getattr(self, "server", None)):
+        if not self._alive(getattr(self, "server", None)):
             return
         row = cb.server_row(answer)
         line = self.server.layout()
@@ -276,7 +290,7 @@ class CombatPage(QWidget):
         line.addStretch(1)
 
     def _encounters(self, answer) -> None:
-        if self.list != "saved" or not self._alive(getattr(self, "encounters_box", None)):
+        if not self._alive(getattr(self, "encounters_box", None)):
             return
         _clear(self.encounters)
         rows = cb.encounter_rows(answer)
@@ -317,7 +331,7 @@ class CombatPage(QWidget):
         identifier = (result or {}).get("id") if isinstance(result, dict) else None
         if identifier is not None:
             self._web(cb.analysis_page(identifier))
-        if self.requests is not None and self.list == "saved":
+        if self.requests is not None and self.saved_panel is not None:
             self.requests.get("encounters", "/api/encounters")
 
     def open_folder(self) -> None:
@@ -339,7 +353,7 @@ class CombatPage(QWidget):
             self.toast.place()
 
     def closeEvent(self, event) -> None:
-        for worker in (self.requests, self.job):
+        for worker in (self.requests, self.job, self.recorded, self.queue):
             if worker is not None:
                 worker.stop()
         super().closeEvent(event)
