@@ -1,3 +1,20 @@
+## The Maps page in the native interface (0.2.433)
+
+**The Maps page is native now.** The app's window draws Game → Maps itself, with the web page's three parts:
+- **Interactive maps:** choose Verteron, Altgard, Poeta or Ishalgen. **Open provider** shows the InteractiveMap.app map in your browser: the native window does not embed the provider's page. The provider's notes and the other regional map references are as on the web page.
+- **Abyss PvP heat map:**
+  - the server matchups by region, the busiest one first, and every server pooled;
+  - the square size, and **Refresh**;
+  - what the map shows, or why there is none yet;
+  - the map itself: the ground recordings have covered, each square in its step of the ramp, a dot for a square with a kill, and a diamond for each recorded boss;
+  - what the pointer is over;
+  - the key, and the 25 busiest squares as a table.
+
+  It is read again every 15 minutes (or as the log server says) while the page is shown.
+- **Farming routes:** each zone's attributed loops with their legs, all their waypoints, their sources and licences, and **Copy as text**, and its guide links. The zone follows the map chosen above.
+
+Your choices last while the app runs.
+
 ## The Crafting page in the native interface (0.2.432)
 
 **The Crafting page is native now.** The app's window draws Game → Crafting itself, as the web page shows it:
