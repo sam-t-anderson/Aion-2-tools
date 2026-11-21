@@ -10,6 +10,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
@@ -407,10 +408,13 @@ def test_a_second_start_ties_its_native_window_to_the_running_app(home, web, mon
     monkeypatch.setattr(gui, "spawn", lambda kind, url, parent_pid=None: failing)
     assert launcher.open_window(url, native=True, parent_pid=4321, wait=True) == "web"      # this one failed
     assert web[0][0] == "C:/Edge/msedge.exe"
-    # The running app says which process it is, and the second start hands that to the window.
+    # The running app says which process it is, and the second start hands that to the window. A fresh app makes its
+    # database on its first status, which on a slow machine outlasts the two seconds the launcher waits (a running app
+    # has made it long since): it is made first.
     srv = make_server("127.0.0.1", 0)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     try:
+        urllib.request.urlopen(f"http://127.0.0.1:{srv.server_address[1]}/api/status", timeout=60).read()
         assert launcher._app_pid(srv.server_address[1]) == os.getpid()
     finally:
         srv.shutdown()
