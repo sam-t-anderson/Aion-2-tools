@@ -51,6 +51,13 @@ ICONS = {
     "stop": _svg("<rect x='6.5' y='6.5' width='11' height='11' rx='2'/>", filled=True),
     "close": _svg("<path d='M6 6l12 12M18 6L6 18'/>", width="2.2", join=False),
     "plan": _svg("<path d='M9 4L3.5 6v14L9 18l6 2 5.5-2V4L15 6z'/><path d='M9 4v14M15 6v14'/>", cap=False),
+    # The counters' (overlay.css ``.ovkeyicon``, ``.ovticketicon``, ``.ovrunicon``), filled.
+    "key": _svg("<path d='M14.5 2a7.5 7.5 0 0 0-7.1 9.9L2 17.3V22h4.7l1.3-1.3v-2h2v-2h2l1.4-1.4A7.5 7.5 0 1 0 14.5 2zm2.5 "
+                "7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z'/>", filled=True),
+    "ticket": _svg("<path d='M22 10V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v4a2 2 0 0 1 0 4v4a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-4a2 "
+                   "2 0 0 1 0-4zm-9 7.5h-2v-2h2v2zm0-4.5h-2v-2h2v2zm0-4.5h-2v-2h2v2z'/>", filled=True),
+    "runs": _svg("<path d='M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zM5 "
+                 "9h14v11H5V9zm2 2v2h2v-2H7zm4 0v2h2v-2h-2zm4 0v2h2v-2h-2z'/>", filled=True),
     "meter": _svg("<path d='M6 20v-7M12 20V5M18 20v-10'/>", width="2.6", join=False),
     "signal": _svg("<rect x='0' y='11' width='3.5' height='5' rx='1'/><rect x='5.5' y='7.5' width='3.5' "
                    "height='8.5' rx='1'/><rect x='11' y='4' width='3.5' height='12' rx='1'/><rect x='16.5' y='0' "
@@ -139,18 +146,24 @@ def font(families: list[str], px: float, weight: int, spacing: float = 0.0) -> Q
 @dataclass
 class Part:
     """A part of a chip: its runs of text side by side (each its words, font and colour), on a line ``line`` px high
-    (CSS ``line-height``), or a mark drawn for it (``mark(painter, rect)``, ``size`` px); ``tip`` its own tooltip."""
+    (CSS ``line-height``), or a mark drawn for it (``mark(painter, rect)``, ``size`` px), or both, the mark ``space``
+    px before the words (a counter's icon); ``tip`` its own tooltip."""
     runs: list = field(default_factory=list)
     line: float = 0.0
     mark: object = None
     size: QSizeF | None = None
     tip: str = ""
+    space: float = 5.0
+
+    def words(self) -> float:
+        return sum(QFontMetricsF(run[1]).horizontalAdvance(run[0]) for run in self.runs)
 
     def measure(self) -> QSizeF:
-        if self.mark is not None:
+        if self.mark is not None and not self.runs:
             return QSizeF(self.size)
-        width = sum(QFontMetricsF(run[1]).horizontalAdvance(run[0]) for run in self.runs)
-        return QSizeF(width, self.line)
+        if self.mark is not None:
+            return QSizeF(self.size.width() + self.space + self.words(), max(self.size.height(), self.line))
+        return QSizeF(self.words(), self.line)
 
     def key(self) -> tuple:
         mark = None if self.mark is None else (getattr(self.mark, "key", id(self.mark)), self.size.width(),
@@ -168,6 +181,7 @@ class Chip(QWidget):
         super().__init__(parent)
         self.parts: list[Part] = []
         self.look = TextLook({})
+        self.shadow = CHIP_SHADOW                 # under its words: the chips' (None: none, as the top parts' on a card)
         self.padding, self.gap = padding, gap
         self._key = None
         policy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
@@ -243,13 +257,16 @@ class Chip(QWidget):
         painter = QPainter(self)
         painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
         for part, rect in self._places():
-            if part.mark is not None:
-                part.mark(painter, rect)
-                continue
             x = rect.left()
+            if part.mark is not None:
+                size = part.size
+                part.mark(painter, QRectF(x, rect.center().y() - size.height() / 2, size.width(), size.height()))
+                if not part.runs:
+                    continue
+                x += size.width() + part.space
             for text, made, colour in part.runs:
                 x += draw_text(painter, QRectF(x, rect.top(), max(1.0, rect.right() - x + 1), rect.height()), text,
-                               made, QColor(colour), Qt.AlignLeft, self.look, shadow=CHIP_SHADOW)
+                               made, QColor(colour), Qt.AlignLeft, self.look, shadow=self.shadow)
 
     def event(self, event):
         if event.type() == QEvent.ToolTip:        # a part's own tooltip (a note's), else the chip's
@@ -305,11 +322,24 @@ def clock_mark(colour: str, glow: bool):
 
 
 def icon_mark(name: str, colour: str):
-    """An icon drawn as a chip's part (the ping's signal)."""
+    """An icon drawn as a chip's part (the ping's signal, a counter's)."""
     def draw(painter: QPainter, rect: QRectF) -> None:
         ratio = painter.device().devicePixelRatioF()
         painter.drawPixmap(rect.topLeft(), icon(name, rect.width(), rect.height(), colour, ratio))
     draw.key = ("icon", name, colour)
+    return draw
+
+
+def picture_mark(picture: QPixmap):
+    """A picture drawn as a chip's part, as large as fits and centred (``background: center / contain``)."""
+    def draw(painter: QPainter, rect: QRectF) -> None:
+        if picture.isNull():
+            return
+        scale = min(rect.width() / picture.width(), rect.height() / picture.height())
+        width, height = picture.width() * scale, picture.height() * scale
+        painter.drawPixmap(QRectF(rect.center().x() - width / 2, rect.center().y() - height / 2, width, height),
+                           picture, QRectF(picture.rect()))
+    draw.key = ("picture", picture.cacheKey())
     return draw
 
 

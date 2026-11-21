@@ -27,7 +27,7 @@ and the events strip as chips, and the ping, the frame rate and the toolbar of i
 The tenth part (0.2.423) is arena mode (arena.py): in the Arena of Solitude, the Arena of Cooperation and a
 battlefield, the opponent's (or your target's) card in the target card's place and the three metrics in the rows'
 place, in the layout the options pick, with the match in the clock. The eleventh (0.2.424) is the raid plan view
-(plan.py), behind the toolbar's tabs.
+(plan.py), behind the toolbar's tabs; the twelfth (0.2.425) the counters across the top with their icons.
 """
 from __future__ import annotations
 
@@ -53,12 +53,12 @@ from . import arena as A
 from .api import AppApi, Poller, Requests
 from .arena import Line, Run, Section, TableHead, Tug, sized
 from .chrome import (GREEN, MONOSPACE, RED, TEAL, Chip, FlowLayout, FpsChip, IconButton, MetricChip, Part, clock_mark,
-                     forget_icons, icon_mark)
+                     forget_icons, icon_mark, picture_mark)
 from .chrome import font as sized_font
 from .host import WindowHost
 from .look import (ANIMATION_MS, CHIP_SHADOW, ROW_SHADOW, TextEffect, TextLook, background_rect, contrast_colour, cycled,
                    draw_text, forget_pictures, hex_colour, reduced_motion, sheen_brush)
-from .pictures import Pictures
+from .pictures import ODYLE_ICON, Pictures
 from .plan import PlanMap, plan_view
 
 #: The metrics, in the order the metric chip steps through them, with the chip's words (overlay.html ``#ovmetrics``).
@@ -301,6 +301,30 @@ def counter_lines(snapshot: dict) -> list[tuple[str, str, str]]:
         text = f"{place + ': ' if place else ''}{left:,} {'run' if left == 1 else 'runs'} left this week{extra}"
         lines.append(("weekly_runs", text, f"Runs {theme.short_count(regular, bonus)}"))
     return lines
+
+
+#: What each counter is, for its tooltip (overlay.js, the lines' titles).
+COUNTER_TIPS = {
+    "odyle": "Your Odyle Energy, as the game sent it: the regular energy regenerates 15 every 3 hours, and a claimed "
+             "reward cube spends it first, then the bonus",
+    "shugo_keys": "Your Shugo Festival Reward Keys, as the game sent them: the regular keys, then the bonus ones (the "
+                  "same count the festival window shows)",
+    "nightmare_tickets": "Your Nightmare tickets, as the game sent them: the regular tickets, then the bonus ones, "
+                         "spent one at a time, the regular first",
+    "weekly_runs": "This dungeon's weekly entries left, as the game counts them: learned from the counter that went "
+                   "down when a run here was rewarded, and kept up to date by the game"}
+COUNTER_ICONS = {"shugo_keys": "key", "nightmare_tickets": "ticket", "weekly_runs": "runs"}
+
+
+def counter_items(snapshot: dict) -> list[tuple[str, str, int, int]]:
+    """The counters the meter's reading carries, in the overlay's order, each ``(key, its full words, the regular
+    count, the bonus)``."""
+    counts = {}
+    for key in ("odyle", "shugo_keys", "nightmare_tickets", "weekly_runs"):
+        value = snapshot.get(key)
+        if isinstance(value, dict):
+            counts[key] = (int(_num(value.get("regular"))), int(_num(value.get("bonus"))))
+    return [(key, full, *counts[key]) for key, full, _short in counter_lines(snapshot) if key in counts]
 
 
 def ping_texts(ping) -> tuple[str, str]:
@@ -1741,9 +1765,8 @@ class MeterOverlay(QWidget):
         self.lines_part = QWidget(self.card)
         lines = QVBoxLayout(self.lines_part)
         lines.setSpacing(0)
-        self.lines = QLabel("", self.lines_part)
-        self.lines.setObjectName("ovlines")
-        self.lines.setWordWrap(True)
+        # Each counter its icon and its count, 22 px apart (``gap: 12px`` and each one's ``margin-right: 10px``).
+        self.lines = Chip(self.lines_part, padding=(0, 0, 0, 0), gap=(22.0, 2.0))
         self.lines.hide()
         lines.addWidget(self.lines)
         box.addWidget(self.lines_part)
@@ -2119,7 +2142,6 @@ class MeterOverlay(QWidget):
             f"QLabel#ovthp {{ {tl.css('hp', target_px * 1.22, 700, '#e7ecea')} }}"
             f"QLabel#ovtline {{ color: #aab3bd; {target_family} font-size: {round(target_px * 0.86)}px;"
             f" font-weight: {target_weight}; }}"
-            f"QLabel#ovlines {{ {tl.css('ping', px, weight, '#e9edf1')} }}"
             f"QLabel#ovdummy {{ color: #cdd6e6; font-size: 11px; font-weight: 400; }}"
             f"QLabel#ovdummy[ok=\"true\"] {{ color: #8fd0a0; }}"
             f"QLabel#ovnote {{ color: #9aa3b5; font-weight: 400; }}"
@@ -2193,8 +2215,8 @@ class MeterOverlay(QWidget):
 
     def _text_labels(self) -> list[QWidget]:
         """What shows text through a label's effect: the parts at the top and the chips under the rows."""
-        return [self.target, self.target_nums, self.target_hp, self.target_line, self.lines, self.dummy,
-                self.reason, *self._chip_labels()]
+        return [self.target, self.target_nums, self.target_hp, self.target_line, self.dummy, self.reason,
+                *self._chip_labels()]
 
     def _chip_labels(self) -> list[QWidget]:
         """The labels that float as chips, their text over the chips' shadow in every background (``--nm-shadow``):
@@ -2593,19 +2615,7 @@ class MeterOverlay(QWidget):
         self.status_text = self._status(answer, snap, everyone, metric, filtered, duration, cleared, idle)
         self.copy_text = leaderboard_text(snap, players, metric, filtered, lambda p: self._names(p)[0])
         self._show_connection()
-        lines = counter_lines(snap)
-        if self.card.mode == "top":               # 4 px under the counters when there are any (``:has(...)``)
-            self.lines_part.layout().setContentsMargins(10, 7, 10, 4 if lines and not idle else 0)
-        if lines and not idle:
-            full = "    ".join(text for _key, text, _short in lines)
-            margins = self.lines_part.layout().contentsMargins()
-            room = self._content_width() - margins.left() - margins.right()
-            fits = self.lines.fontMetrics().horizontalAdvance(full) <= room
-            self.lines.setText(full if fits else "  ·  ".join(short for _key, _text, short in lines))
-            self.lines.setToolTip("\n".join(text for _key, text, _short in lines))
-            self.lines.show()
-        else:
-            self.lines.hide()
+        self._show_counters(snap, idle)
         target = snap.get("current_target")
         if (idle or over or cleared or arena is not None or not isinstance(target, dict) or target.get("is_player")
                 or not target.get("contributors")):
@@ -2849,6 +2859,51 @@ class MeterOverlay(QWidget):
             self.gauge.set_fraction(gauge_pct / 100)
         self.target_bars.setVisible(known or timed or gauge_pct is not None)
         self.target_card.show()
+
+    def _show_counters(self, snap: dict, hidden: bool) -> None:
+        """The counters across the top (``#ovlines``): your Odyle Energy, Shugo Keys and Nightmare tickets and the
+        dungeon's weekly runs, each after its icon, in the ping's colour and font. In full words where they all fit
+        on one line (``compactLines``: their widths and 10 px each), else in their short form, larger: the regular
+        count and the bonus in teal (``ov-lines-icons``). Each one's tooltip says it in full and what it is."""
+        items = [] if hidden else counter_items(snap)
+        if self.card.mode == "top":               # 4 px under the counters when there are any (``:has(...)``)
+            self.lines_part.layout().setContentsMargins(10, 7, 10, 4 if items else 0)
+        if not items:
+            self.lines.hide()
+            return
+        tl = self.text_look
+        families, colour = tl.families("ping"), tl.colour("ping", "#e9edf1")
+
+        def parts(short: bool) -> list[Part]:
+            size = tl.size("ping", (12 if short else 10) * tl.scale)
+            made = []
+            for key, full, regular, bonus in items:
+                if short:
+                    runs = [(f"{regular:,}", sized_font(families, size, 700), colour)]
+                    if bonus:
+                        runs.append((f"(+{bonus:,})", sized_font(families, size, 600), TEAL))
+                else:
+                    runs = [(full, sized_font(families, size, 600), colour)]
+                if key == "odyle":                # the game's recharge item, 1.4em, where the app has its art
+                    picture = self.pictures.item(ODYLE_ICON)
+                    mark = picture_mark(picture) if picture is not None else None
+                    side = 1.4 * size
+                else:                             # a key, a ticket, a calendar: 1.2em, in the counters' gold
+                    mark, side = icon_mark(COUNTER_ICONS[key], "#e8cf8e"), 1.2 * size
+                made.append(Part(runs, size * 1.5, mark, QSizeF(side, side) if mark is not None else None,
+                                 f"{full}\n{COUNTER_TIPS[key]}"))
+            return made
+
+        full = parts(False)
+        margins = self.lines_part.layout().contentsMargins()
+        room = self._content_width() - margins.left() - margins.right()
+        need = sum(part.measure().width() for part in full) + 10 * len(full)
+        shadow = CHIP_SHADOW if self.card.mode == "none" else None   # over the game with nothing behind it
+        if shadow != self.lines.shadow:
+            self.lines.shadow = shadow
+            self.lines.update()
+        self.lines.set_parts(full if need <= room + 1 else parts(True), tl)
+        self.lines.show()
 
     def _status(self, answer: dict, snap: dict, everyone: list, metric: str, filtered: str, duration, cleared: bool,
                 idle: bool) -> str:

@@ -256,7 +256,8 @@ def test_the_ping_left_and_the_toolbar_right_on_a_line_of_their_own(qapp):
 
 
 def test_the_icons_are_the_web_overlays_drawn_in_their_colour(qapp):
-    assert set(ICONS) == {"camera", "new", "copy", "options", "play", "stop", "close", "signal", "plan", "meter"}
+    assert set(ICONS) == {"camera", "new", "copy", "options", "play", "stop", "close", "signal", "plan", "meter",
+                          "key", "ticket", "runs"}                     # the counters' (0.2.425)
     for name in ICONS:
         picture = icon(name, 16, 16, "#ff0000").toImage()
         assert _near(picture, "#ff0000", reach=10) > 15, name     # drawn, in red
