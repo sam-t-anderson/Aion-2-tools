@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHBoxLayout, QHe
                                QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 from . import theme
+from .account_page import AccountPage
 from .api import AppApi, Poller
 from .news import NewsPage
 from .crafting_page import CraftingPage
@@ -251,6 +252,8 @@ class MainWindow(QMainWindow):
                     widget = CharacterPage(api, self.open_web)
                 elif key == "gear":
                     widget = GearPage(api, self.show_page, self.open_web)
+                elif key == "account":
+                    widget = AccountPage(api, self.open_web)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)
