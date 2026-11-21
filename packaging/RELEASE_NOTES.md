@@ -1,3 +1,20 @@
+## The Saved Results page in the native interface (0.2.434)
+
+**Saved Results is native now.** The app's window draws Character → Saved Results itself, as the web page shows it:
+- **The list:** your saved optimizations and advice, newest first, each with when it was recorded, **Open** and **Export**.
+- **Import previous result:** choose an exported result (at most 20 MiB); the app checks it and saves it again.
+- **Export:** a saved result's file, where you choose.
+- **Open:** the result under the list, with the date of its snapshot.
+  - A build opens in its result windows: the side menu, and so far the **Overview**, **Skills** and **Stigma** windows.
+    - **Overview:** the DPS, typical top build, crit chance, cooldown reduction and combat speed; the objective and the build's notes; the stat priority and damage share bars; and the healing share.
+    - **Skills:** active and passive. Each skill shows its picture, level and where the level comes from, and its supporting effects, recommended, available or locked.
+    - **Stigma:** each stigma's card and its effects.
+    - **Copy as text** on Skills and Stigma.
+  - The other windows (Daevanion, Pet Genus, Equipment, Arcana, Titles & wings, Skills hotbar, Macro & rotation), an advice's full view and contributing a community comparison are on the web Saved Results page for now, with a button that opens it.
+  - An advice's text opens in its box.
+
+The list is read each time you open the page.
+
 ## The Maps page in the native interface (0.2.433)
 
 **The Maps page is native now.** The app's window draws Game → Maps itself, with the web page's three parts:
