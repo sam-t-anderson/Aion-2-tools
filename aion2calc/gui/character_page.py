@@ -115,6 +115,7 @@ class CharacterPage(QWidget):
         self.layout_.addStretch(1)
         self.character: Window | None = None
         self.opt_box: QVBoxLayout | None = None
+        self.drawn = None                             # what the optimization's place shows, to update a run in place
         self.buttons: list[QPushButton] = []
 
     # ------------------------------------------------------------------ the search
@@ -239,7 +240,7 @@ class CharacterPage(QWidget):
     # ------------------------------------------------------------------ the character
     def _show_note(self, text: str, kind: str) -> None:
         self._clear(self.cview)
-        self.character, self.opt_box = None, None
+        self.character, self.opt_box, self.drawn = None, None, None
         self.windows.hide()
         note = _label(text, kind)
         note.setAlignment(Qt.AlignCenter)
@@ -347,6 +348,7 @@ class CharacterPage(QWidget):
         self.opt_box = QVBoxLayout(holder)
         self.opt_box.setContentsMargins(0, 0, 0, 0)
         self.opt_box.setSpacing(6)
+        self.drawn = None
         window.body.addWidget(holder)
         self.character = window
         self.cview.addWidget(window)
@@ -440,28 +442,41 @@ class CharacterPage(QWidget):
 
     def _draw_opt(self) -> None:
         """The optimization's place on the character's page (``renderOptState``): another character's run, this one's
-        progress, its error, or its result and the optimized build."""
+        progress, its error, or its result and the optimized build. A run already shown is updated in place as its job
+        is read, rather than drawn again (its log keeps where it is scrolled to)."""
         if self.opt_box is None:
             return
-        self._clear(self.opt_box)
         o = self.opt
         for button in self.buttons:
             button.setEnabled(not (o and o.get("status") == "running"))
-        if not o:
-            return
-        if o.get("key") is not None and self.view is not None and o.get("key") != self.view.get("key"):
-            if o.get("status") == "running":
+        elsewhere = bool(o) and o.get("key") is not None and self.view is not None and o.get("key") != self.view.get("key")
+        if o and o.get("status") == "running":
+            drawn = ("elsewhere", c.elsewhere(o.get("name"))) if elsewhere else ("running", o.get("mode"))
+            if drawn == self.drawn:
+                if not elsewhere:
+                    line, tail = c.running(o.get("mode"), o.get("log") or [])
+                    self.run_line.setText(line)
+                    if self.run_log.toPlainText() != tail:
+                        self.run_log.setPlainText(tail)
+                return
+            self.drawn = drawn
+        else:
+            self.drawn = None
+        self._clear(self.opt_box)
+        if not o or elsewhere:
+            if elsewhere and o.get("status") == "running":
                 self.opt_box.addWidget(_label(c.elsewhere(o.get("name")), "muted"))
             return
         if o.get("status") == "running":
             line, tail = c.running(o.get("mode"), o.get("log") or [])
-            self.opt_box.addWidget(_label(line, "strong"))
-            box = QPlainTextEdit(tail)
-            box.setObjectName("diff")
-            box.setReadOnly(True)
-            box.setFont(QFont("monospace"))
-            box.setMaximumHeight(150)
-            self.opt_box.addWidget(box)
+            self.run_line = _label(line, "strong")
+            self.opt_box.addWidget(self.run_line)
+            self.run_log = QPlainTextEdit(tail)
+            self.run_log.setObjectName("diff")
+            self.run_log.setReadOnly(True)
+            self.run_log.setFont(QFont("monospace"))
+            self.run_log.setMaximumHeight(150)
+            self.opt_box.addWidget(self.run_log)
             self.opt_box.addWidget(_label(c.RUNNING_NOTE, "faint"))
         elif o.get("status") == "error":
             note = QFrame()

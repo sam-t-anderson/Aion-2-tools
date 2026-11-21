@@ -14,7 +14,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QCoreApplication, QEvent, QSettings  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QEvent, QSettings, QTimer  # noqa: E402
 from PySide6.QtWidgets import QApplication, QLabel, QPlainTextEdit, QPushButton  # noqa: E402
 
 from aion2calc.gui import character as c  # noqa: E402
@@ -234,6 +234,10 @@ def test_budgets_kept_and_an_optimization(qapp, view, tmp_path):
     _button(page, "Optimize PvE build").click()
     settle(lambda: any("Searching stigmas" in t for t in _texts(page)))
     assert all(not b.isEnabled() for b in page.buttons)                          # one run at a time
+    log = page.run_log                                                          # a reading updates the run in place
+    page._opt_logged(["Searching stigmas", "Searching skill levels"])
+    assert page.run_log is log and log.toPlainText() == "Searching stigmas\nSearching skill levels"
+    assert page.run_line.text() == "Optimizing PvE build — Searching skill levels"
     path, body = app.posts[-1]
     assert path == "/api/character/optimize" and body["mode"] == "pve" and body["objective"] == "balanced"
     assert body["budgets"] == {"skill": 400, "stigma": 150, "daevanion": 417, "ariel": 12} and body["game_patch"] == "1.2.3"
@@ -261,6 +265,9 @@ def test_another_characters_run_and_a_failed_one(qapp, view, tmp_path):
     settle(lambda: page.view["key"] == "eu:8:id9")
     QCoreApplication.processEvents()
     assert c.elsewhere("Example") in _texts(page) and all(not b.isEnabled() for b in page.buttons)
+    # a reading of the run answered in the turn the page is read: what is shown stays shown (not drawn again)
+    QTimer.singleShot(0, lambda: page._opt_logged(["Searching", "Still searching"]))
+    assert c.elsewhere("Example") in _texts(page)
     assert app.posts[1][1]["genus"] == {"enabled": True}                       # PvP sends whether, not the mix
     page.optimizing.stop()
     page.opt = None
