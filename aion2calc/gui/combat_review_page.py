@@ -27,6 +27,8 @@ Drawn here so far:
   player's DPS against a same-class player chosen in it.
 - Since 0.2.466 the character builds: each character's button, their build in place of the review as the official
   profile saved with the log (or a current one looked up), and the class colours' panel (**Class colors**).
+- Since 0.2.467 a recording's other parts, listed, opened and combined into an unranked review; the combined review with
+  its parts, runs and totals; the other uploads of the same fight, and the log server's combination of them.
 
 The rest of the review (its movement replay) opens in the web interface for now, from a button on the page.
 """
@@ -41,7 +43,7 @@ from concurrent.futures import ThreadPoolExecutor
 from PySide6.QtCore import QObject, QRegularExpression, QStandardPaths, Qt, QTimer, Signal
 from PySide6.QtGui import QPixmap, QRegularExpressionValidator
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QPlainTextEdit, QSlider, QVBoxLayout, QWidget)
+                               QLineEdit, QPlainTextEdit, QSlider, QSpinBox, QVBoxLayout, QWidget)
 
 from . import combat_review as cw
 from . import combat_records as cr
@@ -60,7 +62,7 @@ from .combat_saved import TIMEOUT, Section, _button, _clear, _head, _label
 from .database_page import Window
 from .pictures import Pictures
 from .result_windows import GridTable
-from .results import _dict, _truthy, js_text
+from .results import _dict, _list, _truthy, js_text
 
 C = theme.COLORS
 NUMBER = r"[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?"        # what a number field takes (``type="number"``)
@@ -77,6 +79,13 @@ def _plain(layout=QVBoxLayout, spacing: int = 0):
 
 def _muted(words: str) -> QLabel:
     return _label(words, "small")
+
+
+def _tipped(words: str, tip: str) -> QLabel:
+    """A cell's words with their tip (``title``)."""
+    label = _label(words)
+    label.setToolTip(tip)
+    return label
 
 
 def _field_row(words: str, widget: QWidget) -> QWidget:
@@ -134,6 +143,11 @@ class OfficialPictures(QObject):
 
     def stop(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
+
+
+def cw_fight() -> dict:
+    """This recording's own fight (``ownFight``): no combined fight in view, asked for, or refused."""
+    return {"segment": -1, "own": None, "loading": False, "error": ""}
 
 
 #: A card's edge by its grade (``.cr-profile-card[data-grade=…]``).
@@ -238,6 +252,10 @@ class ReviewPage(QWidget):
         self.compare_result, self.compare_segment = "", 0
         self.compare_status = None
         self.mapping_status = self.meta_parts = self.publish_parts = self.standings_box = None
+        self.source_view: dict | None = None                         # the part a combined review was made from
+        self.archive = {"page": None, "offset": 0, "busy": False, "error": "", "open": False, "offer": 0, "first": 1, "last": 1}
+        self.fight = {"segment": -1, "own": None, "loading": False, "error": ""}   # the log server's combined fight
+        self.combined_status, self.archive_asked_offset = "", 0
 
     def _forget_timeline(self) -> None:
         """The timeline's lanes all shown and open again, its window at the start, nothing inspected: as another encounter
@@ -306,9 +324,13 @@ class ReviewPage(QWidget):
             asked = self.state["segment"]
             if first and not (0 <= asked < len(segments)):          # an encounter the log hasn't: its first
                 self.state["segment"] = 0
+            if first:
+                part = _dict(_dict(self.doc.get("meta")).get("archive")).get("part")
+                self.archive["last"] = part if isinstance(part, int) and not isinstance(part, bool) and part else 1
             self.draw()
             if first:
                 self.ask_ranks()
+                self._auto_combine()
         elif kind == "ranks":
             self.ranks = answer if isinstance(answer, dict) else {}
             self.draw()
@@ -321,6 +343,38 @@ class ReviewPage(QWidget):
             receipt = _dict(answer)
             self.report.update(busy=False, details="",
                                status=f"{cw.js_string(receipt.get('message'))} Receipt: {cw.js_string(receipt.get('id'))}")
+            self.draw()
+        elif kind in ("parts", "autoparts"):                         # a page of the recording's parts
+            if kind == "autoparts":                                  # asked unasked (``autoCombine``): only an offer
+                span = cw.parts_span(answer)
+                if span is not None and self.source_view is None:
+                    self.archive.update(page=answer, offset=0, offer=span[0], first=span[1], last=span[2])
+                    self.draw()
+                return
+            if isinstance(answer, dict) and isinstance(answer.get("rows"), list):
+                self.archive.update(page=answer, offset=self.archive_asked_offset, error="")
+            else:
+                self.archive["error"] = cw.NO_PART_LIST
+            self.archive["busy"] = False
+            self.draw()
+        elif kind == "reconstruct":                                  # the parts combined into one review
+            self.archive["busy"] = False
+            if cw.is_reconstruction(answer):
+                self._apply_combined(_dict(answer))
+            else:
+                self.archive["error"] = cw.NO_RECONSTRUCTION
+            self.draw()
+        elif kind == "combined":                                     # the log server's combined fight
+            index = self.fight["segment"]
+            combined = _dict(answer)
+            if self.state["segment"] != index:
+                self.fight = cw_fight()
+            elif isinstance(combined.get("meta"), dict) and _truthy(combined["meta"].get("combined")) and \
+                    0 <= index < len(cw.segments(combined)) and isinstance(combined.get("segments"), list):
+                self.fight = {**cw_fight(), "segment": index, "own": self.doc}
+                self.doc = combined
+            else:
+                self.fight = {**cw_fight(), "segment": index, "error": cw.NO_COMBINED_FIGHT}
             self.draw()
         elif kind == "profile":                                      # a current profile looked up: shown as a preview
             self.previews[self.profile_for] = answer
@@ -369,6 +423,15 @@ class ReviewPage(QWidget):
             self._compare_said(why)
         elif kind == "profile":
             self.profile_message = why
+            self.draw()
+        elif kind in ("parts", "reconstruct"):
+            self.archive.update(busy=False, error=why)
+            self.draw()
+        elif kind == "combined":
+            if self.state["segment"] == self.fight["segment"]:
+                self.fight = {**cw_fight(), "segment": self.fight["segment"], "error": why}
+            else:
+                self.fight = cw_fight()
             self.draw()
 
     def _refused(self, why: str) -> None:
@@ -453,9 +516,16 @@ class ReviewPage(QWidget):
         self.awaiting = False
         _clear(self.box)
         state = self.state
+        if self.fight["segment"] != state["segment"] and not self.fight["loading"]:   # another encounter: this recording's
+            if self.fight["own"] is not None:
+                self.doc = doc = self.fight["own"]
+            self.fight = cw_fight()
         cw.settle_segment(doc, state)
         if state["segment"] < 0:                                     # nothing in this mode (``No encounters recorded``)
             frame = Window(cw.title(doc))
+            for part in (self._combined(), self._archive()):
+                if part is not None:
+                    frame.body.addWidget(part)
             frame.body.addWidget(_note(cw.NO_MODE_ENCOUNTERS))
             frame.body.addWidget(_button(cw.SHOW_ALL, lambda: self._changed("mode", ""), "small"))
             self.box.addWidget(frame)
@@ -488,6 +558,9 @@ class ReviewPage(QWidget):
         source = cw.source_line(doc, d)
         if source:
             body.addWidget(_muted(source))
+        for part in (self._combined(), self._archive(), self._shared(), self._fight()):
+            if part is not None:
+                body.addWidget(part)
         body.addWidget(self._quality(d))
         cut = cw.pieces(doc, state)
         if cut:
@@ -1346,6 +1419,298 @@ class ReviewPage(QWidget):
             except RuntimeError:                                     # drawn again meanwhile: the new fold shows it
                 pass
 
+    # ---------------------------------------------------------------- other parts, combined reviews and uploads (0.2.467)
+    def _local(self) -> bool:
+        return self.where.get("kind") == "local"
+
+    def _open_part(self, row: dict) -> None:
+        """Another part of the recording (``openArchivePart``): a recording on this computer by its file, a shared one by
+        its ID."""
+        row = _dict(row)
+        if self._local() and _truthy(row.get("file")):
+            self.open_web(cw.local_page(row["file"], self.state["mode"]))
+        elif not self._local() and _truthy(row.get("id")):
+            self.open_web(cv.shared_page(row["id"], self.state["mode"]))
+
+    def _ask_parts(self, kind: str, offset: int, limit: int) -> None:
+        """A page of the recording's parts (``options.archiveParts``): the app's for a recording here, the log server's
+        for a shared one."""
+        source = self.source_view["doc"] if self.source_view is not None else self.doc   # a combined review's source part
+        archive = _dict(_dict(source).get("meta")).get("archive")
+        if self._local():
+            self._ask(kind, f"/api/sessions?paged=1&offset={offset}&limit={limit}&archive="
+                            f"{cw.encode_component(cw.js_string(_dict(archive).get('id')))}")
+        else:
+            self._ask(kind, f"/api/v1/logs/{cw.encode_component(self.where.get('value', ''))}/parts?offset={offset}&limit={limit}",
+                      proxied=True)
+
+    def _auto_combine(self) -> None:
+        """The recording's other parts looked for as it opens (``autoCombine``), for the offer to review them together;
+        a recording still being written with no earlier part, a combined review, or a log of one part asks nothing."""
+        archive = _dict(_dict(self.doc).get("meta")).get("archive")
+        if self.source_view is not None or cw.reconstructed(self.doc) or not isinstance(archive, dict):
+            return
+        part = archive.get("part")
+        if not ((isinstance(part, (int, float)) and not isinstance(part, bool) and part > 1) or _truthy(archive.get("closed"))):
+            return
+        self._ask_parts("autoparts", 0, 100)
+
+    def _load_parts(self, offset: int) -> None:
+        """A page of the recording's parts (``data-archive-load``, Previous, Next)."""
+        self.archive.update(busy=True, error="", open=True)
+        self.archive_asked_offset = offset
+        self._ask_parts("parts", offset, 25)
+        self.draw()
+
+    def _combine_parts(self, first, last) -> None:
+        """The parts from ``first`` to ``last`` combined into one review (``combineParts``)."""
+        self.archive.update(first=first, last=last)
+        why = cw.combine_check(first, last)
+        if why:
+            self.archive["error"] = why
+            self.draw()
+            return
+        self.archive.update(busy=True, error="")
+        if self._local():
+            self._ask("reconstruct", f"/api/sessions/reconstruction?file={cw.encode_component(self.where.get('value', ''))}"
+                                     f"&first={first}&last={last}")
+        else:
+            self._ask("reconstruct", f"/api/v1/logs/{cw.encode_component(self.where.get('value', ''))}/reconstruction?first={first}"
+                                     f"&last={last}", proxied=True)
+        self.draw()
+
+    def _apply_combined(self, combined: dict) -> None:
+        """The combined review shown, this part kept to return to (``applyCombined``): the fight in view stays in view,
+        and the choices that named this part's actors are let go."""
+        same = cw.kept_encounter(self.doc, combined, self.state["segment"])
+        self.source_view = {"doc": self.doc, "state": self.state}
+        self.doc = combined
+        self.ranks, self.compared = None, []
+        self.previews.clear()
+        for kind in ("ranks", "profile"):
+            self.asked[kind] = self.asked.get(kind, 0) + 1
+        self.state = {**self.state, "segment": same, "run": "", "actor": "", "enemy": "", "character": "", "page": 0,
+                      "hidden": set()}
+        self._forget_timeline()
+
+    def _source_back(self) -> None:
+        """The source part again (``data-source-back``)."""
+        if self.source_view is None:
+            return
+        self.doc, self.state = self.source_view["doc"], self.source_view["state"]
+        self.source_view, self.ranks = None, None
+        self.previews.clear()
+        self.combined_status = ""
+        self.draw()
+        self.ask_ranks()
+
+    def _export_combined(self) -> None:
+        """The combined review saved as an a2log (``data-combined-export``)."""
+        import json
+        path = self._ask_where(cw.COMBINED_FILE)
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as file:
+                file.write(json.dumps(self.doc, ensure_ascii=False))
+        except OSError as problem:
+            self.combined_status = f"The combined review could not be saved: {problem}"
+        else:
+            self.combined_status = f"Combined review saved: {path}. Upload the original parts to share them."
+        self.draw()
+
+    def _combined(self) -> QWidget | None:
+        """A combined recording review (``combinedHTML``): its note, the way back, its export, its parts, runs and totals."""
+        model = cw.combined_view(self.doc, self.state)
+        if model is None:
+            return None
+        box = QFrame()
+        box.setObjectName("note")
+        column = QVBoxLayout(box)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(8)
+        column.addWidget(_head(cw.COMBINED_HEAD))
+        column.addWidget(_label(model["note"]))
+        row, line = _plain(QHBoxLayout, 8)
+        if self.source_view is not None:
+            line.addWidget(_button(cw.BACK_TO_SOURCE, self._source_back))
+        line.addWidget(_button(cw.EXPORT_COMBINED, self._export_combined))
+        line.addWidget(_label(self.combined_status), 1)
+        column.addWidget(row)
+        parts = QWidget()
+        parts.setObjectName("plain")
+        flow = FlowLayout(parts, align=Qt.AlignLeft, gap=(6, 6))
+        sources = _list(_dict(_dict(self.doc.get("meta")).get("reconstruction")).get("sources"))
+        for index, words in model["sources"]:
+            part = _button(words, lambda row=sources[index]: self._open_part(row))
+            part.setEnabled(bool(self.where))                       # ``options.openArchivePart``
+            flow.addWidget(part)
+        flow.addWidget(_label(model["count"], wrap=False))
+        column.addWidget(parts)
+        if model["runs"] is not None:
+            column.addWidget(_head(cw.RUNS_HEAD))
+            column.addWidget(self._grid(cw.RUNS_COLUMNS, model["runs"]["rows"], {n: 1 for n in range(len(cw.RUNS_COLUMNS))}))
+            column.addWidget(_muted(model["runs"]["note"]))
+        if model["summary"] is not None:
+            column.addWidget(_label(model["summary"]["line"]))
+            column.addWidget(self._grid(cw.TOTALS_COLUMNS, model["summary"]["rows"], {n: 1 for n in range(len(cw.TOTALS_COLUMNS))}))
+        return box
+
+    def _archive(self) -> QWidget | None:
+        """A recording's other parts (``archiveHTML``): the offer to review them all together, then the list folded, with
+        the parts to combine."""
+        note = cw.archive_note(self.doc)
+        if not note:
+            return None
+        a = self.archive
+        box, column = _plain(spacing=8)
+        if a["offer"]:
+            part = _dict(_dict(self.doc.get("meta")).get("archive")).get("part")
+            offer = QFrame()
+            offer.setObjectName("note")
+            line = QHBoxLayout(offer)
+            line.setContentsMargins(0, 0, 0, 0)
+            line.setSpacing(8)
+            line.addWidget(_label(f"This is part {cw.js_string(part)} of a recording in {a['offer']} parts.", wrap=False))
+            together = _button("Combining the parts…" if a["busy"] else f"Review all {a['offer']} parts together",
+                               lambda: self._combine_parts(self.archive["first"], self.archive["last"]))
+            together.setEnabled(not a["busy"])
+            line.addWidget(together)
+            if a["error"]:
+                line.addWidget(_label(a["error"], "small"))
+            line.addStretch(1)
+            column.addWidget(offer)
+        fold = Section(cw.PARTS_HEAD, None, a["open"])
+        fold.button.setAccessibleName(cw.PARTS_HEAD)
+        fold.button.toggled.connect(lambda opened: self.archive.update(open=opened))
+        body = fold.body_layout
+        body.addWidget(_muted(note))
+        body.addWidget(_muted(cw.PARTS_NOTE))
+        page = a["page"]
+        if page is not None:
+            current = self.where.get("value", "")
+            cells = []
+            for row in cw.part_rows(page, current):
+                tip = row["tip"]
+                cell = row["cells"][:4] + [_tipped(row["cells"][4], tip)] + row["cells"][5:]
+                if row["current"]:
+                    cell.append("Current part")
+                else:
+                    cell.append(_button("Open part", lambda r=row["row"]: self._open_part(r)))
+                cells.append(cell)
+            body.addWidget(self._grid(cw.PARTS_COLUMNS, cells, {n: 1 for n in range(len(cw.PARTS_COLUMNS))}))
+            body.addWidget(_muted(cw.js_string(_dict(page).get("note") or cw.PARTS_SAVED)))
+        inputs = QWidget()
+        inputs.setObjectName("plain")
+        flow = FlowLayout(inputs, align=Qt.AlignLeft, gap=(12, 6))
+        first, last = QSpinBox(), QSpinBox()
+        for spin, value, least, words in ((first, a["first"], 1, "First part"), (last, a["last"], 2, "Last part")):
+            spin.setRange(least, 999999)
+            spin.setValue(value if isinstance(value, int) else least)
+            spin.setAccessibleName(words)
+            flow.addWidget(_field_row(words, spin))
+        combine = _button(cw.COMBINE_PARTS, lambda: self._combine_parts(first.value(), last.value()))
+        combine.setEnabled(not a["busy"])
+        flow.addWidget(combine)
+        body.addWidget(inputs)
+        body.addWidget(_muted(cw.COMBINE_NOTE))
+        rows = _list(_dict(page).get("rows")) if page is not None else []
+        status = (cw.PARTS_LOADING if a["busy"] else a["error"] or
+                  (f"{len(rows)} results on this page · {cw.js_string(_dict(page).get('file_count'))} available parts" if page is not None else ""))
+        body.addWidget(_label(status))
+        buttons, line = _plain(QHBoxLayout, 8)
+        load = _button("Refresh parts" if page is not None else "Find recording parts", lambda: self._load_parts(self.archive["offset"]))
+        load.setEnabled(not a["busy"])
+        line.addWidget(load)
+        if page is not None:
+            previous = _button("Previous", lambda: self._load_parts(max(0, self.archive["offset"] - 25)))
+            previous.setEnabled(not a["busy"] and a["offset"] != 0)
+            following = _button("Next", lambda: self._load_parts(self.archive["offset"] + 25))
+            following.setEnabled(not a["busy"] and _truthy(_dict(page).get("has_more")))
+            line.addWidget(previous)
+            line.addWidget(following)
+        line.addStretch(1)
+        body.addWidget(buttons)
+        column.addWidget(_noted(fold))
+        return box
+
+    def _shared(self) -> QWidget | None:
+        """The other uploads of this fight (``sharedHTML``): each to open, and the button combining them all."""
+        shared_log = self.where.get("kind") == "shared" and not cw.reconstructed(self.doc)
+        can_combine = shared_log and self.fight["own"] is None             # ``options.combined``, not in a combined fight
+        model = cw.shared_uploads(self.ranks, can_combine, self.fight["loading"] and self.fight["segment"] == self.state["segment"],
+                                  shared_log)
+        if model is None:
+            return None
+        if "duplicate" in model:
+            return _muted(model["duplicate"])
+        box = QFrame()
+        box.setObjectName("note")
+        column = QVBoxLayout(box)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(6)
+        uploads = QWidget()
+        uploads.setObjectName("plain")
+        flow = FlowLayout(uploads, align=Qt.AlignLeft, gap=(6, 6))
+        flow.addWidget(_label("Also recorded by:", wrap=False))
+        for log, words in model["uploads"]:                                # ``openOther``: a button when it can open
+            flow.addWidget(_button(words.replace("&", "&&"), lambda log=log: self._open_other(log)) if _truthy(log)
+                           else _label(words, wrap=False))
+        column.addWidget(uploads)
+        column.addWidget(_label(model["words"].strip()))                    # the paragraph's words, the box's width
+        if model["combine"]:
+            row, line = _plain(QHBoxLayout)
+            combine = _button(model["combine"], self._view_combined)
+            combine.setEnabled(not model["busy"])
+            line.addWidget(combine)
+            line.addStretch(1)
+            column.addWidget(row)
+        return box
+
+    def _view_combined(self) -> None:
+        """The log server's combination of this fight with its other recordings (``viewCombined``)."""
+        if self.fight["loading"] or self.where.get("kind") != "shared":
+            return
+        index = self.state["segment"]
+        self.fight = {**cw_fight(), "segment": index, "loading": True}
+        self._ask("combined", f"/api/v1/logs/{cw.encode_component(self.where.get('value', ''))}/combined?segment={index}",
+                  proxied=True)
+        self.draw()
+
+    def _own_recording(self) -> None:
+        """This recording alone again (``data-own-recording``)."""
+        if self.fight["own"] is not None:
+            self.doc = self.fight["own"]
+        self.fight = cw_fight()
+        self.draw()
+
+    def _fight(self) -> QWidget | None:
+        """The combined fight in view (``fightHTML``): where each recording's records came from; or why it couldn't be
+        combined."""
+        if self.fight["error"] and self.fight["segment"] == self.state["segment"]:
+            return _note(f"The recordings could not be combined: {self.fight['error']}")
+        if self.fight["own"] is None:
+            return None
+        model = cw.combined_fight(self.doc)
+        if model is None:
+            return None
+        box = QFrame()
+        box.setObjectName("note")
+        column = QVBoxLayout(box)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(8)
+        column.addWidget(_head(model["title"]))
+        column.addWidget(_label(model["note"]))
+        cells = [[_button(row["name"].replace("&", "&&"), lambda log=row["log"]: self._open_other(log)) if _truthy(row["log"])
+                  else row["name"]] + row["cells"]
+                 for row in model["rows"]]
+        column.addWidget(self._grid(["Recording", "Uploaded by", "Clock", "Added"], cells, {0: 1, 1: 1, 2: 1, 3: 1}))
+        row, line = _plain(QHBoxLayout)
+        line.addWidget(_button(cw.BACK_TO_OWN, self._own_recording))
+        line.addStretch(1)
+        column.addWidget(row)
+        return box
+
     # ---------------------------------------------------------------- character builds and class colours (0.2.466)
     def _builds(self, d: dict) -> QWidget:
         """The encounter's characters, each a button opening their build (``Character builds:``)."""
@@ -1419,8 +1784,9 @@ class ReviewPage(QWidget):
             line.addWidget(_button(cw.BACK_TO_SAVED, self._back_to_saved))
             line.addStretch(1)
             body.addWidget(row)
-        body.addWidget(self._lookup(model))
-        body.addWidget(_muted(cw.LOOKUP_NOTE))
+        if not cw.reconstructed(self.doc):                           # ``options.lookupProfile``: never a combined review's
+            body.addWidget(self._lookup(model))
+            body.addWidget(_muted(cw.LOOKUP_NOTE))
         if model["pending"]:
             body.addWidget(_muted(cw.PENDING_NOTE))
         body.addWidget(_label(self.profile_message))

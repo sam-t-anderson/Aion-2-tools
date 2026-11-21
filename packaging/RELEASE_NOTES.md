@@ -1,3 +1,12 @@
+## A combat log's own page in the native interface, part 11 (0.2.467)
+
+**A log's review in the app's window now joins a recording's parts and a fight's recordings**, as the web page does:
+- **A recording's other parts:** a recording the meter saved in several parts says which part it is, and as it opens it looks for the other parts: **Review all N parts together** combines them. **Other parts of this recording** lists them a page at a time (the recorded span, encounters, the records each holds and how they continue, how it was saved), opens another part, and combines any 2 to 32 connected parts with **Review connected parts**;
+- **the combined review** (unranked): its note, **Back to source part**, **Export combined review** (saved where you choose), each source part to open, the runs across the parts and each player's totals; the fight in view stays in view;
+- **other uploads of the same fight:** the party members' uploads the log server links to this one, each to open, and **Combine all N recordings of this fight**: the log server's combination of them, with where each recording's records came from and what it added, until **Back to this recording only** or another encounter is chosen. Another public upload only seen is said so.
+
+The review's movement replay still opens in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 10 (0.2.466)
 
 **A log's review in the app's window now shows each character's build**, as the web page does:

@@ -24,7 +24,7 @@ pytest.importorskip("PySide6")
 from PySide6.QtCore import QBuffer, QCoreApplication, QEvent, QSettings, Qt  # noqa: E402
 from PySide6.QtGui import QColor, QImage  # noqa: E402
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QLabel, QLineEdit, QPlainTextEdit,  # noqa: E402
-                               QPushButton)
+                               QPushButton, QSpinBox)
 
 from aion2calc.gui import combat as cb  # noqa: E402
 from aion2calc.gui import combat_views as cv  # noqa: E402
@@ -309,6 +309,8 @@ class LogServer:
         self.posted: list[tuple[str, dict]] = []               # what was sent to the server's routes
         self.review_log = REVIEW_LOG                            # the log its raw route gives, and the app's recording
         self.ranks = REVIEW_RANKS                               # what its rankings routes answer
+        self.reconstruction = None                              # a combined review of a recording's parts, or refused
+        self.combined = None                                    # its combination of a fight's recordings, or refused
         self.points = {"observations": [
             {"class_name": "sorcerer", "skill": 100, "stigma": 20, "daevanion": 300, "ariel": None, "region": "NA"},
             {"class_name": "sorcerer", "skill": 110, "stigma": 20, "daevanion": 300, "ariel": 5, "region": "EU"},
@@ -346,6 +348,10 @@ class LogServer:
             if route != "/api/v1/logs/log0001/raw":
                 raise ValueError("RuntimeError: Community server (404): no such log")
             return json.loads(json.dumps(self.review_log))
+        if route == "/api/v1/logs/log0001/combined":
+            if self.combined is None:
+                raise ValueError("RuntimeError: Community server (409): no other public recording of this fight")
+            return json.loads(json.dumps(self.combined))
         if route.startswith("/api/v1/logs/") and route.endswith("/rankings"):
             return {**json.loads(json.dumps(self.ranks)), "segment": int(q["segment"][0])}
         if route == "/api/v1/npc-portraits":
@@ -458,6 +464,7 @@ class FakeApp:
         self.claims = json.loads(json.dumps(CLAIMS))
         self.log_server = LogServer()
         self.share_refusal = None
+        self.local_logs: dict[str, dict] = {}              # other recordings on this computer, by file
 
     def fingerprint(self, file):
         return self.prints.get(file) or hashlib.sha256(file.encode()).hexdigest()
@@ -469,7 +476,8 @@ class FakeApp:
         rows = [*self.recordings, *self.older]
         if archive:
             rows = sorted((r for r in rows if (r.get("archive") or {}).get("id") == archive), key=lambda r: r["archive"]["part"])
-            return {"rows": rows[offset:offset + limit], "has_more": offset + limit < len(rows), "archive": archive}
+            return {"rows": rows[offset:offset + limit], "has_more": offset + limit < len(rows), "archive": archive,
+                    "file_count": len(rows)}
         page = self.recordings if offset == 0 else self.older if offset == limit else []
         return {"rows": json.loads(json.dumps(page)), "has_more": offset == 0 and bool(self.older)}
 
@@ -543,11 +551,19 @@ class FakeApp:
             return json.loads(json.dumps(self.owners))
         if path == "/api/identity-claims":
             return json.loads(json.dumps(self.claims))
+        if path.startswith("/api/sessions/reconstruction?"):     # a recording's parts combined into one review
+            query = urllib.parse.parse_qs(path.split("?", 1)[1])
+            self.log_server.posted.append(("reconstruction", {k: v[0] for k, v in query.items()}))
+            if self.log_server.reconstruction is None:
+                raise ValueError("Parts 1 and 2 are not connected")
+            return json.loads(json.dumps(self.log_server.reconstruction))
         if path.startswith("/api/sessions?"):
             query = urllib.parse.parse_qs(path.split("?", 1)[1], keep_blank_values=True)
             if "fingerprint" in query:
                 return {"fingerprint": self.fingerprint(query["fingerprint"][0])}
             if "file" in query:
+                if query["file"][0] in self.local_logs:              # another recording on this computer
+                    return json.loads(json.dumps(self.local_logs[query["file"][0]]))
                 if query["file"] != ["session-1.a2log.json"]:
                     raise ValueError("No such recording")
                 return json.loads(json.dumps(self.log_server.review_log))
@@ -4088,6 +4104,200 @@ def test_a_characters_build_and_the_class_colours(qapp, tmp_path):
     settle(lambda: "#36d6ff" in _find(view, QPushButton, lambda b: b.accessibleName() == "Character build of TestSorc ✓ · Zikel").styleSheet())
     _click(view, cw.CLASS_COLOURS_BUTTON)
     assert view.colours_panel is None
+
+
+def _parted():
+    """The review log as part 2 of recording ``rec-1`` (Saved Logs' ``session-3``), its fight named as the combined review
+    names it."""
+    fight = json.loads(json.dumps(REVIEW_LOG))
+    fight["meta"]["archive"] = {"id": "rec-1", "part": 2, "closed": True}
+    fight["segments"][0]["id"] = "s1"
+    return fight
+
+
+def _combined_parts():
+    """The combined review of rec-1's parts 1 and 2, as the app answers one: part 1's fight, then part 2's (the review's),
+    with the runs across the parts and the players' totals."""
+    fight = json.loads(json.dumps(REVIEW_LOG))
+    first = json.loads(json.dumps(fight["segments"][0]))
+    first.update(id="part1:s0", label="Ice Queen (part 1)")
+    second = json.loads(json.dumps(fight["segments"][0]))
+    second.update(id="part2:s1")
+    fight["segments"] = [first, second]
+    fight["meta"] = {**fight["meta"], "title": "rec-1 parts 1–2", "reconstruction": {
+        "note": "Parts 1–2 of rec-1, joined at their storage boundary.",
+        "sources": [{"part": 1, "file": "session-0.a2log.json"}, {"part": 2, "file": "session-3.a2log.json"}]}}
+    fight["recording_runs"] = {"note": "Runs re-read across the parts.", "legacy_encounters": 1,
+                               "runs": [{"mode": "pve", "encounters": 2, "recorded_span": 754.3, "entry_to_finish": None,
+                                         "status": "Entry recorded in part 1"},
+                                        {"mode": "pvp", "encounters": 1, "recorded_span": None, "entry_to_finish": None,
+                                         "status": "PvP"}]}
+    fight["recording_summary"] = {"all": {"encounters": 3, "active_seconds": 130, "recorded_seconds": 245.5, "players": [
+        {"name": "TestSorc", "server": 2102, "damage": 9000, "dps": 69.2, "healing": 0, "hps": 0, "taken": 900, "dtps": 3.7}]}}
+    return fight
+
+
+def test_the_review_parts_and_combined_words():
+    from aion2calc.gui.combat_records import _when
+    # a combined review: its note and parts, the runs in the mode chosen, the players' totals
+    combined = _combined_parts()
+    state = cw.fresh_state()
+    v = cw.combined_view(combined, state)
+    assert v["note"] == "Parts 1–2 of rec-1, joined at their storage boundary." and v["sources"] == [(0, "Part 1"), (1, "Part 2")]
+    assert v["count"] == " · 2 source parts. Each encounter below retains its source boundaries."
+    assert v["runs"]["rows"] == [["1", "2", "12:34.3", "Unavailable", "Entry recorded in part 1"], ["2", "1", "Unavailable", "Unavailable", "PvP"]]
+    assert v["runs"]["note"] == ("Runs re-read across the parts. 1 source encounters have no run provenance and keep their original "
+                                 "boundaries.")
+    assert v["summary"]["line"].startswith("3 encounters · 2:10.0 active outgoing seconds · 4:05.5 recorded combat span.")
+    assert v["summary"]["rows"] == [["TestSorc · Zikel", "9,000", "69", "0", "0", "900", "4"]]
+    pve = cw.combined_view(combined, {**state, "mode": "pve"})
+    assert [r[4] for r in pve["runs"]["rows"]] == ["Entry recorded in part 1"] and pve["summary"] is None
+    assert cw.combined_view(REVIEW_LOG, state) is None
+    # a recording's parts: which part this is; each part's line; what can be combined
+    fight = _parted()
+    assert cw.archive_note(fight).startswith("Archive rec-1 · Part 2. Each part has separate totals and quality.")
+    assert cw.archive_note(REVIEW_LOG) == ""
+    page = {"rows": [
+        {"file": "session-0.a2log.json", "title": "Old raid", "duration": 200, "segments": 1,
+         "archive": {"id": "rec-1", "part": 1, "closed": True, "continuity": {"first_sequence": 1, "last_sequence": 5000,
+                                                                              "retained_records": 4800}},
+         "continuity_status": {"label": "Continues into part 2", "note": "Counters run on."}},
+        {"file": "session-3.a2log.json", "title": "", "duration": 125.4, "segments": 2, "archive": {"id": "rec-1", "part": 2}},
+        {"file": "session-4.a2log.json", "unfinished": True, "archive": {"id": "rec-1", "part": 3}}]}
+    rows = cw.part_rows(page, "session-3.a2log.json")
+    assert [r["current"] for r in rows] == [False, True, False]
+    assert rows[0]["cells"] == ["1", "Old raid", "3:20.0", "1", "1–5,000 · 4,800 records\nContinues into part 2", "Storage boundary saved"]
+    assert rows[0]["tip"] == "Counters run on." and rows[1]["tip"] == "Submitted metadata only"
+    assert rows[1]["cells"][1] == "session-3.a2log.json" and rows[1]["cells"][4] == "Range not recorded\nContinuity metadata not recorded"
+    assert rows[1]["cells"][5] == "Saved part" and rows[2]["cells"][5] == "Recording checkpoint"
+    assert cw.parts_span(page) == (3, 1, 3) and cw.parts_span({"rows": page["rows"][:1]}) is None
+    assert cw.parts_span({"rows": [{"part": 1}, {"part": 40}]}) is None and cw.parts_span({}) is None
+    assert cw.combine_check(1, 2) == "" and cw.combine_check(2, 2) == cw.CONSECUTIVE == cw.combine_check(1, 33)
+    assert cw.combine_check(0, 2) == cw.CONSECUTIVE and cw.combine_check(None, 2) == cw.CONSECUTIVE
+    assert cw.is_reconstruction(combined) and not cw.is_reconstruction(REVIEW_LOG) and not cw.is_reconstruction(None)
+    # the fight in view kept: by the combined review's name for it, else the same id, else the first
+    assert cw.kept_encounter(fight, combined, 0) == 1
+    loose = json.loads(json.dumps(combined))
+    loose["segments"][0]["id"] = "s1"
+    loose["segments"][1]["id"] = "x"
+    assert cw.kept_encounter(fight, loose, 0) == 0 and cw.kept_encounter(fight, combined, 1) == 0
+    # the other uploads of this fight: each to open; the combination of them all; one seen
+    ranks = {"shared_uploads": [{"log": "log0002", "uploader": "Uploader B", "created_at": T0}]}
+    s = cw.shared_uploads(ranks, True, False, True)
+    assert s["uploads"] == [("log0002", f"Uploader B · {_when(T0)}")] and s["combine"] == "Combine all 2 recordings of this fight"
+    assert s["words"] == (" — another party member's upload of the same fight. The movement replay below merges its movement with "
+                          "this recording's. The fight counts once per character on the leaderboard.")
+    ranks["shared_uploads"].append({"log": "log0003"})
+    s = cw.shared_uploads(ranks, True, True, False)
+    assert s["uploads"][1] == ("log0003", f"Anonymous · {_when(0)}")
+    assert s["combine"] == "Combining the recordings…" and s["busy"] and "other party members' uploads" in s["words"]
+    assert "movement" not in s["words"] and cw.shared_uploads(ranks, False, False, False)["combine"] == ""
+    assert cw.shared_uploads({"duplicate": True}, True, False, True) == {"duplicate": cw.DUPLICATE_UPLOAD}
+    assert cw.shared_uploads(None, True, False, True) is None
+    # the combined fight: where each recording's records came from
+    joined = json.loads(json.dumps(REVIEW_LOG))
+    joined["meta"]["combined"] = {"note": "Two recordings joined.", "sources": [
+        {"log": "log0001", "uploader": "Uploader A"},
+        {"log": "log0002", "title": "Raid night (B)", "uploader": None, "offset": -0.125, "shared_hits": 42,
+         "added": {"hits": 10, "effects": 3, "npc_casts": 0, "new_kind": 2}},
+        {"log": "log0003", "offset": None, "skipped": "another fight"}]}
+    f = cw.combined_fight(joined)
+    assert f["title"] == "Combined fight · 3 recordings" and f["note"] == "Two recordings joined."
+    assert [(r["log"], r["name"], r["cells"]) for r in f["rows"]] == [
+        (None, "This recording", ["Uploader A", "—", "—"]),
+        ("log0002", "Raid night (B)", ["Anonymous", "-0.13 s · 42 shared hits", "10 hits, 3 buffs and debuffs, 2 new kind"]),
+        ("log0003", "log0003", ["Anonymous", "Not matched", "Left out: another fight"])]
+    assert cw.combined_fight(REVIEW_LOG) is None
+
+
+def test_a_recordings_parts_and_their_combined_review(qapp, tmp_path):
+    from aion2calc.gui.combat_saved import Section
+    app = FakeApp()
+    app.local_logs = {"session-3.a2log.json": _parted(), "session-0.a2log.json": json.loads(json.dumps(REVIEW_LOG))}
+    app.log_server.reconstruction = _combined_parts()
+    opened = []
+    page = _page(app, open_web=opened.append)                         # the window routes a log's address to its page
+    page.open_review("local", "session-3.a2log.json")
+    view = page.review_page
+    # its other parts looked for as it opens: the offer to review both together
+    settle(lambda: view.archive["offer"] == 2 and not view.awaiting)
+    assert "/api/sessions?paged=1&offset=0&limit=100&archive=rec-1" in app.calls
+    assert "This is part 2 of a recording in 2 parts." in _labels(view)
+    # the list of parts, folded: this one the current part, the other to open
+    fold = _find(view, Section, lambda f: f.button.accessibleName() == cw.PARTS_HEAD)
+    fold.button.click()
+    _click(view, "Refresh parts")
+    settle(lambda: not view.archive["busy"] and "2 results on this page · 2 available parts" in _labels(view))
+    cells = _cells(view)
+    assert all(c in cells for c in ("Old raid", "Raid night", "Current part", "Storage boundary saved"))
+    # combining needs 2–32 consecutive parts; parts 1 to 2 reviewed together
+    _find(view, QSpinBox, lambda b: b.accessibleName() == "First part").setValue(2)
+    _click(view, cw.COMBINE_PARTS)
+    assert cw.CONSECUTIVE in _labels(view) and view.archive["first"] == 2
+    _find(view, QSpinBox, lambda b: b.accessibleName() == "First part").setValue(1)
+    _click(view, cw.COMBINE_PARTS)
+    settle(lambda: view.source_view is not None and not view.awaiting)
+    assert ("reconstruction", {"file": "session-3.a2log.json", "first": "1", "last": "2"}) in app.log_server.posted
+    labels = _labels(view)
+    assert cw.COMBINED_HEAD in labels and "Parts 1–2 of rec-1, joined at their storage boundary." in labels
+    assert view.state["segment"] == 1 and view.state["actor"] == "" and "12:34.3" in _cells(view)
+    assert any(t.startswith("3 encounters · 2:10.0 active outgoing seconds") for t in labels)
+    assert not view.rankings() and cw.STANDINGS_HEAD not in labels                # a combined review ranks nothing
+    _find(view, QPushButton, lambda b: b.accessibleName().startswith("Character build of TestSorc")).click()
+    assert view.build_window is not None and cw.LOOKUP_NOTE not in _labels(view)   # nor looks a profile up
+    assert not [b for b in view.findChildren(QPushButton) if b.isVisible() and b.text() == cw.FETCH_CURRENT]
+    _click(view, cw.BACK_TO_LOG)
+    target = tmp_path / "combined.json"
+    view._ask_where = lambda name: str(target) if name == cw.COMBINED_FILE else ""
+    _click(view, cw.EXPORT_COMBINED)
+    assert json.loads(target.read_text())["meta"]["reconstruction"]["sources"][0]["part"] == 1
+    assert any(t.startswith("Combined review saved:") for t in _labels(view))
+    _click(view, cw.BACK_TO_SOURCE)
+    assert view.source_view is None and cw.COMBINED_HEAD not in _labels(view) and view.doc["meta"]["archive"]["part"] == 2
+    # a refusal said; another part opened in place
+    app.log_server.reconstruction = None
+    _click(view, "Review all 2 parts together")
+    settle(lambda: "Parts 1 and 2 are not connected" in " ".join(_labels(view)))
+    fold = _find(view, Section, lambda f: f.button.accessibleName() == cw.PARTS_HEAD)
+    if not fold.body.isVisibleTo(view):
+        fold.button.click()
+    _click(view, "Open part")
+    assert opened[-1] == cw.local_page("session-0.a2log.json", "")
+
+
+def test_other_uploads_of_a_fight_combined(qapp):
+    app = FakeApp()
+    app.log_server.ranks = {**REVIEW_RANKS, "shared_uploads": [{"log": "log0002", "uploader": "Uploader B", "created_at": T0}]}
+    page = _page(app)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: view.ranks is not None and view.names is not None and not view.awaiting)
+    labels = _labels(view)
+    assert "Also recorded by:" in labels and any(t.startswith("— another party member's upload") for t in labels)
+    # the log server's combination refused, then given: where each recording's records came from, and back
+    _click(view, "Combine all 2 recordings of this fight")
+    settle(lambda: any(t.startswith("The recordings could not be combined:") for t in _labels(view)))
+    joined = json.loads(json.dumps(REVIEW_LOG))
+    joined["meta"]["combined"] = {"note": "Two recordings joined.", "sources": [
+        {"log": "log0001", "uploader": "Uploader A"}, {"log": "log0002", "uploader": "Uploader B", "offset": 0.5, "shared_hits": 9,
+                                                       "added": {"hits": 4}}]}
+    app.log_server.combined = joined
+    _click(view, "Combine all 2 recordings of this fight")
+    settle(lambda: "Combined fight · 2 recordings" in _labels(view))
+    assert "/api/v1/logs/log0001/combined?segment=0" in app.log_server.asked and view.fight["own"] is not None
+    assert all(c in _cells(view) for c in ("Uploader B", "+0.50 s · 9 shared hits", "4 hits"))
+    assert not any(b.text().startswith("Combine all") for b in view.findChildren(QPushButton) if b.isVisibleTo(view))
+    _click(view, cw.BACK_TO_OWN)
+    assert view.fight["own"] is None and "meta" in view.doc and "combined" not in view.doc["meta"]
+    # another encounter leaves the combined fight
+    _click(view, "Combine all 2 recordings of this fight")
+    settle(lambda: view.fight["own"] is not None)
+    _choose(view, "Encounter", 1)
+    settle(lambda: view.fight["own"] is None and "combined" not in view.doc["meta"])
+    # only seen: another public upload of the encounter
+    app.log_server.ranks = {**REVIEW_RANKS, "duplicate": True}
+    view.ask_ranks()
+    settle(lambda: cw.DUPLICATE_UPLOAD in _labels(view))
 
 
 def _buttons(widget):

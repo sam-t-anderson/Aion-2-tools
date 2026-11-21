@@ -2854,3 +2854,183 @@ def character_build(doc: dict, r: dict, character, preview) -> dict | None:
         out["fields"] = ([(js_string(key).replace("_", " "), json.dumps(value, indent=2, ensure_ascii=False))
                           for key, value in data.items()] if isinstance(data, dict) else [])
     return out
+
+
+# ------------------------------------------------------------------ other parts, combined reviews, other uploads (0.2.467)
+COMBINED_HEAD = "Combined recording review · unranked"
+BACK_TO_SOURCE = "Back to source part"
+EXPORT_COMBINED = "Export combined review"
+COMBINED_FILE = "combined-recording.a2log.json"
+RUNS_HEAD = "Run timing across selected parts"
+RUNS_COLUMNS = ["Run", "Encounters", "Recorded span", "Entry → finish", "Evidence"]
+TOTALS_COLUMNS = ["Player", "Damage", "DPS", "Healing", "HPS", "Damage taken", "Taken/s"]
+PARTS_HEAD = "Other parts of this recording"
+PARTS_NOTE = ("Part numbers can have gaps or duplicates. Ranges count retained decoded effects before view filtering, not "
+              "packets. Counter continuity cannot rule out lost packets or recording downtime. The list keeps source reports "
+              "separate. Combined review checks submitted links but cannot restore missing events or verify matching archive "
+              "IDs.")
+PARTS_COLUMNS = ["Part", "Recording", "Recorded span", "Encounters", "Retained records / continuity", "Saved state", ""]
+PARTS_SAVED = "Parts saved on this computer. Matching recording IDs do not establish complete or continuous capture."
+COMBINE_NOTE = ("Choose 2–32 stopped parts, up to 64 MiB. Gaps, overlaps, duplicate parts and conflicting links block "
+                "combining. Original encounters stay separate; combined review is unranked.")
+PARTS_LOADING = "Loading / checking recording parts…"
+COMBINE_PARTS = "Review connected parts"
+CONSECUTIVE = "Choose 2–32 consecutive part numbers."
+NO_RECONSTRUCTION = ("The server did not return a combined recording review. Update the server if this feature is "
+                     "unavailable.")
+NO_PART_LIST = "The server did not return a recording-part list."
+DUPLICATE_UPLOAD = "Another public upload of this encounter was detected. Matching player samples count once."
+NO_COMBINED_FIGHT = "The log server sent no combined fight."
+BACK_TO_OWN = "Back to this recording only"
+#: What a recording added to a combined fight (``recordKinds``).
+RECORD_KINDS = {"hits": "hits", "events": "events", "casts": "casts", "effects": "buffs and debuffs", "chains": "chain windows",
+                "npc_casts": "boss casts", "health": "HP readings", "resources": "MP readings", "gauge": "break-gauge readings"}
+
+
+def combined_view(doc: dict, state: dict) -> dict | None:
+    """A combined recording review (``combinedHTML``): the server's note, each source part, the runs across the parts
+    and the players' totals in the combat mode chosen; None for a single recording."""
+    m = _dict(doc.get("meta")).get("reconstruction")
+    if not _truthy(m):
+        return None
+    m = _dict(m)
+    sources = [_dict(x) for x in _list(m.get("sources"))]
+    out = {"note": js_string(m.get("note")), "sources": [(i, f"Part {js_string(x.get('part'))}") for i, x in enumerate(sources)],
+           "count": f" · {len(sources)} source parts. Each encounter below retains its source boundaries.", "runs": None,
+           "summary": None}
+    runs = doc.get("recording_runs")
+    if _truthy(runs):
+        runs = _dict(runs)
+        rows = [_dict(r) for r in _list(runs.get("runs")) if not state["mode"] or _dict(r).get("mode") == state["mode"]]
+        out["runs"] = {"rows": [[str(i + 1), js_string(r.get("encounters")),
+                                 "Unavailable" if r.get("recorded_span") is None else seconds(r["recorded_span"]),
+                                 "Unavailable" if r.get("entry_to_finish") is None else seconds(r["entry_to_finish"]),
+                                 js_string(r.get("status"))] for i, r in enumerate(rows)],
+                       "note": f"{js_string(runs.get('note'))} {js_string(_first(runs.get('legacy_encounters'), 0))} source "
+                               "encounters have no run provenance and keep their original boundaries."}
+    summary = _dict(doc.get("recording_summary")).get(state["mode"] or "all")
+    if _truthy(summary):
+        summary = _dict(summary)
+        out["summary"] = {
+            "line": (f"{js_string(summary.get('encounters'))} encounters · {seconds(summary.get('active_seconds'))} active outgoing "
+                     f"seconds · {seconds(summary.get('recorded_seconds'))} recorded combat span. DPS uses the shared active "
+                     "clock; HPS and damage taken/s use recorded spans."),
+            "rows": [[actor_label(p), number(p.get("damage")), number(p.get("dps")), number(p.get("healing")), number(p.get("hps")),
+                      number(p.get("taken")), number(p.get("dtps"))] for p in (_dict(x) for x in _list(summary.get("players")))]}
+    return out
+
+
+def archive_note(doc: dict) -> str:
+    """Which recording and part this is (``archiveHTML``'s note); nothing for a recording of one part."""
+    archive = _dict(doc.get("meta")).get("archive")
+    if not _truthy(archive):
+        return ""
+    archive = _dict(archive)
+    return (f"Archive {js_string(archive.get('id'))} · Part {js_string(archive.get('part'))}. Each part has separate totals and "
+            "quality. Entry evidence may be in an earlier part; a storage boundary keeps this part incomplete.")
+
+
+def part_rows(page: dict, current: str) -> list[dict]:
+    """The recording's parts on a page of the list (``archiveHTML``'s rows): each its part, title, span, encounters, the
+    records it holds and how they continue, how it was saved, and whether it is the part shown."""
+    out = []
+    for index, row in enumerate(_dict(x) for x in _list(page.get("rows"))):
+        archive = _dict(row.get("archive"))
+        key = _first(row.get("file"), row.get("id"))
+        c = _dict(archive.get("continuity"))
+        evidence = _dict(row.get("continuity_status"))
+        span = (f"{number(c.get('first_sequence'))}–{number(c.get('last_sequence'))} · {number(c.get('retained_records'))} records"
+                if _truthy(archive.get("continuity")) else "Range not recorded")
+        closed = archive.get("closed") if archive.get("closed") is not None else row.get("closed")
+        out.append({"index": index, "row": row, "current": js_string(key) == current,
+                    "cells": [js_string(archive.get("part") if archive.get("part") is not None else row.get("part")),
+                              js_string(_first(row.get("title"), key)), seconds(row.get("duration")), js_string(row.get("segments")),
+                              f"{span}\n{js_string(_first(evidence.get('label'), 'Continuity metadata not recorded'))}",
+                              "Recording checkpoint" if _truthy(row.get("unfinished")) else
+                              "Storage boundary saved" if _truthy(closed) else "Saved part"],
+                    "tip": js_string(_first(evidence.get("note"), "Submitted metadata only"))})
+    return out
+
+
+def parts_span(page) -> tuple[int, int, int] | None:
+    """The parts a recording's list holds (``autoCombine``): how many, the first and the last; None when there is
+    nothing to combine (fewer than two, or 32 parts and more apart)."""
+    nums = [n for n in (_dict(r).get("part") if _dict(_dict(r).get("archive")).get("part") is None
+                        else _dict(_dict(r).get("archive")).get("part") for r in _list(_dict(page).get("rows")))
+            if isinstance(n, int) and not isinstance(n, bool)]
+    if len(nums) < 2:
+        return None
+    first, last = min(nums), max(nums)
+    if last <= first or last - first >= 32:
+        return None
+    return len(set(nums)), first, last
+
+
+def combine_check(first, last) -> str:
+    """Why the parts asked for can't be combined (``combineParts``), or nothing."""
+    whole = all(isinstance(x, int) and not isinstance(x, bool) for x in (first, last))
+    if not whole or first < 1 or last - first < 1 or last - first >= 32:
+        return CONSECUTIVE
+    return ""
+
+
+def is_reconstruction(next_doc) -> bool:
+    """A combined recording review as the server answers one (``meta.reconstruction``, ``recording_summary``, encounters)."""
+    d = _dict(next_doc)
+    return _truthy(_dict(d.get("meta")).get("reconstruction")) and _truthy(d.get("recording_summary")) and isinstance(d.get("segments"), list)
+
+
+def kept_encounter(doc: dict, combined: dict, segment: int) -> int:
+    """The encounter in view, as the combined review names it (``part<N>:<id>``), else the first (``applyCombined``)."""
+    all_segments = segments(doc)
+    current = all_segments[segment] if 0 <= segment < len(all_segments) else None
+    if current is None:
+        return 0
+    part = _dict(_dict(doc.get("meta")).get("archive")).get("part")
+    ident = _joined(current.get("id", _ABSENT))
+    for index, s in enumerate(segments(combined)):
+        if s.get("id") == f"part{_joined(part if part is not None else _ABSENT)}:{ident}" or s.get("id") == current.get("id"):
+            return index
+    return 0
+
+
+def shared_uploads(ranks, can_combine: bool, combining: bool, movement: bool) -> dict | None:
+    """The other uploads of this fight the log server knows (``sharedHTML``): each to open, what they add, and the button
+    that combines them all; or that another public upload was seen; None for neither."""
+    from .combat_records import _when
+    r = _dict(ranks)
+    uploads = [_dict(u) for u in _list(r.get("shared_uploads"))]
+    if uploads:
+        one = len(uploads) == 1
+        words = (" — " + ("another party member's upload" if one else "other party members' uploads") + " of the same fight."
+                 + (f" The movement replay below merges {'its' if one else 'their'} movement with this recording's." if movement else "")
+                 + " The fight counts once per character on the leaderboard.")
+        return {"uploads": [(u.get("log"), f"{js_string(_first(u.get('uploader'), 'Anonymous'))} · {_when(_first(u.get('created_at'), 0))}")
+                            for u in uploads],
+                "words": words, "busy": combining,
+                "combine": ("" if not can_combine else "Combining the recordings…" if combining
+                            else f"Combine all {len(uploads) + 1} recordings of this fight")}
+    if _truthy(r.get("duplicate")):
+        return {"duplicate": DUPLICATE_UPLOAD}
+    return None
+
+
+def combined_fight(doc: dict) -> dict | None:
+    """The log server's combination of this fight with its other recordings (``fightHTML``): where each recording's
+    records came from and what it added; None when the fight shown is this recording's own."""
+    c = _dict(doc.get("meta")).get("combined")
+    if not isinstance(c, dict) or not isinstance(c.get("sources"), list):
+        return None
+
+    def added(a) -> str:
+        parts = [f"{number(n)} {RECORD_KINDS.get(k) or js_string(k).replace('_', ' ')}" for k, n in _dict(a).items() if _truthy(n)]
+        return ", ".join(parts) or "Nothing it did not already hold"
+    rows = []
+    for i, x in enumerate(_dict(s) for s in c["sources"]):
+        offset = x.get("offset")
+        clock_words = "—" if not i else "Not matched" if offset is None else \
+            f"{'+' if (_num(offset) or 0) >= 0 else ''}{fixed(offset, 2)} s · {number(x.get('shared_hits'))} shared hits"
+        rows.append({"log": None if not i else x.get("log"), "name": "This recording" if not i else js_string(_first(x.get("title"), x.get("log"))),
+                     "cells": [js_string(_first(x.get("uploader"), "Anonymous")), clock_words,
+                               "—" if not i else f"Left out: {js_string(x['skipped'])}" if _truthy(x.get("skipped")) else added(x.get("added"))]})
+    return {"title": f"Combined fight · {len(c['sources'])} recordings", "note": js_string(c.get("note") or ""), "rows": rows}
