@@ -1,3 +1,16 @@
+## The Gathering page in the native interface (0.2.430)
+
+**The Gathering page is native now.** The app's window draws Game → Gathering itself, as the web page shows it:
+- **Your totals:** gathers, items gathered, better-grade and failed results with their shares, and reward cubes.
+- **Gathering:** each kind of node, everyone's or yours:
+  - where it grows (in dungeons or the open world, and the places, the most gathered first);
+  - how often it gives a normal, better-grade or failed result;
+  - what it gave, in its grade's colour, how often, and how many a gather gives.
+- **Dungeon materials:** each dungeon's reward cubes and the crafting materials they held, or every drop. "In cubes" is the share of claimed cubes that held a material; "How many" is the average count when it was there.
+- **Your log:** your latest gathers and reward cubes, with where, what and which character.
+
+Without everyone's drop rates (the log server does not have them, or cannot be reached), the page shows yours and says why. The note on sharing links to the native Settings page. Your records and everyone's are read each time you open the page.
+
 ## The Database page in the native interface (0.2.429)
 
 **The Database page is native now.** The app's window draws Game → Database itself, as the web page shows it:
