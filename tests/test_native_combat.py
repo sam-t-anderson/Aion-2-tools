@@ -2,9 +2,9 @@
 file with its progress, the logs folder, the log server shared to, the encounters analyzed), as pages/combat.js shows
 them; since 0.2.451 Saved Logs' recorded encounters by type (saved-logs.js) and its upload queue (archive-upload.js);
 since 0.2.452 My Uploads (log-ownership.js) and My Character Identities (identity.js); since 0.2.453 the community's
-views (logs-view.js); since 0.2.454 Personal records (community.js). Off screen over a fake app answering as the app
-does, a fake share server and a fake log server behind the app's community proxy (made-up logs, recordings, credentials,
-characters and encounters).
+views (logs-view.js); since 0.2.454 Personal records (community.js); since 0.2.455 the featured encounters (featured.js).
+Off screen over a fake app answering as the app does, a fake share server and a fake log server behind the app's
+community proxy (made-up logs, recordings, credentials, characters, teams and encounters).
 """
 import gzip
 import hashlib
@@ -27,8 +27,10 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QLabel, QLine
 from aion2calc.gui import combat as cb  # noqa: E402
 from aion2calc.gui import combat_views as cv  # noqa: E402
 from aion2calc.gui import combat_records as cr  # noqa: E402
+from aion2calc.gui import combat_featured as cf  # noqa: E402
 from aion2calc.gui.combat_community import BossProgression, BuildPoints, CommunityLogs, RunSpeed  # noqa: E402
 from aion2calc.gui.combat_extras import BoxPlot, PersonalRecords, TrendChart  # noqa: E402
+from aion2calc.gui.combat_featured_page import _Closer, _Painted, _Segment, _Spread  # noqa: E402
 from aion2calc.gui.combat_page import CombatPage  # noqa: E402
 from aion2calc.gui.combat_owned import Identities, OwnedUploads  # noqa: E402
 from aion2calc.gui.combat_saved import RecordedEncounters, Section, UploadQueue  # noqa: E402
@@ -120,6 +122,53 @@ CONSISTENCY = {"note": "Matched recordings.", "identity": "TestSorc on Zikel", "
                                        {"uploaded_at": T0, "score": 40000, "recorded_deaths": 0, "log": "log0001",
                                         "segment": 3}]}]}
 
+# the featured encounters: one encounter of two phases, three teams (a party, a legion, a party across servers)
+FE_ID = "fe_0123456789"
+TEAM_A = {"name": "Night Watch", "kind": "party", "server": 2102, "region": "na",
+          "members": [{"name": "TestSorc", "class": "sorcerer"}, {"name": "TestCleric", "class": "cleric"}]}
+TEAM_B = {"name": "Old Guard", "kind": "legion", "region": "eu"}
+TEAM_C = {"name": "Drifters", "kind": "party", "members": [{"name": "TestRanger", "class": "ranger"}]}
+PHASES = [{"boss_key": "npc:2001", "boss": "Ice Queen", "icon": PORTRAIT}, {"boss_key": "npc:2002", "boss": "Frost Hound"}]
+FEATURED = {"id": FE_ID, "title": "Frost Spire", "boss": "Ice Queen", "boss_key": "npc:2001", "icon": PORTRAIT,
+            "difficulty": "Hard", "starts_at": T0 - 7 * DAY, "phases": PHASES, "summary": {
+                "teams": 3, "complete": 1, "pulls": 42,
+                "progress": [{"team": TEAM_A, "complete": True, "killed": 2, "phases": 2},
+                             {"team": TEAM_B, "complete": False, "killed": 1, "phases": 2, "best_hp": 12.34}],
+                "speed": [{"team": TEAM_A, "elapsed": 754}],
+                "execution": [{"team": TEAM_A, "deaths": 1, "seconds": 300}, {"team": TEAM_B, "deaths": None}],
+                "all_stars": {"dps": [{"name": "TestSorc", "class": "sorcerer", "server": 2102, "points": 187.25}],
+                              "support": [{"name": "TestCleric", "class": "cleric", "points": None}]},
+                "classes": {"dps": [{"class": "sorcerer", "median": 51234.5}]}}}
+RACE = {"phases": [{**PHASES[0], "teams": 3, "killed_by": 1, "first_kill": {"team": TEAM_A, "at": T0 - 2 * DAY}},
+                   {**PHASES[1], "teams": 2, "killed_by": 1}],
+        "teams": [{"rank": 1, "team": TEAM_A, "complete": True, "first_kill_at": T0 - DAY, "position": 1, "killed": 2,
+                   "phases": 2, "pulls": 12, "log": "log0001"},
+                  {"rank": 2, "team": TEAM_B, "complete": False, "next_phase": 1, "best_hp": 12.34, "position": 0.62,
+                   "killed": 1, "phases": 2, "pulls": 20},
+                  {"rank": 3, "team": TEAM_C, "complete": False, "next_phase": 0, "position": 0.1, "killed": 0, "phases": 2,
+                   "pulls": 10}],
+        "regions": ["na", "eu"], "note": "Public logs only."}
+FE_PROGRESS = {"progress": [{"rank": 1, "team": TEAM_A, "complete": True, "killed": 2, "phases": 2, "killed_bosses": [0, 1, 5],
+                             "pulls": 12, "progress_at": T0 - DAY},
+                            {"rank": 2, "team": TEAM_B, "killed": 1, "phases": 2, "best_hp": 12.34, "killed_bosses": [0],
+                             "pulls": 20, "progress_at": T0}],
+               "kills": [{"rank": 1, "team": TEAM_A, "patch": "version:product:2.1", "composition": {"sorcerer": 1, "cleric": 1},
+                          "at": T0 - DAY, "seconds": 754, "deaths": 1, "log": "log0001"}],
+               "total": 120, "page": 1, "regions": ["na", "eu"]}
+FE_REPORTS = {"logs": [{"id": "log0001", "title": "Frost Spire clear", "uploader": "Uploader A", "created_at": T0,
+                        "contexts": [{"boss": "Ice Queen"}, {"boss": None}, {"boss": "Frost Hound"}], "duration": 3725,
+                        "players": [{"name": "TestSorc", "class": "sorcerer"}, {"name": "TestCleric", "class": "cleric"}]},
+                       {"id": "log0002", "boss": "Ice Queen", "created_at": T0 - DAY}],
+              "total": 31, "page": 1, "limit": 30}
+FE_RANKED = {"entries": [{"name": "TestSorc", "class": "sorcerer", "server": 2102, "score": 51234.5, "parse": 98.6,
+                          "duration": 185, "created_at": T0, "log": "log0001", "segment": 3},
+                         {"name": "TestCleric", "class": "cleric", "score": None, "parse": None}],
+             "regions": ["na"]}
+FE_SPEED = {"entries": [{"rank": 1, "team": TEAM_A, "elapsed": 754, "patch": "version:product:2.1", "at": T0, "log": "log0001"}]}
+FE_STATISTICS = {"classes": [{"class": "sorcerer", "role": "dps", "count": 12, "p25": 40000, "median": 50000, "p75": 60000,
+                              "p95": 80000, "max": 90000},
+                             {"class": "cleric", "role": "support", "count": 3, "median": 20000, "max": 25000}]}
+
 
 class LogServer:
     """The log server's public routes behind the app's community proxy, as logs-view.js asks them."""
@@ -147,6 +196,7 @@ class LogServer:
              "fastest_kill_seconds": 0},
             {"boss": "Ice Queen", "difficulty": "Hard", "region": "EU", "attempts": 5, "kills": 1, "wipes": 4,
              "observed_kill_rate": 0.2, "fastest_kill_seconds": 400}]}
+        self.featured: list[dict] = []                       # none featured, unless a test features one
         self.points = {"observations": [
             {"class_name": "sorcerer", "skill": 100, "stigma": 20, "daevanion": 300, "ariel": None, "region": "NA"},
             {"class_name": "sorcerer", "skill": 110, "stigma": 20, "daevanion": 300, "ariel": 5, "region": "EU"},
@@ -180,6 +230,15 @@ class LogServer:
             return json.loads(json.dumps(RECORDS))
         if route == "/api/v1/consistency":
             return json.loads(json.dumps(CONSISTENCY))
+        if route == "/api/v1/featured":
+            return {"featured": json.loads(json.dumps(self.featured)), "note": "Featured by the operator."}
+        if route.startswith("/api/v1/featured/"):
+            fid, _, view = route[len("/api/v1/featured/"):].partition("/")
+            if fid != FE_ID:
+                raise ValueError("RuntimeError: Community server (404): unknown featured encounter")
+            answers = {"": FEATURED, "race": RACE, "progress": FE_PROGRESS, "reports": FE_REPORTS,
+                       "rankings": FE_SPEED if q.get("metric") == ["speed"] else FE_RANKED, "statistics": FE_STATISTICS}
+            return json.loads(json.dumps(answers[view]))
         raise AssertionError(path)
 TOKEN = "t" * 24
 #: The private credentials of this computer's uploads, on two servers.
@@ -1552,6 +1611,289 @@ def test_personal_records(qapp, tmp_path):
     settle(lambda: view.record_note.text() == "RuntimeError: Community server (503): busy")
     assert "RuntimeError: Community server (503): busy" in _labels(view)
     assert "Consistency unavailable: RuntimeError: Community server (503): busy" in _labels(view)
+
+
+def test_the_featured_words():
+    assert [cf.n0(51234.5), cf.n0(None), cf.n0("12"), cf.n0(True), cf.n0(float("nan"))] == ["51,235", "—", "12", "—", "—"]
+    assert [cf.pct(12.345), cf.pct(None), cf.pct("x")] == ["12.3%", "—", "—"]
+    assert [cf.clock(754), cf.clock(3725), cf.clock(59.6), cf.clock(None)] == ["12:34", "1:02:05", "1:00", "—"]
+    assert cf.when(T0) == "2026-11-01 12:00" and cf.when(0) == cf.when(None) == cf.when("soon") == "—"
+    assert [cf.world(2102), cf.world(None), cf.world(99999)] == ["Zikel", "", "99999"]
+    assert [cf.region("nae"), cf.region("xx"), cf.region(None)] == ["NA", "XX", ""]
+    assert cf.patch("version:product:2.1") == "2.1" and cf.patch(None) == ""
+    assert cf.npc_code("npc:2001") == "2001" and cf.npc_code("boss") is None and cf.npc_code(None) is None
+    assert cf.valid_id(FE_ID) and not any(cf.valid_id(x) for x in ("fe_xyz", None, FE_ID + "0", "FE_0123456789"))
+    assert cf.log_page("log 1", 3) == "combat-log/shared/log%201?segment=3"
+    assert cf.log_page("log0001", 2.0) == "combat-log/shared/log0001?segment=2"
+    assert cf.log_page("log0001") == cf.log_page("log0001", True) == cf.log_page("log0001", 1.5) == "combat-log/shared/log0001"
+    # teams, characters and how far a team got
+    assert cf.team_view(TEAM_A) == {"name": "Night Watch", "sub": "Zikel · NA", "legion": False, "kind": "party",
+                                    "tip": "TestSorc, TestCleric", "members": [{"name": "TestSorc", "class": "sorcerer"},
+                                                                               {"name": "TestCleric", "class": "cleric"}]}
+    legion, across = cf.team_view(TEAM_B), cf.team_view(TEAM_C)
+    assert (legion["legion"], legion["tip"], legion["sub"]) == (True, "Legion", "EU")
+    assert across["sub"] == "several servers" and cf.team_view(None)["name"] == ""
+    assert cf.player_view({"name": "TestSorc", "class": "sorcerer", "server": 2102}) == {
+        "name": "TestSorc", "class": "sorcerer", "sub": "Zikel"}
+    assert cf.progress_text({"killed": 1, "phases": 2, "best_hp": 12.34}) == "1/2 · 12.3%"
+    assert cf.progress_text({"complete": True, "killed": 2, "phases": 2, "best_hp": 0}) == "2/2"
+    assert cf.progress_text({}) == "—/—"                                    # not "undefined/undefined"
+    assert cf.featured_page("nope", "speed") == ("race", "dps") and cf.featured_page("rankings", "speed") == ("rankings", "speed")
+    assert cf.featured_page("statistics", "hps") == ("statistics", "hps")
+    assert cf.featured_page("statistics", "speed") == ("statistics", "dps")
+    # the landing cards
+    cards = cf.zone_cards(FEATURED)
+    assert [c["title"] for c in cards] == ["Progress", "Speed", "Execution", "All Stars (DPS)", "All Stars (Tank)",
+                                           "All Stars (Support)", "DPS", "Tank Damage", "Support Damage"]
+    assert [c["more"] for c in cards] == [("progress", None), ("rankings", "speed"), ("progress", None)] + [
+        ("rankings", None)] * 3 + [("statistics", None)] * 3
+    assert [v for _kind, _who, v in cards[0]["rows"]] == ["Complete", "1/2 · 12.3%"]
+    assert [v for _kind, _who, v in cards[1]["rows"]] == ["12:34"]
+    assert [v for _kind, _who, v in cards[2]["rows"]] == ["1 death · 5:00", "— deaths · —"]
+    assert cards[3]["rows"] == [("player", {"name": "TestSorc", "class": "sorcerer", "sub": "Zikel"}, "187.3")]
+    assert cards[4]["rows"] == [] and cards[5]["rows"][0][2] == "—"       # no points: none made up
+    assert cards[6]["rows"] == [("class", {"class": "sorcerer", "name": "Sorcerer"}, "51,235")]
+    assert cf.zone_note(FEATURED).startswith("3 teams · 1 cleared · 42 recorded pulls. Speed is a team's fastest")
+    assert cf.featured_list({"featured": [FEATURED, "x"]}) == [FEATURED] and cf.featured_list(None) == []
+    assert cf.note({"note": "Public logs only."}) == "Public logs only." and cf.note({}) == cf.note(None) == ""
+    started = cf.when(T0 - 7 * DAY)
+    assert cf.header_line(FEATURED) == f"Ice Queen · Hard · race from {started}"
+    assert cf.header_line({**FEATURED, "ends_at": T0}) == f"Ice Queen · Hard · race from {started} to 2026-11-01 12:00"
+    # each page's question
+    state = {"page": 2, "boss": "npc:2001", "region": "eu", "metric": "dps", "cls": "sorcerer"}
+    base = f"/api/v1/featured/{FE_ID}/"
+    assert cf.featured_path(FE_ID, "race", state) == base + "race?region=eu"
+    assert cf.featured_path(FE_ID, "race", {**state, "region": ""}) == base + "race"
+    assert cf.featured_path(FE_ID, "progress", state) == base + "progress?page=2&region=eu"
+    assert cf.featured_path(FE_ID, "reports", state) == base + "reports?page=2"
+    assert cf.featured_path(FE_ID, "rankings", state) == base + "rankings?metric=dps&boss=npc%3A2001&class=sorcerer&region=eu"
+    assert cf.featured_path(FE_ID, "rankings", {**state, "metric": "speed"}) == base + "rankings?metric=speed&region=eu"
+    assert cf.featured_path(FE_ID, "statistics", {**state, "metric": "hps", "region": ""}) == (
+        base + "statistics?metric=hps&boss=npc%3A2001")
+    assert cf.pager({"total": 120, "page": 2}, 50) == {"page": 2, "pages": 3, "words": "Page 2 of 3", "previous": True,
+                                                       "next": True}
+    assert cf.pager({"total": 30, "page": 1}, 30) is None and cf.pager(None, 50) is None
+    assert cf.pager({"total": 31, "page": 2}, None)["next"] is False     # thirty a page when the server names no limit
+    assert cf.regions_offered({"regions": ["na", "eu"]}) == [("na", "NA"), ("eu", "EU")]
+    assert cf.boss_choices(FEATURED) == [("npc:2001", "Ice Queen"), ("npc:2002", "Frost Hound")]
+    # the race
+    r = cf.race(RACE, FEATURED)
+    assert [p["title"] for p in r["phases"]] == ["Phase 1", "Phase 2"] and r["fills"] == [100, 100] and r["done_fill"] == 100
+    assert r["stats"][0] == {"line": "3 reached · 1 killed", "first": f"First: Night Watch, {cf.when(T0 - 2 * DAY)}"}
+    assert r["stats"][1]["first"] == "" and r["complete"] == "1 complete" and r["label"] == "2 phases: a team has completed it"
+    assert r["lists"] == [[{"rank": "3.", "name": "Drifters", "small": "pulling"}],
+                          [{"rank": "2.", "name": "Old Guard", "small": "12.3%"}]]
+    assert r["done"] == [{"rank": "1.", "name": "Night Watch", "small": cf.when(T0 - DAY)}]
+    a, b, c = r["closers"]
+    assert (a["state"], a["detail"], a["progress"], a["pulls"], a["log"]) == ("Complete!", cf.when(T0 - DAY), "2/2",
+                                                                              "Pulls: 12", "log0001")
+    assert [m["name"] for m in a["members"]] == ["TestSorc", "TestCleric"] and b["members"] == [] and b["team"]["legion"]
+    assert (b["state"], b["detail"], c["detail"]) == ("Working on", "Frost Hound · 12.3%", "Ice Queen")
+    racing = cf.race({**RACE, "teams": RACE["teams"][1:]}, FEATURED)      # no team has finished
+    assert racing["fills"] == [100, 24] and racing["done_fill"] == 0 and racing["done"] == []
+    assert racing["label"] == "2 phases: the leading team is 62% of the way"
+    # progress, kills, reports, rankings and statistics
+    rows = cf.progress_rows(FE_PROGRESS, FEATURED)
+    assert [(r["rank"], r["progress"], r["pulls"]) for r in rows] == [("1", "2/2", "12"), ("2", "1/2 · 12.3%", "20")]
+    assert [k[2] for k in rows[0]["killed"]] == ["Ice Queen", "Frost Hound"]   # a phase the encounter hasn't is left out
+    kill = cf.kill_rows(FE_PROGRESS)[0]
+    assert (kill["patch"], kill["composition"], kill["time"], kill["deaths"], kill["log"]) == (
+        "2.1", [("sorcerer", "1"), ("cleric", "1")], "12:34", "1", "log0001")
+    first, second = cf.report_rows(FE_REPORTS)
+    assert (first["title"], first["uploader"], first["bosses"], first["time"]) == (
+        "Frost Spire clear", "Uploader A", "Ice Queen, Frost Hound", "1:02:05")
+    assert [p["name"] for p in first["players"]] == ["TestSorc", "TestCleric"]
+    assert (second["title"], second["uploader"], second["time"], second["players"]) == ("Ice Queen", "Anonymous", "—", [])
+    assert [(r["time"], r["patch"]) for r in cf.speed_rows(FE_SPEED)] == [("12:34", "2.1")]
+    ranked, unranked = cf.ranking_rows(FE_RANKED)
+    assert (ranked["rank"], ranked["score"], ranked["parse"], ranked["time"], ranked["segment"]) == ("1", "51,235", "99", "3:05", 3)
+    assert (unranked["rank"], unranked["score"], unranked["parse"], unranked["time"], unranked["at"]) == ("2", "—", "—", "—", "—")
+    assert cf.ranking_columns("hps")[3] == "HPS" and cf.ranking_columns("dps")[3] == "DPS"
+    assert cf.ranking_caption(FEATURED, {"metric": "hps", "boss": "npc:2002"}) == "Healing per second · Frost Hound"
+    assert cf.ranking_caption(FEATURED, {"metric": "dps", "boss": "npc:9"}) == "Damage per second · Ice Queen"
+    assert cf.statistics_caption("hps") == "Recorded healing per second by class"
+    rows, top = cf.statistics_rows(FE_STATISTICS)
+    assert top == 80000 and (rows[0]["box"], rows[0]["mark"], rows[0]["role"], rows[0]["median"]) == (
+        (0.5, 0.25), 0.625, "DPS", "50,000")
+    assert (rows[1]["box"], rows[1]["mark"], rows[1]["role"], rows[1]["p25"]) == (None, 0.25, "Support", "—")  # no box drawn
+
+
+def _featured(app, **kwargs):
+    """Combat Logs with one featured encounter, its cards drawn and their pictures in."""
+    app.log_server.featured = [json.loads(json.dumps(FEATURED))]
+    page = _page(app, **kwargs)
+    settle(lambda: "Frost Spire" in _labels(page.featured) and any(
+        not p.pixmap().isNull() for p in page.featured.findChildren(_Painted)) and not page.featured.soon.isActive())
+    return page
+
+
+def _drawn(widget, words):
+    """``words`` shown, and the pictures that came meanwhile drawn too."""
+    settle(lambda: words in _labels(widget) and not widget.soon.isActive())
+
+
+def _nav(widget, words):
+    _find(widget, QPushButton, lambda b: b.objectName() == "feNav" and b.text() == words).click()
+
+
+def _choose(widget, name, value):
+    pick = _find(widget, QComboBox, lambda c: c.accessibleName() == name)
+    pick.setCurrentIndex(pick.findData(value))
+    pick.activated.emit(pick.currentIndex())
+
+
+def test_the_featured_encounters_cards(qapp):
+    from PySide6.QtWidgets import QFrame
+    from aion2calc.gui.combat_featured_page import FeaturedSection
+    app = FakeApp()
+    page = _featured(app)
+    section = page.featured
+    assert page.frame.body.indexOf(section) == 0                          # above the views
+    texts = _labels(section)
+    assert cf.HEADING in texts and "Ice Queen · Hard" in texts and "Featured by the operator." in texts
+    assert cf.zone_note(FEATURED) in texts
+    assert all(t in texts for t in ("Progress", "Speed", "Execution", "All Stars (DPS)", "All Stars (Support)", "Tank Damage"))
+    assert all(t in texts for t in ("Complete", "1/2 · 12.3%", "12:34", "1 death · 5:00", "— deaths · —", "187.3", "51,235"))
+    assert texts.count(cf.NO_RECORDS) == 3                                # the tanks' all stars, the tanks' and supports' damage
+    team = _find(section, QLabel, lambda label: label.text() == "Night Watch")
+    assert (team.objectName(), team.toolTip()) == ("feTeam", "TestSorc, TestCleric")
+    legion = _find(section, QLabel, lambda label: label.text() == "Old Guard")
+    assert (legion.objectName(), legion.toolTip()) == ("feLegion", "Legion")
+    assert "<span style='color: #123456;'>TestSorc</span>" in texts       # the user's colour for a sorcerer
+    assert "<span style='color: #e8cf8e;'>TestCleric</span>" not in texts and "<span style='color: #ffffff;'>TestCleric</span>" in texts
+    medals = [label.objectName() for label in section.findChildren(QLabel) if label.objectName().startswith("feMedal")]
+    assert medals.count("feMedal1") == 6 and medals.count("feMedal2") == 2
+    # View more… opens a page in place of the views; Back returns to them, the cards read again
+    speed = _find(section, QFrame, lambda f: f.objectName() == "feCard" and f.accessibleName() == "Speed")
+    _find(speed, QPushButton, lambda b: b.text() == cf.MORE).click()
+    fp = page.featured_page
+    _drawn(fp, cf.SPEED_CAPTION)
+    asked = app.log_server.asked
+    assert asked.index(f"/api/v1/featured/{FE_ID}") < asked.index(f"/api/v1/featured/{FE_ID}/rankings?metric=speed")
+    assert not page.frame.isVisibleTo(page) and page.featured_box.isVisibleTo(page)
+    assert _find(fp, QComboBox, lambda c: c.accessibleName() == "Ranking").currentData() == "speed"
+    assert not [c for c in fp.findChildren(QComboBox) if c.accessibleName() in ("Boss", "Class") and c.isVisibleTo(fp)]
+    count = asked.count("/api/v1/featured")
+    old = _find(section, QFrame, lambda f: f.objectName() == "feZone")
+    _click(page, cf.BACK)
+    assert page.frame.isVisibleTo(page) and not page.featured_box.isVisibleTo(page)
+    settle(lambda: asked.count("/api/v1/featured") == count + 1)          # as #/combat reads it
+    settle(lambda: any(f is not old and f.isVisibleTo(section) for f in section.findChildren(QFrame)
+                       if f.objectName() == "feZone"))                     # and drawn again
+    _nav(section, "Statistics")
+    _drawn(page.featured_page, "Recorded damage per second by class")
+    # nothing featured, or no server: nothing drawn
+    quiet = FakeApp()
+    empty = FeaturedSection(quiet, lambda *_: None)
+    settle(lambda: empty.answer is not None)
+    assert not empty.isVisible() and cf.featured_list(empty.answer) == []
+    quiet.log_server.refusal = "RuntimeError: Community server (503): busy"
+    refused = FeaturedSection(quiet, lambda *_: None)
+    seen = []
+    refused.requests.failed.connect(lambda name, why: seen.append(why))
+    settle(lambda: seen)
+    QCoreApplication.processEvents()
+    assert seen == ["RuntimeError: Community server (503): busy"] and refused.answer is None and not refused.isVisible()
+
+
+def test_a_featured_encounters_pages(qapp):
+    opened = []
+    app = FakeApp()
+    page = _featured(app, open_web=opened.append)
+    asked = app.log_server.asked
+    base = f"/api/v1/featured/{FE_ID}"
+    # the race summary
+    _nav(page.featured, "Race Summary")
+    fp = page.featured_page
+    _drawn(fp, cf.CLOSER)
+    settle(lambda: any(c.art is not None for c in fp.findChildren(_Closer)) and not fp.soon.isActive())
+    assert asked.index(base) < asked.index(base + "/race")
+    texts = _labels(fp)
+    assert "Frost Spire" in texts and cf.header_line(FEATURED) in texts
+    assert [b.text() for b in fp.findChildren(QPushButton) if b.objectName() == "feNav" and b.property("current")] == [
+        "Race Summary"]
+    assert any(not p.pixmap().isNull() for p in fp.findChildren(_Painted) if p.width() == 72)   # the encounter's portrait
+    assert [s.fill for s in fp.findChildren(_Segment) if s.isVisibleTo(fp)] == [100, 100, 100]
+    assert f"3 reached · 1 killed<br>First: Night Watch, {cf.when(T0 - 2 * DAY)}" in texts and "1 complete" in texts
+    assert "Complete!" in texts and "Public logs only." in texts
+    assert any("Drifters" in t and "pulling" in t for t in texts) and any("Old Guard" in t and "12.3%" in t for t in texts)
+    closers = [c for c in fp.findChildren(_Closer) if c.isVisibleTo(fp)]
+    assert [c.accessibleName() for c in closers] == ["Night Watch", "Old Guard", "Drifters"]
+    assert all(c.art is not None for c in closers)                         # the boss faint behind each
+    assert "NIGHT WATCH" in texts and "COMPLETE!" in texts and "WORKING ON" in texts and "Frost Hound · 12.3%" in texts
+    assert ("<span style='color: #123456;'>TestSorc</span>, <span style='color: #ffffff;'>TestCleric</span>") in texts
+    assert "Legion" in texts
+    _click(fp, cf.OPEN_LOG)
+    assert opened == ["combat-log/shared/log0001"]
+    assert len([b for b in fp.findChildren(QPushButton) if b.text() == cf.OPEN_LOG and b.isVisibleTo(fp)]) == 1  # no log, no link
+    _choose(fp, "Region", "eu")
+    settle(lambda: base + "/race?region=eu" in asked)
+    # progress: the teams, the final-boss kills, the pager and a region
+    _nav(fp, "Progress")
+    _drawn(fp, cf.PROGRESS_CAPTION)
+    assert base + "/progress?page=1" in asked and cf.KILLS_CAPTION in _labels(fp)
+    cells = _cells(fp)
+    assert all(c in cells for c in ("1/2 · 12.3%", "2/2", "2.1", "12:34", f"{cf.when(T0)}"))
+    assert sorted(p.toolTip() for p in fp.findChildren(_Painted) if p.width() == 24 and p.isVisibleTo(fp)) == [
+        "Frost Hound", "Ice Queen", "Ice Queen"]
+    assert "Page 1 of 3" in _labels(fp)
+    _click(fp, "Next")
+    settle(lambda: base + "/progress?page=2" in asked)
+    _drawn(fp, "Page 1 of 3")
+    _choose(fp, "Region", "na")
+    settle(lambda: base + "/progress?page=1&region=na" in asked)        # a region starts at the first page
+    _drawn(fp, cf.KILLS_CAPTION)
+    _click(fp, "Log")
+    assert opened[-1] == "combat-log/shared/log0001"
+    # all reports
+    _nav(fp, "All Reports")
+    _drawn(fp, cf.REPORTS_CAPTION)
+    assert base + "/reports?page=1" in asked
+    texts = _labels(fp)
+    assert all(t in texts for t in ("Uploader A", "Anonymous", "Ice Queen, Frost Hound", "1:02:05", "Page 1 of 2"))
+    _find(fp, QLabel, lambda label: "Frost Spire clear" in label.text()).linkActivated.emit("open")
+    assert opened[-1] == "combat-log/shared/log0001"
+    # rankings: a boss, a class, then the teams by speed
+    _nav(fp, "Rankings")
+    _drawn(fp, "Damage per second · Ice Queen")
+    assert base + "/rankings?metric=dps&boss=npc%3A2001" in asked
+    assert all(c in _cells(fp) for c in ("51,235", "99", "3:05"))
+    _click(fp, "Log")
+    assert opened[-1] == "combat-log/shared/log0001?segment=3"
+    _choose(fp, "Class", "sorcerer")
+    settle(lambda: base + "/rankings?metric=dps&boss=npc%3A2001&class=sorcerer" in asked)
+    _drawn(fp, "Damage per second · Ice Queen")
+    _choose(fp, "Boss", "npc:2002")
+    _drawn(fp, "Damage per second · Frost Hound")
+    assert base + "/rankings?metric=dps&boss=npc%3A2002&class=sorcerer" in asked
+    _choose(fp, "Ranking", "speed")
+    _drawn(fp, cf.SPEED_CAPTION)
+    assert base + "/rankings?metric=speed" in asked
+    # statistics: each class's spread in its colour
+    _nav(fp, "Statistics")
+    _drawn(fp, "Recorded damage per second by class")
+    assert base + "/statistics?metric=dps&boss=npc%3A2001" in asked and cf.ROLES_NOTE in _labels(fp)
+    spreads = [s for s in fp.findChildren(_Spread) if s.isVisibleTo(fp)]
+    assert [(s.box, s.mark) for s in spreads] == [((0.5, 0.25), 0.625), (None, 0.25)]
+    assert spreads[0].colour.name() == "#123456"
+    # a view the server refuses keeps the head; an encounter refused says only why
+    app.log_server.refusal = "RuntimeError: Community server (503): busy"
+    _choose(fp, "Rate", "hps")
+    _drawn(fp, "RuntimeError: Community server (503): busy")
+    assert "Frost Spire" in _labels(fp)
+    page.open_featured(FE_ID, "progress")
+    settle(lambda: "RuntimeError: Community server (503): busy" in _labels(fp) and not fp.head.isVisibleTo(fp))
+    app.log_server.refusal = None
+    # an address that is no featured encounter asks nothing
+    count = len(asked)
+    page.open_featured("fe_nope")
+    assert cf.NO_ADDRESS in _labels(fp) and len(asked) == count
+    # a page left before it answers: only the one opened last is drawn
+    races = asked.count(base + "/race")
+    page.open_featured(FE_ID, "race")
+    page.open_featured(FE_ID, "statistics")
+    _drawn(fp, "Recorded damage per second by class")
+    assert asked.count(base + "/race") == races and cf.CLOSER not in _labels(fp)
 
 
 def test_the_window_draws_combat_logs_itself(qapp):

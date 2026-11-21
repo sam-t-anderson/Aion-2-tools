@@ -16,7 +16,10 @@
   **Boss progression** and **Highest observed build points**, each drawn when first chosen and kept.
 - Since 0.2.454 **Personal records** too (combat_extras.py): the recorded boss defeats, each class's performance, and a
   character's records, attempts, consistency and trends.
-- A log's own page, and the featured encounters, open in the web interface for now.
+- Since 0.2.455 the **featured encounters** too (combat_featured_page.py). Their landing cards are drawn above the views.
+  Each encounter's pages (race summary, progress, all reports, rankings and statistics) are shown in place of the views,
+  with **← Back to combat logs**.
+- A log's own page opens in the web interface for now.
 """
 from __future__ import annotations
 
@@ -29,10 +32,12 @@ from PySide6.QtWidgets import (QComboBox, QFileDialog, QFrame, QHBoxLayout, QLin
                                QWidget)
 
 from . import combat as cb
+from . import combat_featured as cf
 from . import theme
 from .api import AppApi, Job, Requests
 from .combat_community import BossProgression, BuildPoints, Community, CommunityLogs, RunSpeed
 from .combat_extras import PersonalRecords
+from .combat_featured_page import STYLE as FEATURED_STYLE, FeaturedPage, FeaturedSection
 from .combat_owned import Identities, OwnedUploads
 from .combat_saved import RecordedEncounters, UploadQueue, _button, _clear, _head, _label, _row
 from .database_page import Window
@@ -92,7 +97,7 @@ class CombatPage(QWidget):
             QFrame#rowNote {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
                 border-radius: 5px; padding: 6px 9px; }}
             QFrame#note QToolButton#fold {{ color: #f1d4a3; }}
-            """ + Toast.STYLE)
+            """ + FEATURED_STYLE + Toast.STYLE)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.NoFrame)
@@ -104,6 +109,15 @@ class CombatPage(QWidget):
         layout = QVBoxLayout(content)
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(14)
+        self.featured_box = QWidget()                    # a featured encounter's page, shown in place of the views
+        self.featured_box.setObjectName("plain")
+        self.featured_line = QVBoxLayout(self.featured_box)
+        self.featured_line.setContentsMargins(0, 0, 0, 0)
+        self.featured_line.setSpacing(14)
+        self.featured_line.addWidget(_row(_button(cf.BACK, self.close_featured)))
+        self.featured_box.setVisible(False)
+        layout.addWidget(self.featured_box)
+        self.featured_page: FeaturedPage | None = None   # drawn when first opened and kept
         self.frame = Window("Combat logs", cb.SUBTITLE)
         layout.addWidget(self.frame)
         layout.addStretch(1)
@@ -134,6 +148,8 @@ class CombatPage(QWidget):
         self.records: PersonalRecords | None = None
         self.shared = Community(self.store if self.store is not None else interface_store(), self)
         self.pictures = Pictures(api, self) if api is not None else None
+        self.featured = FeaturedSection(api, self.open_featured, self.pictures)   # above the views; nothing when none
+        self.frame.body.insertWidget(0, self.featured)
         self.message = None
         self.seen = False
         self.toast = Toast(self)
@@ -212,6 +228,24 @@ class CombatPage(QWidget):
         if self.open_web is not None:
             self.open_web(page)
 
+    # ---------------------------------------------------------------- the featured encounters
+    def open_featured(self, fid, view=None, metric=None) -> None:
+        """A featured encounter's page in place of the views (``#/featured/<id>/<view>?metric=``), from its top."""
+        if self.featured_page is None:
+            self.featured_page = FeaturedPage(self.api, self.open_web, self.pictures, opened=self.open_featured)
+            self.featured_line.addWidget(self.featured_page)
+        self.featured_page.show_page(fid, view, metric)
+        self.frame.setVisible(False)
+        self.featured_box.setVisible(True)
+        self.scroll.verticalScrollBar().setValue(0)
+
+    def close_featured(self) -> None:
+        """Back to the views as they were left, the featured encounters read again (``#/combat``)."""
+        self.featured_box.setVisible(False)
+        self.frame.setVisible(True)
+        self.featured.load()
+        self.scroll.verticalScrollBar().setValue(0)
+
     # ---------------------------------------------------------------- saved logs
     def _saved(self) -> QWidget:
         """Saved Logs: a fight analyzed, where the logs are kept, the log server, the recorded encounters by type, the
@@ -278,6 +312,9 @@ class CombatPage(QWidget):
             for view in (self.community_logs, self.speed, self.progression, self.points, self.records):
                 if view is not None and view.isVisibleTo(self):
                     view.refresh()                       # the one shown, read again as the web page reads it
+            self.featured.load()
+            if self.featured_page is not None and self.featured_box.isVisibleTo(self):
+                self.featured_page.reload()
         self.seen = True
 
     def _replied(self, name: str, answer) -> None:
@@ -407,7 +444,8 @@ class CombatPage(QWidget):
 
     def closeEvent(self, event) -> None:
         for worker in (self.requests, self.job, self.recorded, self.queue, self.owned, self.identities,
-                       self.community_logs, self.speed, self.progression, self.points, self.records, self.pictures):
+                       self.community_logs, self.speed, self.progression, self.points, self.records, self.featured,
+                       self.featured_page, self.pictures):
             if worker is not None:
                 worker.stop()
         super().closeEvent(event)

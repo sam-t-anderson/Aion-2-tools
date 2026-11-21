@@ -1,3 +1,18 @@
+## Combat Logs' featured encounters in the native interface (0.2.455)
+
+**The featured encounters open in the app's window too**, read from your log server as the web page reads them:
+- **Their cards** stand at the top of Combat Logs, above the views. Each encounter shows its boss's portrait, its title, boss and difficulty, and nine cards with their top three: progress, speed and execution by team, the all stars by role, and each role's classes by median DPS. Encounters stand side by side wherever two fit. Nothing is drawn when no encounter is featured;
+- **Their pages** open in place of the views, with **← Back to combat logs**:
+  - **Race Summary:** the phases over one bar, filled as far as the leading team got, each team under the phase it is on, the teams that finished under **Complete!**, and a closer look at the leading teams;
+  - **Progress:** every team by how far it got, then the final-boss kills;
+  - **All Reports:** the encounter's public logs, newest first;
+  - **Rankings:** the players on one boss by DPS or healing, for one class or all, or each team's fastest run;
+  - **Statistics:** each class's spread on one boss.
+
+  The race, progress, rankings and statistics can be narrowed to a region. A log opens in the web interface, a ranked player's at the ranked fight.
+
+Names are drawn in their class's colour, from your palette in Settings when you set one. A figure the server leaves out reads "—". Every part of Combat Logs is now in the app's window except a log's own page, which still opens in the web interface.
+
 ## Combat Logs' Personal records in the native interface (0.2.454)
 
 **Personal records opens in the app's window too**, read from your log server as the web page reads it, under its filters (mode, metric, encounter type, game version — the latest submitted first —, boss, difficulty, region and party size):
