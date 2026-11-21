@@ -7,18 +7,25 @@
   gain) and its first upgrade path step; a slot clicked shows its way from what you wear to the best in slot;
 - **Upgrade path:** one change at a time, biggest gain first, each with its rolls to chase, its gain and the gain so
   far;
+- **Arcana** (0.2.445): each slot's variant, the skill options to chase at their target levels, its ideal and average
+  gains, and the cards you have with keep or replace and what each holds;
+- **Titles** (0.2.445): each slot's title equipped, the best you own and the best in slot (a slot no title adds damage to
+  ranked by what its titles take off the hits you take), and the titles worth collecting;
+- **Pantheon** (0.2.445): the ten deities with your points and what 10 more are worth, the arcana's deity choices, and
+  the recommended board (``pantheon_board``) with its list;
 - **Your fights** and **Model calibration**.
 
-The arcana, titles, pantheon and genus advice are not drawn here yet: ``open_web`` opens them on the web page.
+The genus advice is not drawn here yet: ``open_web`` opens it on the web page.
 """
 from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QRectF, Qt, QUrl
-from PySide6.QtGui import QColor, QDesktopServices, QGuiApplication, QPainter, QPainterPath, QPixmap
-from PySide6.QtWidgets import (QFrame, QGraphicsOpacityEffect, QGridLayout, QHBoxLayout, QLabel, QLayout, QProgressBar,
-                               QPushButton, QVBoxLayout, QWidget)
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QUrl
+from PySide6.QtGui import (QColor, QDesktopServices, QFont, QGuiApplication, QPainter, QPainterPath, QPen, QPixmap,
+                           QRadialGradient)
+from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect, QGraphicsOpacityEffect, QGridLayout, QHBoxLayout, QLabel,
+                               QLayout, QProgressBar, QPushButton, QVBoxLayout, QWidget)
 
 from . import advice as a_
 from . import pictures
@@ -26,7 +33,8 @@ from . import results as r
 from . import theme
 from .chrome import FlowLayout
 from .database_page import Icons, Window
-from .result_windows import Across, GridTable, SkillIcon, _css_colour, icon_path
+from .pantheon_board import PantheonBoard
+from .result_windows import Across, Bar, GridTable, SkillIcon, _css_colour, icon_path
 from .timers_page import Fold
 
 GAIN = "#8fe08f"
@@ -66,12 +74,79 @@ def _centred(label: QLabel) -> QLabel:
     return label
 
 
-def _dimmed(frame: QFrame) -> QFrame:
-    """A card with nothing in it, at half its strength (``.icard.empty``)."""
+def _dimmed(frame: QFrame, opacity: float = 0.5) -> QFrame:
+    """A card with nothing in it, at half its strength (``.icard.empty``), or a deity of no use to damage."""
     effect = QGraphicsOpacityEffect(frame)
-    effect.setOpacity(0.5)
+    effect.setOpacity(opacity)
     frame.setGraphicsEffect(effect)
     return frame
+
+
+class Columns(QWidget):
+    """Cells in ``wide`` columns as wide as each other (``grid-template-columns: repeat(5, minmax(0, 1fr))``), or in
+    ``narrow`` ones where the view is narrower than ``below`` (the web page's narrow window); a row's cells as tall as
+    each other."""
+
+    def __init__(self, cells: list[QWidget], wide: int, narrow: int, gap: int = 10, below: int = 900,
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("plain")
+        self.cells, self.wide, self.narrow, self.below = cells, wide, narrow, below
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setSpacing(gap)
+        self.grid.setSizeConstraint(QLayout.SetNoConstraint)
+        self.columns = 0
+        self.place(wide)
+
+    def place(self, columns: int) -> None:
+        if columns == self.columns:
+            return
+        for cell in self.cells:
+            self.grid.removeWidget(cell)
+        for index, cell in enumerate(self.cells):
+            self.grid.addWidget(cell, index // columns, index % columns)
+        for column in range(max(self.columns, columns)):
+            self.grid.setColumnStretch(column, 1 if column < columns else 0)
+        self.columns = columns
+        self.updateGeometry()
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(0, super().minimumSizeHint().height())
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self.place(self.wide if event.size().width() >= self.below else self.narrow)
+
+
+class Sigil(QWidget):
+    """A deity's sigil (``.sigil``): its lord's initial on a disc of the deity's colour, lit from the upper left."""
+
+    def __init__(self, letter: str, colour: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.letter, self.colour = letter, QColor(colour)
+        self.setFixedSize(34, 34)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        disc = QRectF(1, 1, 32, 32)
+        painter.setPen(QPen(QColor(0, 0, 0, 136), 2))
+        painter.setBrush(self.colour)
+        painter.drawEllipse(disc)
+        light = QRadialGradient(QPointF(1 + 32 * 0.35, 1 + 32 * 0.30), 32 * 0.45)
+        light.setColorAt(0, QColor(255, 255, 255, 136))
+        light.setColorAt(1, QColor(255, 255, 255, 0))
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(light)
+        painter.drawEllipse(disc)
+        font = QFont(self.font())
+        font.setPixelSize(16)
+        font.setWeight(QFont.ExtraBold)
+        painter.setFont(font)
+        painter.setPen(QColor("#10131a"))
+        painter.drawText(disc, int(Qt.AlignCenter), self.letter)
+        painter.end()
 
 
 def _chip(words: str, gold: bool = False) -> QLabel:
@@ -100,12 +175,25 @@ class ItemIcon(SkillIcon):
         painter.end()
 
 
+def _plate_light(colour: str) -> str:
+    """A title plate's light (``.tplate``): its grade's colour at a tenth across its middle, over the panel."""
+    tint, panel = _css_colour(colour), QColor(theme.COLORS["panel2"])
+    share = 0.1 * tint.alphaF()
+    mid = QColor(*(round(share * a + (1 - share) * b) for a, b in ((tint.red(), panel.red()), (tint.green(), panel.green()),
+                                                                     (tint.blue(), panel.blue()))))
+    return (f"qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 {panel.name()}, stop: 0.5 {mid.name()}, "
+            f"stop: 1 {panel.name()})")
+
+
 def _grade_edges() -> str:
-    """Each grade's colour (``--gc``) on a doll tile's left edge and on the top edge of an item's card and a path step."""
+    """Each grade's colour (``--gc``) on a doll tile's left edge, on the top edge of an item's card, a path step and an
+    arcana card, and lighting a title plate."""
     rules = []
     for grade, colour in r.GRADES.items():
         rules.append(f'QPushButton#dslot[grade="{grade}"] {{ border-left-color: {colour}; }}')
-        rules.append(f'QFrame#icard[grade="{grade}"], QFrame#pstep[grade="{grade}"] {{ border-top-color: {colour}; }}')
+        rules.append(f'QFrame#icard[grade="{grade}"], QFrame#pstep[grade="{grade}"], QFrame#acard[grade="{grade}"] '
+                     f'{{ border-top-color: {colour}; }}')
+        rules.append(f'QFrame#tplate[grade="{grade}"] {{ background: {_plate_light(colour)}; }}')
     return "\n".join(rules)
 
 
@@ -144,6 +232,24 @@ QFrame#pstep QLabel {{ background: transparent; }}
 QLabel#pn {{ color: {theme.COLORS['gold']}; font-weight: 800; }}
 QLabel#kind {{ background: #0b0f18; border: 1px solid {FRAME}; color: {theme.COLORS['gold']}; border-radius: 11px; }}
 QLabel#gold {{ color: {theme.COLORS['gold']}; font-weight: 700; }}
+QLabel#aHead {{ color: {theme.COLORS['gold']}; font-weight: 700; letter-spacing: 0.6px; }}
+QLabel#faint {{ color: {theme.COLORS['faint']}; }}
+QFrame#acard {{ background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 {theme.COLORS['card_a']}, stop: 1 {theme.COLORS['card_b']});
+                border: 1px solid {FRAME}; border-top: 3px solid {FRAME}; border-radius: 8px; }}
+QFrame#acard QLabel, QFrame#acard QWidget#plain {{ background: transparent; }}
+QLabel#acardTitle {{ color: {theme.COLORS['gold']}; font-weight: 800; letter-spacing: 0.8px; }}
+QLabel#deity {{ color: {theme.COLORS['accent']}; }}
+QLabel#asub {{ color: {theme.COLORS['faint']}; letter-spacing: 0.8px; margin-top: 8px; }}
+QFrame#ownedRow {{ border: none; border-top: 1px dashed {theme.COLORS['line']}; background: transparent; }}
+QFrame#tplate {{ border: 1px solid {FRAME}; border-radius: 6px; background: {_plate_light(theme.COLORS['gold'])}; }}
+QFrame#tplate QLabel, QFrame#tplate QWidget#plain {{ background: transparent; }}
+QFrame#dtile {{ background: {theme.COLORS['panel2']}; border: 1px solid {theme.COLORS['line']}; border-radius: 6px; }}
+QFrame#dtile[best="true"] {{ border-color: {FRAME_HI}; }}
+QFrame#dtile QLabel {{ background: transparent; }}
+QLabel#dn {{ font-weight: 700; }}
+QLabel#pts {{ color: {theme.COLORS['gold']}; font-size: 20px; font-weight: 800; }}
+QFrame#prow {{ background: {INSET}; border: 1px solid #1d2539; border-radius: 6px; }}
+QFrame#prow QLabel, QFrame#prow QWidget#plain {{ background: transparent; }}
 QProgressBar#cum {{ background: {INSET}; border: none; border-radius: 3px; min-height: 18px; max-height: 18px; text-align: center;
                     font-weight: 700; color: {theme.COLORS['text']}; }}
 QProgressBar#cum::chunk {{ background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #3c7a3c, stop: 1 #5cb85c); border-radius: 3px; }}
@@ -171,8 +277,11 @@ class AdviceView(QWidget):
         self.box.setContentsMargins(0, 0, 0, 0)
         self.box.setSpacing(14)
         self.tiles: dict[str, QPushButton] = {}
-        for part in (self._top, self._specialties, self._equipment, self._path, self._rest, self._fights):
-            self.box.addWidget(part())
+        for part in (self._top, self._specialties, self._equipment, self._path, self._arcana, self._titles,
+                     self._pantheon, self._rest, self._fights):
+            widget = part()
+            if widget is not None:                         # no titles in the advice: no window
+                self.box.addWidget(widget)
         self.box.addStretch(1)
         self.show_slot(a_.first_slot(self.advice))
 
@@ -198,6 +307,8 @@ class AdviceView(QWidget):
                     widget.set_pixmap(self.pixmaps[path])
             except RuntimeError:                       # a picture of a slot drawn again since
                 pass
+        for board in self.findChildren(PantheonBoard):
+            board.set_picture(path, self.pixmaps[path])
 
     def item_icon(self, size: int, item) -> ItemIcon:
         return self._picture(ItemIcon(size, item), r._dict(item).get("icon"))
@@ -429,7 +540,7 @@ class AdviceView(QWidget):
                 child.widget().hide()
                 child.widget().deleteLater()
         way = a_.slot_way(self.advice, slot)
-        self.way.addWidget(_label(way["title"], "gearHead"))
+        self.way.addWidget(_label(way["title"], "aHead"))
         flow = _plain()
         line = QHBoxLayout(flow)
         line.setContentsMargins(0, 0, 0, 0)
@@ -524,10 +635,302 @@ class AdviceView(QWidget):
         window.body.addWidget(Across(steps))
         return window
 
-    # ---------------------------------------------------------------- the rest, on the web page for now
+    # ---------------------------------------------------------------- arcana
+    def skill_icon(self, size: int, level: str, url: str) -> SkillIcon:
+        return self._picture(SkillIcon(size, level, placeholder="◇"), url)
+
+    def _option(self, name: str, level: str, url: str) -> QWidget:
+        """A skill option (``arcanaOption``): the skill's picture with the option's level, beside its name."""
+        row = _plain()
+        line = QHBoxLayout(row)
+        line.setContentsMargins(0, 0, 0, 0)
+        line.setSpacing(8)
+        icon = self.skill_icon(32, f"+{level}", url)
+        icon.setToolTip(f"{name} +{level}")
+        line.addWidget(icon)
+        line.addWidget(_label(name), 1)
+        return row
+
+    def _arcana_card(self, card: dict) -> QFrame:
+        frame = QFrame()                                  # ``.acard``
+        frame.setObjectName("acard")
+        frame.setProperty("grade", card["grade"])
+        column = QVBoxLayout(frame)
+        column.setContentsMargins(10, 10, 10, 10)
+        column.setSpacing(3)
+        head = _plain()
+        grid = QGridLayout(head)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.addWidget(_label(card["slot"], "acardTitle", wrap=False), 0, 0, Qt.AlignHCenter)
+        grid.addWidget(_label(card["priority"], "muted", wrap=False), 0, 0, Qt.AlignRight)
+        column.addWidget(head)
+        column.addWidget(self.item_icon(78, card["item"]), 0, Qt.AlignHCenter)
+        column.addWidget(_centred(_label(f"<span style='color: {_colour(card['item'])}; font-weight: 600;'>"
+                                         f"{html.escape(card['name'])}</span>", rich=True)))
+        column.addWidget(_centred(_label(card["deity"], "deity")))
+        column.addWidget(_centred(_label("TARGET OPTIONS · UNIQUE +5", "asub")))
+        for name, level, url in card["options"]:
+            column.addWidget(self._option(name, level, url))
+        values = _label(f"ideal <b style='color: {GAIN};'>{html.escape(card['ideal'])}</b>&nbsp;&nbsp;&nbsp;"
+                        f"average <b style='color: {GAIN};'>{html.escape(card['average'])}</b>", "muted", rich=True)
+        column.addWidget(_centred(values))
+        if card["owned"]:
+            column.addWidget(_centred(_label("YOURS", "asub")))
+            for owned in card["owned"]:
+                column.addWidget(self._owned(owned))
+        column.addStretch(1)
+        return frame
+
+    def _owned(self, o: dict) -> QWidget:
+        """A card you have (``arcanaOwned``): keep or replace, then what it holds."""
+        box = _plain()
+        column = QVBoxLayout(box)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(5)
+        row = QFrame()                                    # ``.owned``
+        row.setObjectName("ownedRow")
+        line = QHBoxLayout(row)
+        line.setContentsMargins(0, 3, 0, 3)
+        line.setSpacing(5)
+        line.addWidget(self.item_icon(24, o["item"]))
+        name, gain = _label(o["name"]), _label(o["gain"], wrap=False)
+        if not o["keep"]:
+            for label in (name, gain):
+                label.setStyleSheet(f"color: {DOWN};")
+        line.addWidget(name, 1)
+        line.addWidget(gain)
+        line.addWidget(_chip("keep" if o["keep"] else "replace", gold=o["keep"]), 0, Qt.AlignVCenter)
+        column.addWidget(row)
+        if o["deity"]:
+            deity = _centred(_label(o["deity"], "deity"))
+            deity.setToolTip(o["deity_tip"])
+            column.addWidget(deity)
+        if o["stats"]:
+            column.addWidget(_centred(_label(o["stats"], "muted")))
+        if o["options"]:
+            for name, level, url in o["options"]:
+                column.addWidget(self._option(name, level, url))
+        else:
+            column.addWidget(_centred(_label("No skill options", "faint")))
+        if o["facts"]:
+            column.addWidget(_centred(_label(o["facts"], "faint")))
+        return box
+
+    def _arcana(self) -> Window:
+        a = self.advice
+        window = self._window("Arcana", a_.ARCANA_SUB, a_.arcana_copy(a))
+        cards = [self._arcana_card(card) for card in a_.arcana_cards(a)]
+        if cards:
+            window.body.addWidget(Columns(cards, 5, 2))
+        return window
+
+    # ---------------------------------------------------------------- titles
+    def _plate(self, plate: dict) -> QFrame:
+        """A title's plate (``titlePlate``)."""
+        frame = QFrame()
+        frame.setObjectName("tplate")
+        column = QVBoxLayout(frame)
+        column.setContentsMargins(10, 8, 10, 8)
+        column.setSpacing(2)
+        head = _plain()
+        grid = QGridLayout(head)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.addWidget(_centred(_label(plate["label"].upper(), "ilabel")), 0, 0)
+        column.addWidget(head)
+        if plate["empty"]:
+            column.addWidget(_centred(_label("—", "faint")))
+            return _dimmed(frame)
+        frame.setProperty("grade", plate["grade"])
+        if plate["gain"] is not None:
+            gain, up = plate["gain"]
+            grid.addWidget(_label(f"<b style='color: {GAIN if up else DOWN};'>{html.escape(gain)}</b>", rich=True, wrap=False),
+                           0, 0, Qt.AlignRight | Qt.AlignTop)
+        column.addWidget(_centred(_label(f"<span style='color: {_colour(plate)}; font-weight: 600;'>"
+                                         f"{html.escape(plate['name'])}</span>", rich=True)))
+        for label, words in (("equipped", plate["equip"]), ("owned", plate["owned"])):
+            if words:
+                column.addWidget(_centred(_label(f"<span style='color: {theme.COLORS['muted']};'>{label}:</span> "
+                                                 f"{html.escape(words)}", rich=True)))
+        if plate["how"]:
+            how = _centred(_label(plate["how"], "faint"))
+            how.setToolTip(plate["how_full"])
+            column.addWidget(how)
+        for kind, words in plate["extra"]:
+            if kind == "cut":
+                cut = _centred(_label(f"<b style='color: {GAIN};'>{html.escape(words)}</b>", rich=True))
+                cut.setToolTip("Damage Tolerance lowers the attacker's damage boost")
+                column.addWidget(cut)
+            else:
+                column.addWidget(_chip(words, gold=True), 0, Qt.AlignHCenter)
+        column.addStretch(1)
+        return frame
+
+    def _titles(self) -> Window | None:
+        a = self.advice
+        columns = a_.title_columns(a)
+        if columns is None:
+            return None
+        window = self._window("Titles", a_.TITLES_SUB, a_.titles_copy(a))
+        cells = []
+        for col in columns:
+            cell = _plain()
+            column = QVBoxLayout(cell)
+            column.setContentsMargins(0, 0, 0, 0)
+            column.setSpacing(6)
+            column.addWidget(_label(col["title"], "acardTitle"))
+            for plate in col["plates"]:
+                column.addWidget(self._plate(plate))
+            column.addWidget(_label("BEST IN SLOT", "asub"))
+            if col["guard"] is not None:
+                column.addWidget(_label(col["guard"]["note"], "faint"))
+                for plate in col["guard"]["plates"]:
+                    column.addWidget(self._plate(plate))
+            for plate in col["best"]:
+                column.addWidget(self._plate(plate))
+            column.addStretch(1)
+            cells.append(cell)
+        window.body.addWidget(Columns(cells, 3, 1))
+        note = a_.titles_note(a)
+        if note:
+            window.body.addWidget(_label(note, "faint"))
+        collect = a_.titles_collect(a)
+        if collect:
+            window.body.addWidget(_label(a_.COLLECT_HEAD, "aHead"))
+            window.body.addWidget(Columns([self._plate(plate) for plate in collect], 4, 1, gap=8))
+        return window
+
+    # ---------------------------------------------------------------- pantheon
+    def _deity(self, tile: dict) -> QFrame:
+        frame = QFrame()                                  # ``.dtile``
+        frame.setObjectName("dtile")
+        frame.setProperty("best", tile["best"])
+        column = QVBoxLayout(frame)
+        column.setContentsMargins(6, 8, 6, 8)
+        column.setSpacing(2)
+        column.addWidget(Sigil(tile["sigil"], tile["colour"]), 0, Qt.AlignHCenter)
+        column.addWidget(_centred(_label(tile["deity"], "dn")))
+        column.addWidget(_centred(_label(tile["lord"], "dsl")))
+        column.addWidget(_centred(_label(tile["points"], "pts")))
+        fx = _centred(_label(tile["fx"], "muted"))
+        fx.setMinimumHeight(26)
+        column.addWidget(fx)
+        bar = Bar(tile["share"], tile["worth"])
+        bar.setMinimumWidth(0)
+        column.addWidget(bar)
+        if tile["best"]:
+            column.addWidget(_chip("best for damage", gold=True), 0, Qt.AlignHCenter)
+        column.addStretch(1)
+        if tile["dim"]:
+            return _dimmed(frame, 0.55)
+        if tile["best"]:                                   # ``box-shadow: 0 0 12px``
+            glow = QGraphicsDropShadowEffect(frame)
+            glow.setBlurRadius(12)
+            glow.setOffset(0, 0)
+            glow.setColor(QColor(233, 203, 128, 64))
+            frame.setGraphicsEffect(glow)
+        return frame
+
+    def _decoration(self, row: dict) -> QFrame:
+        """A decoration in the board's list (``.prow``)."""
+        frame = QFrame()
+        frame.setObjectName("prow")
+        grid = QGridLayout(frame)
+        grid.setContentsMargins(8, 6, 8, 6)
+        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(2)
+        name = _plain()
+        line = QHBoxLayout(name)
+        line.setContentsMargins(0, 0, 0, 0)
+        line.setSpacing(8)
+        if row["icon"]:
+            line.addWidget(self._picture(SkillIcon(32, ""), row["icon"]))
+        colour = f" style='color: {row['colour']};'" if row["colour"] else ""
+        words = f"<b{colour}>{html.escape(row['name'])}</b>"
+        if row["faction"]:
+            words += f" <span style='color: {theme.COLORS['faint']};'>{html.escape(row['faction'])}</span>"
+        line.addWidget(_label(words, rich=True))
+        if row["grade"]:
+            line.addWidget(_chip(row["grade"]), 0, Qt.AlignVCenter)
+        line.addStretch(1)
+        grid.addWidget(name, 0, 0)
+        grid.addWidget(_label(" · ".join(f"{html.escape(d)} <b>{html.escape(v)}</b>" for d, v in row["stats"]), rich=True), 0, 1)
+        grid.addWidget(_label(f"<b style='color: {GAIN};'>{html.escape(row['gain'])}</b>", rich=True, wrap=False), 0, 2,
+                       Qt.AlignRight)
+        grid.addWidget(_label(row["sources"], "muted"), 1, 0, 1, 3)
+        grid.setColumnStretch(0, 12)
+        grid.setColumnStretch(1, 16)
+        return frame
+
+    def _board_list(self, board: dict) -> QWidget:
+        listed = a_.board_list(board)
+        box = _plain()
+        column = QVBoxLayout(box)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(4)
+        totals = _plain()
+        flow = FlowLayout(totals, align=Qt.AlignLeft, gap=(4, 4))
+        flow.addWidget(_label("<b>Board total</b>", rich=True, wrap=False))
+        for short, points, deity in listed["totals"]:
+            chip = _chip(f"{short} {points}")
+            chip.setToolTip(deity)
+            flow.addWidget(chip)
+        flow.addWidget(_label(f"<b style='color: {GAIN};'>{html.escape(listed['gain'])}</b> vs an empty board", rich=True,
+                              wrap=False))
+        column.addWidget(totals)
+        for ring in listed["rings"]:
+            column.addWidget(_label(ring["head"], "aHead"))
+            if ring["rows"]:
+                for row in ring["rows"]:
+                    column.addWidget(self._decoration(row))
+            else:
+                column.addWidget(_label(a_.NO_DECORATION, "faint"))
+            if ring["next"]:
+                fold = Fold(ring["next_head"])
+                for row in ring["next"]:
+                    fold.add(self._decoration(row))
+                column.addWidget(fold)
+        column.addWidget(_label(listed["note"], "faint"))
+        return box
+
+    def _pantheon(self) -> Window:
+        a = self.advice
+        p = r._dict(a.get("pantheon"))
+        window = self._window("Pantheon", a_.PANTHEON_SUB, a_.pantheon_copy(a))
+        window.body.addWidget(Columns([self._deity(tile) for tile in a_.deity_tiles(a)], 10, 2, gap=8))
+        for choice in a_.deity_choices(a):
+            deity = f" <span>({html.escape(choice['deity'])})</span>" if choice["deity"] else ""
+            window.body.addWidget(_label(f"<span style='color: {theme.COLORS['muted']};'>{html.escape(choice['source'])}</span> "
+                                         f"<b>{html.escape(choice['pick'])}</b>{deity} "
+                                         f"<b style='color: {GAIN};'>{html.escape(choice['gain'])}</b>", rich=True))
+        if r._truthy(p.get("board")):
+            board = r._dict(p["board"])
+            window.body.addWidget(_label(a_.BOARD_HEAD, "aHead"))
+            window.body.addWidget(_label(a_.BOARD_NOTE, "muted"))
+            stands = a_.board_stands(board)
+            paths = {}
+            for kind, rows in (("colossus", [stands["colossus"]]), ("statue", stands["statues"]), ("artwork", stands["artworks"])):
+                for index, stand in enumerate(rows):
+                    if stand["icon"]:
+                        paths[f"{kind}:{index}"] = icon_path(stand["icon"])
+            drawn = PantheonBoard(stands, paths)
+            for path in set(paths.values()):
+                if path in self.pixmaps:
+                    drawn.set_picture(path, self.pixmaps[path])
+                else:
+                    self.icons.ask(path)
+            pair = _plain()                                # ``.pwrap``
+            line = QHBoxLayout(pair)
+            line.setContentsMargins(0, 0, 0, 0)
+            line.setSpacing(16)
+            line.addWidget(drawn, 0, Qt.AlignTop)
+            line.addWidget(self._board_list(board), 1)
+            window.body.addWidget(pair)
+        return window
+
+    # ---------------------------------------------------------------- the genus, on the web page for now
     def _rest(self) -> Window:
-        window = self._window("Arcana, titles, pantheon and genus")
-        window.body.addWidget(_label("These recommendations open in the web interface for now.", "muted"))
+        window = self._window("Genus Insight")
+        window.body.addWidget(_label("The genus recommendations open in the web interface for now.", "muted"))
         button = QPushButton("Open them on the web page")
         button.setObjectName("small")
         button.clicked.connect(lambda _checked=False: self.open_web("gear") if self.open_web else None)

@@ -1,5 +1,5 @@
-"""The native Gear & Advice page (0.2.443; its advice since 0.2.444): Character → Gear & Advice as pages/gear.js
-shows it.
+"""The native Gear & Advice page (0.2.443; its advice since 0.2.444, its arcana, titles and Pantheon since 0.2.445):
+Character → Gear & Advice as pages/gear.js shows it.
 
 - **The character** to advise, chosen among those imported on My Character, and **Run advice** (its job): its progress
   as it runs, and the advice kept from the last run (when it was calculated, what has changed since). Opening the page,
@@ -13,7 +13,7 @@ shows it.
   list kept with **Save titles**.
 
 The advice is drawn under them (``advice_view.AdviceView``): its top changes, skill specialties, paper doll, upgrade path,
-fights and calibration. Its arcana, titles, pantheon and genus recommendations open in the web interface for now.
+arcana, titles, Pantheon, fights and calibration. Its genus recommendations open in the web interface for now.
 """
 from __future__ import annotations
 

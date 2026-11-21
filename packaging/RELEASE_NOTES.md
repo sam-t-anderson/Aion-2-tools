@@ -1,3 +1,12 @@
+## The advice's arcana, titles and Pantheon in the native interface (0.2.445)
+
+**Gear & Advice draws the advice's arcana, titles and Pantheon in the app's window too**, as the web page does:
+- **Arcana:** each slot's card with its variant, deity stat and priority, the skill options to chase at their target levels (each with its skill's icon), the ideal and average gains, and under **YOURS** the cards you have: keep or replace with the gain, then what each holds (its deity stat, other stats, skill options, grade and option levels, equipped or in your inventory);
+- **Titles:** each slot's title equipped, the best you own (once you have listed your titles) and the best in slot, each plate with its equipped and owned bonuses, gain and how to earn it. A slot no title adds damage to is ranked by how much its titles cut the damage you take. Then the titles worth collecting for their owned bonus;
+- **Pantheon:** the ten deities with your points, their effects and what 10 more points are worth (the best for damage marked), the arcana's deity choices, and the **recommended board**: the colossus, statues and artworks on their stands with the decorations' pictures (hover a stand for its deity points, gain and where it comes from), the board's totals, each ring's pieces and the next best ones.
+
+**Copy as text** copies each of them as on the web page. The genus recommendations still open in the web interface: **Open them on the web page**. The app's icon cache now also serves the decorations' pictures from aion2hub.com, which the web page loaded itself; it fetches nothing else from that site.
+
 ## The advice in the native interface (0.2.444)
 
 **Gear & Advice draws its advice in the app's window now**, as the web page does, under the line saying when it was calculated:

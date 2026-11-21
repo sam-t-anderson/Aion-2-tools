@@ -5,10 +5,11 @@ calibration. The view (``advice_view.py``) draws them; Gear & Advice shows it.
 from __future__ import annotations
 
 import math
+import re
 
 from .character import js_number
 from .news import when
-from .results import _dict, _list, cap, js_text, n0, pct, sp
+from .results import _dict, _entries, _list, _number, _truthy, arcana_deity, cap, js_text, n0, pct, sp
 
 DOLL_LEFT = ("MainHand", "SubHand", "Helmet", "Shoulder", "Torso", "Pants", "Gloves", "Boots", "Cape", "Belt")
 DOLL_RIGHT = ("Necklace", "Earring1", "Earring2", "Ring1", "Ring2", "Bracelet1", "Bracelet2", "Amulet", "Rune1", "Rune2")
@@ -205,6 +206,321 @@ def path_copy(a: dict) -> str:
 
 
 # ------------------------------------------------------------------ the fights and the calibration
+# ------------------------------------------------------------------ arcana
+ARCANA_SUB = "variant per slot, the skill options to chase (icons = target levels), and your arcana"
+CATALOG_DEITY = "the variant's stat at this grade (catalog)"
+
+
+def skill_icon(skill_id) -> str:
+    """A skill's picture by its id (``SKILL_ICON``)."""
+    return f"https://metabot.gg/web/aion2/skills/{js_text(skill_id)}.webp" if _truthy(skill_id) else ""
+
+
+def _arcana_slots(a: dict) -> list[tuple[str, dict]]:
+    """The arcana slots the advice holds, in the game's order."""
+    slots = _dict(_dict(a.get("arcana")).get("slots"))
+    return [(slot, _dict(slots[slot])) for slot in ARCANA_SLOTS if _truthy(slots.get(slot))]
+
+
+def _enchant(x: dict) -> str:
+    return js_text(0 if x.get("enchant") is None else x["enchant"])
+
+
+def arcana_owned(o, ids: dict) -> dict:
+    """A card you have, under YOURS (``arcanaOwned``): keep or replace with its gain, then what it holds: its deity
+    stat (its own, or its variant's from the catalog), its other stats, its skill options and its facts."""
+    o = _dict(o)
+    keep = o.get("verdict") == "keep"
+    mine = _dict(o.get("skill_ids"))
+    options = _dict(o.get("options"))
+    where = "equipped" if o.get("equipped") is True else "in your inventory" if o.get("equipped") is False else ""
+    facts = [x for x in (js_text(o.get("grade") or ""),
+                         f"{js_text(options.get('used'))} of {js_text(options.get('of'))} option levels"
+                         if _truthy(o.get("options")) and _truthy(options.get("of")) else "", where) if x]
+    deity = _dict(o.get("deity"))
+    return {"item": o, "name": f"{js_text(o.get('name'))} +{_enchant(o)}", "gain": sp(o.get("gain")), "keep": keep,
+            "deity": arcana_deity(deity) if _truthy(o.get("deity")) else "",
+            "deity_tip": CATALOG_DEITY if deity.get("source") == "catalog" else "this card's stat",
+            "stats": ", ".join(f"{js_text(row[0] if row else None)} {js_text(row[1] if len(row) > 1 else None)}"
+                               for row in _list(o.get("stats")) if isinstance(row, list)),
+            "options": [(js_text(k), js_text(lv), skill_icon(mine.get(k) or ids.get(k)))
+                        for k, lv in _entries(_dict(o.get("skills")))],
+            "facts": " · ".join(facts)}
+
+
+def arcana_cards(a: dict) -> list[dict]:
+    """Each arcana slot's card (``advArcana``): its variant with its deity stat and priority, the skill options to
+    chase at their target levels, its ideal and average gains, and the cards you have."""
+    priority = _list(_dict(a.get("arcana")).get("priority"))
+    cards = []
+    for slot, x in _arcana_slots(a):
+        v = _dict(x.get("variant"))
+        ids, ideal = _dict(x.get("skill_ids")), _dict(x.get("ideal"))
+        cards.append({"slot": slot.replace("Arcana ", "", 1).upper(),
+                      "priority": f"#{priority.index(slot) + 1 if slot in priority else 0}",
+                      "grade": v.get("grade") or "Unique", "item": {**v, "enchant": 5}, "name": js_text(v.get("name") or ""),
+                      "deity": f"{js_text(v.get('deity') or '')} +{js_text('' if v.get('points') is None else v['points'])}",
+                      "options": [(js_text(k), js_text(lv), skill_icon(ids.get(k))) for k, lv in _entries(_dict(ideal.get("skills")))],
+                      "ideal": sp(ideal.get("gain")), "average": sp(_dict(x.get("expected")).get("unique_5")),
+                      "owned": [arcana_owned(o, ids) for o in _list(x.get("owned"))]})
+    return cards
+
+
+def arcana_copy(a: dict) -> str:
+    lines = []
+    for slot, x in _arcana_slots(a):
+        v = _dict(x.get("variant"))
+        deity = (f" ({js_text(v.get('deity'))} +{js_text('' if v.get('points') is None else v['points'])})"
+                 if v.get("deity") else "")
+        skills = ", ".join(f"{js_text(k)} +{js_text(lv)}" for k, lv in _entries(_dict(_dict(x.get("ideal")).get("skills"))))
+        lines.append(f"{slot}: {js_text(v.get('name'))}{deity} — {skills}")
+        for o in _list(x.get("owned")):
+            o = _dict(o)
+            held = ", ".join(f"{js_text(k)} +{js_text(lv)}" for k, lv in _entries(_dict(o.get("skills"))))
+            deity_text = f", {arcana_deity(o['deity'])}" if _truthy(o.get("deity")) else ""
+            lines.append(f"  yours: {js_text(o.get('name'))} +{_enchant(o)}{deity_text} — {held or 'no skill options'} "
+                         f"({sp(o.get('gain'))}, {'keep' if o.get('verdict') == 'keep' else 'replace'})")
+    return "\n".join(lines)
+
+
+# ------------------------------------------------------------------ titles
+TITLES_SUB = ("the equipped bonus of each slot's title, its owned bonus under it, and titles worth collecting for their "
+              "owned bonus")
+NO_DAMAGE_TITLE = "No title for this slot adds damage."
+COLLECT_HEAD = "WORTH COLLECTING (owned bonus)"
+
+
+def _cut(share) -> str:
+    """The damage a Defense title takes off the attacker's hits."""
+    x = _number(share)
+    return f"−{'NaN' if x is None else f'{100 * x:.1f}'}% damage taken"
+
+
+def title_plate(t, label: str, extra: list[tuple[str, str]] | None = None) -> dict:
+    """A title's plate (``titlePlate``): its name, its equip bonus (only while in a slot) and owned bonus (as soon as
+    it is yours), its gain (not for the one equipped), and how to earn it, shortened. ``extra`` holds a Defense title's
+    cut (``cut``) and the owned chip (``owned``)."""
+    if not _truthy(t):
+        return {"label": label, "empty": True}
+    t = _dict(t)
+    how = js_text(t.get("how")) if t.get("how") else ""
+    gain = t.get("gain")
+    return {"label": label, "empty": False, "grade": t.get("grade") or "", "name": f"❖ {js_text(t.get('name'))} ❖",
+            "equip": js_text(t["equip"]) if t.get("equip") and t["equip"] != "—" else "",
+            "owned": js_text(t["owned_bonus"]) if t.get("owned_bonus") and t["owned_bonus"] != "—" else "",
+            "gain": None if gain is None or label == "Equipped" else (sp(gain), not (_number(gain) is not None and _number(gain) < 0)),
+            "how": re.split(r"\. How to get it", re.sub(r"^You earn it by ", "", how, count=1))[0][:110] if how else "",
+            "how_full": how, "extra": list(extra or [])}
+
+
+def _guard(t: dict, x: dict) -> dict:
+    """A slot no title adds damage to (``guardCol``): ranked by what its titles take off a boss's (or another
+    player's) hits."""
+    g = x.get("guard")
+    if not _truthy(g):
+        return {"note": NO_DAMAGE_TITLE, "plates": []}
+    g = _dict(g)
+    kinds = [js_text(k) for k in _list(g.get("kinds"))]
+    who = "another player's" if "PvP Damage Tolerance" in kinds else "a boss's"
+    yours = f"; yours: {_cut(g['equipped']).replace(' damage taken', '')}" if g.get("equipped") is not None else ""
+    plates = []
+    if _truthy(t.get("owned_known")):
+        best_owned = g.get("best_owned")
+        plates.append(title_plate(best_owned, "Best you own", [("cut", _cut(_dict(best_owned).get("cut")))]
+                                  if _truthy(best_owned) else []))
+    for i, r in enumerate(_list(g.get("best"))):
+        extra = [("cut", _cut(_dict(r).get("cut")))] + ([("owned", "owned")] if _dict(r).get("owned") else [])
+        plates.append(title_plate(r, "" if i else "Best", extra))
+    return {"note": f"{NO_DAMAGE_TITLE} Ranked by how much they cut {who} damage ({', '.join(kinds)}){yours}.",
+            "plates": plates}
+
+
+def title_columns(a: dict) -> list[dict] | None:
+    """The three title slots (``advTitles``): what is equipped, the best you own, and the best in slot; none when the
+    advice has no titles."""
+    t = a.get("titles")
+    if not _truthy(t):
+        return None
+    t = _dict(t)
+    columns = []
+    for slot in ("Attack", "Defense", "Etc"):
+        x = _dict(_dict(t.get("slots")).get(slot))
+        best = _list(x.get("best"))
+        plates = [title_plate(x.get("equipped"), "Equipped")]
+        if _truthy(t.get("owned_known")) and best:
+            plates.append(title_plate(x.get("best_owned"), "Best you own"))
+        ranked = [title_plate(r, "" if i else "Best", [("owned", "owned")] if _dict(r).get("owned") else [])
+                  for i, r in enumerate(best[:3])]
+        columns.append({"title": f"{'Other' if slot == 'Etc' else slot} title".upper(), "plates": plates,
+                        "guard": None if best else _guard(t, x), "best": ranked})
+    return columns
+
+
+def titles_collect(a: dict) -> list[dict]:
+    """The titles worth collecting for their owned bonus."""
+    return [title_plate({**_dict(c), "equip": ""}, "Collect") for c in _list(_dict(a.get("titles")).get("collect"))]
+
+
+def titles_note(a: dict) -> str:
+    note = _dict(a.get("titles")).get("note")
+    return js_text(note) if note else ""
+
+
+def titles_copy(a: dict) -> str:
+    t = _dict(a.get("titles"))
+    lines = []
+    for slot in ("Attack", "Defense", "Etc"):
+        x = _dict(_dict(t.get("slots")).get(slot))
+        guard = _dict(x.get("guard"))
+        best, guard_best = _list(x.get("best")), _list(guard.get("best"))
+        pick = next((p for p in (x.get("best_owned"), best[0] if best else None, guard.get("best_owned"),
+                                 guard_best[0] if guard_best else None) if _truthy(p)), {})
+        lines.append(f"{slot}: {js_text(_dict(pick).get('name') or '-')}")
+    return "\n".join(lines)
+
+
+# ------------------------------------------------------------------ pantheon
+LORDS = {"Destruction [Zikel]": ("Zikel", "#d9534f"), "Death [Triniel]": ("Triniel", "#9b59b6"),
+         "Wisdom [Lumiel]": ("Lumiel", "#5bc0de"), "Time [Siel]": ("Siel", "#f0ad4e"),
+         "Illusion [Kaisinel]": ("Kaisinel", "#8e7cc3"), "Justice [Nezekan]": ("Nezekan", "#e8cf8e"),
+         "Freedom [Vaizel]": ("Vaizel", "#5cb85c"), "Life [Yustiel]": ("Yustiel", "#7fd6a8"),
+         "Destiny [Marchutan]": ("Marchutan", "#c0a16b"), "Space [Israphel]": ("Israphel", "#6fa8dc")}
+DEITY_FX = {"Destruction [Zikel]": "Attack, Perfect Resist", "Death [Triniel]": "Critical Hit, Regen Penetration",
+            "Wisdom [Lumiel]": "Double chance, MP cost", "Time [Siel]": "Combat Speed, Double Resist",
+            "Illusion [Kaisinel]": "Cooldown, Endurance Penetration", "Justice [Nezekan]": "Perfect chance, Defense",
+            "Freedom [Vaizel]": "Accuracy, Evasion", "Life [Yustiel]": "HP, Regeneration",
+            "Destiny [Marchutan]": "MP, Endurance", "Space [Israphel]": "Move Speed, Block"}
+KIND_LABEL = {"colossus": "Colossus", "statue": "Statue", "artwork": "Artwork"}
+PANTHEON_SUB = "deity stats: points you have, what 10 more points are worth, and the decorations to place"
+BOARD_HEAD = "RECOMMENDED BOARD · colossus, statues, artworks"
+BOARD_NOTE = ("The decorations worth placing, by modeled damage on your build (the collection itself is not in the official "
+              "profile). Hover a stand for the piece's deity points and where it comes from.")
+RINGS = (("colossus", "COLOSSUS · centre"), ("statue", "STATUES · inner ring"), ("artwork", "ARTWORKS · outer ring"))
+NO_DECORATION = "No catalogued decoration with a known effect."
+# a decoration's grade in its name's colour (``.prow[data-grade]``): the game's names for them are not the items'
+DECORATION_COLOURS = {"Heroic": "#ee6c2a", "Unique": "#e9a43a", "Epic": "#3d94d8", "Rare": "#52b35c"}
+DECOR_ICON = re.compile(r"https://aion2hub\.com/api/icon/items/[0-9]{1,12}")
+
+
+def deity_short(deity) -> str:
+    return js_text(deity).split(" [")[0]
+
+
+def decor_icon(r) -> str:
+    """A decoration's picture (``decorIcon``): the game's item icon from aion2hub.com, by item id; none for anything
+    else."""
+    url = js_text(_dict(r).get("icon") or "")
+    return url if DECOR_ICON.fullmatch(url) else ""
+
+
+def _stats(r: dict, joiner: str = ", ") -> str:
+    return joiner.join(f"{deity_short(k)} +{js_text(v)}" for k, v in _entries(_dict(r.get("stats"))))
+
+
+def deity_tiles(a: dict) -> list[dict]:
+    """The ten deities (``advPantheon``'s tiles): each one's sigil and lord, your points, its effects, what 10 more
+    points are worth against the best, and whether it is the best for damage."""
+    p = _dict(a.get("pantheon"))
+    per_point = [r for r in _list(p.get("per_point")) if isinstance(r, dict)]
+    values = [_number(r.get("gain_per_point")) for r in per_point]
+    top = max([x for x in values if x is not None] + [1e-9])
+    current = _dict(p.get("current"))
+    tiles = []
+    for deity, (lord, colour) in LORDS.items():
+        r = next((x for x in per_point if x.get("deity") == deity), {})
+        worth = _number(r.get("gain_per_point")) or 0.0
+        tiles.append({"deity": deity.split(" [")[0], "lord": lord.upper(), "sigil": lord[0], "colour": colour,
+                      "points": js_text(0 if current.get(deity) is None else current[deity]), "fx": DEITY_FX[deity],
+                      "share": max(0.0, 100 * worth / top), "worth": f"{sp(10 * worth)} / 10",
+                      "best": deity == p.get("best"), "dim": not r.get("field")})
+    return tiles
+
+
+def deity_choices(a: dict) -> list[dict]:
+    """The arcana's deity choices: where from, the pick and its deity, and its gain."""
+    return [{"source": js_text(c.get("source")), "pick": js_text(c.get("pick")), "deity": js_text(c.get("deity") or ""),
+             "gain": sp(c.get("gain"))} for c in _list(_dict(a.get("pantheon")).get("choices")) if isinstance(c, dict)]
+
+
+def stand_tip(r) -> str:
+    """A stand's words when hovered (``tip``): the piece's kind and name, its deity points, its gain and its sources."""
+    if not _truthy(r):
+        return ""
+    r = _dict(r)
+    sources = "; ".join(js_text(x) for x in _list(r.get("sources"))) or "source unknown"
+    return f"{KIND_LABEL.get(r.get('kind'), js_text(r.get('kind')))}: {js_text(r.get('short'))} — {_stats(r)} · {sp(r.get('gain'))} · {sources}"
+
+
+def shortened(name, n: int) -> str:
+    """A name cut to ``n`` characters with an ellipsis (``short``)."""
+    name = js_text(name or "")
+    return name[:n - 1] + "…" if len(name) > n else name
+
+
+def board_stands(board: dict) -> dict:
+    """The board's stands (``pantheonBoardHTML``): the colossus, the four statues and the twelve artworks, each with
+    its piece (or none), picture, words and tip."""
+    b = _dict(_dict(board).get("board"))
+
+    def stand(r, kind: str, number: int, n: int, empty: str) -> dict:
+        piece = _dict(r) if _truthy(r) else None
+        return {"set": piece is not None, "icon": decor_icon(piece) if piece else "",
+                "name": shortened(piece.get("short"), n) if piece else "",
+                "points": f"+{js_text(piece.get('points'))}" if piece else empty,
+                "tip": stand_tip(piece) if piece else f"{KIND_LABEL[kind]} stand{'' if kind == 'colossus' else ' ' + str(number)}: no candidate"}
+    colossi, statues, artworks = _list(b.get("colossus")), _list(b.get("statue")), _list(b.get("artwork"))
+    return {"colossus": stand(colossi[0] if colossi else None, "colossus", 1, 16, "Colossus"),
+            "statues": [stand(statues[i] if i < len(statues) else None, "statue", i + 1, 14, f"stand {i + 1}") for i in range(4)],
+            "artworks": [stand(artworks[i] if i < len(artworks) else None, "artwork", i + 1, 11, "") for i in range(12)]}
+
+
+def decoration_row(r) -> dict:
+    """A decoration in the board's list (``pantheonListHTML``'s ``row``)."""
+    r = _dict(r)
+    sources = "; ".join(js_text(x) for x in _list(r.get("sources"))) or "source not listed in the catalog"
+    return {"icon": decor_icon(r), "name": js_text(r.get("short")), "grade": js_text(r.get("grade") or ""),
+            "colour": DECORATION_COLOURS.get(r.get("grade"), ""), "faction": js_text(r.get("faction") or ""),
+            "stats": [(deity_short(k), f"+{js_text(v)}") for k, v in _entries(_dict(r.get("stats")))],
+            "gain": sp(r.get("gain")), "sources": sources}
+
+
+def board_list(board: dict) -> dict:
+    """The board's list: its deity totals, its gain against an empty board, each ring's pieces and next best, and the
+    catalog's note."""
+    b = _dict(board)
+    placed, slots, runners = _dict(b.get("board")), _dict(b.get("slots")), _dict(b.get("runners_up"))
+    totals = sorted(_entries(_dict(b.get("totals"))), key=lambda kv: -(_number(kv[1]) or 0))
+    rings = [{"kind": kind, "head": f"{title} · {len(_list(placed.get(kind)))}/{js_text(slots.get(kind))}",
+              "rows": [decoration_row(r) for r in _list(placed.get(kind))],
+              "next_head": f"Next best {KIND_LABEL[kind].lower()}s", "next": [decoration_row(r) for r in _list(runners.get(kind))]}
+             for kind, title in RINGS]
+    catalog = _dict(b.get("catalog"))
+    candidates = _dict(catalog.get("candidates"))
+    count = {k: js_text(0 if candidates.get(k) is None else candidates[k]) for k in KIND_LABEL}
+    faction = (f" (your faction: {js_text(b['faction'])})" if b.get("faction")
+               else " (faction unknown: both factions' pieces shown)")
+    note = (f"{js_text(b.get('note') or '')} {js_text(catalog['images']) + '.' if catalog.get('images') else ''} Candidates: "
+            f"{count['colossus']} colossi, {count['statue']} statues, {count['artwork']} artworks with a known effect{faction}.")
+    return {"totals": [(deity_short(k), js_text(v), js_text(k)) for k, v in totals], "gain": sp(b.get("gain")),
+            "rings": rings, "note": note}
+
+
+def pantheon_copy(a: dict) -> str:
+    p = _dict(a.get("pantheon"))
+    lines = [f"{js_text(r.get('deity'))}: {sp(10 * (_number(r.get('gain_per_point')) or 0))} per 10"
+             for r in _list(p.get("per_point")) if isinstance(r, dict)]
+    board = p.get("board")
+    if _truthy(board):
+        lines.append("")
+        placed = _dict(_dict(board).get("board"))
+        for kind in KIND_LABEL:
+            for r in _list(placed.get(kind)):
+                r = _dict(r)
+                sources = "; ".join(js_text(x) for x in _list(r.get("sources")))
+                lines.append(f"{KIND_LABEL[kind]}: {js_text(r.get('short'))} ({_stats(r)}) {sp(r.get('gain'))} — {sources}")
+    return "\n".join(lines)
+
+
 def fights(a: dict) -> dict:
     """``fightsHTML``: how many fights were saved and from where, the rotation compared (idle time, what was cast too
     little, specialties that differ) or why not, the recent fights (each with its analysis's page on Combat Logs, when

@@ -32,6 +32,19 @@ from . import views
 STATIC = Path(__file__).resolve().parent / "static"
 mimetypes.add_type("font/woff2", ".woff2")
 ICON_HOSTS = ("metabot.gg", "assets.playnccdn.com", "profileimg.plaync.com", "a2dil.com")
+# aion2hub.com's item icons by id: the Pantheon decorations' pictures, which the native interface reads through the
+# icon cache (0.2.445; the web page loads them itself). Nothing else of that site.
+AION2HUB_ICON = re.compile(r"/api/icon/items/[0-9]{1,12}")
+
+
+def icon_allowed(u: str) -> bool:
+    """Whether the icon cache fetches an address: a picture on one of the icon hosts, or an aion2hub.com item icon."""
+    parsed = urllib.parse.urlparse(u)
+    host = parsed.hostname or ""
+    if host == "aion2hub.com":
+        return (parsed.scheme == "https" and parsed.port is None and not parsed.query and not parsed.fragment
+                and not parsed.username and bool(AION2HUB_ICON.fullmatch(parsed.path)))
+    return any(host == h or host.endswith("." + h) for h in ICON_HOSTS)
 
 SYNC = {"sync": None, "thread": None}
 JOBS: dict[str, dict] = {}
@@ -1624,7 +1637,7 @@ class Handler(BaseHTTPRequestHandler):
         """Fetch and cache game icons locally so the UI keeps working offline."""
         from .image_health import record
         host = urllib.parse.urlparse(u).hostname or ""
-        if not any(host == h or host.endswith("." + h) for h in ICON_HOSTS):
+        if not icon_allowed(u):
             raise FileNotFoundError(u)
         cache = home() / "icons"
         cache.mkdir(exist_ok=True)
