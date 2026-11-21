@@ -2,7 +2,8 @@
 Saved Results: the windows' list, and the Overview, Skills and Stigma windows' figures, lines and notes; since
 0.2.435 the Daevanion window's boards, nodes and points and the Equipment window's paper doll, rolls and enchant
 priority; since 0.2.436 the Arcana window's cards, variants and skill rolls with the deity totals, and the titles,
-wings and pet. The native windows (``result_windows.py``) draw them; the notes are rich text in the subset Qt's text engine
+wings and pet; since 0.2.437 the Skills hotbar's rows and the Macro & rotation window's lines, manual skills and
+priority list. The native windows (``result_windows.py``) draw them; the notes are rich text in the subset Qt's text engine
 draws, the ``<details>`` of the web page opened in place.
 """
 from __future__ import annotations
@@ -18,7 +19,7 @@ WINDOWS = (("overview", "Overview", "◆"), ("skills", "Skills", "✦"), ("stigm
            ("daevanion", "Daevanion", "✧"), ("genus", "Pet Genus", "◈"), ("equipment", "Equipment", "⚔"),
            ("arcana", "Arcana", "❖"), ("titles", "Titles & wings", "♛"), ("hotbar", "Skills hotbar", "▦"),
            ("macro", "Macro & rotation", "⌨"))
-NATIVE = ("overview", "skills", "stigma", "daevanion", "equipment", "arcana", "titles")   # the native windows so far
+NATIVE = ("overview", "skills", "stigma", "daevanion", "equipment", "arcana", "titles", "hotbar", "macro")   # so far
 COMPARISON = ("Generate a separate {mode} example with common gear and the server’s published point budgets (highest "
               "reported totals when available; explicitly labeled example fallback otherwise). Your personal build, "
               "Genus and HP/skill reserves stay saved separately. Seed searches and weighted refinement can take several "
@@ -789,6 +790,195 @@ def title_rows(v: dict) -> list[tuple[str, str, str, str]]:
 def titles_grid(v: dict) -> list[tuple[str, str]]:
     return [(js_text(s.get("label")), js_text(s.get("text"))) for s in _list(_dict(v.get("extras")).get("titles_total"))
             if isinstance(s, dict)]
+
+
+# ------------------------------------------------------------------ Skills hotbar
+NO_HOTBAR = "Optimize your build to generate its hotbar and macro setup."
+HOTBAR_SUB = "suggested key bindings"
+HOTBAR_INTRO = ("Place each skill on your hotbar and assign the key shown on its icon. These are suggested bindings: match "
+                "your in-game Key Settings, or use your own keys consistently in both tabs.")
+HOTBAR_MANUAL = (f"<b style='color: {GOLD};'>Manual / Hold to charge:</b> keep these skills outside the macro. Hold a charge "
+                 "skill’s own key, then release it at the required charge level.")
+
+
+def kbd(value) -> str:
+    """A key (``<kbd>``) in rich text: its name in a fixed-width font."""
+    return f"<span style='font-family: monospace;'>{e(value)}</span>"
+
+
+def hotbar_reserve(v: dict) -> str:
+    """The hotbar's last note (rich text): the macro's key, and the window to follow next."""
+    return (f"Reserve {kbd(_dict(v.get('hotbar')).get('macro_binding'))} for the macro, then follow <b>Macro &amp; rotation</b>. "
+            "Hotbar positions are key bindings; the numbered macro rows are the order the macro tries skills.")
+
+
+def hotbar_rows(v: dict) -> list[tuple[str, list]]:
+    """The hotbar's rows of twelve, the last row first as the game stacks them: each row's number and its slots (None
+    for an empty one)."""
+    slots = _list(_dict(v.get("hotbar")).get("slots"))
+    total = max(12, math.ceil(len(slots) / 12) * 12)
+    rows = [(str(first // 12), [slots[i] if i < len(slots) and isinstance(slots[i], dict) else None
+                                for i in range(first, first + 12)]) for first in range(0, total, 12)]
+    return rows[::-1]
+
+
+def hotbar_note(s: dict) -> str:
+    """A slot's line under its name: hold to charge, manual, a macro key of several skills, or macro."""
+    if s.get("charged"):
+        return "Hold to charge"
+    if s.get("manual"):
+        return "Manual"
+    stack = s.get("stack")
+    return f"Macro key: {len(stack)} skills, cast in order" if isinstance(stack, list) and len(stack) > 1 else "Macro"
+
+
+def hotbar_tip(s: dict) -> str:
+    return f"{js_text(s.get('name'))} — {'Manual' if s.get('manual') else 'Macro'}{'; hold to charge' if s.get('charged') else ''}"
+
+
+def hotbar_key(s: dict) -> str:
+    """The key on a skill's picture (``rotationIcon``)."""
+    return js_text(s.get("binding") or "")
+
+
+def hotbar_level(s: dict) -> str:
+    return f"Lv {n0(s.get('level'))}"
+
+
+def hotbar_copy(v: dict) -> str:
+    h = _dict(v.get("hotbar"))
+    lines = [f"{js_text(s.get('binding'))}: {js_text(s.get('name'))} "
+             f"({'manual hold to charge' if s.get('charged') else 'manual' if s.get('manual') else 'macro'})"
+             for s in _list(h.get("slots")) if isinstance(s, dict)]
+    return "\n".join(lines) + f"\nSuggested macro key: {js_text(h.get('macro_binding'))}"
+
+
+# ------------------------------------------------------------------ Macro & rotation
+NO_MACRO = "No macro (run an optimization)"
+MACRO_TITLE = "Skill Macro & rotation"
+MANUAL_HEAD = "MANUAL SKILLS"
+READY_HEAD = "WHEN MULTIPLE SKILLS ARE READY"
+READY_NOTE = "This priority list explains the optimizer’s decisions. It is not another macro to copy."
+ONLY_MANUAL = "This rotation uses manual skills only."
+NO_MANUAL = "No manual skills for this rotation."
+REFRESH = ("An earlier version of the app planned this macro. Optimize again for a macro planned the way the game’s macro "
+           "plays (each key on one line, its skills cast in order), and for its estimate. Charge skills are shown as "
+           "manual keys.")
+INSTRUCTIONS = (
+    "Copy the suggested bindings from <b>Skills hotbar</b>, or substitute your own.",
+    "A step with several skills is one hotbar key holding all of them (a key takes up to four): put them on that key in "
+    "the order listed, the first one lowest. The macro casts them from first to last, skipping any that cannot be cast, "
+    "then moves to the next line.",
+    "Open <b>Settings → Key Settings → General → Skill Macro</b>. Add the hotbar keys below as macro lines, from top to "
+    "bottom, each once: held, the macro cycles through them. The large numbers are macro lines, not hotbar keys. A "
+    "skill’s key presses its chain step while the chain is open, in the macro too.",
+    "Set each step’s delay to <b>10 ms</b>, enable <b>Skill Queue</b>, and save the macro to an unused key (suggested: {key}).",
+    "Hold the macro key during combat, with the left mouse button (the basic attack) held too: it attacks whenever no "
+    "macro key has a skill ready. Release the macro to use a manual skill; charge skills need their own button held "
+    "before release. Resume the macro afterwards.")
+
+
+def has_macro(v: dict) -> bool:
+    return _truthy(v.get("macro")) and _truthy(v.get("rotation"))
+
+
+def macro_binding(v: dict) -> str:
+    """The key the macro is saved to: the hotbar's suggestion, or right-click."""
+    return js_text(_dict(v.get("hotbar")).get("macro_binding") or "Right-click")
+
+
+def macro_instructions(v: dict) -> list[str]:
+    """The macro window's five steps (rich text), the fourth with the macro's key."""
+    return [step.replace("{key}", kbd(macro_binding(v))) for step in INSTRUCTIONS]
+
+
+def held(s: dict) -> list[dict]:
+    """The skills a macro line's key holds (``s.stack || [s]``), cast from first to last."""
+    stack = s.get("stack")
+    return [x for x in _list(stack) if isinstance(x, dict)] if _truthy(stack) else [s]
+
+
+def _key_of(s: dict) -> str:
+    binding = s.get("binding")
+    return js_text(binding) if binding and binding != "Assign key" else "+".join(js_text(h.get("key")) for h in held(s))
+
+
+def macro_lines(v: dict) -> list[dict]:
+    """The macro's lines (``keyOf``): each hotbar key once, on its first line."""
+    seen, lines = set(), []
+    for s in _list(_dict(v.get("rotation")).get("steps")):
+        if isinstance(s, dict) and _key_of(s) not in seen:
+            seen.add(_key_of(s))
+            lines.append(s)
+    return lines
+
+
+def chain_note(s: dict) -> str:
+    chain = s.get("chain_of")
+    return f"{js_text(chain)}’s chain: press {js_text(chain)} again while the chain is open" if chain else ""
+
+
+def cast_note(place: int, count: int) -> str:
+    """Under a skill of a key holding several: cast first, or then this one."""
+    return "" if count <= 1 else f"{'then this one' if place else 'cast first'}, skipped if it cannot be cast"
+
+
+def manual_skills(v: dict) -> list[dict]:
+    return [s for s in _list(_dict(v.get("rotation")).get("manual")) if isinstance(s, dict)]
+
+
+def manual_words(s: dict) -> str:
+    """How to use a manual skill: hold it to its charge and release, or press it when ready; and when."""
+    if s.get("charged"):
+        level = s.get("charge_level")
+        text = (f"Hold this skill’s key{f' to charge level {js_text(level)}' if level else ' to charge'}, then release. "
+                "Never add it as a macro tap.")
+    else:
+        text = "Press manually when ready."
+    return text + (f" Use {js_text(s.get('condition'))}." if s.get("condition") else "")
+
+
+def _figure(m: dict, key: str) -> float:
+    """A figure as JavaScript divides it: missing is NaN, none is 0."""
+    if key not in m:
+        return math.nan
+    x = 0.0 if m[key] is None else _number(m[key])
+    return math.nan if x is None else x
+
+
+def macro_estimate(v: dict) -> str:
+    """The macro's share of the ideal priority rotation, or why the macro should be planned again."""
+    m = _dict(v.get("macro"))
+    if m.get("needs_refresh"):
+        return REFRESH
+    top, bottom = _figure(m, "dps_macro"), _figure(m, "dps_priority")
+    if math.isnan(top) or math.isnan(bottom) or (top == 0 and bottom == 0):
+        share = "—"
+    elif bottom == 0 or math.isinf(top / bottom if bottom else 0):
+        share = ("-" if (top < 0) != (math.copysign(1, bottom) < 0) else "") + "Infinity%"
+    else:
+        share = pct(top / bottom)
+    return (f"Estimated macro + manual execution: {share} of the ideal priority rotation. This assumes you use the manual "
+            "skills, including their charges.")
+
+
+def priority_items(v: dict) -> list[tuple[str, list[str]]]:
+    """The optimizer's priority (``ol``): each skill's name, and its chain and condition (muted)."""
+    return [(js_text(s.get("name")), ([f"{js_text(s.get('chain_of'))}’s chain"] if s.get("chain_of") else [])
+             + ([js_text(s.get("condition"))] if s.get("condition") else []))
+            for s in _list(_dict(v.get("rotation")).get("priority")) if isinstance(s, dict)]
+
+
+def macro_copy(v: dict) -> str:
+    text = "\n".join(f"{index + 1}. hotbar key {js_text(s.get('binding'))}: "
+                     + " > ".join(js_text(h.get("name")) + (f" ({js_text(h.get('chain_of'))}’s chain: {js_text(h.get('chain_of'))} again)"
+                                                            if h.get("chain_of") else "") for h in held(s))
+                     + "; delay 10 ms" for index, s in enumerate(macro_lines(v)))
+    manual = manual_skills(v)
+    if manual:
+        text += "\nManual: " + ", ".join(f"{js_text(s.get('name'))} ({js_text(s.get('binding'))}"
+                                         f"{'; hold to charge' if s.get('charged') else ''})" for s in manual)
+    return text
 
 
 # ------------------------------------------------------------------ Saved Results

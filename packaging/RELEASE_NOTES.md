@@ -1,3 +1,16 @@
+## The Skills hotbar and Macro windows in the native interface (0.2.437)
+
+**Two more result windows are native now.** A saved build's **Skills hotbar** and **Macro & rotation** windows open in the app's window, as the web page draws them:
+- **Skills hotbar:** where to put each skill, in the game's rows of twelve (the last row first). Each slot shows the skill's picture with its key and level, its name, and whether it is pressed by hand (edged in gold), held to charge, or a macro key and how many skills it holds; then how to use the manual skills and which key to keep for the macro. **Copy as text** lists every key.
+- **Macro & rotation:**
+  - the five steps to set the macro up in the game;
+  - the macro as the game's editor lists it: each numbered line with the skills its hotbar key holds, in the order they are cast, the 10 ms delays between lines, and the key to save it to;
+  - the manual skills and how to use them, the macro's estimate against the ideal rotation, and the optimizer's priority when several skills are ready;
+  - **Copy as text**.
+- A hotbar wider than the window scrolls across, and the macro's editor goes above its side on a narrow window, as on the web page.
+
+Pet Genus is on the web Saved Results page for now.
+
 ## The Arcana and Titles windows in the native interface (0.2.436)
 
 **Two more result windows are native now.** A saved build's **Arcana** and **Titles, wings & pet** windows open in the app's window, as the web page draws them:
