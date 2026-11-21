@@ -2686,7 +2686,9 @@ def test_the_review_events_and_timeline(qapp):
     page = _page(app)
     page.open_review("shared", "log0001")
     view = page.review_page
-    settle(lambda: "Enemy encounters" in _labels(view))
+    # drawn with every answer in: the parses, the community's names and the boss's portrait (each draws it again)
+    settle(lambda: "Enemy encounters" in _labels(view) and view.ranks is not None and view.names is not None
+           and not view.awaiting)
 
     def chosen(name):
         return _find(view, QPushButton, lambda b: b.accessibleName() == name)
@@ -2792,7 +2794,7 @@ def test_the_review_events_and_timeline(qapp):
     assert view.lanes_fold.button.text() == "Player timeline visibility · 1 / 2 shown"
     view.lanes_fold.button.click()
     _find(view, QCheckBox, lambda c: c.text() == "TestCleric").setChecked(True)
-    QCoreApplication.processEvents()
+    _shown()
     assert view.lanes_fold.button.text() == "Player timeline visibility · 2 / 2 shown" and view.lanes_fold.body.isVisibleTo(view)
     _click(view, "Expand all")
     assert not view.lanes_folded
@@ -2810,6 +2812,7 @@ def test_the_review_events_and_timeline(qapp):
     view.lanes_hidden.add("p2")
     _choose(view, "Encounter", 1)
     assert (view.lanes_hidden, view.lanes_folded, view.effect, view.state["timeline_start"]) == (set(), set(), "", 0.0)
+    settle(lambda: view.ranks is not None and not view.awaiting)               # its parses in, drawn again
     chosen("Table view").click()
     assert view.summary is not None and view.timeline is None
 
