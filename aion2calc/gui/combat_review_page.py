@@ -300,6 +300,7 @@ class ReviewPage(QWidget):
         self.state = cw.fresh_state(mode, segment)
         self._forget_timeline()
         self._forget_forms()
+        self._stop_replay()                                          # its panel goes with the page cleared below
         for kind_of in ("log", "ranks"):
             self.asked[kind_of] = self.asked.get(kind_of, 0) + 1     # answers about the log shown before are let go
         _clear(self.box)
@@ -445,6 +446,7 @@ class ReviewPage(QWidget):
             self.draw()
 
     def _refused(self, why: str) -> None:
+        self._stop_replay()
         _clear(self.box)
         self.box.addWidget(_note(why or "Could not read the combat log."))
 

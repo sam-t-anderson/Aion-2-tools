@@ -290,3 +290,31 @@ def test_a_log_without_movement(qapp, tmp_path):
     settle(lambda: view.where.get("kind") == "shared" and view.doc is not None and not view.awaiting)
     labels = _labels(view)
     assert rp.HEAD in labels and rp.NO_MOVEMENT + rp.MAY_HOLD in labels and view.replay is None
+
+
+def test_another_log_after_a_replay(qapp, tmp_path):
+    """The replay drawn is let go as the page clears for another log or for a log that cannot be read: its panel is
+    deleted once the app's event loop runs, and the page draws the next log without reaching for it."""
+    app = FakeApp()
+    app.log_server.review_log = _moving()
+    page = _page(app, store=_store(tmp_path))
+    page.open_review("local", "session-1.a2log.json")
+    view = page.review_page
+    settle(lambda: view.replay is not None and not view.awaiting)
+    first = view.replay
+    _click(view, "Play")
+    page.open_review("local", "session-1.a2log.json", None, 0)
+    assert view.replay is None and not first.playing()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)       # as the app's event loop does
+    settle(lambda: view.replay is not None and not view.awaiting)
+    assert view.replay is not first and rp.HEAD in _labels(view)
+    # the log read again, and no longer there: said so, the replay let go with the page
+    app.log_server.review_log = {"error": "No such recording"}
+    view.reload()
+    settle(lambda: "No such recording" in _labels(view))
+    assert view.replay is None
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+    app.log_server.review_log = _moving()
+    view.reload()
+    settle(lambda: view.replay is not None and not view.awaiting)
+    assert rp.HEAD in _labels(view)
