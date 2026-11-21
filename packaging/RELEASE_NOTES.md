@@ -1,3 +1,22 @@
+## The Timers page in the native interface (0.2.428)
+
+**The Timers page is native now.** The app's window draws Game → Timers itself, with the web page's four parts:
+- **Regional event timers:**
+  - the game region, and for Korea the matching group;
+  - where the schedule comes from and when it is due for review;
+  - your computer's time;
+  - a card for each event: its days, hours and zone, whether it is a forecast, the window it is in or its next start counting down each second, the next start in your time and the event's, and the next three starts.
+
+  The region and group are kept as the app's settings, as before, so the overlay's event strip follows them.
+- **Field boss respawn reference:** the bundled reference by zone (Verteron, Altgard and the Abyss), with its search.
+- **Field boss kills by server:**
+  - the kills of your server, chosen from the live meter, in your faction's zones and the Abyss, or another server's or faction's;
+  - when each boss is expected back, counting down, and what that rests on;
+  - the previous kill and the logs it came from.
+- **Recorded boss defeats:** the observations of a recorded region, searchable, each with its build, NPC, map and source logs.
+
+A source log opens in the web interface; the schedule's sources open in your browser. The clocks move only while the page is shown.
+
 ## The News page in the native interface (0.2.427)
 
 **The News page is native now.** The app's window draws Game → News itself, as the web page shows it:

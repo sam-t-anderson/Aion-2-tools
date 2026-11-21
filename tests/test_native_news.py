@@ -297,7 +297,7 @@ def test_a_picture_is_read_from_the_official_server_and_covers_its_box(qapp):
 def test_the_window_draws_the_news_page_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("news"), NewsPage) and not isinstance(window.page("news"), WebPage)
-    assert isinstance(window.page("timers"), WebPage)                             # not moved over yet
+    assert isinstance(window.page("maps"), WebPage)                               # not moved over yet
 
 
 def test_the_news_region_is_one_of_the_apps_settings(home):

@@ -76,6 +76,14 @@ def _ymd(ms: int) -> tuple[int, int, int]:
     return moment.year, moment.month, moment.day
 
 
+def countdown(ms: float) -> str:
+    """The Timers page's countdown (event-schedule.js ``countdown``): 05:03:02, the days before it when there are
+    any (1d 05:03:02)."""
+    seconds = max(0, math.ceil(ms / 1000))
+    days = seconds // 86400
+    return (f"{days}d " if days else "") + f"{seconds // 3600 % 24:02d}:{seconds // 60 % 60:02d}:{seconds % 60:02d}"
+
+
 def short_countdown(ms: float) -> str:
     """The overlay's countdown: 45s, 5m, 1h 05m."""
     seconds = max(0, math.ceil(ms / 1000))
