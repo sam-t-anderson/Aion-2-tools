@@ -1,3 +1,13 @@
+## A combat log's own page in the native interface, part 6 (0.2.462)
+
+**A log's review in the app's window now has its Player death recaps**, under the enemy encounters when **Death recaps** is chosen:
+- each recorded death of your party in the encounter (a player's alone when one is chosen), with the window before it (up to 10 seconds, back to no earlier than the player's previous death), the damage taken and healing received in it, the latest HP reading and the last hit before the death marker;
+- **Open recap** shows that death's last effects and HP readings, timed from the death marker; the first is open to begin with;
+- for a PvP opponent, their own deaths, built as the analyzer builds your party's, and your party's deaths they struck in;
+- why there is none: an older log the analyzer hasn't read for its deaths, a selection without death markers, or one the session's limit of 200 recaps left out.
+
+The review's other sections (insights, rankings, reports, comparisons and movement replay) still open in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 5 (0.2.461)
 
 **A log's review in the app's window now has its Casts, buffs and break gauge**, under the abilities and skills, with its tabs:
