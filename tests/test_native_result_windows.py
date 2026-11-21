@@ -1,8 +1,9 @@
-"""The native result windows' second to fourth parts (0.2.435 to 0.2.437): a saved build's Daevanion, Equipment,
-Arcana, Titles, wings & pet, Skills hotbar and Macro & rotation windows as pages/results.js draws them
-(``winDaevanion``, ``slotTile``, ``winEquipment``, ``winArcana``, ``winTitles``, ``winHotbar``, ``winMacro``), off
-screen, over the app's own result view of the bundled sorcerer build, and that build dressed with every slot extra,
-arcana card and the pet the web page shows.
+"""The native result windows' second to fifth parts (0.2.435 to 0.2.438): a saved build's Daevanion, Equipment,
+Arcana, Titles, wings & pet, Skills hotbar, Macro & rotation and Pet Genus windows as pages/results.js draws them
+(``winDaevanion``, ``slotTile``, ``winEquipment``, ``winArcana``, ``winTitles``, ``winHotbar``, ``winMacro``,
+``winGenus`` with genus-editor.js's ``ringHTML``), off screen, over the app's own result view of the bundled sorcerer
+build, that build dressed with every slot extra, arcana card and the pet the web page shows, and that build with saved
+Genus Insight lines scored as the report scores them.
 """
 import copy
 import json
@@ -17,7 +18,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QPointF  # noqa: E402
 from PySide6.QtGui import QColor, QHelpEvent  # noqa: E402
-from PySide6.QtWidgets import QApplication, QFrame, QLabel, QTableWidget, QToolTip  # noqa: E402
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QTableWidget, QToolButton, QToolTip  # noqa: E402
 
 from aion2calc.gui import result_windows as w  # noqa: E402
 from aion2calc.gui import results as r  # noqa: E402
@@ -58,6 +59,27 @@ def dressed(view):
         {"slot": "Mirror", "name": "Mirror of Purity", "grade": "Epic", "skills": [["Frost", 1]], "stats": []}]
     full["extras"] = {**full["extras"], "pet": {"name": "Pet one", "level": 30, "icon": "https://metabot.gg/web/aion2/pets/one.webp"}}
     return full
+
+
+@pytest.fixture(scope="module")
+def genus_view(view):
+    """The build with three genera's Insight saved (Cogni at 6, Fera at 10, Natura at 3), prepared and given what to
+    roll for as the report does, its lines' contributions set, and kept as a saved result keeps it (JSON: the roll
+    table's slots keyed by text)."""
+    from aion2calc.opt.genus import prepare
+    from aion2calc.plan import genus as G
+    from aion2calc.plan.context import PlanContext
+    state = {"Cogni": {"level": 6, "lines": [{"slot": 4, "stat": "Cogni Damage Boost", "value": "3.6%"},
+                                             {"slot": 1, "stat": "Boss Attack", "value": "12"},
+                                             {"slot": 2, "stat": "Cogni Defense", "value": "54"}]},
+             "Fera": {"level": 10, "lines": [{"slot": 1, "stat": "Attack", "value": "10"},
+                                             {"slot": 7, "stat": "Fera Damage Boost", "value": "2.4%"}]},
+             "Natura": {"level": 3, "lines": []}}
+    plan = prepare(state, "pve")
+    plan["roll_targets"] = G.roll_targets(PlanContext.for_class("sorcerer"), state, "pve", plan["mix"])
+    for index, row in enumerate(plan["lines"]):
+        row["gain"] = None if row["reason"] else 0.004 * (index + 1)
+    return {**view, "genus": json.loads(json.dumps(plan))}
 
 
 @pytest.fixture(scope="module")
@@ -507,3 +529,119 @@ def test_the_macro_window(qapp, view):
     assert editor.width() == 480 and editor.geometry().right() < side.geometry().left()
     _app, _page_, empty = _windows({k: v for k, v in view.items() if k != "rotation"}, "macro")
     assert r.NO_MACRO in _texts(empty) and [l.text() for l in _shown(empty, QLabel, "winTitle")] == ["SKILL MACRO"]
+
+
+def test_the_genus_words(view, genus_view):
+    assert [r.genus_choice(x) for x in ("Fera", "Special", "Bogus", None)] == ["Fera", "Special", "Cogni", "Cogni"]
+    assert r.genus_buttons(genus_view) == [("Cogni", "Lv 6"), ("Fera", "Lv 10"), ("Natura", "Lv 3"), ("Varian", "Not recorded"),
+                                           ("Special", "Not recorded")]
+    assert [r.genus_level({"level": x}) for x in (6, 10, 4.0, 4.5, "6", True, None)] == [
+        "Lv 6", "Lv 10 · MAX", "Lv 4", "Level not recorded", "Level not recorded", "Level not recorded", "Level not recorded"]
+    assert r.genus_subtitle(genus_view) == "PVE" and r.genus_subtitle(view) == ""
+    assert [r._is(x, 4) for x in (4, 4.0, "4", True)] == [True, True, False, False]
+    assert r._entries({"10": 1, "2": 2, "b": 3, "02": 4}) == [("2", 2), ("10", 1), ("b", 3), ("02", 4)]   # Object.entries
+    cogni = r.genus_group(genus_view, "Cogni")
+    assert r.ring_nodes(cogni) == [("filled", "Slot 1: Boss Attack 12"), ("filled", "Slot 2: Cogni Defense 54"),
+                                   ("unknown", "Slot 3: Not recorded"), ("filled", "Slot 4: Cogni Damage Boost 3.6%"),
+                                   ("unknown", "Slot 5: Not recorded"), ("unknown", "Slot 6: Not recorded"),
+                                   ("locked", "Slot 7: Locked · opens at Lv 7"), ("locked", "Slot 8: Locked · opens at Lv 8"),
+                                   ("locked", "Slot 9: Locked · opens at Lv 9")]
+    rows = r.genus_rows(genus_view, "Cogni")
+    assert rows[0] == ["1", "Boss Attack", "12", "0.40%", "Included in the damage model"]
+    assert rows[1] == ["2", "Cogni Defense", "54", "—", "Unsupported damage effect or defensive effect"]
+    assert rows[2] == ["3", "Not recorded", "—", "—", "—"] and rows[6] == ["7", "Locked · opens at Lv 7", "—", "—", "—"]
+    assert r.genus_rows(view, "Fera")[8] == ["9", "Not recorded", "—", "—", "—"]               # no level: nothing locked
+    # the note: lines scored, scoring off, nothing recorded; with the roll suggestions' sentence when there are some
+    assert r.genus_note(genus_view).startswith("Saved manual lines included &quot;Roll for&quot; below scores every line")
+    assert r.genus_note({"genus": {**genus_view["genus"], "enabled": False, "roll_targets": None}}).startswith(
+        "Genus scoring disabled for this run The official profile")
+    assert r.genus_note(view).startswith("No Genus analysis lines were recorded in this result. The official profile")
+    assert "<a href='character'" in r.genus_note(view) and "<a href='gear'" in r.genus_note(view)
+    # what to roll for: the best candidates, every slot in order (also with the slots' keys as text, out of order)
+    rolls = r.genus_rolls(genus_view, "Cogni")
+    assert rolls["best"] and all(gain.startswith(("+", "-")) for _slot, _stat, _grade, gain in rolls["best"])
+    assert [row["slot"] for row in rolls["rows"]] == [str(n) for n in range(1, 10)]
+    assert rolls["rows"][0]["saved"] == "Boss Attack 12" and rolls["rows"][2]["saved"] == "Not recorded"
+    assert rolls["basis"].startswith("midpoint of each line's best listed grade")
+    shuffled = json.loads(json.dumps(genus_view))
+    slots = shuffled["genus"]["roll_targets"]["genera"]["Cogni"]["slots"]
+    shuffled["genus"]["roll_targets"]["genera"]["Cogni"]["slots"] = dict(reversed(list(slots.items())))
+    assert [row["slot"] for row in r.genus_rolls(shuffled, "Cogni")["rows"]] == [str(n) for n in range(1, 10)]
+    assert r.genus_rolls(view, "Cogni") is None
+    # the coverage and the roll targets
+    coverage = r.genus_coverage(genus_view)
+    assert coverage["line"] == "3 / 5 levels recorded · 5 saved lines · 4 damage effects included"
+    assert coverage["rows"][:2] == [["Cogni", "6", "3 / 6 · 3 not recorded", "Lv 7 · slot 7"], ["Fera", "10", "2 / 9 · 7 not recorded", "Catalog level cap"]]
+    assert coverage["rows"][3] == ["Varian", "Not recorded", "Unknown", "Enter level"]
+    assert coverage["basis"].endswith("Current build applicability and owned collection completion are not verified.")
+    targets = r.genus_targets(genus_view)
+    assert targets["rows"][0] == ["Cogni · Lv 6", "4", "Cogni Damage Boost", "Cogni Damage Boost 3.6%", "4.8%",
+                                  "Catalog range 2.4–4.8%", "Target roll"]
+    assert targets["source"].startswith("Catalog basis: ") and r.genus_targets(view) is None and r.genus_coverage(view) is None
+    assert r.genus_mix(genus_view) == "Cogni 25.0% · Fera 25.0% · Natura 25.0% · Varian 25.0%"
+    assert r.genus_assumptions(genus_view)["mix"].startswith("Assumed equal mix of Cogni, Fera, Natura and Varian: Cogni 25.0%")
+    assert r.genus_assumptions(view) is None
+
+
+def test_the_genus_window(qapp, genus_view):
+    app, page, windows = _windows(genus_view, "genus")
+    windows.opened_web = []
+    windows.open_web = windows.opened_web.append
+    texts = _texts(windows)
+    assert [label.text() for label in _shown(windows, QLabel, "winTitle")] == ["PET GENUS INSIGHT"] and "PVE" in texts
+    note = next(label for label in _shown(windows, QLabel) if "My Character" in label.text())
+    note.linkActivated.emit("character")                                          # its links open those pages
+    assert windows.opened_web == ["character"]
+    buttons = _shown(windows, w.GenusButton)
+    assert [b.accessibleName() for b in buttons] == [f"{name} {level}" for name, level in r.genus_buttons(genus_view)]
+    assert [b.objectName() for b in buttons] == ["genusOn"] + ["genus"] * 4 and buttons[0].isChecked()
+    ring = _shown(windows, w.GenusRing)[0]
+    assert ring.nodes == r.ring_nodes(r.genus_group(genus_view, "Cogni")) and ring.level == "Lv 6"
+    settle(lambda: ring.width() >= 200)
+    image = ring.grab().toImage()
+    scale = min(ring.width(), ring.height()) / 320
+
+    def at(index, dy=-11):
+        spot = ring._spot(index)
+        return QColor(image.pixel(round(spot.x() * scale), round((spot.y() + dy) * scale)))
+    assert _near(at(0), theme.COLORS["gold"], 25)                                  # slot 1 saved: gold
+    assert _near(at(2), theme.COLORS["panel2"], 6)                                 # slot 3 unrecorded: the panel's colour
+    ground = QColor(image.pixel(1, 1))                                             # slot 9 locked: at 40% over the ground
+    dim = QColor(*(round(0.4 * a + 0.6 * b) for a, b in zip(_rgb(QColor(theme.COLORS["panel2"])), _rgb(ground))))
+    assert _near(at(8), dim.name(), 6)
+    point = (ring._spot(0) * scale).toPoint()
+    QApplication.sendEvent(ring, QHelpEvent(QEvent.ToolTip, point, ring.mapToGlobal(point)))
+    assert QToolTip.text() == "Slot 1: Boss Attack 12"
+    QToolTip.hideText()
+    tables = _shown(windows, w.GridTable)
+    assert len(tables) == 4 and tables[0].cell(0, 0).text() == "SLOT" and tables[0].cell(1, 1).text() == "Boss Attack"
+    assert tables[0].cell(7, 1).text() == "Locked · opens at Lv 7" and tables[2].cell(1, 3).text() == "Lv 7 · slot 7"
+    for words in ("Cogni Insight · Lv 6", "Roll for · Cogni", "Genus coverage", "Genus roll targets", r.RING_KEY,
+                  "3 / 5 levels recorded · 5 saved lines · 4 damage effects included"):
+        assert words in texts
+    folds = [b for b in windows.findChildren(QToolButton) if b.isVisibleTo(windows) and b.text() in ("Catalog basis", r.ASSUMPTIONS)]
+    assert len(folds) == 2 and not any(b.isChecked() for b in folds)                 # closed, as on the web page
+    assert _button(windows, "Copy as text") is None
+    # another genus: its button, ring, heading and roll suggestions
+    buttons[1].click()
+    QCoreApplication.processEvents()
+    texts = _texts(windows)
+    assert windows.state["genusTab"] == "Fera" and "Fera Insight · Lv 10 · MAX" in texts and "Roll for · Fera" in texts
+    assert [b.objectName() for b in _shown(windows, w.GenusButton)][1] == "genusOn"
+    # the analysis under the ring on a narrow window, beside it on a wide one
+    layout = _shown(windows, w.GenusLayout)[0]
+    assert layout.narrow and layout.analysis.geometry().top() > layout.ring.geometry().bottom()
+    page.resize(1500, 1500)
+    settle(lambda: layout.narrow is False)
+    QCoreApplication.processEvents()
+    assert layout.analysis.geometry().left() > layout.ring.geometry().right()
+
+
+def test_a_genus_window_without_genus(qapp, view):
+    _app, _page_, windows = _windows(view, "genus")
+    texts = _texts(windows)
+    assert any(text.startswith("No Genus analysis lines were recorded in this result.") for text in texts)
+    assert [b.accessibleName() for b in _shown(windows, w.GenusButton)] == [f"{name} Not recorded" for name in r.GENERA]
+    assert all(state == "unknown" for state, _words in _shown(windows, w.GenusRing)[0].nodes)
+    assert len(_shown(windows, w.GridTable)) == 1 and "Cogni Insight · Level not recorded" in texts
+    assert not [b for b in windows.findChildren(QToolButton) if b.isVisibleTo(windows) and b.text() == r.ASSUMPTIONS]
