@@ -579,8 +579,16 @@ def _page(app, **kwargs):
     return page
 
 
-def _texts(widget):
+def _shown():
+    """What was drawn last, shown: the waiting events handled, then the shows a redraw among them queued (a widget
+    added to a shown layout is shown by a queued call, so a redraw a timer starts in ``processEvents`` would otherwise
+    leave its widgets unshown for the next look)."""
     QCoreApplication.processEvents()
+    QCoreApplication.sendPostedEvents()
+
+
+def _texts(widget):
+    _shown()
     return [label.text() for label in widget.findChildren(QLabel) if label.isVisibleTo(widget)]
 
 
@@ -830,18 +838,18 @@ def _recorded(app, tmp_path, **kwargs):
 
 
 def _labels(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [label.text() for label in widget.findChildren(QLabel) if label.isVisibleTo(widget)]
 
 
 def _folds(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [f for f in widget.findChildren(Section) if f.isVisibleTo(widget)]
 
 
 def _find(widget, kind, test):
     """The first shown ``kind`` passing ``test``, once what was drawn last has shown."""
-    QCoreApplication.processEvents()
+    _shown()
     return next(w for w in widget.findChildren(kind) if test(w) and w.isVisibleTo(widget))
 
 
@@ -918,7 +926,7 @@ def _click(widget, words):
 
 
 def _picks(queue):
-    QCoreApplication.processEvents()
+    _shown()
     return {b.accessibleName(): b for b in queue.findChildren(QCheckBox) if b.accessibleName().startswith("Select ")
             and b.isVisibleTo(queue)}
 
@@ -1181,12 +1189,12 @@ def _owned(app, tmp_path, answers=(), **kwargs):
 
 
 def _row_buttons(widget, words):
-    QCoreApplication.processEvents()
+    _shown()
     return [b for b in widget.findChildren(QPushButton) if b.text() == words and b.isVisibleTo(widget)]
 
 
 def _visibility_boxes(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [c for c in widget.findChildren(QComboBox) if c.accessibleName() == "Upload visibility" and c.isVisibleTo(widget)]
 
 
@@ -1486,7 +1494,7 @@ def _view(kind, app, tmp_path, **kwargs):
 
 
 def _cells(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [label.text() for label in widget.findChildren(QLabel) if label.objectName() == "tcell" and label.isVisibleTo(widget)]
 
 
