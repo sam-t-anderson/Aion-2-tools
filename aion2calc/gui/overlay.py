@@ -23,10 +23,15 @@ Since the ninth part (0.2.422) the window is laid out as the web overlay's compa
 card and the rows on top, then the fight's clock (its status in the tooltip), your contribution, the identity line
 and the events strip as chips, and the ping, the frame rate and the toolbar of icons on a line of their own
 (chrome.py). The header line with its status and its metric buttons is gone, as it is on the web overlay.
+
+The tenth part (0.2.423) is arena mode (arena.py): in the Arena of Solitude, the Arena of Cooperation and a
+battlefield, the opponent's (or your target's) card in the target card's place and the three metrics in the rows'
+place, in the layout the options pick, with the match in the clock.
 """
 from __future__ import annotations
 
 import argparse
+import copy
 import html
 import math
 import os
@@ -38,12 +43,14 @@ from urllib.parse import quote
 from PySide6.QtCore import QEvent, QPoint, QPointF, QRectF, QSettings, QSizeF, Qt, QTimer
 from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QFont, QFontMetricsF, QGuiApplication, QImage,
                            QLinearGradient, QPainter, QPainterPath, QPen, QPixmap)
-from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton,
-                               QScrollArea, QSizePolicy, QSlider, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel,
+                               QPushButton, QScrollArea, QSizePolicy, QSlider, QVBoxLayout, QWidget)
 
 from . import events as schedule
 from . import theme
+from . import arena as A
 from .api import AppApi, Poller, Requests
+from .arena import Line, Run, Section, TableHead, Tug, sized
 from .chrome import (GREEN, MONOSPACE, RED, TEAL, Chip, FlowLayout, FpsChip, IconButton, MetricChip, Part, clock_mark,
                      forget_icons, icon_mark)
 from .chrome import font as sized_font
@@ -1123,14 +1130,12 @@ class PlayerRow(QWidget):
                                 max(0.0, radius - half))
         painter.restore()
 
-    def _paint_text(self, painter: QPainter, rect: QRectF, seconds: float | None) -> None:
+    def _paint_right(self, painter: QPainter, rect: QRectF) -> float:
+        """The row's right-hand side: the share to a tenth (from 20em of room) and the rate, 9 px in (``.ovbar >
+        span``); answers where the names' part ends, where the rate's padding begins."""
         look, tl = self.look, self.text_look
-        px, name_font, rate_font, share_font, chip_font = self._fonts()
+        px, _name_font, rate_font, share_font, _chip_font = self._fonts()
         height = rect.height()
-        # ``hue-rotate`` over the whole of the names' part (``.ovname``); with the sheen on, its animation takes the
-        # cycle's place on the names, as the web overlay's stylesheet has it.
-        cycle = tl.cycle and not tl.retro and seconds is not None
-        # The right: the share to a tenth (from 20em of room) and the rate, 9 px in (``.ovbar > span``).
         x = rect.width() - 9
         if not look.compact and rect.width() > 20 * px:
             room = max(QFontMetricsF(share_font).horizontalAdvance(self.share), 3.5 * share_font.pixelSize())
@@ -1139,7 +1144,16 @@ class PlayerRow(QWidget):
             x -= room + 9
         x -= draw_text(painter, QRectF(7, 0, max(0.0, x - 7), height), self.rate, rate_font,
                        QColor(tl.colour("rate", "#ffffff")), Qt.AlignRight, tl, shadow=ROW_SHADOW)
-        end = x - 6                               # the names' part ends where the rate's padding begins
+        return x - 6
+
+    def _paint_text(self, painter: QPainter, rect: QRectF, seconds: float | None) -> None:
+        look, tl = self.look, self.text_look
+        px, name_font, rate_font, share_font, chip_font = self._fonts()
+        height = rect.height()
+        # ``hue-rotate`` over the whole of the names' part (``.ovname``); with the sheen on, its animation takes the
+        # cycle's place on the names, as the web overlay's stylesheet has it.
+        cycle = tl.cycle and not tl.retro and seconds is not None
+        end = self._paint_right(painter, rect)
         painter.save()
         painter.setClipRect(QRectF(0, 0, max(0.0, end), height))   # ``.ovname { overflow: hidden }``
         names = QColor(tl.colour("name", "#e9f7ff"))
@@ -1324,6 +1338,263 @@ class PlayerRow(QWidget):
                     gradient.setColorAt(at, shade)
                 painter.fillRect(QRectF(max(0.0, x), 0, min(width, x + tile) - max(0.0, x), rect.height()), gradient)
             x += tile
+
+
+class ArenaRow(PlayerRow):
+    """A row of arena mode with a fighter's three figures: ``kind`` "tri" (``.arn-tri``: DPS, damage taken and HPS at
+    the right in their colours, the row's bar its DPS) or "table" (a compact table's row, ``.arn-table``: the name in
+    the first 44%, then each figure over a 3 px bar of its share of the most, the row with no bar of its own)."""
+
+    COLOURS = ("#f1d27c", "#ff8f86", "#7fe0a0")
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.kind = "tri"
+        self.figures: tuple[float, float, float] = (0.0, 0.0, 0.0)
+        self.mosts: tuple[float, float, float] = (0.0, 0.0, 0.0)
+
+    def set_figures(self, kind: str, figures, mosts) -> None:
+        figures, mosts = tuple(figures), tuple(mosts)
+        if (kind, figures, mosts) != (self.kind, self.figures, self.mosts):
+            self.kind, self.figures, self.mosts = kind, figures, mosts
+            self.update()
+
+    def right(self) -> str:
+        return "  ".join(theme.sfmt(value) for value in self.figures)
+
+    def segments(self) -> list[tuple[str, str]]:
+        return [part for part in super().segments() if part[1] != "dead"]   # faded, without the word
+
+    def _paint_right(self, painter: QPainter, rect: QRectF) -> float:
+        tl = self.text_look
+        px, _name_font, rate_font, _share_font, _chip_font = self._fonts()
+        height = rect.height()
+        if self.kind == "tri":                    # ``.arn-tri b``: .92em of the rate's, each at least 3.6em wide
+            figure = QFont(rate_font)
+            figure.setPixelSize(max(6, round(rate_font.pixelSize() * 0.92)))
+            least, x = 3.6 * figure.pixelSize(), rect.width() - 9
+            colours = (tl.colour("rate", "#ffffff"), "#ff8f86", "#7fe0a0")
+            for value, colour in reversed(list(zip(self.figures, colours))):
+                text = theme.sfmt(value)
+                width = max(least, QFontMetricsF(figure).horizontalAdvance(text))
+                draw_text(painter, QRectF(x - width, 0, width, height), text, figure, QColor(colour), Qt.AlignRight,
+                          tl, shadow=ROW_SHADOW)
+                x -= width
+            return x - 6
+        # The compact table: three columns after the name's 44%, 8 px apart, 4 px in and 9 px from the right.
+        start = rect.width() * 0.44
+        left, right = start + 4, rect.width() - 9
+        cell = max(0.0, (right - left - 16) / 3)
+        figure = QFont(self.font())
+        figure.setPixelSize(max(6, round(px * 1.02)))   # ``.arn-cell``: 1.02em, 800, white
+        figure.setWeight(QFont.ExtraBold)
+        line = figure.pixelSize() * 1.05
+        top = (height - (line + 6)) / 2
+        for index, (value, most, colour) in enumerate(zip(self.figures, self.mosts, self.COLOURS)):
+            x = left + index * (cell + 8)
+            draw_text(painter, QRectF(x, top, cell, line), theme.sfmt(value), figure, QColor("#ffffff"),
+                      Qt.AlignRight, tl, shadow=ROW_SHADOW)
+            bar = QRectF(x, top + line + 3, cell, 3)
+            track = QPainterPath()
+            track.addRoundedRect(bar, 1.5, 1.5)
+            painter.fillPath(track, QColor(255, 255, 255, 26))
+            if most > 0 and value > 0:
+                fill = QPainterPath()
+                fill.addRoundedRect(QRectF(bar.x(), bar.y(), bar.width() * min(1.0, value / most), 3), 1.5, 1.5)
+                painter.fillPath(fill, QColor(colour))
+        return start
+
+
+class ArenaCard(QWidget):
+    """Arena mode's card in place of the target card (``A2Arena.card``). The opponent's, or your target's among the
+    enemies: its class's emblem, its name with its server and faction and the Opponent or Target tag, its HP (or
+    Dead) and HP bar, then its combat power, gear score, class, level and arena rating, and the match's score (or the
+    share of the damage you took it dealt and its deaths). In the versus layout you and the opponent face each other,
+    VS between you, each with a line of figures and an HP bar."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.kind = "foe"
+        self.box = QHBoxLayout(self)
+        self.box.setContentsMargins(2, 6, 2, 4)
+        self.box.setSpacing(8)
+        # The opponent's card.
+        self.foe = QWidget(self)
+        row = QHBoxLayout(self.foe)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+        self.portrait = Portrait(self.foe)
+        row.addWidget(self.portrait, 0, Qt.AlignVCenter)
+        column = QVBoxLayout()
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(4)
+        self.head = Line(self.foe)
+        self.hp = CardBar(self.foe, 6, glow=True)
+        self.power = Line(self.foe)
+        self.match = Line(self.foe)
+        for part in (self.head, self.hp, self.power, self.match):
+            column.addWidget(part)
+        row.addLayout(column, 1)
+        self.box.addWidget(self.foe, 1)
+        # You against the opponent (``.arn-vs``): two sides of equal width, VS between them.
+        self.versus = QWidget(self)
+        grid = QHBoxLayout(self.versus)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(6)
+        self.sides = []
+        for right in (False, True):
+            side = QWidget(self.versus)
+            line = QHBoxLayout(side)
+            line.setContentsMargins(0, 0, 0, 0)
+            line.setSpacing(7)
+            portrait = Portrait(side)
+            words = QVBoxLayout()
+            words.setContentsMargins(0, 0, 0, 0)
+            words.setSpacing(1)
+            lines = [Line(side) for _index in range(4)]   # the name, two facts and a line of its own
+            for part in lines:
+                part.align = Qt.AlignRight if right else Qt.AlignLeft
+                part.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)   # as wide as its words, or less
+                words.addWidget(part)
+            hp = SideBar(side, right)
+            words.addSpacing(3)
+            words.addWidget(hp)
+            # ``.arn-sidemain``: as wide as its widest line (the HP bar with it), the rest of the side left empty.
+            if right:
+                line.addStretch(1)
+                line.addLayout(words, 0)
+                line.addWidget(portrait, 0, Qt.AlignVCenter)
+            else:
+                line.addWidget(portrait, 0, Qt.AlignVCenter)
+                line.addLayout(words, 0)
+                line.addStretch(1)
+            self.sides.append((side, portrait, lines, hp))
+        self.mark = Line(self.versus)              # ``.arn-vsmark``
+        self.mark.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        grid.addWidget(self.sides[0][0], 1)
+        grid.addWidget(self.mark, 0, Qt.AlignVCenter)
+        grid.addWidget(self.sides[1][0], 1)
+        self.versus.hide()
+        self.box.addWidget(self.versus, 1)
+
+    def texts(self) -> list[str]:
+        """Its lines' words, as shown."""
+        if self.kind == "versus":
+            return [line.text() for _side, _portrait, lines, _hp in self.sides for line in lines if not line.isHidden()]
+        return [line.text() for line in (self.head, self.power, self.match) if not line.isHidden()]
+
+    def set_foe(self, arena: dict, fighter: dict, emblem, look: TextLook, px: int, hp_colour: QColor,
+                shadow) -> None:
+        """The opponent's (or your target's) card."""
+        self.kind = "foe"
+        self.versus.hide()
+        self.foe.show()
+        size = look.size("target", px)           # the card's em: the text's size at the target's own
+        target = look.font("target", px, 400)
+        name = sized(target, size * 1.12, 700)
+        who = sized(target, size * 0.78, 600)
+        tag = sized(target, size * 0.62, 800, 0.8)
+        left = [Run(A.name_of(fighter), name, look.colour("target", "#f4f6f8"))]
+        if A.where(fighter):
+            left.append(Run(A.where(fighter), who, "#a3abb5", 7))
+        left.append(Run("OPPONENT" if A.solo(arena) else "TARGET", tag, "#ff9a92", 7, "tag"))
+        hp = A.hp_of(fighter)
+        hp_font = look.font("hp", size * 1.22, 700)
+        right = ([Run(f"{theme.fixed(hp, 1)}%", hp_font, look.colour("hp", "#e7ecea"))] if hp is not None else
+                 [Run("Dead", hp_font, "#ff8f86")] if fighter.get("dead") else [])
+        self.portrait.set_picture(emblem)
+        self.head.set_runs(left, right, look, shadow)
+        self.hp.color = hp_colour
+        self.hp.set_fraction((hp or 0) / 100)
+        self.hp.setVisible(hp is not None)
+        line = sized(target, size * 0.86, 400)
+        bold = sized(target, size * 0.86, 700)
+        chip, runs = A.power(fighter)
+        power = ([Run(chip, sized(target, size * 0.86, 700), "#63d3e6", 0, "cp")] if chip else [])
+        power += [Run(text, bold if strong else line, "#e9edf1" if strong else "#aab3bd", 6 if power and not index else 0)
+                  for index, (text, strong) in enumerate(runs)]
+        self.power.set_runs(power, [], look, shadow)
+        self.power.setVisible(bool(power))
+        match = [Run(text, bold if strong else line, "#e9edf1" if strong else "#aab3bd")
+                 for text, strong in A.match(arena, fighter)]
+        self.match.set_runs(match, [], look, shadow)
+        self.match.setVisible(bool(match))
+
+    def set_versus(self, arena: dict, me: dict, them: dict, emblems, look: TextLook, px: int, hp_colour: QColor,
+                   shadow) -> None:
+        """You against the opponent (``versusCard``)."""
+        self.kind = "versus"
+        self.foe.hide()
+        self.versus.show()
+        size = look.size("target", px)
+        target = look.font("target", px, 400)
+        name = sized(target, size * 1.05, 700)
+        line = sized(target, size * 0.8, 400)
+        bold = sized(target, size * 0.8, 700)
+        for (side, portrait, lines, hp), fighter, emblem, mine in zip(self.sides, (me, them), emblems, (True, False)):
+            facts = []
+            if fighter.get("combat_power"):
+                facts.append([("CP ", None), (theme.sfmt(fighter["combat_power"]), "#e9edf1")])
+            if fighter.get("rating"):
+                facts.append([("Rating ", None), (A.grouped(fighter["rating"]), "#e9edf1")])
+            elif fighter.get("gear_score"):
+                facts.append([("GS ", None), (A.grouped(fighter["gear_score"]), "#e9edf1")])
+            if A.solo(arena):
+                extra = [(A.where(fighter), None)] if A.where(fighter) else []
+            elif mine:
+                extra = [(theme.sfmt(fighter.get("dps")), "#f1d27c"), (" · ", None), (theme.sfmt(fighter.get("dtps")),
+                         "#ff8f86"), (" · ", None), (theme.sfmt(fighter.get("hps")), "#7fe0a0")]
+            else:
+                extra = [(A.where(fighter), None)] if A.where(fighter) else []
+                if fighter.get("deaths"):
+                    extra += ([(" · ", None)] if extra else []) + [("Deaths ", None),
+                                                                  (str(int(A.num(fighter["deaths"]))), "#e9edf1")]
+            texts = [[(str(fighter.get("name") or ""), "#eef1f4")]] + facts[:2] + ([extra] if extra else [])
+            portrait.set_picture(emblem)
+            for index, part in enumerate(lines):
+                if index < len(texts):
+                    made = name if index == 0 else None
+                    runs = [Run(text, made or (bold if colour else line), colour or "#aab3bd")
+                            for text, colour in texts[index]]
+                    part.set_runs(runs, [], look, shadow)
+                    part.show()
+                else:
+                    part.hide()
+            value = A.hp_of(fighter)
+            hp.colour = QColor("#5bd16b") if mine else hp_colour
+            hp.set_fraction(value / 100 if value is not None else None)
+        mark = sized(target, size * 0.95, 900, 1.0)
+        self.mark.set_runs([Run("VS", mark, "#f1d27c")], [], look, CHIP_SHADOW)
+        self.mark.setFixedWidth(int(QFontMetricsF(mark).horizontalAdvance("VS")) + 2)
+
+
+class SideBar(QWidget):
+    """A versus side's HP bar (``.arn-side .hp``): 4 px, a faint track, yours green from the left, the opponent's in
+    the HP's colour from the right; none where the meter has no HP."""
+
+    def __init__(self, parent=None, right: bool = False):
+        super().__init__(parent)
+        self.right, self.fraction = right, None
+        self.colour = QColor("#5bd16b")
+        self.setFixedHeight(4)
+
+    def set_fraction(self, fraction) -> None:
+        self.fraction = fraction
+        self.setVisible(fraction is not None)
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = QRectF(self.rect())
+        track = QPainterPath()
+        track.addRoundedRect(rect, 2, 2)
+        painter.fillPath(track, QColor(255, 255, 255, 26))
+        width = rect.width() * max(0.0, min(1.0, self.fraction or 0.0))
+        if width > 0:
+            fill = QPainterPath()
+            fill.addRoundedRect(QRectF(rect.width() - width if self.right else 0, 0, width, rect.height()), 2, 2)
+            painter.fillPath(fill, self.colour)
 
 
 class Grip(QWidget):
@@ -1520,6 +1791,9 @@ class MeterOverlay(QWidget):
         card_row.addLayout(column, 1)
         self.target_card.hide()
         box.addWidget(self.target_card)
+        self.arena_card = ArenaCard(self.card)     # arena mode's card in its place (``A2Arena.card``)
+        self.arena_card.hide()
+        box.addWidget(self.arena_card)
         self.dummy = QLabel("")                   # the training-dummy parse (``#ovdummy``)
         self.dummy.setObjectName("ovdummy")
         self.dummy.setTextFormat(Qt.RichText)
@@ -1542,6 +1816,9 @@ class MeterOverlay(QWidget):
         self.rows_box = QVBoxLayout()
         self.rows_box.setSpacing(4)               # ``#ov.ov-nm .ovrow { margin: 0 0 4px }``
         content.addLayout(self.rows_box)
+        self.arena_box = QVBoxLayout()            # arena mode's rows in their place (``A2Arena.body``)
+        self.arena_box.setSpacing(0)
+        content.addLayout(self.arena_box)
         box.addWidget(self.content)
         self.card.rows_part = self.content
         self.panel = PlayerPanel()
@@ -1631,10 +1908,51 @@ class MeterOverlay(QWidget):
         self.pvp_only.setToolTip("Count only the damage dealt to other players (PvP), leaving out damage to monsters. "
                                  "With Boss damage only also on, damage to bosses counts too")
         self.pvp_only.clicked.connect(lambda checked: self._filter_clicked("overlay_pvp_only", checked))
+        # Arena mode's (0.2.395), saved settings too: arena mode itself, all three metrics for the party, the player
+        # cards window (the app opens or closes it), the layout and the cards' style.
+        self.arena_checks = {}
+        for key, words, tip in (
+                ("overlay_arena_mode", "Arena mode", "In the Arena of Solitude, the Arena of Cooperation and a "
+                 "battlefield: your DPS, damage taken and HPS at once, and your opponent's (or your target's) card with "
+                 "their combat power, arena rating and HP"),
+                ("overlay_arena_all3", "All 3 for party", "Arena mode in a team match: DPS, damage taken and HPS for "
+                 "every party member, not only for you"),
+                ("overlay_players_enabled", "Player cards window", "A second window with a card for every player of the "
+                 "PvP match: server, combat power, gear score, HP and damage")):
+            check = QCheckBox(words, choices)
+            check.setToolTip(tip)
+            check.clicked.connect(lambda checked, k=key: self._arena_clicked(k, checked))
+            self.arena_checks[key] = check
+        self.arena_picks = {}
+        picks = []
+        for key, words, tip, choices_ in (
+                ("overlay_arena_layout", "Arena layout", "How arena mode lays out the three metrics: Stacked (a section "
+                 "each), Compact (one row per fighter) or Versus (you against the opponent)",
+                 (("stacked", "Stacked"), ("compact", "Compact"), ("versus", "Versus"))),
+                ("overlay_players_style", "Player cards", "How the player cards window shows the players: a list, or a "
+                 "grid with the two teams side by side", (("list", "List"), ("grid", "Grid")))):
+            holder = QWidget(choices)             # ``.ovsel``: its words, then the choice
+            line = QHBoxLayout(holder)
+            line.setContentsMargins(0, 0, 0, 0)
+            line.setSpacing(3)
+            label = QLabel(words, holder)
+            label.setObjectName("ovoption")
+            pick = QComboBox(holder)
+            pick.setObjectName("ovsel")
+            for value, text in choices_:
+                pick.addItem(text, value)
+            pick.setToolTip(tip)
+            holder.setToolTip(tip)
+            pick.activated.connect(lambda _index, k=key, p=pick: self._arena_clicked(k, p.currentData()))
+            line.addWidget(label)
+            line.addWidget(pick)
+            self.arena_picks[key] = pick
+            picks.append((holder, label))
         self.message = QLabel("", choices)        # why an option could not be changed (``#ovpetstatus``)
         self.message.setObjectName("ovoption")
         self.message.hide()
-        for piece in (self.combine, self.boss_only, self.pvp_only, self.message):
+        for piece in (self.combine, self.boss_only, self.pvp_only, *self.arena_checks.values(),
+                      *(holder for holder, _label in picks), self.message):
             flow.addWidget(piece)
         stack.addWidget(choices)
         fade = QWidget(self.options)              # ``.ovfoot``: the opacity, and the app's name
@@ -1652,7 +1970,8 @@ class MeterOverlay(QWidget):
         row.addWidget(self.slider, 1)
         row.addWidget(brand)
         stack.addWidget(fade)
-        self.option_labels = [self.combine, self.boss_only, self.pvp_only, self.message, opacity, brand]
+        self.option_labels = [self.combine, self.boss_only, self.pvp_only, *self.arena_checks.values(),
+                              *(label for _holder, label in picks), self.message, opacity, brand]
         self.options.hide()
         box.addWidget(self.options)
         box.addStretch(1)                         # a card taller than its readings (``overlay_height``) ends empty
@@ -1661,6 +1980,8 @@ class MeterOverlay(QWidget):
             grip.hide()
         self.rows: list[PlayerRow] = []
         self.look = RowLook({})
+        self._arena_pool: dict[str, list[QWidget]] = {}   # arena mode's widgets, by kind, kept for the next reading
+        self._arena_order: list[QWidget] = []
         self._cooldowns_top = False
         self._cooldown_timer = QTimer(self)
         self._cooldown_timer.timeout.connect(lambda: self.cooldowns.tick(time.monotonic()))
@@ -1834,7 +2155,7 @@ class MeterOverlay(QWidget):
         # The cycle and the sheen move while either is on, held still in performance mode and when the system asks
         # for less motion (the web overlay's ``ov-perf`` and ``prefers-reduced-motion``).
         self._still = self._perf or reduced_motion()
-        for row in self.rows:
+        for row in self._all_rows():
             row.moving = not self._still
         moving = (tl.cycle or tl.retro or bool(self.look.me_cosmetic or self.look.top_cosmetic)) and not self._still
         if moving and not self._anim_timer.isActive():
@@ -1844,6 +2165,10 @@ class MeterOverlay(QWidget):
             self._anim_timer.stop()
         self._sync_effects(changed)
         self._paint_moment(time.monotonic() - self._anim_start if moving else None)
+
+    def _all_rows(self) -> list[PlayerRow]:
+        """The meter's rows and arena mode's."""
+        return self.rows + [row for row in self._arena_pool.get("row", []) + self._arena_pool.get("arow", [])]
 
     def _text_labels(self) -> list[QWidget]:
         """What shows text through a label's effect: the parts at the top and the chips under the rows."""
@@ -1885,7 +2210,7 @@ class MeterOverlay(QWidget):
         through the hues (``#ov.ov-cycle .ovhd``), unless the sheen's animation takes the cycle's place there, as it
         does on the web overlay (where the sheen itself does not show on the toolbar)."""
         tl = self.text_look
-        for row in self.rows:
+        for row in self._all_rows():
             if row.seconds != seconds:
                 row.seconds = seconds
                 if not row.isHidden() and (tl.cycle or tl.retro or row.cosmetic):
@@ -2022,6 +2347,12 @@ class MeterOverlay(QWidget):
         for check, key in ((self.boss_only, "overlay_boss_only"), (self.pvp_only, "overlay_pvp_only")):
             if check.isEnabled():                 # the saved filters; the meter's answer names them too
                 check.setChecked(ui.get(key) is True)
+        for key, check in self.arena_checks.items():   # arena mode's, on by default; the other two off
+            if check.isEnabled():
+                check.setChecked(ui.get(key) is not False if key == "overlay_arena_mode" else ui.get(key) is True)
+        for key, pick in self.arena_picks.items():
+            if pick.isEnabled() and not pick.view().isVisible():
+                pick.setCurrentIndex(max(0, pick.findData(self._arena_setting(key))))
         # Performance mode (Settings → App & data): the overlay reads the meter half as often and holds still between
         # readings, the rows' live tick off, the cooldown strip counting down half as often.
         self._perf = ui.get("performance_mode") is True
@@ -2063,6 +2394,7 @@ class MeterOverlay(QWidget):
         self.lines_part.layout().setContentsMargins(*((2, 5, 2, 0) if whole else (9, 4, 9, 8) if bare else
                                                       (10, 7, 10, 0)))
         self.target_row.setContentsMargins(*((2, 6, 2, 4) if whole else (10, 7, 10, 9)))
+        self.arena_card.box.setContentsMargins(*((2, 6, 2, 4) if whole else (10, 7, 10, 9)))
         self.dummy.setContentsMargins(*((2, 0, 2, 4) if whole else (9, 3, 9, 7) if bare else (10, 0, 10, 7)))
 
     def _content_width(self) -> int:
@@ -2166,6 +2498,13 @@ class MeterOverlay(QWidget):
             not running or over or (paused and snap.get("boss_alive") is not True))
         shown = [] if idle or over else players[:limit]   # a fight that is over says it is ready for the next
         top = max([_rate(p, metric) for p in everyone] + [1.0])   # the rate a whole bar stands for
+        # Arena mode (``arenaOf``): in a PvP match its card and its rows in the target card's and the rows' places.
+        arena = None if idle else A.arena_of(snap, cleared, self._arena_setting("overlay_arena_mode"))
+        local = str((snap.get("identity_status") or {}).get("local_name") or "").casefold()
+        is_me = lambda player: bool(local) and str(player.get("name") or "").casefold() == local   # noqa: E731
+        drawn = self._show_arena(arena, everyone, is_me, metric)
+        if arena is not None:
+            shown = []
         duration = snap.get("duration") if metric == "dps" else snap.get("recorded_duration")
         self.status_text = self._status(answer, snap, everyone, metric, filtered, duration, cleared, idle)
         self.copy_text = leaderboard_text(snap, players, metric, filtered, lambda p: self._names(p)[0])
@@ -2184,15 +2523,16 @@ class MeterOverlay(QWidget):
         else:
             self.lines.hide()
         target = snap.get("current_target")
-        if (idle or over or cleared or not isinstance(target, dict) or target.get("is_player")
+        if (idle or over or cleared or arena is not None or not isinstance(target, dict) or target.get("is_player")
                 or not target.get("contributors")):
             target = None                         # the web overlay's target panel needs damage dealt to it
         self._show_target(target)
+        self._show_arena_card(arena, everyone, is_me)
         self._show_dummy(snap, idle or over or cleared, metric)
-        warning = snap.get("warning") if not idle and not over and everyone else None
+        warning = snap.get("warning") if not idle and not over and everyone and arena is None else None
         self.warning.setText(str(warning or ""))
         self.warning.setVisible(bool(warning))
-        empty = "" if idle or shown else empty_text(answer, everyone, metric, cleared, filtered)
+        empty = "" if idle or shown or drawn else empty_text(answer, everyone, metric, cleared, filtered)
         self.empty.setText(empty)
         self.empty.setVisible(bool(empty))
         self.content_box.setContentsMargins(0, 6, 0, 4 if shown else 0)   # the last row's own 4 px under it
@@ -2207,8 +2547,8 @@ class MeterOverlay(QWidget):
             self._record_graph(answer, snap, everyone)
         self._draw_graph(idle)
         self._show_clock(answer, snap, everyone, players, metric, filtered, duration,
-                         idle or over or cleared or not players)
-        self._show_contribution(snap, idle or over or cleared, metric)
+                         idle or over or cleared or not players, arena, is_me)
+        self._show_contribution(snap, idle or over or cleared or arena is not None, metric)
         text, fine = identity_line(snap, everyone, players, players, repeated,
                                    ui.get("overlay_show_combat_power") is not False)
         self.identity.setText(text)
@@ -2481,10 +2821,11 @@ class MeterOverlay(QWidget):
         self.dummy.setVisible(bool(text))
 
     def _show_clock(self, answer: dict, snap: dict, everyone: list, players: list, metric: str, filtered: str,
-                    duration, hidden: bool) -> None:
+                    duration, hidden: bool, arena: dict | None = None, is_me=None) -> None:
         """The fight's clock (``#ovclock``): a mark green while the fight runs and amber while the DPS clock is
         paused, the fight's time, notes (paused, the damage filter, catching up, the capture stopped) and the
-        party's total for the metric shown. Its tooltip is the fight's status."""
+        party's total for the metric shown; in arena mode the match, with its score or the party's total, in the
+        total's place and no filter. Its tooltip is the fight's status."""
         if hidden:
             self.clock.hide()
             return
@@ -2500,7 +2841,7 @@ class MeterOverlay(QWidget):
                         "#e9edf1")], 13 * scale * 1.3)]
         if paused and metric == "dps":
             parts.append(Part([("Paused", note, "#e3b35a")], line))
-        if metric == "dps" and filtered:
+        if metric == "dps" and filtered and arena is None:
             short = {"Boss damage only": "Boss only", "Player damage only": "PvP only"}.get(filtered, "Bosses + PvP")
             parts.append(Part([(short, note, "#8fd0a0")], line, tip=filtered))
         backlog = snap.get("decode_backlog")
@@ -2508,14 +2849,116 @@ class MeterOverlay(QWidget):
             parts.append(Part([(f"catching up ({_text(backlog.get('queue_depth'))})", note, "#e3b35a")], line))
         if answer.get("error"):
             parts.append(Part([("Capture stopped", note, "#ff8585")], line, tip=str(answer["error"])))
-        short = {"hps": "HPS", "dtps": "DTPS"}.get(metric, "DPS")
-        parts.append(Part([(f"Party {short} ", note, "#9aa3b5"),
-                           (theme.kfmt(sum(_rate(p, metric) for p in everyone)), sized_font(families, 11 * scale, 800),
-                            TEAL)], line))
+        strong = sized_font(families, 11 * scale, 800)
+        if arena is not None:                     # ``A2Arena.clock``
+            tail = A.clock_tail(arena, everyone, is_me, metric, self._arena_setting("overlay_arena_all3"))
+            parts.append(Part([(text, strong if bold else note, TEAL if bold else "#9aa3b5") for text, bold in tail],
+                              line))
+        else:
+            short = {"hps": "HPS", "dtps": "DTPS"}.get(metric, "DPS")
+            parts.append(Part([(f"Party {short} ", note, "#9aa3b5"),
+                               (theme.kfmt(sum(_rate(p, metric) for p in everyone)), strong, TEAL)], line))
         self.clock.set_parts(parts, tl)
         self.clock.setToolTip(self.status_text)
         self.clock.setAccessibleName("Fight time")
         self.clock.show()
+
+    def _arena_look(self) -> RowLook:
+        """The rows' look for arena mode's rows (``A2Arena``'s ``row``): no rank, swatch, class-coloured name, edge on
+        your row or effects; your row has its green dot."""
+        look = copy.copy(self.look)
+        look.rank_numbers = look.class_swatch = look.class_names = look.highlight_me = False
+        look.me_cosmetic = look.top_cosmetic = None
+        return look
+
+    def _show_arena_card(self, arena: dict | None, everyone: list, is_me) -> None:
+        """Arena mode's card in the target card's place (``A2Arena.card``), behind the target's setting."""
+        card = self.arena_card
+        them = A.foe(arena) if arena is not None else None
+        me = A.you(arena, everyone, is_me) if arena is not None else None
+        if arena is None or self.ui.get("overlay_show_target") is False or (them is None and me is None):
+            card.hide()
+            return
+        shadow = CHIP_SHADOW if self.card.mode == "none" else None
+        hp_colour = QColor(hex_colour(self.ui.get("overlay_hp_color")) or "#e05a5a")
+        if self._arena_setting("overlay_arena_layout") == "versus" and me is not None and them is not None:
+            card.set_versus(arena, me, them, (self.pictures.emblem(me.get("class")), self.pictures.emblem(them.get("class"))),
+                            self.text_look, self._px(), hp_colour, shadow)
+        elif them is not None:
+            card.set_foe(arena, them, self.pictures.emblem(them.get("class")), self.text_look, self._px(), hp_colour,
+                         shadow)
+        else:
+            card.hide()
+            return
+        card.setToolTip("Your opponent: the game's arena roster (name, class, server, level, arena rating), their HP, "
+                        "and their combat power from the official character service" if A.solo(arena) else
+                        "Your current target among the enemy players: their HP, combat power where known, and their "
+                        "share of the damage you took")
+        card.show()
+
+    def _show_arena(self, arena: dict | None, everyone: list, is_me, metric: str) -> bool:
+        """Arena mode's rows in the meter's place (``A2Arena.body``), each item drawn by a widget of its kind: a
+        section's head, a row, a row of three figures, the compact table's head or row, a tug of war; the widgets kept
+        for the next reading. Answers whether any is drawn."""
+        items = (A.body(arena, everyone, is_me, self._arena_setting("overlay_arena_layout"), metric,
+                        self._arena_setting("overlay_arena_all3")) if arena is not None else [])
+        tl, look, base = self.text_look, self._arena_look(), QFont(self.font())
+        whole, height = self.card.mode == "card", self._row_height()
+        used: dict[str, int] = {}
+        order: list[QWidget] = []
+        for position, item in enumerate(items):
+            kind = item[0]
+            pool_key = "arow" if kind in ("tri", "table") else kind
+            pool = self._arena_pool.setdefault(pool_key, [])
+            index = used.get(pool_key, 0)
+            used[pool_key] = index + 1
+            if index >= len(pool):
+                made = {"section": Section, "head": TableHead, "row": PlayerRow, "arow": ArenaRow, "tug": Tug}[pool_key]
+                pool.append(made(self.content))
+            widget = pool[index]
+            if kind == "section":
+                widget.set_runs(item[1], tl, base)
+            elif kind == "head":
+                widget.set_head(item[1], tl, base)
+            elif kind == "tug":
+                _kind, label, a, b, colour_a, colour_b = item
+                widget.setFixedHeight(height)
+                widget.set_tug(label, a, b, colour_a, colour_b, tl, base, whole)
+            else:
+                fighter = item[1]
+                cls = str(fighter.get("class") or "")
+                if widget.text_look is not tl:
+                    widget.set_text_look(tl)
+                widget.setFixedHeight(height)
+                mine, dead = bool(fighter.get("self")), bool(fighter.get("dead"))
+                emblem = self.pictures.emblem(cls)
+                if kind == "row":
+                    _kind, _f, value, total, most, label, cp = item
+                    chip = (theme.sfmt(fighter["combat_power"]) if cp and fighter.get("combat_power")
+                            and self.look.show_cp else "")
+                    widget.set_player(label or A.name_of(fighter), cls, f"{rate_text(value)}/s", A.share(value, total),
+                                      value / most if most > 0 else 0.0, mine, position, dead, chip, look, "", False,
+                                      "", "", emblem, whole)
+                else:
+                    figures = tuple(A.num(fighter.get(key)) for key, _words, _colour in A.METRICS)
+                    mosts = (item[2], 0.0, 0.0) if kind == "tri" else tuple(item[2])
+                    fill = figures[0] / mosts[0] if kind == "tri" and mosts[0] > 0 else 0.0
+                    widget.set_player(A.name_of(fighter), cls, "", "", fill, mine, position, dead, "", look, "", False,
+                                      "", "", emblem, whole)
+                    widget.set_figures(kind, figures, mosts)
+            order.append(widget)
+        if order != self._arena_order:            # what is drawn changed: laid out again, 4 px under each row
+            while self.arena_box.count():
+                self.arena_box.takeAt(0)
+            for widget in order:
+                self.arena_box.addWidget(widget)
+                if isinstance(widget, (PlayerRow, Tug)):
+                    self.arena_box.addSpacing(4)
+            self._arena_order = order
+        for pool in self._arena_pool.values():
+            for widget in pool:
+                widget.setVisible(any(widget is shown for shown in order))
+        return bool(order)
 
     def _show_contribution(self, snap: dict, hidden: bool, metric: str) -> None:
         """Your share of the fight's damage (``#ovcontribution``), a chip of its own after the clock (DPS only)."""
@@ -2831,6 +3274,28 @@ class MeterOverlay(QWidget):
         check.setEnabled(False)
         self.requests.post("filter:" + key, "/api/ui", {key: bool(checked)})
 
+    def _arena_setting(self, key: str):
+        """An arena setting as the web overlay reads it: arena mode on unless turned off, all three for the party and
+        the player cards window off unless on, the compact layout and the list unless another is named."""
+        value = self.ui.get(key)
+        if key == "overlay_arena_mode":
+            return value is not False
+        if key == "overlay_arena_layout":
+            return value if value in A.LAYOUTS else "compact"
+        if key == "overlay_players_style":
+            return "grid" if value == "grid" else "list"
+        return value is True
+
+    def _arena_clicked(self, key: str, value) -> None:
+        """An arena option changed: saved as a setting (the app opens or closes the player cards window with it), the
+        overlay drawn by it as soon as the app has it."""
+        if self.requests is None:
+            self.ui = {**self.ui, key: value}
+            self.apply_meter(self.answer)
+            return
+        (self.arena_checks.get(key) or self.arena_picks[key]).setEnabled(False)
+        self.requests.post("arena:" + key, "/api/ui", {key: value})
+
     def _say(self, message: str) -> None:
         self.message.setText(message)
         self.message.setVisible(bool(message))
@@ -2866,6 +3331,14 @@ class MeterOverlay(QWidget):
             (self.boss_only if name.endswith("boss_only") else self.pvp_only).setEnabled(True)
             self._say("")
             self._poll_meter()
+        elif name.startswith("arena:"):
+            key = name[len("arena:"):]
+            control = self.arena_checks.get(key) or self.arena_picks[key]
+            control.setEnabled(True)
+            value = control.isChecked() if isinstance(control, QCheckBox) else control.currentData()
+            self.ui = {**self.ui, key: value}
+            self._say("")
+            self.apply_meter(self.answer)
 
     def _failed(self, name: str, why: str) -> None:
         if name == "catalog":
@@ -2898,6 +3371,15 @@ class MeterOverlay(QWidget):
             check.setEnabled(True)
             check.setChecked(not check.isChecked())
             self._say("Could not change the damage filter")
+        elif name.startswith("arena:"):
+            key = name[len("arena:"):]
+            control = self.arena_checks.get(key) or self.arena_picks[key]
+            control.setEnabled(True)
+            if isinstance(control, QCheckBox):    # back as it was
+                control.setChecked(not control.isChecked())
+            else:
+                control.setCurrentIndex(max(0, control.findData(self._arena_setting(key))))
+            self._say("Could not change the arena setting")
 
     def _split_back(self) -> None:
         button = self.tools["split"]
