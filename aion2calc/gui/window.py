@@ -2,9 +2,9 @@
 pages drawn by Qt.
 
 The navigation lists the web interface's sections and pages in its order (``SECTIONS``, after index.html). The
-pages are moved over one at a time: the Live Meter page first, then Settings (0.2.414), then News (0.2.427) and Timers
-(0.2.428). A page the native window does not draw yet says so and opens in the web interface, so every page stays a
-click away while the move goes on.
+pages are moved over one at a time: the Live Meter page first, then Settings (0.2.414), then News (0.2.427), Timers
+(0.2.428) and Database (0.2.429). A page the native window does not draw yet says so and opens in the web interface,
+so every page stays a click away while the move goes on.
 """
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHBoxLayout, QHe
 from . import theme
 from .api import AppApi, Poller
 from .news import NewsPage
+from .database_page import DatabasePage
 from .timers_page import TimersPage
 from .overlay import START_SCOPE, counter_lines
 from .settings_page import SettingsPage
@@ -224,6 +225,8 @@ class MainWindow(QMainWindow):
                     widget = NewsPage(api)
                 elif key == "timers":
                     widget = TimersPage(api, self.open_web)
+                elif key == "database":
+                    widget = DatabasePage(api)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)

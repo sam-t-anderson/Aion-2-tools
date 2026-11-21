@@ -19,7 +19,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QBuffer, QByteArray, QCoreApplication, QEvent, QIODevice  # noqa: E402
+from PySide6.QtCore import QBuffer, QByteArray, QCoreApplication, QEvent, QIODevice, Qt  # noqa: E402
 from PySide6.QtGui import QColor, QImage  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
@@ -228,6 +228,18 @@ def test_choosing_a_region_keeps_it_and_reads_its_feed(qapp):
     settle(lambda: not page.busy)
     assert page.status.text() == news.NEEDS_UPDATE and page.cards == []
     assert page.empty.text() == news.NONE_SHOWN and not page.empty.isHidden()
+
+
+def test_a_headlines_words_are_text_not_markup(qapp):
+    row = entry(1, category="<b>Notices</b>", preview="<img src='x'> <a href='https://x.example/'>here</a>",
+                publisher="<i>Team</i>", title="<u>Big</u> news")
+    page = _page(FakeApp({"global": {"status": "<b>ready</b>", "note": "<b>note</b>",
+                                      "unavailable_sources": ["<i>board</i>"], "entries": [row]}}))
+    (card,) = page.cards
+    assert card.category.text() == "<b>Notices</b>" and card.category.textFormat() == Qt.PlainText
+    assert card.preview.textFormat() == Qt.PlainText and card.meta.textFormat() == Qt.PlainText
+    assert "&lt;u&gt;Big&lt;/u&gt; news" in card.title.text()                     # the title escaped in its link
+    assert page.note.textFormat() == Qt.PlainText and page.unavailable.textFormat() == Qt.PlainText
 
 
 def test_a_feed_that_cannot_be_read_says_why(qapp):

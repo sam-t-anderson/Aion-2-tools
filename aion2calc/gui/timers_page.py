@@ -37,8 +37,7 @@ def _label(text: str = "", name: str = "", rich: bool = False, wrap: bool = True
     if name:
         label.setObjectName(name)
     label.setWordWrap(wrap)
-    if rich:
-        label.setTextFormat(Qt.RichText)
+    label.setTextFormat(Qt.RichText if rich else Qt.PlainText)   # what the log server sends is never read as markup
     return label
 
 
