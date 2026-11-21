@@ -1788,9 +1788,13 @@ def test_the_featured_encounters_cards(qapp):
     settle(lambda: empty.answer is not None)
     assert not empty.isVisible() and cf.featured_list(empty.answer) == []
     quiet.log_server.refusal = "RuntimeError: Community server (503): busy"
-    refused = FeaturedSection(quiet, lambda *_: None)
     seen = []
-    refused.requests.failed.connect(lambda name, why: seen.append(why))
+
+    class Refused(FeaturedSection):
+        def refused(self, kind, why):          # heard where the section hears it: a listener connected once it has
+            seen.append(why)                   # asked could miss a refusal the worker gave at once
+            super().refused(kind, why)
+    refused = Refused(quiet, lambda *_: None)
     settle(lambda: seen)
     QCoreApplication.processEvents()
     assert seen == ["RuntimeError: Community server (503): busy"] and refused.answer is None and not refused.isVisible()
