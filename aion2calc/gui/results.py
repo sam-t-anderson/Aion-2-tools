@@ -1,12 +1,14 @@
 """A build's result windows' words (0.2.434), as pages/results.js writes them for the Build Planner, My Character and
-Saved Results: the windows' list, and the Overview, Skills and Stigma windows' figures, lines and notes. The native
-windows (``result_windows.py``) draw them; the notes are rich text in the subset Qt's text engine draws, the
-``<details>`` of the web page opened in place.
+Saved Results: the windows' list, and the Overview, Skills and Stigma windows' figures, lines and notes; since
+0.2.435 the Daevanion window's boards, nodes and points and the Equipment window's paper doll, rolls and enchant
+priority. The native windows (``result_windows.py``) draw them; the notes are rich text in the subset Qt's text engine
+draws, the ``<details>`` of the web page opened in place.
 """
 from __future__ import annotations
 
 import html
 import math
+import re
 
 from . import theme
 
@@ -15,13 +17,14 @@ WINDOWS = (("overview", "Overview", "◆"), ("skills", "Skills", "✦"), ("stigm
            ("daevanion", "Daevanion", "✧"), ("genus", "Pet Genus", "◈"), ("equipment", "Equipment", "⚔"),
            ("arcana", "Arcana", "❖"), ("titles", "Titles & wings", "♛"), ("hotbar", "Skills hotbar", "▦"),
            ("macro", "Macro & rotation", "⌨"))
-NATIVE = ("overview", "skills", "stigma")             # the windows the native interface draws so far
+NATIVE = ("overview", "skills", "stigma", "daevanion", "equipment")   # the windows the native interface draws so far
 COMPARISON = ("Generate a separate {mode} example with common gear and the server’s published point budgets (highest "
               "reported totals when available; explicitly labeled example fallback otherwise). Your personal build, "
               "Genus and HP/skill reserves stay saved separately. Seed searches and weighted refinement can take several "
               "minutes; completed comparisons are reused until the scoring inputs change. Only anonymous allocations are "
               "submitted. Stationary damage comparison, not a survival or win-rate model.")
 MUTED, FAINT, GOLD, ACCENT = theme.COLORS["muted"], theme.COLORS["faint"], theme.COLORS["gold"], theme.COLORS["accent"]
+TEXT = theme.COLORS["text"]
 
 
 def e(value) -> str:
@@ -386,8 +389,9 @@ def comparison_text(v: dict) -> str:
 
 
 # ------------------------------------------------------------------ Skills
-def skill_counter(v: dict) -> str:
-    return f"Skill points {n0((v.get('points') or {}).get('skill'))} / {n0((v.get('budgets') or {}).get('skill'))}"
+def skill_counter(v: dict) -> tuple[str, str]:
+    """The Skills window's counter (``.counter``): its words, and the points spent of the budget."""
+    return "Skill points", f"{n0((v.get('points') or {}).get('skill'))} / {n0((v.get('budgets') or {}).get('skill'))}"
 
 
 def skill_level(s: dict) -> str:
@@ -442,8 +446,8 @@ def skills_grid(v: dict) -> list[tuple[str, str]]:
 
 
 # ------------------------------------------------------------------ Stigma
-def stigma_counter(v: dict) -> str:
-    return f"Stigma points {n0((v.get('points') or {}).get('stigma'))} / {n0((v.get('budgets') or {}).get('stigma'))}"
+def stigma_counter(v: dict) -> tuple[str, str]:
+    return "Stigma points", f"{n0((v.get('points') or {}).get('stigma'))} / {n0((v.get('budgets') or {}).get('stigma'))}"
 
 
 def stigmas_copy(v: dict) -> str:
@@ -459,6 +463,217 @@ def stigma_effect(x: dict) -> str:
     """A stigma's effect (rich text): its number in gold, its words, its level faint; muted while inactive."""
     words = f"<b style='color: {GOLD};'>{e(x.get('n'))}</b> {e(x.get('text'))} <span style='color: {FAINT};'>(Lv {e(x.get('unlock'))})</span>"
     return words if x.get("active") else f"<span style='color: {MUTED};'>{words}</span>"
+
+
+# ------------------------------------------------------------------ Daevanion
+#: A node's colour by its grade (``.node[data-grade]``); a node of any other grade is the board's off colour.
+NODE_FILL = {"Common": "#c9ccd3", "Rare": "#4aa3e6", "Legend": "#a46cf0", "Unique": "#f0bf4a"}
+NODE_OFF, NODE_START = "#232c42", "#4fd1b3"
+#: The board's key (``.legend``): each grade's colour and cost, then what the shapes mean.
+LEGEND = (("#c9ccd3", "Common 1 pt"), ("#4aa3e6", "Rare 2 pt"), ("#a46cf0", "Epic 3 pt"), ("#f0bf4a", "Unique 4 pt"))
+LEGEND_NOTE = "squares = stats · circles = +1 skill level · bright = take it"
+NO_BOARD = "No board data"
+ARIEL_TIP = "Daevanion Crystal: Ariel, the Ariel board's own points"
+PLANNER = "Open in metabot planner"
+
+
+def _dict(value) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def _list(value) -> list:
+    return value if isinstance(value, list) else []
+
+
+def daevanion_board(v: dict, index: int) -> dict | None:
+    """The board shown (``d.boards[boardIdx] || d.boards[0]``), or None when the build has none."""
+    boards = _list(_dict(v.get("daevanion")).get("boards"))
+    for board in (boards[index] if 0 <= index < len(boards) else None, boards[0] if boards else None):
+        if isinstance(board, dict):
+            return board
+    return None
+
+
+def board_tabs(v: dict) -> list[tuple[int, str, str]]:
+    """Each board's tab: its place among the boards, its name, and its points used of its total."""
+    return [(index, js_text(x.get("name")), f"{js_text(x.get('used'))}/{js_text(x.get('total'))}")
+            for index, x in enumerate(_list(_dict(v.get("daevanion")).get("boards"))) if isinstance(x, dict)]
+
+
+def board_nodes(b: dict) -> list[dict]:
+    return [nd for nd in _list(b.get("nodes")) if isinstance(nd, dict)]
+
+
+def node_shape(nd: dict) -> str:
+    """A node's kind (``.node``): the start's hexagon, a skill level's circle, a hidden one, or a stat's square."""
+    kind = nd.get("type")
+    return "start" if kind == "Start" else "skill" if kind == "SkillLevel" else "none" if kind == "None" else "stat"
+
+
+def node_lit(nd: dict) -> bool:
+    """Whether a node is bright (``.sel``): one the build takes, and the start."""
+    return bool(nd.get("selected")) or nd.get("type") == "Start"
+
+
+def node_fill(nd: dict) -> str:
+    if nd.get("type") == "Start":
+        return NODE_START
+    grade = nd.get("grade")
+    return NODE_FILL.get(grade, NODE_OFF) if isinstance(grade, str) else NODE_OFF
+
+
+def node_tip(nd: dict) -> str:
+    """A node's tooltip: a skill level's skill, grade and cost; a stat's words, grade and cost; or the start."""
+    kind = nd.get("type")
+    if kind == "SkillLevel":
+        return f"{js_text(nd.get('skill'))} +1 ({js_text(nd.get('grade'))}, {js_text(nd.get('cost'))} pt)"
+    if kind == "Start":
+        return "Start"
+    return f"{js_text(nd.get('label'))} ({js_text(nd.get('grade'))}, {js_text(nd.get('cost'))} pt)"
+
+
+def node_text(nd: dict) -> str:
+    """The words on a node: a skill's initials (at most three), a stat's short figure, nothing on the start."""
+    kind = nd.get("type")
+    if kind == "SkillLevel":
+        return "".join(word[:1] for word in re.split(r"\s+", str(nd.get("skill") or "")))[:3]
+    return "" if kind == "Start" else js_text(nd.get("short") or "")
+
+
+def node_icon(nd: dict) -> str:
+    """A skill level's picture on metabot.gg, for a skill id that is a whole number above 0
+    (``Number.isSafeInteger``); none for any other node."""
+    if nd.get("type") != "SkillLevel":
+        return ""
+    number = _number(nd.get("skill_id"))
+    if number is None or not number.is_integer() or not 0 < number <= 2 ** 53 - 1:
+        return ""
+    return f"https://metabot.gg/web/aion2/skills/{js_text(nd.get('skill_id'))}.webp"
+
+
+def points_used(d: dict) -> str:
+    budget = d.get("budget")
+    return f"{js_text(d.get('used'))} / {'Unknown' if budget is None else js_text(budget)}"
+
+
+def ariel_used(d: dict) -> str:
+    """The Ariel crystal's own points, when the build has any; else nothing."""
+    used, budget = d.get("ariel_used"), d.get("ariel_budget")
+    if not (used or budget):
+        return ""
+    return f"{0 if used is None else js_text(used)} / {'Unknown' if budget is None else js_text(budget)}"
+
+
+def board_line(b: dict) -> str:
+    taken = sum(1 for nd in board_nodes(b) if nd.get("selected"))
+    return f"{js_text(b.get('used'))} / {js_text(b.get('total'))} points · {taken} nodes"
+
+
+def daevanion_skills(d: dict) -> list[tuple[str, str]]:
+    """The skill levels the boards give: each skill and its levels."""
+    return [(js_text(s.get("name")), f"+{js_text(s.get('levels'))}") for s in _list(d.get("skills")) if isinstance(s, dict)]
+
+
+def daevanion_stats(d: dict) -> list[tuple[str, str]]:
+    """The stats all the boards give (the side's list and the window's ``statGrid``)."""
+    return [(js_text(s.get("label")), js_text(s.get("text"))) for s in _list(d.get("stats")) if isinstance(s, dict)]
+
+
+def planner_link(v: dict) -> str:
+    """The build's boards in metabot's Daevanion planner, if it has the link."""
+    link = _dict(v.get("links")).get("metabot_daevanion")
+    return str(link) if link else ""
+
+
+def daevanion_copy(v: dict) -> str:
+    boards = "\n".join(f"{name}: {used} pts" for _index, name, used in board_tabs(v))
+    link = planner_link(v)
+    return boards + (f"\nPlanner link: {link}" if link else "")
+
+
+# ------------------------------------------------------------------ Equipment
+#: The slots on the paper doll's left (``LEFT_SLOTS``): the weapons and armour; the others are on its right.
+LEFT_SLOTS = ("MainHand", "SubHand", "Helmet", "Shoulder", "Torso", "Pants", "Gloves", "Boots", "Cape", "Belt",
+              "Main hand", "Off-hand", "Armor x7")
+#: An item's colour by its grade (``--g-*``): its name, and its tile's left edge.
+GRADES = {"Common": "rgba(255, 255, 255, 0.88)", "Rare": "#52b35c", "Legend": "#3d94d8", "Unique": "#e9a43a",
+          "Epic": "#ee6c2a", "Mythic": "#d33939", "Special": "#34b798"}
+EQUIPMENT_GRID = "Stats from equipment, rolls and manastones"
+ROLLS_HEAD, ENCHANT_HEAD = "KEEP / REROLL TOWARD (best first)", "ENCHANT PRIORITY"
+
+
+def equipment_slots(v: dict) -> tuple[list[dict], list[dict]]:
+    """The paper doll's slots: those on its left, and those on its right, each in the build's order."""
+    slots = [s for s in _list(_dict(v.get("equipment")).get("slots")) if isinstance(s, dict)]
+    return [s for s in slots if s.get("slot") in LEFT_SLOTS], [s for s in slots if s.get("slot") not in LEFT_SLOTS]
+
+
+def slot_grade(s: dict) -> str:
+    grade = s.get("grade")
+    return grade if isinstance(grade, str) and grade in GRADES else ""
+
+
+def slot_item(s: dict) -> str:
+    return js_text(s.get("item") or s.get("name") or "")
+
+
+def slot_stats(s: dict) -> str:
+    """A slot's first four stats (rich text): each figure bold, then its stat."""
+    return " · ".join(f"<b style='color: {TEXT};'>{e(x.get('text'))}</b> {e(x.get('label'))}"
+                      for x in _list(s.get("stats"))[:4] if isinstance(x, dict))
+
+
+def _pairs(rows) -> list[tuple]:
+    return [(row[0] if row else None, row[1] if len(row) > 1 else None) for row in _list(rows) if isinstance(row, list)]
+
+
+def slot_extras(s: dict) -> list[tuple[str, str]]:
+    """A slot's chips (``.chip``): its rolls, then its manastones and theostones (gold), then its skill levels."""
+    chips = [("chip", f"{js_text(k)} {js_text(val)}") for k, val in _pairs(s.get("rolls"))]
+    chips += [("manastone", f"{js_text(k)} {js_text(val)}") for k, val in _pairs(s.get("manastones"))]
+    chips += [("gold", js_text(t)) for t in _list(s.get("theostones"))]
+    chips += [("skill", f"{js_text(k)} +{js_text(lv)}") for k, lv in _pairs(s.get("skills"))]
+    return chips
+
+
+def doll(v: dict) -> tuple[str, str, str]:
+    """The paper doll's middle: the class, who wears it (a character and server, or the loadout), its combat power."""
+    who = f"{js_text(v.get('name'))} · {js_text(v.get('server'))}" if v.get("name") else js_text(v.get("loadout_name") or "")
+    power = f"Combat Power {n0(v.get('combat_power'))}" if v.get("combat_power") else ""
+    return cap(v.get("class")), who, power
+
+
+def equipment_sub(v: dict) -> str:
+    if v.get("equipment_source"):
+        return js_text(v.get("equipment_source"))
+    return "current gear (official profile)" if v.get("name") else "loadout used for this build"
+
+
+def roll_rows(v: dict) -> list[tuple[str, str]]:
+    """The rolls to keep or reroll toward, best first, for the first eight items: the item, and its stats in order."""
+    rolls = _dict(_dict(v.get("equipment")).get("rolls"))
+    return [(str(slug).replace("-", " "), " › ".join(js_text(r.get("stat")) for r in _list(rows) if isinstance(r, dict)))
+            for slug, rows in list(rolls.items())[:8]]
+
+
+def enchant_rows(v: dict) -> list[tuple[str, str]]:
+    """Where an enchant level is worth most: each slot and its DPS a level (``toFixed(1)``)."""
+    rows = []
+    for r in _list(_dict(v.get("equipment")).get("enchant")):
+        if isinstance(r, dict):
+            dps = _number(r.get("dps"))
+            rows.append((js_text(r.get("slot")), "—" if dps is None else theme.fixed(dps, 1)))
+    return rows
+
+
+def equipment_copy(v: dict) -> str:
+    slots = [s for s in _list(_dict(v.get("equipment")).get("slots")) if isinstance(s, dict)]
+    return "\n".join(f"{js_text(s.get('slot'))}: {js_text(s.get('item') or s.get('name'))}" for s in slots)
+
+
+def equipment_grid(v: dict) -> list[tuple[str, str]]:
+    return [(js_text(r.get("label")), js_text(r.get("text"))) for r in _list(_dict(v.get("equipment")).get("total"))
+            if isinstance(r, dict)]
 
 
 # ------------------------------------------------------------------ Saved Results
