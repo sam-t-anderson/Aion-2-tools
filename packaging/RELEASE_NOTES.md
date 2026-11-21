@@ -1,3 +1,17 @@
+## The News page in the native interface (0.2.427)
+
+**The News page is native now.** The app's window draws Game → News itself, as the web page shows it:
+- **The official headlines** of the region you choose (Global (English), Korea (Korean) or Taiwan (Traditional Chinese)), up to 20, in cards as many across as fit:
+  - each with its picture, its category and date;
+  - its title and short preview;
+  - where it comes from and when it was read;
+  - a button to read it on the official site.
+- **Show** All, Notices or Updates, and **Refresh** to read the feed again.
+- The status line says whether the official sources were read, and which were unavailable.
+- The links (each article, and the official notice and update boards) open in your browser.
+
+As on the web page, only an article on the region's official site and a picture on the official download server are shown. The region you choose is kept as one of the app's settings, and in a settings backup. The page reads the feed the first time you open it.
+
 ## The native interface by default, and in the installed app (0.2.426)
 
 **The app and the meter overlay now open in the native interface**, drawn by the app in Python (Qt) instead of in a browser. Until now it was a preview you had to turn on in Settings.
