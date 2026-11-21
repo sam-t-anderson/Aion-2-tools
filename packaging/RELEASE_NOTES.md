@@ -7,6 +7,8 @@
 - **Cast timeline:** every press over the fight, a lane per player, each press its skill's tile with the line of its cast time under it. Point at a press to see its time, target and cooldown;
 - **Hide** folds the section away.
 
+Also fixed: in the class colours (Settings, and **Class colors** on a log's page in the web interface), choosing a palette no longer saves the colours unchanged before you press **Apply**.
+
 The review's other sections (actions, death recaps, insights, rankings, reports, comparisons and movement replay) still open in the web interface, from the button on the page.
 
 ## A combat log's own page in the native interface, part 3 (0.2.459)
