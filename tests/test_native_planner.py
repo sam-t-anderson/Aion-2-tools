@@ -113,7 +113,7 @@ def _page(app, tmp_path, **kwargs):
     store = QSettings(str(tmp_path / "native.ini"), QSettings.IniFormat)
     page = PlannerPage(app, store=store, **kwargs)
     for job in (page.optimizing, page.refreshing):
-        job.timer.setInterval(10)
+        job.interval_ms = 10
     page.weights.setInterval(10)
     page.resize(1300, 1800)
     page.show()
@@ -244,7 +244,7 @@ def test_optimize_and_refresh_presets(qapp, view, tmp_path):
     page.optimizing = Job(app, page)                                            # a fresh runner for the next job
     # a job that fails says why
     app.jobs["opt"] = {"reads": 1, "error": "No budget left"}
-    page.optimizing.timer.setInterval(10)
+    page.optimizing.interval_ms = 10
     page.optimizing.failed.connect(page._optimize_failed)
     page.optimizing.done.connect(page._optimized)
     page.optimize()

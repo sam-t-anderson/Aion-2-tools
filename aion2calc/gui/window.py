@@ -25,6 +25,7 @@ from .crafting_page import CraftingPage
 from .database_page import DatabasePage
 from .gathering_page import GatheringPage
 from .history_page import HistoryPage
+from .character_page import CharacterPage
 from .maps_page import MapsPage
 from .planner_page import PlannerPage
 from .pets_page import PetsPage
@@ -245,6 +246,8 @@ class MainWindow(QMainWindow):
                     widget = HistoryPage(api, self.open_web)
                 elif key == "planner":
                     widget = PlannerPage(api, self.show_page, self.open_web)
+                elif key == "character":
+                    widget = CharacterPage(api, self.open_web)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)

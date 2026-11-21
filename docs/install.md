@@ -13,7 +13,7 @@ Download the file for your computer from the
 | Linux | `aion2calc-<version>-linux.tar.gz` | `tar xzf aion2calc-*-linux.tar.gz && ./aion2calc/aion2calc` |
 
 No Python and no command line are needed. The app opens in its own window, drawn by the app itself:
-the native interface, the default since 0.2.426. The Live Meter page, Build Planner, Saved Results, Timers, Maps, Database,
+the native interface, the default since 0.2.426. The Live Meter page, Build Planner, My Character, Saved Results, Timers, Maps, Database,
 Crafting, Gathering, Pet Tracker, News and Settings are drawn there so far, and the meter overlay over the game; every other page opens from that window in the web
 interface, a window of its own (Edge or Chrome in app mode; without either, your default browser)
 that follows your computer's light or dark mode. You can also pick a theme with the ◐ button in its
