@@ -1,3 +1,21 @@
+## The Crafting page in the native interface (0.2.432)
+
+**The Crafting page is native now.** The app's window draws Game → Crafting itself, as the web page shows it:
+- **Recipe source and missing rules:** the snapshot's notes, its counts, its date and its source.
+- **Recipes:**
+  - search by item name or recipe ID;
+  - filter by profession, faction, rarity and item type (only those the profession makes);
+  - your crafting tier and level, with *Only what I can craft*;
+  - the first 80 matching recipes, each saying whether you can craft it.
+- **A recipe:**
+  - where you stand against it, and its community-measured success rate where there is one;
+  - the planned completed crafts, and the expansion of source-linked intermediates;
+  - the normal and combo products with their item stats, an enhancement preview and the possible random rolls;
+  - the combo checks with an assumed effective rate, and the seeded scenario, which gives the same count as the web page for the same seed;
+  - the material plan with what you own, the listed fees and its warnings, and **Export this material plan** (a JSON file where you choose).
+
+The items' pictures are the ones the app bundles, so the page needs nothing but the app. What you enter lasts while the app runs. Numbers are written as the browser writes them (`10,000`, `1.25`).
+
 ## The Pet Tracker page in the native interface (0.2.431)
 
 **The Pet Tracker page is native now.** The app's window draws Game → Pet Tracker itself, as the web page shows it:
