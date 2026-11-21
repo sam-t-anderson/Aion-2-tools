@@ -2,7 +2,9 @@
 (a fight analyzed from a link or a file, the folder the analyzed logs are kept in, the log server shared to, and the
 encounters analyzed); since 0.2.451 the recorded encounters by type (saved-logs.js) and the queue that uploads the
 recordings (archive-upload.js), with its rules: which files a batch takes, what a recovery checkpoint may hold, which
-refusals stop a batch, and what its results manifest says.
+refusals stop a batch, and what its results manifest says; since 0.2.452 My Uploads (log-ownership.js: the private
+credentials of your uploads and what they let you do) and My Character Identities (identity.js: the characters your
+recordings claim).
 """
 from __future__ import annotations
 
@@ -531,3 +533,333 @@ def status_line(row: dict, result: dict | None) -> str:
     if _truthy(s.get("warning")):
         line += " — " + js_text(s["warning"])
     return line
+
+
+# ------------------------------------------------------------------ my uploads (log-ownership.js, 0.2.452)
+OWNED_LIMIT = 2000
+OWNED_PAGE = 25
+OWNED_BACKUP_LIMIT = 2 * 1024 * 1024
+OWNED_FILE = "PRIVATE-combat-log-credentials.json"
+OWNED_NOTE = ("Credentials stay on this device/browser. Import a private backup to manage uploads made elsewhere. A character "
+              "name, shared upload key or view link does not establish ownership. Public: listed and eligible for community "
+              "comparisons. Unlisted: anyone with the link can view; legacy anonymous calibration can contribute. Private: "
+              "secret link only; excluded from public comparisons and calibration. Making a log private cannot recall copies "
+              "already downloaded.")
+OWNED_BACKUP_NOTE = ("Keep backups private: they permit visibility changes, private-link access and permanent deletion. "
+                     "Importing a file stores credentials only; it does not contact its servers. Older uploads need their "
+                     "original delete credential.")
+RECOVER_TITLE = "Recover an older upload with its original delete credential"
+OWNED_COLUMNS = ["Upload · original server", "Current visibility / link", "Controls"]
+OWNED_VISIBILITY = (("", "any"), ("public", "Public"), ("unlisted", "Unlisted"), ("private", "Private"),
+                    ("unchecked", "Not checked yet"))
+OWNED_CHOICES = ("unlisted", "public", "private")
+NO_OWNED = "No saved upload credentials. New desktop uploads are saved automatically."
+NO_OWNED_MATCH = "No uploads match these filters."
+OWNED_REVIEW = "Reviewing an upload's log opens in the web interface for now."
+ASK_IMPORT = "Import private upload credentials? Keep this backup private. No server will be contacted until you use its controls."
+ASK_FORGET = ("Forget this local credential? The uploaded log remains on the server. Export a backup first if you need future "
+              "access.")
+ASK_DELETE = "Permanently delete this server upload and its stored profiles/statistics? Your local combat file remains."
+ASK_ROTATE = "Replace the private view link? The previous secret link will stop working."
+ASK_PUBLIC = ("List this upload publicly, including recorded character profiles, and include eligible samples in community "
+              "comparisons?")
+SHORT_APPEAL = "Explain the appeal in at least 10 characters."
+APPEAL_SENT = "Appeal sent. A moderator decides; the decision shows here."
+
+
+def _server_of(value) -> str:
+    return re.sub(r"/+$", "", js_string(value)) if _truthy(value) else ""
+
+
+def clean_owner(row) -> dict:
+    """``clean``: an upload's private credential (its original server, ID and delete token), or ValueError."""
+    if not isinstance(row, dict):
+        raise ValueError("Invalid upload credential")
+    server = _server_of(row.get("server"))
+    log_id = js_string(row.get("id")) if _truthy(row.get("id")) else ""
+    token = js_string(row.get("delete_token")) if _truthy(row.get("delete_token")) else ""
+    if (href(server) is None or _with_secret(server) or not re.fullmatch(r"[a-z0-9]{6,16}", log_id, re.I)
+            or not re.fullmatch(r"[a-z0-9_-]{20,128}", token, re.I)):
+        raise ValueError("Invalid original server, ID or private credential")
+    title = js_string(row.get("title")) if _truthy(row.get("title")) else log_id
+    return {"server": server, "id": row["id"], "delete_token": row["delete_token"], "title": title[:200]}
+
+
+def owner_key(row: dict) -> str:
+    return f"{js_string(row.get('server'))}|{js_string(row.get('id'))}"
+
+
+def owned_visibility(status: dict | None) -> str:
+    """The visibility an upload's last refresh reported, or "unchecked"."""
+    s = status or {}
+    return s["visibility"] if not _truthy(s.get("error")) and _truthy(s.get("visibility")) else "unchecked"
+
+
+def owned_matches(row: dict, f: dict, status: dict | None) -> bool:
+    """Whether the filters let an upload through: its title or ID, its server, the visibility it reported."""
+    if f["q"] and f["q"].lower() not in f"{js_string(row.get('title'))} {js_string(row.get('id'))}".lower():
+        return False
+    if f["server"] and row.get("server") != f["server"]:
+        return False
+    return not f["visibility"] or owned_visibility(status) == f["visibility"]
+
+
+def owned_servers(rows: list[dict]) -> list[str]:
+    return sorted({js_string(r.get("server")) for r in rows})
+
+
+def owned_page(count: int, page: int) -> int:
+    """The page shown, kept within the uploads the filters let through."""
+    return min(page, max(0, math.ceil(count / OWNED_PAGE) - 1))
+
+
+def owned_pages(count: int) -> int:
+    return max(1, math.ceil(count / OWNED_PAGE))
+
+
+def saved_day(t) -> str:
+    """A moment the server gives in seconds, in the computer's clock; nothing for none (``day``)."""
+    return moment(t * 1000) if _truthy(t) and isinstance(t, (int, float)) else ""
+
+
+def held(status: dict | None) -> dict:
+    """A moderation hold on an upload and its appeal (``held``): the lines to show, and whether an appeal can be sent."""
+    s = status or {}
+    a = s.get("appeal") if isinstance(s.get("appeal"), dict) else None
+    decision = ""
+    if a is not None and a.get("status") != "open":
+        decision = (f"Appeal {js_string(a.get('status'))} {saved_day(a.get('decided_at'))}"
+                    + (f": {js_string(a['note'])}" if _truthy(a.get("note")) else "") + ".")
+    if not _truthy(s.get("moderation")):
+        if not decision:
+            return {"lines": [], "appeal": False}
+        overturned = " The upload stays private until you choose its visibility." if a.get("status") == "overturned" else ""
+        return {"lines": [decision + overturned], "appeal": False}
+    note = js_string(_dict(s["moderation"]).get("note"))
+    lines = [f"Moderator review: {note}. Visibility changes are paused; you can still delete your upload."]
+    if a is not None:
+        lines.append(f"Appeal sent {saved_day(a.get('created_at'))}; a moderator will uphold or overturn the hold."
+                     if a.get("status") == "open" else decision)
+    return {"lines": lines, "appeal": a is None}
+
+
+def shared_link(status: dict | None, server: str) -> str:
+    """The upload's shared link, only on its own server (``Open shared link``)."""
+    s = status or {}
+    if _truthy(s.get("error")) or not _truthy(s.get("url")):
+        return ""
+    link, home = href(js_string(s["url"])), href(js_string(server))
+    if link is None or home is None:
+        return ""
+    origin = lambda address: urllib.parse.urlsplit(address)._replace(path="", query="", fragment="").geturl()   # noqa: E731
+    return link if origin(link) == origin(home) else ""
+
+
+def owned_state(status: dict | None) -> str:
+    s = status or {}
+    return js_string(s.get("error") or s.get("visibility") or "Refresh to check")
+
+
+def owned_controls(status: dict | None) -> dict:
+    """Which controls an upload allows: its visibility once refreshed and not held; a private link replaced."""
+    s = status or {}
+    known = bool(status) and not _truthy(s.get("error"))
+    editable = known and not _truthy(s.get("moderation"))
+    return {"editable": editable, "rotate": editable and s.get("visibility") == "private",
+            "visibility": s.get("visibility") if s.get("visibility") in OWNED_CHOICES else "unlisted"}
+
+
+def owned_backup(rows: list[dict]) -> dict:
+    return {"format": "a2log-owners", "version": 1, "owners": rows}
+
+
+def read_backup(value) -> list:
+    """The credentials a backup holds, or ValueError when it is not one."""
+    if not isinstance(value, dict) or value.get("format") != "a2log-owners" or isinstance(value.get("version"), bool) \
+            or value.get("version") != 1:
+        raise ValueError("Choose a private combat-log ownership backup")
+    return value.get("owners")
+
+
+def owner_request(row: dict, action: str, value=None) -> dict:
+    """What the app is asked to do with an upload (``request``)."""
+    body = {"owner": row, "action": action}
+    if value is not None:
+        body["statement" if action == "appeal" else "visibility"] = value
+    return body
+
+
+def owned_done(action: str) -> str:
+    return {"delete": "Server upload deleted.", "refresh": "Current server status loaded."}.get(
+        action, "Privacy updated. Use the displayed link.")
+
+
+# ------------------------------------------------------------------ my character identities (identity.js, 0.2.452)
+CLAIM_LIMIT = 200
+CLAIM_MINIMUM = 3
+_TOKEN = re.compile(r"a2id_[A-Za-z0-9_-]{20,128}")
+NO_SHARE_SERVER = "Set a share server first; claims live on the server your recordings are uploaded to."
+NO_CHARACTERS = ("No characters yet. Upload public recordings where you are the recording player; three of them let you claim "
+                 "the character.")
+CHARACTER_COLUMNS = ["Character", "Public recordings", "Status", "Actions"]
+OPT_OUT = "Hide me in other uploaders' public logs, leaderboards and parse brackets"
+ASK_RELEASE = "Give this character up? It becomes claimable again (a pending challenger takes it at once)."
+CHALLENGE_TIP = "Your recordings are newer: the holder gets seven days to renew"
+NOT_NEWER_TIP = "Only newer recordings than the holder's can challenge a claim"
+REVOKED_TIP = "Only recordings the revoked claim was not built on count"
+
+
+def identity_note(minimum, base: str) -> str:
+    return (f"A claim is proven by your own recordings: the private credentials under My uploads of {js_string(minimum)} "
+            "public recordings where you were the recording player. It marks the character verified wherever it is listed, "
+            "and lets you hide it in other uploaders' public logs, leaderboards and parse brackets (your own uploads always "
+            "show your name). Newer recordings win a contested character after a seven-day notice. Claims live on "
+            f"{base}; nothing here changes who recorded a log or its ranking.")
+
+
+def clean_claim(row) -> dict:
+    """``clean``: a claim's identity credential as it may be kept, or ValueError."""
+    if not isinstance(row, dict):
+        raise ValueError("Invalid identity credential")
+    server = _server_of(row.get("server"))
+    if href(server) is None or _with_secret(server):
+        raise ValueError("Invalid server address")
+    name = (js_string(row.get("name")) if _truthy(row.get("name")) else "").strip()[:60]
+    world_id = (js_string(row.get("server_name")) if _truthy(row.get("server_name")) else "").strip()[:40]
+    token = js_string(row.get("token")) if _truthy(row.get("token")) else ""
+    if not name or not _TOKEN.fullmatch(token):
+        raise ValueError("Invalid character name or identity credential")
+    claimed = row.get("claimed_at")
+    claimed = claimed if isinstance(claimed, (int, float)) and not isinstance(claimed, bool) and math.isfinite(claimed) else 0
+    return {"server": server, "name": name, "server_name": world_id, "token": row["token"],
+            "status": (js_string(row.get("status")) if _truthy(row.get("status")) else "")[:20], "claimed_at": claimed or 0}
+
+
+def claim_key(name, server) -> str:
+    """A character's key (``ckey``): its name in lower case and its server."""
+    return f"{(js_string(name) if _truthy(name) else '').strip().lower()}|{(js_string(server) if _truthy(server) else '').strip()}"
+
+
+def evidence(credentials: list, base: str) -> list[dict]:
+    """The upload credentials on the share server that prove the recordings (``evidence``), the last 200."""
+    rows = [r for r in _list(credentials) if isinstance(r, dict) and _server_of(r.get("server")) == base][-CLAIM_LIMIT:]
+    return [{"id": r.get("id"), "delete_token": r.get("delete_token")} for r in rows]
+
+
+def kept_claims(claims: list, row: dict) -> list[dict]:
+    """The claims kept with ``row`` in place of the one for its character (``remember``)."""
+    rows = [c for c in _list(claims) if isinstance(c, dict) and not same_claim(c, row)]
+    rows.append(clean_claim(row))
+    return rows
+
+
+def without_claim(claims: list, row: dict) -> list[dict]:
+    """The claims kept without ``row``'s character (``forget``)."""
+    return [c for c in _list(claims) if isinstance(c, dict) and not same_claim(c, row)]
+
+
+def same_claim(a: dict, b: dict) -> bool:
+    return a.get("server") == b.get("server") and claim_key(a.get("name"), a.get("server_name")) == \
+        claim_key(b.get("name"), b.get("server_name"))
+
+
+def world_label(world_id) -> str:
+    """A claim's server by its world name (2102 -> Zikel) when the bundled list knows it (``worldFor``)."""
+    if not _truthy(world_id):
+        return ""
+    from .timers import world_for
+    return world_for(world_id, js_string(world_id))
+
+
+def character_rows(characters: list, mine: list, statuses: dict) -> list[dict]:
+    """The characters your recordings can claim, with the claims kept here (``render``'s rows)."""
+    rows: dict[str, dict] = {}
+    for c in _list(characters):
+        if isinstance(c, dict):
+            rows[claim_key(c.get("name"), c.get("server"))] = {"name": c.get("name"), "server_name": c.get("server"), "info": c}
+    for c in _list(mine):
+        key = claim_key(c.get("name"), c.get("server_name"))
+        base = rows.get(key) or {"name": c.get("name"), "server_name": c.get("server_name"), "info": None}
+        rows[key] = {**base, "stored": c, "status": statuses.get(key)}
+    return list(rows.values())
+
+
+def _plural(n) -> str:
+    return "" if n == 1 else "s"
+
+
+def character_view(r: dict, minimum) -> dict:
+    """A character's row: its recordings, its state (rich text and the notes under it), and its actions."""
+    info = r.get("info") if isinstance(r.get("info"), dict) else None
+    s = r.get("status") if isinstance(r.get("status"), dict) else None
+    st = s if s is not None and not _truthy(s.get("error")) else None
+    recordings = info.get("recordings") if info else 0
+    claimable = bool(info and _truthy(info.get("claimable")))
+    when_ = lambda t: html_text(saved_day(t))       # noqa: E731
+    view = {"name": js_string(r.get("name")), "world": world_label(r.get("server_name")),
+            "recordings": js_string(recordings) + (f" of {js_string(minimum)}" if info else ""), "notes": [], "actions": []}
+    status = st.get("status") if st else None
+    if status == "active":
+        view["state"] = (f"<b>Verified</b> since {when_(st.get('verified_at'))} · {html_text(js_string(st.get('recordings')))} "
+                         f"recording{_plural(st.get('recordings'))}")
+        if _truthy(st.get("challenge")):
+            view["notes"].append("Another uploader claimed this character with newer recordings. Upload a public recording of "
+                                 "yours that is newer than theirs and press <b>Renew</b> before "
+                                 f"{when_(_dict(st['challenge']).get('until'))}, or the claim passes to them.")
+        view["opt_out"] = bool(st.get("opt_out"))
+        view["actions"] = [("claim", "Renew", claimable, ""), ("release", "Release", True, "")]
+    elif status == "pending":
+        view["state"] = (f"<b>Pending</b> · becomes yours on {when_(st.get('activates_at'))} unless the current holder "
+                         "renews with a newer recording")
+        view["actions"] = [("release", "Withdraw", True, "")]
+    elif status == "revoked":
+        rv = st.get("revocation") if isinstance(st.get("revocation"), dict) else None
+        a = st.get("appeal") if isinstance(st.get("appeal"), dict) else None
+        view["state"] = "<b>Revoked</b> by a moderator" + (
+            f" on {when_(rv.get('at'))}" + (f": {html_text(js_string(rv['note']))}" if _truthy(rv.get("note")) else "")
+            if rv else "")
+        if a is not None:
+            view["notes"].append(f"Appeal sent {when_(a.get('created_at'))}; a moderator will uphold or overturn the revocation."
+                                 if a.get("status") == "open" else
+                                 f"Appeal {html_text(js_string(a.get('status')))} {when_(a.get('decided_at'))}"
+                                 + (f": {html_text(js_string(a['note']))}" if _truthy(a.get("note")) else ""))
+        view["appeal"] = a is None
+        view["actions"] = [("claim", "Claim with newer recordings", claimable, REVOKED_TIP), ("forget", "Forget", True, "")]
+    elif r.get("stored"):
+        error = s.get("error") if s else None
+        word = "Credential not accepted" if _truthy(error) else (js_string(st.get("status")) if st and _truthy(st.get("status"))
+                                                                  else "unknown")
+        view["state"] = f"<b>{html_text(word)}</b>" + (f" · {html_text(js_string(error))}" if _truthy(error) else "")
+        view["actions"] = [("claim", "Claim again", claimable, ""), ("forget", "Forget", True, "")]
+    elif info and _truthy(info.get("claimed")):
+        mine = _truthy(info.get("held_with_these_credentials"))
+        if mine:
+            view["state"] = "Claimed with these recordings on another device"
+            view["actions"] = [("claim", "Recover", claimable, "")]
+        else:
+            view["state"] = f"Held by another uploader (their latest recording {when_(info.get('holder_latest_recording'))})"
+            newer = claimable and _number(info.get("latest_recording")) > _number(info.get("holder_latest_recording"))
+            view["actions"] = [("claim", "Challenge with newer recordings", newer, CHALLENGE_TIP if newer else NOT_NEWER_TIP)]
+    else:
+        missing = _number(minimum) - _number(recordings)
+        view["state"] = "Not claimed yet" if claimable else (
+            f"Needs {js_string(max(0, missing))} more public recording{_plural(missing)} where you are the recording player")
+        view["actions"] = [("claim", "Claim", claimable, "")]
+    return view
+
+
+def _number(value) -> float:
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else 0.0
+
+
+def html_text(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#39;")
+
+
+def claim_done(status) -> str:
+    return ("Claim recorded; it takes over after the notice period unless the holder renews."
+            if status == "pending" else "Claim verified.")
+
+
+def opt_out_done(hidden: bool) -> str:
+    return "Hidden in other uploaders’ public logs, leaderboards and parse brackets." if hidden else "Shown by name again."

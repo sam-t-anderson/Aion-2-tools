@@ -1,3 +1,24 @@
+## Combat Logs' My Uploads and My Character Identities in the native interface (0.2.452)
+
+**My Uploads and My Character Identities open in the app's window too**, as the web page draws them:
+- **My uploads:** the private credentials of the logs this computer uploaded. **Refresh** an upload to see its visibility and its shared link from its server, then:
+  - change its visibility (public only once you confirm);
+  - replace its private link;
+  - appeal a moderation hold once;
+  - **Delete upload** from its server, or **Forget credential** here.
+
+  Filter by title or ID, server and the visibility last seen, twenty-five to a page. **Export private credentials** to a backup, **Import private backup**, or recover an older upload with its original delete token. Reviewing an upload's log still opens in the web interface;
+- **My Character Identities:** the characters your public recordings on the share server can claim (three where you were the recording player). Each can be:
+  - claimed, renewed, recovered, or challenged with newer recordings;
+  - released, or withdrawn while pending;
+  - hidden in other uploaders' public logs, leaderboards and parse brackets;
+  - appealed after a revocation;
+  - forgotten here.
+
+  Its state shows: verified, pending, contested, revoked, held by another uploader, or how many more recordings it needs.
+
+Both read themselves again after an upload. **Community Combat Logs** and the other views still open in the web interface.
+
 ## Combat Logs' Saved Logs whole in the native interface (0.2.451)
 
 **Saved Logs is whole in the app's window now**: its recorded encounters and its upload queue are drawn there too, as the web page draws them:

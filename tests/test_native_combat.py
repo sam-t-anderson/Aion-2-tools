@@ -1,7 +1,8 @@
 """The native Combat Logs page, part 1 (0.2.450): its views and lists, and Saved Logs (a fight analyzed from a link or a
 file with its progress, the logs folder, the log server shared to, the encounters analyzed), as pages/combat.js shows
-them; since 0.2.451 Saved Logs' recorded encounters by type (saved-logs.js) and its upload queue (archive-upload.js).
-Off screen over a fake app answering as the app does (made-up logs, recordings and encounters).
+them; since 0.2.451 Saved Logs' recorded encounters by type (saved-logs.js) and its upload queue (archive-upload.js);
+since 0.2.452 My Uploads (log-ownership.js) and My Character Identities (identity.js). Off screen over a fake app
+answering as the app does and a fake share server (made-up logs, recordings, credentials, characters and encounters).
 """
 import gzip
 import hashlib
@@ -18,10 +19,12 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QBuffer, QCoreApplication, QEvent, QSettings  # noqa: E402
 from PySide6.QtGui import QColor, QImage  # noqa: E402
-from PySide6.QtWidgets import QApplication, QCheckBox, QComboBox, QLabel, QLineEdit, QPushButton  # noqa: E402
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QLabel, QLineEdit, QPlainTextEdit,  # noqa: E402
+                               QPushButton)
 
 from aion2calc.gui import combat as cb  # noqa: E402
 from aion2calc.gui.combat_page import CombatPage  # noqa: E402
+from aion2calc.gui.combat_owned import Identities, OwnedUploads  # noqa: E402
 from aion2calc.gui.combat_saved import RecordedEncounters, Section, UploadQueue  # noqa: E402
 from aion2calc.gui.window import MainWindow, WebPage  # noqa: E402
 
@@ -54,6 +57,51 @@ OLDER = [{"file": "session-0.a2log.json", "title": "Old raid", "updated": T0 - 3
           "contexts": [{"segment": 0, "boss": "Ice Queen", "boss_code": 2001, "category": "raid", "role": "final",
                         "difficulty": "normal", "duration": 200, "encounter_type": "sanctuary"}]}]
 PORTRAIT = "https://img.example/npc/2001.png"
+TOKEN = "t" * 24
+#: The private credentials of this computer's uploads, on two servers.
+OWNERS = [{"server": "https://logs.example", "id": "abc123", "delete_token": TOKEN, "title": "Raid night"},
+          {"server": "https://logs.example", "id": "def456", "delete_token": TOKEN, "title": "Field run"},
+          {"server": "https://other.example", "id": "ghi789", "delete_token": TOKEN, "title": "Old arena"}]
+#: The identity credentials kept here, for the share server's characters.
+CLAIMS = [{"server": "https://logs.example", "name": name, "server_name": "2102", "token": "a2id_" + name.lower() * 5,
+           "status": "", "claimed_at": T0} for name in ("Epsilon", "Zeta", "Eta", "Theta")]
+CLAIMS.append({"server": "https://other.example", "name": "Iota", "server_name": "2102", "token": "a2id_" + "iota" * 6,
+               "status": "", "claimed_at": T0})
+
+
+class ShareServer:
+    """The share server's identity routes, as identity.js asks them."""
+
+    def __init__(self):
+        self.asked: list[tuple] = []
+        self.characters = [
+            {"name": "Alpha", "server": "2102", "recordings": 3, "claimable": True, "claimed": False},
+            {"name": "Beta", "server": "1001", "recordings": 1, "claimable": False, "claimed": False},
+            {"name": "Gamma", "server": "2102", "recordings": 4, "claimable": True, "claimed": True,
+             "held_with_these_credentials": False, "latest_recording": T0, "holder_latest_recording": T0 - DAY},
+            {"name": "Delta", "server": "2102", "recordings": 3, "claimable": True, "claimed": True,
+             "held_with_these_credentials": True},
+            {"name": "Epsilon", "server": "2102", "recordings": 5, "claimable": True, "claimed": True}]
+        self.statuses = {
+            "Epsilon": {"status": "active", "verified_at": T0, "recordings": 4, "opt_out": False,
+                        "challenge": {"until": T0 + 7 * DAY}},
+            "Zeta": {"status": "pending", "activates_at": T0 + 7 * DAY},
+            "Eta": {"status": "revoked", "revocation": {"at": T0, "note": "shared account"}}}
+
+    def __call__(self, base, path, method="GET", body=None, token=None):
+        self.asked.append((base, path, method, json.loads(json.dumps(body)), token))
+        if path == "/api/v1/identity/claimable":
+            return {"characters": json.loads(json.dumps(self.characters)), "min_recordings": 3}
+        if path == "/api/v1/identity":
+            name = next(c["name"] for c in CLAIMS if c["token"] == token)
+            if name not in self.statuses:
+                raise ValueError("Unknown identity credential")
+            return json.loads(json.dumps(self.statuses[name]))
+        if path == "/api/v1/identity/claim":
+            return {"token": "a2id_" + body["name"].lower() * 6, "status": "active", "claimed_at": T0}
+        if path in ("/api/v1/identity/preferences", "/api/v1/identity/release", "/api/v1/identity/appeal"):
+            return {"ok": True}
+        raise AssertionError(path)
 
 
 def _red_png() -> bytes:
@@ -100,6 +148,11 @@ class FakeApp:
         self.prints: dict[str, str] = {}
         self.queue_kept = None
         self.uploads = 0
+        self.owners = json.loads(json.dumps(OWNERS))
+        self.states: dict[str, dict] = {}                  # what the log server says of an upload when asked
+        self.owner_refusal = None
+        self.asked: list[dict] = []                        # what was asked of the uploads' servers
+        self.claims = json.loads(json.dumps(CLAIMS))
 
     def fingerprint(self, file):
         return self.prints.get(file) or hashlib.sha256(file.encode()).hexdigest()
@@ -114,6 +167,31 @@ class FakeApp:
             return {"rows": rows[offset:offset + limit], "has_more": offset + limit < len(rows), "archive": archive}
         page = self.recordings if offset == 0 else self.older if offset == limit else []
         return {"rows": json.loads(json.dumps(page)), "has_more": offset == 0 and bool(self.older)}
+
+    def ownership(self, body):
+        """The app's private credentials: imported, forgotten, or used with an upload's server."""
+        if body.get("action") == "import":
+            kept = {(r["server"], r["id"]): r for r in self.owners}
+            for row in body["owners"]:
+                kept[(row["server"], row["id"])] = cb.clean_owner(row)
+            self.owners = list(kept.values())
+            return self.owners
+        owner = body["owner"]
+        if body["action"] == "forget":
+            self.owners = [r for r in self.owners if (r["server"], r["id"]) != (owner["server"], owner["id"])]
+            return self.owners
+        self.asked.append(json.loads(json.dumps(body)))
+        if self.owner_refusal:
+            raise ValueError(self.owner_refusal)
+        state = self.states.setdefault(owner["id"], {"visibility": "unlisted", "url": f"{owner['server']}/log/{owner['id']}"})
+        if body["action"] in ("visibility", "rotate"):
+            state.update(visibility=body["visibility"],
+                         url=f"{owner['server']}/log/{owner['id']}" + ("?key=n3w" if body["visibility"] == "private" else ""))
+        if body["action"] == "appeal":
+            state["appeal"] = {"status": "open", "created_at": T0}
+        if body["action"] == "delete":
+            return {"deleted": True}
+        return json.loads(json.dumps(state))
 
     def get_bytes(self, path, timeout=None):
         self.calls.append(path)
@@ -133,6 +211,10 @@ class FakeApp:
             return {"assets": {PORTRAIT: "game-assets/npc/2001.png"}, "npc_portraits": {"2001": PORTRAIT}}
         if path == "/api/upload-queue":
             return json.loads(json.dumps(self.queue_kept))
+        if path == "/api/log-ownership":
+            return json.loads(json.dumps(self.owners))
+        if path == "/api/identity-claims":
+            return json.loads(json.dumps(self.claims))
         if path.startswith("/api/sessions?"):
             query = urllib.parse.parse_qs(path.split("?", 1)[1], keep_blank_values=True)
             if "fingerprint" in query:
@@ -160,6 +242,12 @@ class FakeApp:
         if path == "/api/upload-queue":
             self.queue_kept = json.loads(json.dumps(body))
             return {"ok": True}
+        if path == "/api/log-ownership":
+            return self.ownership(body)
+        if path == "/api/identity-claims":
+            assert body["action"] == "replace"
+            self.claims = json.loads(json.dumps(body["claims"]))
+            return self.claims
         if path == "/api/sessions/share":
             if body["file"] in self.refusals:
                 raise ValueError(self.refusals.pop(body["file"]))
@@ -171,6 +259,7 @@ class FakeApp:
 
 
 def _page(app, **kwargs):
+    kwargs.setdefault("identity_call", ShareServer())           # never the network
     page = CombatPage(app, **kwargs)
     page.job.interval_ms = 10
     page.resize(1200, 1400)
@@ -226,9 +315,11 @@ def test_the_views_and_lists(qapp):
     _button(page, "Open it on the web page").click()
     assert opened[-1] == "combat"
     next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Browse logs").click()
-    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "My Uploads").click()
-    _button(page, "Open it on the web page").click()
-    assert opened[-1] == "combat/owned"
+    for name, kind in (("My Uploads", OwnedUploads), ("My Character Identities", Identities)):
+        next(b for b in page.findChildren(QPushButton) if b.accessibleName() == name).click()
+        QCoreApplication.processEvents()
+        assert cb.ON_THE_WEB_LIST not in _texts(page)                       # drawn here since 0.2.452
+        assert [w for w in page.findChildren(kind) if w.isVisibleTo(page)]
 
 
 def test_saved_logs(qapp, tmp_path):
@@ -668,7 +759,7 @@ def test_saved_logs_keep_their_queue(qapp, tmp_path):
     settle(lambda: page.queue is not None and not page.queue.busy and page.recorded is not None and not page.recorded.loading)
     queue, recorded = page.queue, page.recorded
     _click(queue, "Select eligible rows on this page")
-    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "My Uploads").click()
+    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Community Combat Logs").click()
     assert not page.saved_panel.isVisible() and cb.ON_THE_WEB_LIST in _texts(page)
     next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Saved Logs").click()
     assert page.queue is queue and page.recorded is recorded and len(queue.selected) == 2     # the same queue
@@ -677,6 +768,329 @@ def test_saved_logs_keep_their_queue(qapp, tmp_path):
     page.show()                                                            # shown again: read again
     settle(lambda: app.calls.count("/api/logs") == logs + 1 and not recorded.loading and not queue.busy)
     assert len(queue.selected) == 2
+
+
+def test_the_my_uploads_and_identities_words():
+    row = {"server": "https://logs.example/", "id": "abc123", "delete_token": TOKEN}
+    assert cb.clean_owner(row) == {"server": "https://logs.example", "id": "abc123", "delete_token": TOKEN, "title": "abc123"}
+    for bad in ({**row, "server": "ftp://logs.example"}, {**row, "server": "https://u:p@logs.example"},
+                {**row, "server": "https://logs.example/?k=1"}, {**row, "id": "abc"}, {**row, "id": "abc-123"},
+                {**row, "delete_token": "short"}, {**row, "delete_token": "t" * 19 + "!"}, {**row, "server": ""}):
+        with pytest.raises(ValueError, match="Invalid original server, ID or private credential"):
+            cb.clean_owner(bad)
+    with pytest.raises(ValueError, match="Invalid upload credential"):
+        cb.clean_owner(None)
+    assert cb.owned_visibility(None) == "unchecked" and cb.owned_visibility({"error": "x", "visibility": "public"}) == "unchecked"
+    f = {"q": "", "server": "", "visibility": ""}
+    assert cb.owned_matches(OWNERS[0], {**f, "q": "RAID"}, None) and cb.owned_matches(OWNERS[0], {**f, "q": "abc1"}, None)
+    assert not cb.owned_matches(OWNERS[0], {**f, "server": "https://other.example"}, None)
+    assert cb.owned_matches(OWNERS[0], {**f, "visibility": "unchecked"}, None)
+    assert cb.owned_matches(OWNERS[0], {**f, "visibility": "private"}, {"visibility": "private"})
+    assert cb.owned_servers(OWNERS) == ["https://logs.example", "https://other.example"]
+    assert cb.owned_page(0, 3) == 0 and cb.owned_page(26, 5) == 1 and cb.owned_pages(26) == 2 and cb.owned_pages(0) == 1
+    assert cb.held(None) == {"lines": [], "appeal": False}
+    assert cb.held({"moderation": {"note": "spam"}}) == {
+        "lines": ["Moderator review: spam. Visibility changes are paused; you can still delete your upload."], "appeal": True}
+    assert cb.held({"moderation": {"note": "spam"}, "appeal": {"status": "open", "created_at": T0}})["lines"][1] == (
+        f"Appeal sent {cb.saved_at(T0)}; a moderator will uphold or overturn the hold.")
+    assert cb.held({"appeal": {"status": "overturned", "decided_at": T0, "note": "fine"}})["lines"] == [
+        f"Appeal overturned {cb.saved_at(T0)}: fine. The upload stays private until you choose its visibility."]
+    assert cb.shared_link({"url": "https://logs.example/log/abc123?key=s"}, "https://logs.example") == \
+        "https://logs.example/log/abc123?key=s"
+    assert cb.shared_link({"url": "https://evil.example/log/abc123"}, "https://logs.example") == ""   # its own server only
+    assert cb.shared_link({"url": "javascript:alert(1)"}, "https://logs.example") == ""
+    assert cb.owned_state(None) == "Refresh to check" and cb.owned_state({"error": "no"}) == "no"
+    assert cb.owned_controls(None) == {"editable": False, "rotate": False, "visibility": "unlisted"}
+    assert cb.owned_controls({"visibility": "private"}) == {"editable": True, "rotate": True, "visibility": "private"}
+    assert cb.owned_controls({"visibility": "public", "moderation": {"note": "x"}})["editable"] is False
+    assert cb.owner_request(OWNERS[0], "appeal", "words") == {"owner": OWNERS[0], "action": "appeal", "statement": "words"}
+    assert cb.owner_request(OWNERS[0], "visibility", "public")["visibility"] == "public"
+    with pytest.raises(ValueError, match="Choose a private combat-log ownership backup"):
+        cb.read_backup({"format": "a2log-owners", "version": True})
+    assert cb.read_backup(cb.owned_backup(OWNERS)) == OWNERS
+    # identities
+    claim = {"server": "https://logs.example/", "name": " Alpha ", "server_name": 2102, "token": "a2id_" + "a" * 20}
+    assert cb.clean_claim(claim) == {"server": "https://logs.example", "name": "Alpha", "server_name": "2102",
+                                     "token": "a2id_" + "a" * 20, "status": "", "claimed_at": 0}
+    for bad, words in (({**claim, "token": "a2id_short"}, "Invalid character name or identity credential"),
+                       ({**claim, "name": "  "}, "Invalid character name or identity credential"),
+                       ({**claim, "server": "logs.example"}, "Invalid server address"), (5, "Invalid identity credential")):
+        with pytest.raises(ValueError, match=words):
+            cb.clean_claim(bad)
+    assert cb.claim_key(" Alpha ", 2102) == "alpha|2102" and cb.claim_key(None, None) == "|"
+    assert cb.evidence(OWNERS, "https://logs.example") == [{"id": "abc123", "delete_token": TOKEN},
+                                                         {"id": "def456", "delete_token": TOKEN}]
+    kept = cb.kept_claims(CLAIMS, {**CLAIMS[0], "status": "active"})
+    assert [c["name"] for c in kept] == ["Zeta", "Eta", "Theta", "Iota", "Epsilon"] and kept[-1]["status"] == "active"
+    assert [c["name"] for c in cb.without_claim(CLAIMS, CLAIMS[1])] == ["Epsilon", "Eta", "Theta", "Iota"]
+    assert cb.world_label("2102") == "Zikel" and cb.world_label("99999") == "99999" and cb.world_label("") == ""
+    server = ShareServer()
+    mine = [c for c in CLAIMS if c["server"] == "https://logs.example"]
+    statuses = {cb.claim_key(c["name"], c["server_name"]): server.statuses.get(c["name"], {"error": "Unknown identity credential"})
+                for c in mine}
+    rows = cb.character_rows(server.characters, mine, statuses)
+    assert [r["name"] for r in rows] == ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta", "Theta"]
+    views = {r["name"]: cb.character_view(r, 3) for r in rows}
+    assert views["Alpha"]["state"] == "Not claimed yet" and views["Alpha"]["actions"] == [("claim", "Claim", True, "")]
+    assert views["Alpha"]["world"] == "Zikel" and views["Alpha"]["recordings"] == "3 of 3"
+    assert views["Beta"]["state"] == "Needs 2 more public recordings where you are the recording player"
+    assert views["Beta"]["actions"] == [("claim", "Claim", False, "")]
+    assert views["Gamma"]["state"] == f"Held by another uploader (their latest recording {cb.saved_at(T0 - DAY)})"
+    assert views["Gamma"]["actions"] == [("claim", "Challenge with newer recordings", True, cb.CHALLENGE_TIP)]
+    assert views["Delta"]["actions"] == [("claim", "Recover", True, "")]
+    assert views["Epsilon"]["state"] == f"<b>Verified</b> since {cb.saved_at(T0)} · 4 recordings"
+    assert "press <b>Renew</b> before" in views["Epsilon"]["notes"][0] and views["Epsilon"]["opt_out"] is False
+    assert [a[1] for a in views["Epsilon"]["actions"]] == ["Renew", "Release"] and views["Epsilon"]["recordings"] == "5 of 3"
+    assert views["Zeta"]["state"].startswith("<b>Pending</b> · becomes yours on") and views["Zeta"]["recordings"] == "0"
+    assert views["Zeta"]["actions"] == [("release", "Withdraw", True, "")]
+    assert views["Eta"]["state"] == f"<b>Revoked</b> by a moderator on {cb.saved_at(T0)}: shared account"
+    assert views["Eta"]["appeal"] is True and [a[1] for a in views["Eta"]["actions"]] == ["Claim with newer recordings", "Forget"]
+    assert views["Theta"]["state"] == "<b>Credential not accepted</b> · Unknown identity credential"
+    assert [a[1] for a in views["Theta"]["actions"]] == ["Claim again", "Forget"]
+    assert cb.character_view({"name": "<b>", "status": {"status": "revoked", "appeal": {"status": "upheld", "note": "<i>"}}},
+                             3)["notes"] == ["Appeal upheld : &lt;i&gt;"]                  # no time said: none shown
+
+
+def _owned(app, tmp_path, answers=(), **kwargs):
+    """My Uploads, its questions answered from ``answers`` (yes when they run out)."""
+    asked = []
+
+    def confirm(words):
+        asked.append(words)
+        return answers[len(asked) - 1] if len(asked) <= len(answers) else True
+    widget = OwnedUploads(app, confirm=confirm, **kwargs)
+    widget.asked = asked
+    widget.resize(1300, 1000)
+    widget.show()
+    settle(lambda: widget.table_box is not None)
+    return widget
+
+
+def _row_buttons(widget, words):
+    QCoreApplication.processEvents()
+    return [b for b in widget.findChildren(QPushButton) if b.text() == words and b.isVisibleTo(widget)]
+
+
+def _visibility_boxes(widget):
+    QCoreApplication.processEvents()
+    return [c for c in widget.findChildren(QComboBox) if c.accessibleName() == "Upload visibility" and c.isVisibleTo(widget)]
+
+
+def test_my_uploads(qapp, tmp_path):
+    opened, links = [], []
+    app = FakeApp()
+    widget = _owned(app, tmp_path, open_web=opened.append, open_link=links.append)
+    texts = _labels(widget)
+    assert widget.fold.button.text() == "My uploads · 3 saved credentials"
+    assert "Raid night · abc123\nhttps://logs.example" in texts and texts.count("Refresh to check") == 3
+    assert [b.isEnabled() for b in _row_buttons(widget, "Save visibility")] == [False, False, False]
+    assert [b.isEnabled() for b in _row_buttons(widget, "Rotate private link")] == [False, False, False]
+    # refreshed: its visibility, its link on its own server, and the controls it allows
+    app.states["abc123"] = {"visibility": "private", "url": "https://logs.example/log/abc123?key=s3cret"}
+    _row_buttons(widget, "Refresh")[0].click()
+    settle(lambda: widget.message == "Current server status loaded.")
+    assert app.asked[-1] == {"owner": OWNERS[0], "action": "refresh", "visibility": "unlisted"}
+    assert "private" in _labels(widget) and _visibility_boxes(widget)[0].currentText() == "private"
+    assert [b.isEnabled() for b in _row_buttons(widget, "Rotate private link")] == [True, False, False]
+    link = next(label for label in widget.findChildren(QLabel) if "Open shared link" in label.text())
+    link.linkActivated.emit("https://logs.example/log/abc123?key=s3cret")
+    assert links == ["https://logs.example/log/abc123?key=s3cret"]
+    # public only once asked; a private link replaced once asked
+    _visibility_boxes(widget)[0].setCurrentText("public")
+    widget.asked.clear()
+    answers = [False]
+    widget.confirm = lambda words: (widget.asked.append(words), answers.pop(0) if answers else True)[1]
+    sent = len(app.asked)
+    _row_buttons(widget, "Save visibility")[0].click()
+    assert widget.asked == [cb.ASK_PUBLIC] and len(app.asked) == sent             # declined: nothing sent
+    _row_buttons(widget, "Save visibility")[0].click()
+    settle(lambda: widget.message == "Privacy updated. Use the displayed link.")
+    assert app.asked[-1]["visibility"] == "public" and "public" in _labels(widget)
+    _visibility_boxes(widget)[0].setCurrentText("private")
+    _row_buttons(widget, "Save visibility")[0].click()
+    settle(lambda: not widget.busy and app.asked[-1]["visibility"] == "private")
+    _row_buttons(widget, "Rotate private link")[0].click()
+    settle(lambda: not widget.busy and app.asked[-1]["action"] == "rotate")
+    assert widget.asked[-1] == cb.ASK_ROTATE and app.asked[-1]["visibility"] == "private"
+    # a hold: why, and one appeal (at least ten characters)
+    app.states["def456"] = {"visibility": "public", "moderation": {"note": "spam reports"}}
+    _row_buttons(widget, "Refresh")[1].click()
+    settle(lambda: not widget.busy and "Moderator review: spam reports. Visibility changes are paused; you can still "
+           "delete your upload." in _labels(widget))
+    assert not _visibility_boxes(widget)[1].isEnabled()
+    assert not _row_buttons(widget, "Send appeal")                         # folded until opened
+    fold = next(s for s in widget.findChildren(Section) if s.button.text() == "Appeal this hold")
+    fold.button.click()
+    appeal = next(w for w in widget.findChildren(QPlainTextEdit))
+    appeal.setPlainText("too short")
+    _row_buttons(widget, "Send appeal")[0].click()
+    assert widget.said.text() == cb.SHORT_APPEAL
+    appeal.setPlainText("These were my own runs, recorded on my own computer.")
+    _row_buttons(widget, "Send appeal")[0].click()
+    settle(lambda: widget.message == cb.APPEAL_SENT)
+    assert [a["action"] for a in app.asked[-2:]] == ["appeal", "refresh"]
+    assert app.asked[-2]["statement"] == "These were my own runs, recorded on my own computer."
+    assert f"Appeal sent {cb.saved_at(T0)}; a moderator will uphold or overturn the hold." in _labels(widget)
+    # a refusal shown where the upload's state was
+    app.owner_refusal = "ValueError: Select this upload's original server in Settings before managing it"
+    _row_buttons(widget, "Refresh")[2].click()
+    settle(lambda: widget.message == app.owner_refusal)
+    assert app.owner_refusal in _labels(widget)
+    app.owner_refusal = None
+    # the filters
+    search = _find(widget, QLineEdit, lambda w: w.accessibleName() == "Title or upload ID")
+    search.setText("field")
+    assert "1 of 3 uploads match." in _labels(widget) and len(_row_buttons(widget, "Refresh")) == 1
+    server = _find(widget, QComboBox, lambda c: c.accessibleName() == "Original server")
+    search.setText("")
+    server.setCurrentIndex(server.findData("https://other.example"))
+    server.activated.emit(server.currentIndex())
+    assert len(_row_buttons(widget, "Refresh")) == 1 and "Old arena · ghi789\nhttps://other.example" in _labels(widget)
+    _find(widget, QPushButton, lambda b: b.text() == "Clear").click()
+    seen = _find(widget, QComboBox, lambda c: c.accessibleName() == "Visibility")
+    seen.setCurrentIndex(seen.findData("private"))
+    seen.activated.emit(seen.currentIndex())
+    assert len(_row_buttons(widget, "Refresh")) == 1 and "1 of 3 uploads match." in _labels(widget)
+    _find(widget, QPushButton, lambda b: b.text() == "Clear").click()
+    # deleted from its server once asked, then forgotten here; another forgotten
+    _row_buttons(widget, "Delete upload")[2].click()
+    settle(lambda: widget.message == "Server upload deleted." and len(widget.rows) == 2)
+    assert widget.asked[-1] == cb.ASK_DELETE and [a["action"] for a in app.asked[-1:]] == ["delete"]
+    _row_buttons(widget, "Forget credential")[1].click()
+    settle(lambda: len(widget.rows) == 1)
+    assert widget.asked[-1] == cb.ASK_FORGET and widget.said.text() == "Local credential forgotten; server log unchanged."
+    _find(widget, QPushButton, lambda b: b.text() == "Open My Uploads on the web page").click()
+    assert opened == ["combat/owned"]
+
+
+def test_my_uploads_backups_and_recovery(qapp, tmp_path):
+    app = FakeApp()
+    saved, backup = tmp_path / "backup.json", tmp_path / "in.json"
+    widget = _owned(app, tmp_path, answers=[False], choose_file=lambda: str(backup), save_file=lambda name: str(saved))
+    _click(widget, "Export private credentials")
+    assert json.loads(saved.read_text(encoding="utf-8")) == {"format": "a2log-owners", "version": 1, "owners": OWNERS}
+    backup.write_text("x" * (cb.OWNED_BACKUP_LIMIT + 1), encoding="utf-8")
+    _click(widget, "Import private backup…")
+    assert widget.said.text() == "Backup exceeds 2 MiB"
+    backup.write_text(json.dumps({"format": "other"}), encoding="utf-8")
+    _click(widget, "Import private backup…")
+    assert widget.said.text() == "Choose a private combat-log ownership backup"
+    more = {"server": "https://logs.example", "id": "jkl012", "delete_token": TOKEN, "title": "Imported"}
+    backup.write_text(json.dumps(cb.owned_backup([more])), encoding="utf-8")
+    _click(widget, "Import private backup…")                               # declined: nothing stored
+    assert widget.asked == [cb.ASK_IMPORT] and len(app.owners) == 3
+    _click(widget, "Import private backup…")
+    settle(lambda: len(widget.rows) == 4)
+    assert widget.said.text() == "Credentials imported. Refresh an upload to verify access."
+    # an older upload's credential, saved from its server, ID and delete token
+    widget.recover_fold.button.click()
+    widget.recover_server.setText("https://logs.example")
+    widget.recover_id.setText("no")
+    widget.recover_token.setText(TOKEN)
+    _click(widget, "Save credential locally")
+    assert widget.said.text() == "Invalid original server, ID or private credential" and len(app.owners) == 4
+    widget.recover_id.setText(" mno345 ")
+    _click(widget, "Save credential locally")
+    settle(lambda: len(widget.rows) == 5)
+    assert widget.said.text() == "Credential saved locally. Refresh to verify it with the original server."
+    assert app.owners[-1] == {"server": "https://logs.example", "id": "mno345", "delete_token": TOKEN, "title": "mno345"}
+    # a page at a time
+    app.owners = [{"server": "https://logs.example", "id": f"log{i:05d}", "delete_token": TOKEN, "title": f"Run {i}"}
+                  for i in range(30)]
+    _click(widget, "Reload saved credentials")
+    settle(lambda: len(widget.rows) == 30)
+    assert "1 / 2" in _labels(widget) and len(_row_buttons(widget, "Refresh")) == 25
+    _click(widget, "Next")
+    assert "2 / 2" in _labels(widget) and len(_row_buttons(widget, "Refresh")) == 5
+    app.owners = []
+    _click(widget, "Reload saved credentials")
+    settle(lambda: not widget.rows)
+    assert cb.NO_OWNED in _labels(widget)
+
+
+def _identities(app, server, answers=()):
+    asked = []
+
+    def confirm(words):
+        asked.append(words)
+        return answers[len(asked) - 1] if len(asked) <= len(answers) else True
+    widget = Identities(app, call=server, confirm=confirm)
+    widget.asked = asked
+    widget.resize(1300, 1000)
+    widget.show()
+    settle(lambda: widget.findChildren(Section))
+    return widget
+
+
+def test_my_character_identities(qapp):
+    app, server = FakeApp(), ShareServer()
+    widget = _identities(app, server, answers=[False])
+    texts = _labels(widget)
+    assert "Your characters · 8" in [s.button.text() for s in widget.findChildren(Section)]
+    assert server.asked[0] == ("https://logs.example", "/api/v1/identity/claimable", "POST",
+                               {"evidence": [{"id": "abc123", "delete_token": TOKEN}, {"id": "def456", "delete_token": TOKEN}]},
+                               None)                               # the share server's uploads only
+    assert [a[4] for a in server.asked[1:]] == [c["token"] for c in CLAIMS[:4]]   # each claim kept for it, by its credential
+    assert cb.identity_note(3, "https://logs.example") in texts and "Not claimed yet" in texts
+    assert "Needs 2 more public recordings where you are the recording player" in texts
+    assert any(t.startswith("Alpha <span") and "· Zikel" in t for t in texts)
+    assert "<b>Credential not accepted</b> · Unknown identity credential" in texts
+    assert not _find(widget, QPushButton, lambda b: b.text() == "Claim" and not b.isEnabled()).isEnabled()   # Beta
+    # a claim: proven by the uploads' credentials, its identity credential kept by the app
+    _find(widget, QPushButton, lambda b: b.text() == "Claim" and b.isEnabled()).click()
+    settle(lambda: any(c["name"] == "Alpha" for c in app.claims) and not widget.busy)
+    claim = next(a for a in server.asked if a[1] == "/api/v1/identity/claim")
+    assert claim[4] is None and claim[1:4] == ("/api/v1/identity/claim", "POST", {
+        "name": "Alpha", "server": "2102", "evidence": [{"id": "abc123", "delete_token": TOKEN},
+                                                        {"id": "def456", "delete_token": TOKEN}]})
+    alpha = next(c for c in app.claims if c["name"] == "Alpha")
+    assert alpha["token"] == "a2id_" + "alpha" * 6 and alpha["server"] == "https://logs.example" and alpha["status"] == "active"
+    assert widget.said.text() == "Claim verified." and widget.message == ""           # said once
+    # hidden in other uploaders' public logs
+    hide = _find(widget, QCheckBox, lambda c: c.accessibleName() == cb.OPT_OUT)
+    hide.setChecked(True)
+    settle(lambda: server.asked[-1][1] != "/api/v1/identity/preferences" and not widget.busy
+           and any(a[1] == "/api/v1/identity/preferences" for a in server.asked))
+    prefs = next(a for a in server.asked if a[1] == "/api/v1/identity/preferences")
+    assert prefs[2:] == ("POST", {"opt_out": True}, CLAIMS[0]["token"])
+    # a release asked first; declined, then done
+    _find(widget, QPushButton, lambda b: b.text() == "Release").click()
+    assert widget.asked == [cb.ASK_RELEASE] and not any(a[1] == "/api/v1/identity/release" for a in server.asked)
+    _find(widget, QPushButton, lambda b: b.text() == "Release").click()
+    settle(lambda: not any(c["name"] == "Epsilon" for c in app.claims) and not widget.busy)
+    assert any(a[1:3] == ("/api/v1/identity/release", "POST") and a[4] == CLAIMS[0]["token"] for a in server.asked)
+    # a revocation appealed (at least ten characters); a credential forgotten
+    fold = next(s for s in widget.findChildren(Section) if s.button.text() == "Appeal the revocation")
+    fold.button.click()
+    text = next(w for w in widget.findChildren(QPlainTextEdit))
+    text.setPlainText("short")
+    _find(widget, QPushButton, lambda b: b.text() == "Send appeal").click()
+    assert widget.said.text() == cb.SHORT_APPEAL
+    text.setPlainText("The account was never shared with anyone.")
+    _find(widget, QPushButton, lambda b: b.text() == "Send appeal").click()
+    settle(lambda: any(a[1] == "/api/v1/identity/appeal" for a in server.asked) and not widget.busy)
+    appeal = next(a for a in server.asked if a[1] == "/api/v1/identity/appeal")
+    assert appeal[3:] == ({"statement": "The account was never shared with anyone."}, CLAIMS[2]["token"])
+    _row_buttons(widget, "Forget")[-1].click()                             # Theta's credential
+    settle(lambda: not any(c["name"] == "Theta" for c in app.claims) and not widget.busy)
+    assert any(c["name"] == "Iota" for c in app.claims)                    # another server's claim stays
+    # no share server
+    app.server["url"] = ""
+    widget.load()
+    settle(lambda: any(cb.NO_SHARE_SERVER == label.text() for label in widget.findChildren(QLabel)))
+
+
+def test_an_upload_reads_my_uploads_and_identities_again(qapp, tmp_path):
+    app = FakeApp()
+    page = _page(app, store=_store(tmp_path))
+    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "My Uploads").click()
+    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "My Character Identities").click()
+    settle(lambda: page.owned is not None and page.owned.table_box is not None and page.identities.findChildren(Section))
+    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Saved Logs").click()
+    settle(lambda: page.queue is not None and not page.queue.busy)
+    lists = app.calls.count("/api/log-ownership")
+    page.queue.uploaded.emit()
+    settle(lambda: app.calls.count("/api/log-ownership") >= lists + 2)    # My Uploads, and the characters' evidence
 
 
 def test_the_window_draws_combat_logs_itself(qapp):
