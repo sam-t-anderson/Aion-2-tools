@@ -19,7 +19,7 @@
 - **The lock** draws the card's edge dashed in green.
 - **When the app does not answer**, the overlay says why and since when over the last reading, with a Retry button.
 
-The chips float over the game with a shadow under their text, which the glow and the halo replace. The web overlay's Windows window has to put each chip on a dark ground of its own; the native window draws them as the web overlay does in a browser. With the sheen on, the colour cycle no longer turns the player names, as on the web overlay.
+The chips float over the game with a shadow under their text (the glow and the halo take its place) and under the toolbar's icons, so they read over a bright game. The web overlay's Windows window has to put each chip on a dark ground of its own; the native window draws them as the web overlay does in a browser. With the sheen on, the colour cycle no longer turns the player names, as on the web overlay.
 
 ## The native overlay's rows and target card (0.2.421)
 

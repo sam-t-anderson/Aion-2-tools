@@ -282,6 +282,17 @@ def test_a_buttons_colour_says_what_it_is_and_how_its_press_went(qapp):
     assert _near(image, "#c9d1db", reach=12) > 10
 
 
+def test_the_icons_lie_over_the_chips_shadow(qapp):
+    shadow = chrome.icon_shadow("close", 16, 16).toImage()
+    pad = chrome.SHADOW_PAD
+    assert shadow.width() == 16 + 2 * pad
+    dark = [shadow.pixelColor(x, y) for y in range(shadow.height()) for x in range(shadow.width())]
+    assert all(pixel.lightness() < 20 for pixel in dark if pixel.alpha() > 20)       # black
+    assert max(pixel.alpha() for pixel in dark) > 150
+    assert shadow.pixelColor(pad + 4, pad + 14).alpha() > 0                           # under the X's lower end
+    assert shadow.pixelColor(pad + 4, pad + 15).alpha() > shadow.pixelColor(pad + 4, pad - 1).alpha()   # dropped
+
+
 def test_the_toolbar_draws_the_icons_and_the_metric_chip(qapp):
     window = _shown(_overlay())
     image = window.grab().toImage()

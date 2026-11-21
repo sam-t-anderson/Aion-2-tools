@@ -19,7 +19,7 @@ from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPainterPath, 
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QAbstractButton, QLayout, QSizePolicy, QToolTip, QWidget
 
-from .look import CHIP_SHADOW, TextLook, _blurred, cycled, draw_text
+from .look import CHIP_SHADOW, TextLook, _blurred, _tinted, cycled, draw_text
 
 TEAL = "#63d3e6"                          # ``--nm-teal``
 TEAL_HOVER = "#9be7f3"
@@ -85,6 +85,34 @@ def icon(name: str, width: float, height: float, colour, ratio: float = 1.0) -> 
         picture.setDevicePixelRatio(ratio)
         if len(_ICONS) > 256:
             _ICONS.clear()
+        _ICONS[key] = picture
+    return picture
+
+
+SHADOW_PAD = 6                            # the room the chips' shadow takes round an icon
+
+
+def icon_shadow(name: str, width: float, height: float, ratio: float = 1.0) -> QPixmap:
+    """The shadow under a toolbar icon: the chips' (``--nm-shadow``), its layers dropped and blurred from the icon's
+    shape, with ``SHADOW_PAD`` of room round it. The web overlay draws its icons as masks, which take no text shadow;
+    there its Windows window sets the toolbar on a dark chip of its own, and a floating icon with no shadow at all
+    would vanish over a bright game."""
+    key = ("shadow", name, round(width * ratio), round(height * ratio), ratio)
+    picture = _ICONS.get(key)
+    if picture is None:
+        shape = QPixmap(math.ceil((width + 2 * SHADOW_PAD) * ratio), math.ceil((height + 2 * SHADOW_PAD) * ratio))
+        shape.setDevicePixelRatio(ratio)
+        shape.fill(Qt.transparent)
+        painter = QPainter(shape)
+        painter.drawPixmap(QPointF(SHADOW_PAD, SHADOW_PAD), icon(name, width, height, "#ffffff", ratio))
+        painter.end()
+        picture = QPixmap(shape.size())
+        picture.setDevicePixelRatio(ratio)
+        picture.fill(Qt.transparent)
+        painter = QPainter(picture)
+        for colour, dy, blur in CHIP_SHADOW:
+            painter.drawPixmap(QPointF(0, dy), _tinted(_blurred(shape, blur), colour))
+        painter.end()
         _ICONS[key] = picture
     return picture
 
@@ -377,8 +405,10 @@ class IconButton(QAbstractButton):
             painter.fillPath(path, HOVER_GROUND)
         side = 16 * self.scale
         box = QRectF((self.width() - side) / 2, (self.height() - side) / 2, side, side)
-        picture = icon(self.icon_name, side, side, self.shown_colour(), self.devicePixelRatioF())
-        painter.drawPixmap(box.topLeft(), picture)
+        ratio = self.devicePixelRatioF()
+        painter.drawPixmap(box.topLeft() - QPointF(SHADOW_PAD, SHADOW_PAD),
+                           icon_shadow(self.icon_name, side, side, ratio))
+        painter.drawPixmap(box.topLeft(), icon(self.icon_name, side, side, self.shown_colour(), ratio))
 
 
 class MetricChip(QAbstractButton):
