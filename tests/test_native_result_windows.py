@@ -1,7 +1,8 @@
-"""The native result windows' second and third parts (0.2.435, 0.2.436): a saved build's Daevanion, Equipment,
-Arcana and Titles, wings & pet windows as pages/results.js draws them (``winDaevanion``, ``slotTile``, ``winEquipment``,
-``winArcana``, ``winTitles``), off screen, over the app's own result view of the bundled sorcerer build, and that build
-dressed with every slot extra, arcana card and the pet the web page shows.
+"""The native result windows' second to fourth parts (0.2.435 to 0.2.437): a saved build's Daevanion, Equipment,
+Arcana, Titles, wings & pet, Skills hotbar and Macro & rotation windows as pages/results.js draws them
+(``winDaevanion``, ``slotTile``, ``winEquipment``, ``winArcana``, ``winTitles``, ``winHotbar``, ``winMacro``), off
+screen, over the app's own result view of the bundled sorcerer build, and that build dressed with every slot extra,
+arcana card and the pet the web page shows.
 """
 import copy
 import json
@@ -399,3 +400,110 @@ def test_the_titles_window(qapp, dressed):
     assert _rgb(ranking.item(0, 0).foreground().color()) == _rgb(QColor("#e9a43a"))
     assert _rgb(ranking.item(0, 2).foreground().color()) == _rgb(QColor(theme.COLORS["muted"]))
     assert _button(windows, "Copy as text") is None
+
+
+def test_the_hotbar_and_macro_words(view):
+    rows = r.hotbar_rows(view)
+    assert len(rows) == 1 and rows[0][0] == "0" and [s and s["binding"] for s in rows[0][1]] == ["1", "2", "3", "4"] + [None] * 8
+    many = r.hotbar_rows({"hotbar": {"slots": [{"binding": str(i)} for i in range(13)]}})
+    assert [number for number, _slots in many] == ["1", "0"] and many[0][1][0]["binding"] == "12"     # the last row first
+    slots = view["hotbar"]["slots"]
+    assert [r.hotbar_note(s) for s in slots] == ["Hold to charge"] + ["Macro key: 4 skills, cast in order"] * 3
+    assert (r.hotbar_note({"manual": True}), r.hotbar_note({"stack": [{}]}), r.hotbar_note({})) == ("Manual", "Macro", "Macro")
+    assert r.hotbar_tip(slots[0]) == "Hellfire (charge 3) — Manual; hold to charge" and r.hotbar_tip({"name": "X"}) == "X — Macro"
+    assert (r.hotbar_key(slots[1]), r.hotbar_level(slots[1]), r.hotbar_level({})) == ("2", "Lv 20", "Lv —")
+    assert r.hotbar_copy(view).split("\n") == [
+        "1: Hellfire (charge 3) (manual hold to charge)", "2: Flame Scattershot › Fire Wall › Bittercold Wind › Frost (macro)",
+        "3: Element Enhancement › Cold Storm › Wish of Concentration › Blaze (macro)",
+        "4: Winter's Shackles › Delayed Explosion › Frost Burst › Firestorm (macro)", "Suggested macro key: Right-click"]
+    assert r.hotbar_reserve(view).startswith("Reserve <span style='font-family: monospace;'>Right-click</span> for the macro")
+    # the macro: each key once, the skills it holds, the manual skill, the estimate and the priority
+    lines = r.macro_lines(view)
+    assert [s["binding"] for s in lines] == ["2", "3", "4"] and [len(r.held(s)) for s in lines] == [4, 4, 4]
+    twice = {"rotation": {"steps": [lines[0], lines[0], {"binding": "Assign key", "key": "a"}, {"binding": "Assign key", "key": "b"},
+                                    {"binding": "Assign key", "key": "a"}]}}
+    assert [s.get("key") or s["binding"] for s in r.macro_lines(twice)] == ["flame_scattershot", "a", "b"]
+    assert r.held({"stack": []}) == [] and r.held({"name": "One"}) == [{"name": "One"}]          # an empty stack holds none
+    assert r.chain_note({"chain_of": "Blaze"}) == "Blaze’s chain: press Blaze again while the chain is open"
+    assert [r.cast_note(i, n) for i, n in ((0, 1), (0, 4), (2, 4))] == [
+        "", "cast first, skipped if it cannot be cast", "then this one, skipped if it cannot be cast"]
+    hellfire = r.manual_skills(view)[0]
+    assert r.manual_words(hellfire) == "Hold this skill’s key to charge level 3, then release. Never add it as a macro tap."
+    assert r.manual_words({"charged": True}) == "Hold this skill’s key to charge, then release. Never add it as a macro tap."
+    assert r.manual_words({"condition": "at 60% MP"}) == "Press manually when ready. Use at 60% MP."
+    assert r.macro_estimate(view) == ("Estimated macro + manual execution: 96.6% of the ideal priority rotation. This assumes "
+                                      "you use the manual skills, including their charges.")
+    shares = [r.macro_estimate({"macro": m}).split(": ")[1].split(" of")[0] for m in (
+        {"dps_macro": 5, "dps_priority": 0}, {"dps_macro": 0, "dps_priority": 0}, {"dps_macro": None, "dps_priority": 4},
+        {"dps_priority": 4}, {"dps_macro": -1, "dps_priority": 0})]
+    assert shares == ["Infinity%", "—", "0.0%", "—", "-Infinity%"]                                 # as JavaScript divides
+    assert r.macro_estimate({"macro": {"needs_refresh": True}}) == r.REFRESH
+    assert r.priority_items(view)[0] == ("Blaze", ["with Element Enhancement timing"]) and len(r.priority_items(view)) == 15
+    assert r.priority_items({"rotation": {"priority": [{"name": "C", "chain_of": "B", "condition": "x"}]}}) == [("C", ["B’s chain", "x"])]
+    assert r.macro_copy(view).split("\n") == [
+        "1. hotbar key 2: Flame Scattershot > Fire Wall > Bittercold Wind > Frost; delay 10 ms",
+        "2. hotbar key 3: Element Enhancement > Cold Storm > Wish of Concentration > Blaze; delay 10 ms",
+        "3. hotbar key 4: Winter's Shackles > Delayed Explosion > Frost Burst > Firestorm; delay 10 ms",
+        "Manual: Hellfire (charge 3) (1; hold to charge)"]
+    assert r.macro_instructions(view)[3].endswith("(suggested: <span style='font-family: monospace;'>Right-click</span>).")
+    assert r.has_macro(view) and not r.has_macro({"macro": {}}) and r.has_macro({"macro": {}, "rotation": {}})
+
+
+def test_the_hotbar_window(qapp, view):
+    app, page, windows = _windows(view, "hotbar")
+    texts = _texts(windows)
+    assert r.HOTBAR_SUB in texts and r.HOTBAR_INTRO in texts and r.HOTBAR_MANUAL in texts and r.hotbar_reserve(view) in texts
+    slots = _shown(windows, w.HotbarSlot)
+    assert [s.objectName() for s in slots] == ["hotbarManual"] + ["hotbarSlot"] * 3 + ["hotbarEmpty"] * 8
+    assert slots[0].toolTip() == "Hellfire (charge 3) — Manual; hold to charge"
+    assert [l.text() for l in _shown(slots[0], QLabel)] == ["Hold to charge"] and _shown(slots[4], QLabel)[0].text() == "+"
+    icons = [s.findChildren(w.HotbarIcon)[0] for s in slots[:4]]
+    assert [(i.key, i.level, i.width()) for i in icons] == [("1", "Lv 20", 58), ("2", "Lv 20", 58), ("3", "Lv 20", 58), ("4", "Lv 14", 58)]
+    settle(lambda: all(i.pixmap is not None for i in icons))
+    assert len({s.width() for s in slots}) == 1                                    # twelve columns alike
+    name = slots[1].findChildren(w.AnywhereText)[0]
+    assert name.text == "Flame Scattershot › Fire Wall › Bittercold Wind › Frost"
+    assert name.heightForWidth(40) > name.heightForWidth(400)                     # a word wider than the line breaks
+    scroller = _shown(windows, w.Across)[0]
+    settle(lambda: scroller.height() > 100)
+    assert scroller.widget().minimumSizeHint().width() >= 24 + 12 * 70            # scrolled across on a narrow window
+    _button(windows, "Copy as text").click()
+    assert windows.copied == [r.hotbar_copy(view)]
+    _app, _page_, empty = _windows({k: v for k, v in view.items() if k != "hotbar"}, "hotbar")
+    assert r.NO_HOTBAR in _texts(empty) and _button(empty, "Copy as text") is None
+
+
+def test_the_macro_window(qapp, view):
+    app, page, windows = _windows(view, "macro")
+    texts = _texts(windows)
+    titles = [label.text() for label in _shown(windows, QLabel, "winTitle")]
+    assert titles == ["SKILL MACRO & ROTATION"] and "Macro" in texts and "Save to Right-click in game" in texts
+    assert any(text.startswith("<ol") and "Skill Queue" in text for text in texts)
+    assert [l.text() for l in _shown(windows, QLabel, "macroNumber")] == ["1", "2", "3"]
+    assert [l.text() for l in _shown(windows, QLabel, "macroDelay")] == ["10", "10"]
+    icons = _shown(windows, w.HotbarIcon)
+    assert [i.width() for i in icons] == [72] * 12 + [58] and [i.key for i in icons[:5]] == ["2", "2", "2", "2", "3"]
+    assert texts.count("cast first, skipped if it cannot be cast") == 3 and texts.count("then this one, skipped if it cannot be cast") == 9
+    assert "Hotbar key <span style='font-family: monospace;'>2</span>" in texts
+    assert r.manual_words(view["rotation"]["manual"][0]) in texts and r.macro_estimate(view) in texts
+    for words in (r.MANUAL_HEAD, r.READY_HEAD, r.READY_NOTE):
+        assert words in texts
+    priority = next(text for text in texts if text.startswith("<ol") and "Flame Arrow" in text)
+    assert priority.count("<li>") == 15 and f"<span style='color: {theme.COLORS['muted']};'>(when MP is at least 60%)</span>" in priority
+    _button(windows, "Copy as text").click()
+    assert windows.copied == [r.macro_copy(view)]
+    # the editor above its side on a narrow window (it stacks under 1050 px, after the others), beside it on a wide
+    # one, at most 480 px
+    split = next(s for s in _shown(windows, w.Split) if any(isinstance(p, QFrame) and p.objectName() == "macroEditor" for p in s.parts))
+    editor, side = split.parts
+    assert split.narrow is False and split.width() > w.MACRO_NARROW                   # 1,100 px: still side by side
+    page.resize(1000, 1500)
+    settle(lambda: split.narrow is True)
+    QCoreApplication.processEvents()
+    assert editor.geometry().bottom() < side.geometry().top()
+    page.resize(1500, 1500)
+    settle(lambda: split.narrow is False)
+    QCoreApplication.processEvents()
+    assert editor.width() == 480 and editor.geometry().right() < side.geometry().left()
+    _app, _page_, empty = _windows({k: v for k, v in view.items() if k != "rotation"}, "macro")
+    assert r.NO_MACRO in _texts(empty) and [l.text() for l in _shown(empty, QLabel, "winTitle")] == ["SKILL MACRO"]
