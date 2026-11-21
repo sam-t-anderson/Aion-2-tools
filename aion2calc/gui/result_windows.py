@@ -888,6 +888,11 @@ class GenusRing(QWidget):
     def sizeHint(self) -> QSize:
         return QSize(320, 320)
 
+    def set_group(self, group) -> None:
+        """The ring drawn again for the genus's lines as they now are (the Genus editor's, as they are typed)."""
+        self.nodes, self.level = r.ring_nodes(group), r.genus_level(group)
+        self.update()
+
     def _spot(self, index: int) -> QPointF:
         angle = math.radians(-90 + index * 40)
         return QPointF(160 + 124 * math.cos(angle), 160 + 124 * math.sin(angle))
