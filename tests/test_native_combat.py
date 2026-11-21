@@ -1047,7 +1047,7 @@ def test_my_character_identities(qapp):
     assert alpha["token"] == "a2id_" + "alpha" * 6 and alpha["server"] == "https://logs.example" and alpha["status"] == "active"
     assert widget.said.text() == "Claim verified." and widget.message == ""           # said once
     # hidden in other uploaders' public logs
-    hide = _find(widget, QCheckBox, lambda c: c.text() == cb.OPT_OUT)
+    hide = _find(widget, QCheckBox, lambda c: c.accessibleName() == cb.OPT_OUT)
     hide.setChecked(True)
     settle(lambda: server.asked[-1][1] != "/api/v1/identity/preferences" and not widget.busy
            and any(a[1] == "/api/v1/identity/preferences" for a in server.asked))

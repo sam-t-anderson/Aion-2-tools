@@ -117,6 +117,48 @@ def _rich(text: str, name: str = "") -> QLabel:
     return label
 
 
+def _cell(spacing: int = 4) -> tuple[QWidget, QVBoxLayout]:
+    """A table cell across its column, its parts kept together in the middle of the row (``vertical-align: middle``);
+    ``_close`` ends it."""
+    cell = QWidget()
+    cell.setObjectName("plain")
+    cell.setProperty("fill", True)
+    column = QVBoxLayout(cell)
+    column.setContentsMargins(0, 0, 0, 0)
+    column.setSpacing(spacing)
+    column.addStretch(1)
+    return cell, column
+
+
+def _close(column: QVBoxLayout) -> None:
+    column.addStretch(1)
+
+
+class WrapCheck(QWidget):
+    """A tick box whose words wrap in their column (a ``label`` around an ``input type="checkbox"``)."""
+
+    def __init__(self, words: str, checked: bool, enabled: bool, toggled, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("plain")
+        line = QHBoxLayout(self)
+        line.setContentsMargins(0, 0, 0, 0)
+        line.setSpacing(6)
+        self.box = QCheckBox()
+        self.box.setAccessibleName(words)
+        self.box.setChecked(checked)
+        self.box.setEnabled(enabled)
+        self.box.toggled.connect(toggled)
+        self.words = _label(words)
+        self.words.setEnabled(enabled)
+        line.addWidget(self.box, 0, Qt.AlignTop)
+        line.addWidget(self.words, 1)
+
+    def mousePressEvent(self, event) -> None:           # its words tick it too
+        if self.box.isEnabled():
+            self.box.toggle()
+        super().mousePressEvent(event)
+
+
 def _note_box(text: str) -> QFrame:
     """A note inside a row (``p.note``)."""
     box = QFrame()
@@ -368,11 +410,7 @@ class OwnedUploads(QFrame):
     def _state(self, index: int, row: dict) -> QWidget:
         """An upload's visibility or why it could not be read, its shared link, and a hold with its appeal."""
         status = self.status.get(cb.owner_key(row))
-        cell = QWidget()
-        cell.setObjectName("plain")
-        column = QVBoxLayout(cell)
-        column.setContentsMargins(0, 0, 0, 0)
-        column.setSpacing(3)
+        cell, column = _cell(3)
         column.addWidget(_label(cb.owned_state(status)))
         link = cb.shared_link(status, js_text(row.get("server")))
         if link:
@@ -386,6 +424,7 @@ class OwnedUploads(QFrame):
         if hold["appeal"]:
             column.addWidget(_Appeal("Appeal this hold", lambda text, index=index: self.appeal(index, text),
                                      enabled=not self.busy))
+        _close(column)
         return cell
 
     def _controls(self, index: int, row: dict) -> QWidget:
@@ -396,9 +435,13 @@ class OwnedUploads(QFrame):
         seen.addItems(list(cb.OWNED_CHOICES))
         seen.setCurrentText(allowed["visibility"])
         seen.setEnabled(allowed["editable"] and not busy)
-        cell = QWidget()
-        cell.setObjectName("plain")
-        grid = QGridLayout(cell)
+        cell, column = _cell()
+        cell.setProperty("fill", False)                     # the controls as wide as they need
+        tools = QWidget()
+        tools.setObjectName("plain")
+        column.addWidget(tools)
+        _close(column)
+        grid = QGridLayout(tools)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setHorizontalSpacing(6)
         grid.setVerticalSpacing(4)
@@ -613,7 +656,7 @@ class Identities(QFrame):
         fold = Section(f"Your characters · {len(self.rows)}", None, True)
         fold.body_layout.addWidget(_label(cb.identity_note(self.minimum, self.base), "small"))
         cells = [self._cells(index, row) for index, row in enumerate(self.rows)]
-        fold.body_layout.addWidget(GridTable(cb.CHARACTER_COLUMNS, cells, {0: 2, 2: 3, 3: 3}, left=True))
+        fold.body_layout.addWidget(GridTable(cb.CHARACTER_COLUMNS, cells, {0: 1, 2: 3, 3: 2}, left=True))
         if not cells:
             fold.body_layout.addWidget(_label(cb.NO_CHARACTERS, "tcell"))
         said = _label(self.message, "small")
@@ -627,25 +670,15 @@ class Identities(QFrame):
         view = cb.character_view(row, self.minimum)
         name = cb.html_text(view["name"]) + (f" <span style='color: {theme.COLORS['muted']};'>· {cb.html_text(view['world'])}</span>"
                                              if view["world"] else "")
-        state = QWidget()
-        state.setObjectName("plain")
-        column = QVBoxLayout(state)
-        column.setContentsMargins(0, 0, 0, 0)
-        column.setSpacing(4)
+        state, column = _cell()
         column.addWidget(_rich(view["state"]))
         for note in view["notes"]:
             column.addWidget(_note_box(note))
-        actions = QWidget()
-        actions.setObjectName("plain")
-        stack = QVBoxLayout(actions)
-        stack.setContentsMargins(0, 0, 0, 0)
-        stack.setSpacing(4)
+        _close(column)
+        actions, stack = _cell()
         if "opt_out" in view:
-            hide = QCheckBox(cb.OPT_OUT)
-            hide.setChecked(view["opt_out"])
-            hide.setEnabled(not self.busy)
-            hide.toggled.connect(lambda checked: self.opt_out(index, checked))
-            stack.addWidget(hide)
+            stack.addWidget(WrapCheck(cb.OPT_OUT, view["opt_out"], not self.busy,
+                                      lambda checked: self.opt_out(index, checked)))
         if view.get("appeal"):
             stack.addWidget(_Appeal("Appeal the revocation", lambda text: self.appeal(index, text), enabled=not self.busy))
         buttons = []
@@ -655,6 +688,7 @@ class Identities(QFrame):
                 button.setToolTip(tip)
             buttons.append(button)
         stack.addWidget(_row(*buttons))
+        _close(stack)
         return [_rich(name), view["recordings"], state, actions]
 
     # ---------------------------------------------------------------- actions
