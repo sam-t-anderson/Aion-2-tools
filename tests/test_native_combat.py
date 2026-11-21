@@ -2,8 +2,9 @@
 file with its progress, the logs folder, the log server shared to, the encounters analyzed), as pages/combat.js shows
 them; since 0.2.451 Saved Logs' recorded encounters by type (saved-logs.js) and its upload queue (archive-upload.js);
 since 0.2.452 My Uploads (log-ownership.js) and My Character Identities (identity.js); since 0.2.453 the community's
-views (logs-view.js). Off screen over a fake app answering as the app does, a fake share server and a fake log server
-behind the app's community proxy (made-up logs, recordings, credentials, characters and encounters).
+views (logs-view.js); since 0.2.454 Personal records (community.js). Off screen over a fake app answering as the app
+does, a fake share server and a fake log server behind the app's community proxy (made-up logs, recordings, credentials,
+characters and encounters).
 """
 import gzip
 import hashlib
@@ -25,7 +26,9 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QLabel, QLine
 
 from aion2calc.gui import combat as cb  # noqa: E402
 from aion2calc.gui import combat_views as cv  # noqa: E402
+from aion2calc.gui import combat_records as cr  # noqa: E402
 from aion2calc.gui.combat_community import BossProgression, BuildPoints, CommunityLogs, RunSpeed  # noqa: E402
+from aion2calc.gui.combat_extras import BoxPlot, PersonalRecords, TrendChart  # noqa: E402
 from aion2calc.gui.combat_page import CombatPage  # noqa: E402
 from aion2calc.gui.combat_owned import Identities, OwnedUploads  # noqa: E402
 from aion2calc.gui.combat_saved import RecordedEncounters, Section, UploadQueue  # noqa: E402
@@ -79,6 +82,45 @@ PVP_LOGS = [{"id": "log0003", "created_at": T0, "contexts": [
     {"segment": 1, "boss": "Combat 2", "encounter_type": "pvp_unknown", "duration": 12}]}]
 
 
+#: The log server's answers for Personal records.
+PERFORMANCE = {"note": "Recorded rates.", "samples": 12, "excluded_unknown_metadata": 1, "groups": [
+    {"boss": "Ice Queen", "boss_key": "npc:2001", "encounter_type": "sanctuary", "game_patch": "version:product:2.1.0.3.9",
+     "difficulty": "Hard", "party_size": 4, "instance_id": 7, "class": "cleric", "min": 1000, "q1": 2000, "median": 2500,
+     "q3": 3000, "max": 4000, "count": 3, "comparison": {"status": "thin", "identities": 2, "reasons": ["Too few parses."]}},
+    {"boss": "Ice Queen", "boss_key": "npc:2001", "encounter_type": "sanctuary", "game_patch": "version:product:2.1.0.3.9",
+     "difficulty": "Hard", "party_size": 4, "instance_id": 7, "class": "sorcerer", "min": 5000, "q1": 6000, "median": 7000,
+     "q3": 8000, "max": 9000, "count": 9, "comparison": {"status": "available", "identities": 6}},
+    {"boss": "Ash Wyrm", "class": "ranger", "min": 10, "q1": 20, "median": 30, "q3": 40, "max": 50, "count": 1}]}
+BOSS_STATUS = {"generated_at": T0, "truncated": True, "groups": [
+    {"boss": "Ice Queen", "npc_id": "2001", "region": "NA", "game_patch": "version:product:2.1", "map_id": 300,
+     "instance_id": 7, "last_defeat_at": T0 - 3600, "seconds_since_defeat": 7200, "observed_defeats": 3,
+     "party_observations": 5, "last_log_id": "log0001", "last_segment": 2,
+     "latest_observation": {"timing_basis": "server_clock", "engaged_roster_members": 4, "recorded_roster_members": 6,
+                            "party_roster_complete": True}},
+    {"boss": None, "npc_id": None, "last_log_id": "bad id"}]}
+RECORDS = {"identity": "TestSorc on Zikel", "note": "Public submissions only.", "total": 120, "records": [
+    {"boss": "Ice Queen", "log": "log0001", "encounter_type": "sanctuary", "game_patch": "version:product:2.1",
+     "difficulty": "Hard", "party_size": 4, "instance_id": 7, "class": "sorcerer", "best_score": 41234.6, "attempts": 3}],
+    "history": [{"boss": "Ice Queen", "log_id": "log0001", "name": "TestSorc", "verified": True, "server": 2102,
+                 "score": 41234.6, "ranking_eligible": True, "created_at": T0},
+                {"boss": "Ash Wyrm", "log_id": "log0002", "name": "Hidden", "pseudonym": True, "server": 99999,
+                 "dps": 900, "ranking_eligible": False}]}
+CONSISTENCY = {"note": "Matched recordings.", "identity": "TestSorc on Zikel", "metric": "dps", "excluded_missing_evidence": 2,
+               "groups": [{"boss": "Ice Queen", "class_name": "sorcerer", "game_patch": "version:product:2.1",
+                           "difficulty": "Hard", "party_size": 4, "instance_id": 7, "samples": 3, "median": 40000,
+                           "min": 30000, "max": 50000, "coefficient_of_variation_pct": 12.345,
+                           "median_absolute_deviation": 5000, "standard_deviation": 6000, "recent_five_median": None,
+                           "previous_five_median": None, "change_pct": None, "variation_available": False,
+                           "trend_available": False, "omitted_history": 0, "observed_death_markers": 1,
+                           "samples_with_death_markers": 1,
+                           "history": [{"uploaded_at": T0 - 2 * DAY, "score": 30000, "recorded_deaths": None,
+                                        "log": "log0002", "segment": 0},
+                                       {"uploaded_at": T0 - DAY, "score": 50000, "recorded_deaths": 1, "log": "log0001",
+                                        "segment": 2},
+                                       {"uploaded_at": T0, "score": 40000, "recorded_deaths": 0, "log": "log0001",
+                                        "segment": 3}]}]}
+
+
 class LogServer:
     """The log server's public routes behind the app's community proxy, as logs-view.js asks them."""
 
@@ -91,7 +133,7 @@ class LogServer:
                        "difficulty": ["normal", "Hard", "easy"],
                        "encounter_type": ["sanctuary", "pve_open_world", "pvp_arena", "pvp_abyss"],
                        "region": ["NA", "EU"], "game_patch": ["version:product:2.1", "version:product:2.0"],
-                       "party_size": [4, 8]}
+                       "party_size": [4, 8], "latest_submitted_patch": "version:product:2.1"}
         self.speed = {"entries": [
             {"rank": 1, "count": 3, "boss_route": ["iq", "fh"], "attempts": [{"boss_key": "iq", "boss": "Ice Queen"}],
              "encounter_type": "sanctuary", "difficulty": "Hard", "elapsed_seconds": 1234, "party_size": 4, "log": "log0001"},
@@ -130,6 +172,14 @@ class LogServer:
             return json.loads(json.dumps(self.progression))
         if route == "/api/v1/progression":
             return json.loads(json.dumps(self.points))
+        if route == "/api/v1/performance":
+            return json.loads(json.dumps(PERFORMANCE))
+        if route == "/api/v1/boss-status":
+            return json.loads(json.dumps(BOSS_STATUS))
+        if route == "/api/v1/records":
+            return json.loads(json.dumps(RECORDS))
+        if route == "/api/v1/consistency":
+            return json.loads(json.dumps(CONSISTENCY))
         raise AssertionError(path)
 TOKEN = "t" * 24
 #: The private credentials of this computer's uploads, on two servers.
@@ -287,6 +337,8 @@ class FakeApp:
                     "npc_portraits": {"2001": PORTRAIT}}
         if path.startswith("/api/community?path="):
             return self.log_server(urllib.parse.unquote(path.split("=", 1)[1]))
+        if path == "/api/ui":
+            return {"combat_colors": {"enabled": True, "colors": {"sorcerer": "#123456"}}}
         if path == "/api/upload-queue":
             return json.loads(json.dumps(self.queue_kept))
         if path == "/api/log-ownership":
@@ -388,14 +440,10 @@ def test_the_views_and_lists(qapp):
     QCoreApplication.processEvents()
     assert [w for w in page.findChildren(CommunityLogs) if w.isVisibleTo(page)]   # drawn here since 0.2.453
     for name, kind in (("Completed-run speed", RunSpeed), ("Boss progression", BossProgression),
-                       ("Highest observed build points", BuildPoints)):
+                       ("Highest observed build points", BuildPoints), ("Personal records", PersonalRecords)):
         next(b for b in page.findChildren(QPushButton) if b.accessibleName() == name).click()
         QCoreApplication.processEvents()
-        assert cb.ON_THE_WEB_VIEW not in _texts(page) and [w for w in page.findChildren(kind) if w.isVisibleTo(page)]
-    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Personal records").click()
-    assert cb.ON_THE_WEB_VIEW in _texts(page)                       # Personal records: on the web page for now
-    _button(page, "Open it on the web page").click()
-    assert opened == ["combat"]
+        assert [w for w in page.findChildren(kind) if w.isVisibleTo(page)]     # every view drawn here since 0.2.454
     next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Browse logs").click()
     for name, kind in (("My Uploads", OwnedUploads), ("My Character Identities", Identities)):
         next(b for b in page.findChildren(QPushButton) if b.accessibleName() == name).click()
@@ -1357,6 +1405,153 @@ def test_run_speed_boss_progression_and_build_points(qapp, tmp_path):
     app.log_server.points = {"observations": []}
     points.refresh()
     settle(lambda: cv.NO_POINTS in _labels(points))
+
+
+def test_the_personal_records_words():
+    assert cr.build_label("version:product:2.1.0.3.9") == "Product version 2.1.0.3"
+    assert cr.build_label("build:steam:123:456 / build:purple:A2_LIVE_PURPLE:789") == (
+        "Legacy build 456 · Steam / Legacy build 789 · PURPLE")
+    assert cr.n(1234.5) == "1,235" and cr.n(None) == "0" and cr.value_or_unavailable(None) == "Unavailable"
+    assert cr.filter_name("game_patch") == "game version" and cr.filter_name("party_size") == "party size"
+    facets = LogServer().facets
+    assert cr.filter_choices("metric", facets) == [("dps", "dps"), ("hps", "hps"), ("dtps", "dtps")]
+    assert cr.filter_choices("encounter_type", facets)[:2] == [("", "All"), ("unknown", "Unknown")]
+    assert cr.filter_choices("game_patch", facets) == [("", "All"), ("version:product:2.1", "Product version 2.1"),
+                                                       ("version:product:2.0", "Product version 2.0")]
+    assert cr.filter_choices("party_size", facets) == [("", "All"), ("4", "4"), ("8", "8")]
+    query = {"combat_mode": "pve", "metric": "dps", "game_patch": "v", "encounter_type": "sanctuary"}
+    assert cr.query_after(query, "encounter_type", "pvp_arena")["combat_mode"] == "pvp"   # a type sets its mode
+    assert cr.query_after(query, "combat_mode", "pvp")["encounter_type"] == ""            # a mode clears the type
+    assert cr.params({"combat_mode": "pve", "boss": "", "metric": "dps"}) == "combat_mode=pve&metric=dps"
+    groups = cr.server_groups()
+    assert groups[0][0] == "North America · Elyos" and groups[1][0] == "North America · Asmodian"
+    assert ("2102", "Zikel") in groups[1][1] and [g for g, _ in groups].count("Europe · Elyos") == 1
+    assert cr.class_colour("Sorcerer", {"colors": {"sorcerer": "#123456"}}) == "#123456"
+    assert cr.class_colour("cleric", {}) == "#ffffff" and cr.class_colour("cleric", {"enabled": False}) == cr.GOLD
+    assert cr.class_colour("ranger", {"colors": {"ranger": "red"}}) == cr.GOLD and cr.class_colour(None, {}) == cr.GOLD
+    assert cr.local_time(None) == "Timestamp unavailable" and cr.age(30) == "Less than a minute ago"
+    assert cr.age(150) == "2 minutes ago" and cr.age(7200) == "2 hours ago" and cr.age(3 * DAY) == "3 days ago"
+    assert cr.age("soon") == "Age unavailable"
+    # the recorded boss defeats
+    assert cr.bosses_path({"game_patch": "v1", "region": "NA", "boss": "x"}) == "/api/v1/boss-status?game_patch=v1&region=NA"
+    assert [g["npc_id"] for g in cr.boss_groups(BOSS_STATUS, "2001")] == ["2001"]
+    assert len(cr.boss_groups(BOSS_STATUS, " ")) == 2 and cr.boss_groups(BOSS_STATUS, "frost") == []
+    assert cr.bosses_message(BOSS_STATUS, 2) == (f"2 displayed boss/context groups. Snapshot {cb.saved_at(T0)} (local time)."
+                                                 " Results capped; search filters only the displayed groups.")
+    queen, nameless = (cr.boss_row(g) for g in BOSS_STATUS["groups"])
+    assert queen == {"boss": "Ice Queen", "npc": "2001", "region": "NA", "build": "Product version 2.1", "place": "300 / 7",
+                     "defeated": cb.saved_at(T0 - 3600), "age": "2 hours ago", "basis": "server clock",
+                     "observations": "3 / 5", "engaged": "4 engaged", "roster": "6 recorded roster members (complete)",
+                     "log": "log0001", "source": "Open log · encounter 3"}
+    assert (nameless["boss"], nameless["npc"], nameless["region"], nameless["place"]) == (
+        "Unnamed boss", "ID unavailable", "Unknown region", "Unknown / Unknown")
+    assert nameless["log"] is None and nameless["source"] == "Source unavailable"
+    assert nameless["roster"] == "Party roster unavailable" and nameless["build"] == "Unknown game version"
+    # class performance
+    assert cr.performance_note(PERFORMANCE) == "Recorded rates. 12 samples; 1 excluded for missing metadata."
+    buckets = cr.performance_buckets(PERFORMANCE)
+    assert [title for title, _ in buckets] == [
+        "Ice Queen · npc:2001 · sanctuary · Product version 2.1.0.3 · Hard · Party 4 · Instance 7",
+        "Ash Wyrm ·  ·  ·  ·  · Party unknown · Instance unknown"]
+    assert [g["class"] for g in buckets[0][1]] == ["sorcerer", "cleric"]          # highest median first
+    sorc, cleric = (cr.performance_row(g) for g in buckets[0][1])
+    assert sorc["coverage"] == "Sufficient sample" and sorc["parses"] == "9 · 6" and sorc["range"] == "5,000 – 9,000"
+    assert cleric["coverage"] == "Too few parses." and cleric["median"] == "2,500"
+    assert cr.performance_row(buckets[1][1][0])["coverage"] == "Coverage unavailable"
+    assert cr.performance_row(buckets[1][1][0])["parses"] == "1 · Unavailable"
+    assert sorc["tip"] == "Min 5,000; lower quartile 6,000; median 7,000; upper quartile 8,000; max 9,000; 9 parses"
+    assert cr.bucket_maximum(buckets[0][1]) == 9000 and cr.bucket_maximum([]) == 1
+    # personal records and attempts
+    identity = {"name": "TestSorc", "server": "2102", "character_id": ""}
+    assert cr.records_query({"combat_mode": "pve", "metric": "dps"}, identity, 2) == (
+        "combat_mode=pve&metric=dps&name=TestSorc&server=2102&character_id=&page=2")
+    assert cr.record_rows(RECORDS, "DPS") == [
+        {"boss": "Ice Queen", "log": "log0001", "class": "sorcerer", "best": "41,235", "attempts": "3",
+         "context": "Sanctuary raids · Product version 2.1 · Hard · party 4 · instance 7"}]
+    mine, hidden = cr.history_rows(RECORDS)
+    assert (mine["server"], mine["verified"], mine["ranking"], mine["recorded"]) == ("Zikel", True, "Eligible", cb.saved_at(T0))
+    assert (hidden["server"], hidden["pseudonym"], hidden["score"], hidden["ranking"], hidden["recorded"]) == (
+        "99999", True, "900", "Unranked / unverified", "—")
+    assert cr.records_pager(RECORDS, 1) == {"line": "Page 1 · 120 attempts", "previous": False, "next": True}
+    assert cr.records_pager(RECORDS, 3)["next"] is False
+    # consistency and trends
+    assert cr.consistency_note(CONSISTENCY) == (
+        "Matched recordings. TestSorc on Zikel. 2 samples excluded for missing cohort/metric evidence.")
+    group = cr.consistency_group(CONSISTENCY["groups"][0], "DPS")
+    assert group["title"] == "Ice Queen · sorcerer · Product version 2.1 · Hard · party 4 · instance 7 · 3 recordings"
+    assert group["spread"] == ("Median 40,000 DPS · range 30,000–50,000 · relative variation 12.3% · median absolute "
+                               "deviation 5,000 · standard deviation 6,000")
+    assert group["trend"] == ("Recent 5 median Unavailable · preceding 5 Unavailable · change Unavailable · At least 5 "
+                              "uncapped recordings required for variation. · At least 10 uncapped recordings required for trend.")
+    assert [r["deaths"] for r in group["rows"]] == ["Unavailable (no markers)", "1", "0"]
+    assert [r["open"] for r in group["rows"]] == ["Open encounter 1", "Open encounter 3", "Open encounter 4"]
+    assert [(x, round(y, 1)) for x, y, _ in group["points"]] == [(0.0, 46.0), (300.0, 10.0), (600.0, 28.0)]
+    assert cr.consistency_group({**CONSISTENCY["groups"][0], "change_pct": 4.25}, "DPS")["trend"].startswith(
+        "Recent 5 median Unavailable · preceding 5 Unavailable · change +4.3%")
+    assert cr.trend_points([{"score": 5}])[0][:2] == (300.0, 10.0)
+
+
+def test_personal_records(qapp, tmp_path):
+    from aion2calc.gui.combat_community import Community
+    opened = []
+    app = FakeApp()
+    view = PersonalRecords(app, Community(_store(tmp_path)), opened.append)
+    view.resize(1300, 1400)
+    view.show()
+    settle(lambda: view.findChildren(BoxPlot))
+    asked = app.log_server.asked
+    assert asked[0] == "/api/v1/report-facets"
+    assert asked[1] == "/api/v1/performance?combat_mode=pve&metric=dps&game_patch=version%3Aproduct%3A2.1"
+    patch = _find(view, QComboBox, lambda c: c.accessibleName() == "game version")
+    assert patch.currentData() == "version:product:2.1"                    # the latest submitted version first
+    texts = _labels(view)
+    assert cr.RECORDS_NOTE in texts and "Recorded rates. 12 samples; 1 excluded for missing metadata." in texts
+    assert "Ice Queen · npc:2001 · sanctuary · Product version 2.1.0.3 · Hard · Party 4 · Instance 7" in texts
+    plots = view.findChildren(BoxPlot)
+    assert len(plots) == 3 and plots[0].colour.name() == "#123456"        # the user's palette for the sorcerer
+    assert plots[0].toolTip().startswith("Min 5,000") and "Too few parses." in _cells(view)
+    # the recorded boss defeats: read once opened, searched, read again
+    assert not any(p.startswith("/api/v1/boss-status") for p in asked)
+    view.bosses.button.click()
+    settle(lambda: "Ice Queen" in [label.text().split("<br>")[0] for label in view.findChildren(QLabel)])
+    assert asked[-1] == "/api/v1/boss-status?game_patch=version%3Aproduct%3A2.1"
+    assert view.boss_said.text() == cr.bosses_message(BOSS_STATUS, 2) and cr.BOSSES_FOOT in _labels(view)
+    view.boss_search.setText("2001")
+    assert view.boss_said.text().startswith("1 displayed boss/context groups.")
+    _find(view, QPushButton, lambda b: b.text() == "Open log · encounter 3").click()
+    assert opened == ["combat-log/shared/log0001?mode=pve"]
+    # PvP: no boss defeats
+    mode = _find(view, QComboBox, lambda c: c.accessibleName() == "combat mode")
+    mode.setCurrentIndex(mode.findData("pvp"))
+    mode.activated.emit(mode.currentIndex())
+    settle(lambda: asked[-1].startswith("/api/v1/performance?combat_mode=pvp"))
+    assert not view.bosses.isVisibleTo(view)
+    # a character's records, attempts, consistency and trends
+    view.name.setText("TestSorc")
+    view.server.setCurrentIndex(view.server.findData("2102"))
+    _find(view, QPushButton, lambda b: b.text() == "Find records").click()
+    settle(lambda: view.findChildren(TrendChart) and "Page 1 · 120 attempts" in _labels(view))
+    query = "combat_mode=pvp&metric=dps&game_patch=version%3Aproduct%3A2.1&name=TestSorc&server=2102&character_id=&page=1"
+    assert "/api/v1/consistency?" + query in asked and "/api/v1/records?" + query in asked
+    assert view.record_note.text() == "TestSorc on Zikel. Public submissions only."
+    assert "Sanctuary raids · Product version 2.1 · Hard · party 4 · instance 7" in _cells(view)
+    assert any("TestSorc" in t and "✓" in t and "Zikel" in t for t in _labels(view))
+    assert view.record_next.isEnabled() and not view.record_previous.isEnabled()
+    fold = next(s for s in view.findChildren(Section) if s.button.text().startswith("Ice Queen · sorcerer"))
+    fold.button.click()
+    assert view.findChildren(TrendChart)[0].points[1][2] == f"{cb.saved_at(T0 - DAY)}: 50,000"
+    _find(view, QPushButton, lambda b: b.text() == "Open encounter 3").click()
+    assert opened[-1] == "combat-log/shared/log0001?mode=pvp"
+    view.record_next.click()
+    settle(lambda: asked[-1].endswith("page=2"))
+    # a filter with a character searched reads the records again; refusals are said
+    app.log_server.refusal = "RuntimeError: Community server (503): busy"
+    metric = _find(view, QComboBox, lambda c: c.accessibleName() == "metric")
+    metric.setCurrentIndex(metric.findData("hps"))
+    metric.activated.emit(metric.currentIndex())
+    settle(lambda: view.record_note.text() == "RuntimeError: Community server (503): busy")
+    assert "RuntimeError: Community server (503): busy" in _labels(view)
+    assert "Consistency unavailable: RuntimeError: Community server (503): busy" in _labels(view)
 
 
 def test_the_window_draws_combat_logs_itself(qapp):
