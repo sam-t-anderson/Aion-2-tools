@@ -6,14 +6,15 @@
 - **The character:** its counts (DPS in each scenario, the points spent of each budget), where its budgets come from,
   its warnings, and the totals to optimize with: what the profile shows spent, or what you type above it (kept for
   that character); the class's highest reported totals for reference; the game version; the damage objective; the
-  survival options and trained-skill reserves (0.2.441, ``character_options.py``); and whether the saved Genus
-  Insight lines count, with the PvE enemy mix.
+  survival options and trained-skill reserves (0.2.441, ``character_options.py``); and Pet Genus Insight: whether its
+  saved lines count, the PvE enemy mix, and the lines themselves in the Genus editor, with the row that reads them from
+  the game (0.2.442, ``genus_editor.py`` and ``screen_read.py``).
 - **Optimize** a PvE, PvP damage or World PvP build: the job's progress, then its score and gain, the model's note, the
   community preset's word and what changes, and the optimized build in the result windows. A run goes on while you look
   at another character, and is shown on its own character's page.
 
-The Genus lines themselves are edited on Gear & Advice for now. What the web page keeps in its browser this page keeps
-in the native interface's settings. Its requests wait as long as a browser would (a search asks the official site).
+What the web page keeps in its browser this page keeps in the native interface's settings. Its requests wait as long as
+a browser would (a search asks the official site).
 """
 from __future__ import annotations
 
@@ -34,10 +35,12 @@ from .character_options import AutoGrid, SkillReserves, SurvivalOptions, style a
 from .chrome import FlowLayout
 from .database_page import Kpi, Window
 from .gathering_page import GatheringPage
+from .genus_editor import GenusEditor, style as editor_style
 from .pets_page import Toast
 from .planner import budgets, progression_path
 from .planner_page import interface_store
 from .result_windows import GridTable, ResultWindows
+from .screen_read import ScreenRead
 from .timers_page import Fold
 
 LONG_AGO = 10 * 365 * 86400                          # a snapshot of any age: the last character's, at launch
@@ -97,7 +100,9 @@ class CharacterPage(QWidget):
             QPlainTextEdit#diff {{ background: rgba(6, 9, 15, 0.65); border: none; border-radius: 6px; padding: 10px; }}
             QLabel#good {{ color: {theme.COLORS['good']}; }}
             QFrame#win QLabel#kpiGood {{ color: {theme.COLORS['good']}; font-size: 19px; font-weight: 700; }}
-            """ + options_style() + Toast.STYLE)
+            QFrame#screenRead {{ border: 1px dashed {theme.COLORS['line2']}; border-radius: 6px; background: transparent; }}
+            QFrame#screenRead QLabel {{ background: transparent; }}
+            """ + options_style() + editor_style() + Toast.STYLE)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.NoFrame)
@@ -211,6 +216,11 @@ class CharacterPage(QWidget):
             panel, _, what = rest.partition(":")
             if self.survival is not None and panel == str(self.panels):
                 self.survival.replied(what, answer)
+        elif kind == "inventory" and rest == str(self.panels) and self.character is not None:
+            self._inventory(answer)
+        elif kind == "genus" and rest == str(self.panels) and self.genus_editor is not None:
+            genus = answer.get("genus") if isinstance(answer, dict) else None
+            self.genus_editor.saved(genus if c._truthy(genus) else {})
         elif kind == "points" and rest == str(self.points_turn) and self.character is not None and self.view is not None:
             try:
                 found = budgets(answer, str(self.view.get("class") or ""), {"region": (self.hit or {}).get("region") or ""})
@@ -229,6 +239,11 @@ class CharacterPage(QWidget):
             panel, _, what = rest.partition(":")
             if self.survival is not None and panel == str(self.panels):
                 self.survival.failed(what, why)
+        elif kind == "inventory" and rest == str(self.panels) and self.character is not None:
+            self._clear(self.genus_host)
+            self.genus_host.addWidget(_label("Could not load Genus: " + why))
+        elif kind == "genus" and rest == str(self.panels) and self.genus_editor is not None:
+            self.genus_editor.not_saved(why)
 
     def _draw_known(self) -> None:
         self._clear(self.known_box)
@@ -384,7 +399,7 @@ class CharacterPage(QWidget):
     def _genus(self) -> Fold:
         """Pet Genus Insight (``mountCharacterGenus``, closed): whether the saved lines count, and the PvE mix."""
         saved = c.read_store(self.store.value(self._genus_key()))
-        fold = Fold("Pet Genus Insight · PvE and PvP")
+        fold = self.genus_fold = Fold("Pet Genus Insight · PvE and PvP")
         fold.add(_label(c.GENUS_NOTE, "muted"))
         self.use_genus = QCheckBox("Include saved Genus lines")
         self.use_genus.setChecked(saved.get("enabled") is not False)
@@ -407,13 +422,34 @@ class CharacterPage(QWidget):
             line.addWidget(field)
             flow.addWidget(pair)
         fold.add(row)
-        link = _label("The lines themselves are edited on <a href='gear' style='color: "
-                      f"{theme.COLORS['accent']};'>Gear &amp; Advice</a> for now; save them there before optimizing.",
-                      "muted", rich=True)
-        link.setTextInteractionFlags(Qt.TextBrowserInteraction)
-        link.linkActivated.connect(lambda page: self.open_web(page) if self.open_web else None)
-        fold.add(link)
+        reads = _plain()
+        self.genus_reads = QVBoxLayout(reads)                  # the read row, once the lines are loaded
+        self.genus_reads.setContentsMargins(0, 0, 0, 0)
+        fold.add(reads)
+        host = _plain()
+        self.genus_host = QVBoxLayout(host)
+        self.genus_host.setContentsMargins(0, 0, 0, 0)
+        self.genus_host.addWidget(_label("Loading saved lines…"))
+        fold.add(host)
+        self.genus_editor: GenusEditor | None = None
+        if self.requests is not None:
+            self.requests.get(f"inventory:{self.panels}", "/api/inventory?character=" +
+                              urllib.parse.quote(str(self.view.get("key")), safe=""))
         return fold
+
+    def _inventory(self, answer) -> None:
+        """The character's saved Genus lines in the editor (``A2GenusEditor.mount``), with the row that reads them from
+        the game."""
+        self._clear(self.genus_host)
+        genus = answer.get("genus") if isinstance(answer, dict) else None
+        self.genus_editor = GenusEditor(genus if c._truthy(genus) else {}, self._save_genus)
+        self.genus_host.addWidget(self.genus_editor)
+        self.genus_reads.addWidget(ScreenRead(self.api, "genus", self.genus_editor.apply_read))
+
+    def _save_genus(self, draft: dict) -> None:
+        if self.requests is not None:
+            self.requests.post(f"genus:{self.panels}", "/api/inventory/genus",
+                               {"character": self.view.get("key"), "genus": c.to_json(draft)})
 
     def _send(self, name: str, path: str, body: dict) -> None:
         """The survival panel's import requests, answered to the panel shown (one drawn since is not answered)."""
@@ -442,6 +478,8 @@ class CharacterPage(QWidget):
             totals = self._remember()
             survival = self.survival.save()
             reserves = self.reserves.read()
+            if self.use_genus.isChecked() and (self.genus_editor is None or self.genus_editor.is_dirty()):
+                raise ValueError(c.WAIT_GENUS if self.genus_editor is None else c.SAVE_GENUS)
             genus = c.genus_choice(self.use_genus.isChecked(), {g: f.text() for g, f in self.mix.items()}, mode)
         except ValueError as problem:
             self.opt = {"status": "error", "error": str(problem)}

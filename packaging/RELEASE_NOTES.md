@@ -1,3 +1,18 @@
+## My Character's Pet Genus Insight editor in the native interface (0.2.442)
+
+**My Character's Pet Genus Insight panel is whole in the native interface.** Under its title, below whether the saved lines count and the PvE enemy mix, are the character's saved lines in the **Genus editor**, as the web page draws it:
+- the five genera's tabs, each with its recorded level, and the chosen genus's **Insight level**;
+- its **Insight ring**, following the lines as you type them;
+- its **nine analysis slots**, a stat and a value each, cleared one at a time, a locked slot closed;
+- **Advanced JSON**, to repair older entries, and **Save genus lines**. The draft is kept across the tabs until it is saved.
+
+**Read from the game** fills the draft from the game's Genus Insight panel, with the text recognition built into Windows:
+- the game screen after a three-second countdown;
+- a screenshot, chosen or pasted (Ctrl+V on the row);
+- the **Read the game screen** hotkey pressed in the game, whose reads the row takes while the panel is open. A read is checked before it is saved: the lines it is unsure of are marked until you type them in.
+
+An optimization that counts the saved lines first waits for them to load and asks you to save your edits, as the web page's does. Gear & Advice's Genus editor is still the web page's.
+
 ## My Character's survival options and skill reserves in the native interface (0.2.441)
 
 **All of My Character's options are native now.** Its last two panels open in the app's window as the web page draws them, each closed under its title until you open it:

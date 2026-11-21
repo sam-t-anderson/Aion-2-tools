@@ -76,6 +76,8 @@ class FakeApp:
         self.calls, self.posts, self.waits = [], [], []
         self.jobs = {"imp": {"reads": 2, "log": ["Reading the profile"], "result": view}}
         self.answers = {}
+        self.genus = {}                                  # the character's saved Genus lines
+        self.screen = {"available": False, "message": "Reading the game screen needs Windows 10 or later."}
 
     def get(self, path, timeout=None):
         self.waits.append((path, timeout))
@@ -89,6 +91,10 @@ class FakeApp:
         if path.startswith("/api/community?path="):
             assert urllib.parse.unquote(path.split("=", 1)[1]).startswith("/api/v1/progression?class=sorcerer")
             return {"observations": [{"class_name": "sorcerer", "skill": 390, "stigma": 190, "daevanion": 420, "ariel": 30}]}
+        if path.startswith("/api/inventory?character="):
+            return {"genus": json.loads(json.dumps(self.genus))}
+        if path.startswith("/api/screen-read?since="):
+            return dict(self.screen)
         if path.startswith("/api/jobs/"):
             job = self.jobs[path.rsplit("/", 1)[1]]
             job["reads"] -= 1
@@ -108,6 +114,9 @@ class FakeApp:
             if isinstance(answer, Exception):
                 raise answer
             return answer
+        if path == "/api/inventory/genus":
+            self.genus = json.loads(json.dumps(body["genus"]))
+            return {"genus": json.loads(json.dumps(self.genus))}
         return {"job": {"/api/character/import": "imp", "/api/character/optimize": "opt"}[path]}
 
 

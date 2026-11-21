@@ -36,6 +36,9 @@ GENUS_NOTE = ("Use the saved analysis lines from this character's Gear & Advice 
 MIX_NOTE = ("PvE enemy mix (relative weights; default equal). PvP ignores this mix and excludes genus-specific effects whose "
             "applicability to players is unverified.")
 GENERA = ("Cogni", "Fera", "Natura", "Varian", "Special")
+#: Why an optimization that counts the saved Genus lines cannot start (``read``'s checks before the mix's).
+SAVE_GENUS = "Save your Genus edits before optimizing."
+WAIT_GENUS = "Wait for Genus lines to load, or disable Genus scoring."
 #: What the web page keeps in its browser, kept by the native page in its own settings under the same names.
 BUDGETS_KEY, PATCH_KEY, OBJECTIVE_KEY = "character-point-budgets-v2", "point-game-patch", "character-damage-objective"
 
