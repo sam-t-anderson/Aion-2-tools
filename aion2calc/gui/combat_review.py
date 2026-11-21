@@ -19,6 +19,8 @@ These are the review's model and the frame's words:
   (``recapsOf``) with the party's deaths they struck in, and each recap's effects and HP samples.
 - Since 0.2.463 the encounter insights (``insightsHTML``), the automatic encounter context (``classificationHTML``) and
   the mapping coverage (``catalogHTML``) with its report.
+- Since 0.2.464 the matched public comparisons (``ranksHTML``), the encounter's metadata and its corrections
+  (``metadataHTML``), a shared log's report (``reportHTML``) and a recording's upload (``Publish this log``).
 """
 from __future__ import annotations
 
@@ -56,7 +58,7 @@ OPPONENT_NOTE = ("The review below reads the fight from their side: the summary,
                  "their deaths, and the buffs, debuffs and crowd control on and from them. Only what the recording holds of "
                  "them is shown.")
 REFRESH = "Refresh rankings"
-ELSEWHERE = "The rankings, reports, comparisons and movement replay of this log open in the web interface for now."
+ELSEWHERE = ("The comparisons with other logs and the movement replay of this log open in the web interface for now.")
 OPEN_WEB = "Open the full review in the web interface"
 SUMMARY_COLUMNS = ["Player / server", "Class", "Damage done", "DPS", "Damage taken", "Healing", "HPS", "Deaths"]
 
@@ -2365,3 +2367,184 @@ def insights(doc: dict, d: dict, state: dict) -> dict:
                        js_string(x.get("kind")), number(x.get("amount"))]
                       for x in rows_of("opening") if selected(x.get("source")) and not pet(x.get("source"))]
     return out
+
+
+# ------------------------------------------------------------------ the public comparisons, metadata, report, publish (0.2.464)
+STANDINGS_HEAD = "Matched public comparisons"
+STANDINGS_LOADING = "Loading comparisons with public logs…"
+STANDINGS_COLUMNS = ["Player · party size", "Current standings (same game version)", "At upload (reconstructed)"]
+RUN_HEAD = "Run speed · lower elapsed time wins"
+RUN_COLUMNS = ["Current standings (same game version)", "At upload (reconstructed)"]
+SCOPES = ("server", "region", "world")
+NOT_UPLOADED = "Not uploaded yet — at-upload standings exist only for recordings shared with the log server."
+WORLD_UNAVAILABLE = ("Unavailable — no comparable public cohort yet. World matching groups logs by the encounter’s boss, game "
+                     "version, difficulty and party size; either this recording lacks that metadata or too few public logs "
+                     "share it so far.")
+NOT_ELIGIBLE = "Unavailable — no eligible matched comparison yet. Check capture quality and encounter metadata above."
+UNRANKED_FIX = ("Fix what you can on the next recording (start the meter before entering the instance, keep the party roster, "
+                "let the boss be seen at full health) — the standings below stay unavailable until a recording of this fight "
+                "is eligible.")
+NO_STANDINGS = "the encounter metadata (boss, game version, difficulty, encounter type) is incomplete."
+METADATA_HEAD = "Encounter metadata for comparisons"
+METADATA_NOTE = ("Correct completed recordings here. Choose this encounter or its recorded run for changed game version, "
+                 "category, difficulty and zone fields. Unchanged fields are preserved. Boss name applies only to this "
+                 "encounter; region applies to the session. Saving changes the local log; an uploaded copy is unchanged.")
+METADATA_FIELDS = ("game_patch", "difficulty", "region", "boss", "zone")
+METADATA_SAVED = "Metadata saved to the local log. Uploaded copies are unchanged."
+NO_RUN_ID = "This encounter has no recorded run ID. Choose this encounter only."
+MANUAL = "Manual post-capture override"
+REPORT_HEAD = "Report this shared log"
+REPORT_NOTE = ("Reports go privately to the server operator for human review. A report is not a verified finding. Do not "
+               "include credentials or unnecessary personal information.")
+REPORT_REASONS = (("privacy", "Privacy concern"), ("harassment", "Harassment"), ("suspected_tampering", "Suspected data tampering"),
+                  ("wrong_metadata", "Incorrect encounter metadata"), ("other", "Other"))
+PUBLISH_HEAD = "Publish this log"
+VISIBILITIES = ("public", "unlisted", "private")
+
+
+def _scope_name(scope: str) -> str:
+    return scope[0].upper() + scope[1:]
+
+
+def standing(x, scope: str, entry, context: str, ranks: dict) -> dict:
+    """One scope's standing (``values``): its rank, percentile and samples, with the reasons as its tip; or why it is
+    unavailable, which differs by what is compared (``context``: a player now, at upload, or the run)."""
+    if not _truthy(x):
+        quality = _dict(ranks.get("quality"))
+        unranked = " ".join(js_string(m) for m in _list(quality.get("messages"))) if quality.get("eligible") is False else ""
+        if context == "run":
+            detail = _dict(ranks.get("run_detail"))
+            if _truthy(detail.get("speed_eligible")):
+                if scope == "server":
+                    words = ("Unavailable — no verified home world for the party or the recording player, so the run has no "
+                             "Server cohort. Region and World still rank it.")
+                elif scope == "region":
+                    words = "Unavailable — the run’s region is unknown, so only World ranks it."
+                else:
+                    words = "Unavailable — no comparable public runs yet."
+            else:
+                why = " ".join(js_string(r) for r in _list(detail.get("speed_reasons")))
+                words = ("Not a timed run — run speed is ranked only for a complete, cleanly captured instance clear (entry to "
+                         f"final boss). {why}").strip()
+            return {"html": html_escape(words), "tip": ""}
+        e = entry if isinstance(entry, dict) else None
+        if (context == "at_upload" and not (e is not None and _truthy(e.get("uploaded_at")))
+                and not any(_truthy(_dict(p).get("uploaded_at")) for p in _list(ranks.get("players")))):
+            words = NOT_UPLOADED
+        elif unranked:
+            words = f"Unranked — {unranked}"
+        elif scope in ("server", "region") and e is not None and "character_server" in e and not _truthy(e["character_server"]):
+            words = (f"Unavailable — no verified official profile for this character, so its home {scope} can’t be matched. "
+                     "World still compares globally.")
+        elif scope in ("server", "region") and e is not None and "character_server" not in e:
+            words = (f"Unavailable — this player’s home {scope} is unknown (no server or class on the recording), so only "
+                     "World can compare.")
+        elif scope == "world":
+            words = WORLD_UNAVAILABLE
+        else:
+            words = NOT_ELIGIBLE
+        return {"html": html_escape(words), "tip": ""}
+    x = _dict(x)
+    reasons = " ".join(js_string(r) for r in _list(x.get("reasons")))
+    rank = x.get("rank", _ABSENT)
+    line = "Rank unavailable" if rank is None else f"#{_joined(rank)} / {_joined(x.get('count', _ABSENT))}"
+    if _truthy(x.get("provisional")):
+        line += " (provisional)"
+    percentile = x.get("percentile")
+    line += "<br>" + ("Percentile unavailable" if percentile is None else f"{fixed(percentile, 1)} percentile")
+    if "public_samples" in x:
+        line += f" · {_joined(x['public_samples'])} public samples · {_joined(x.get('identities', _ABSENT))} distinct identities"
+    if x.get("basis") == "recording_player":
+        line += f"<br>On the recording player’s world ({html_escape(js_string(x.get('world')))}): the party spans several worlds."
+    if _list(x.get("reasons")):
+        line += "<br>" + html_escape(reasons)
+    return {"html": line, "tip": reasons}
+
+
+def standings_cell(x, context: str, ranks: dict) -> dict:
+    """A cell of standings (``scopes``): Server, Region and World, each on its own line."""
+    return {"standings": [(_scope_name(scope), standing(_dict(x).get(scope) if isinstance(x, dict) else None, scope, x, context,
+                                                       ranks)) for scope in SCOPES]}
+
+
+def standings(ranks) -> dict | None:
+    """The matched public comparisons (``ranksHTML``): each player's standings by server, region and world, now and as at
+    their upload, and the run's speed; or that they are loading, or why they could not be read. None for none asked."""
+    if ranks is None:
+        return {"loading": STANDINGS_LOADING}
+    ranks = _dict(ranks)
+    if _truthy(ranks.get("error")):
+        return {"loading": js_string(ranks["error"])}
+    quality = _dict(ranks.get("quality"))
+    unranked = " ".join(js_string(m) for m in _list(quality.get("messages"))) if quality.get("eligible") is False else ""
+    players = [_dict(p) for p in _list(ranks.get("players"))]
+    from .combat_records import _when
+    rows = []
+    for p in players:
+        who = f"{js_string(p.get('name'))} · {js_string(_first(p.get('party_size'), 'Unknown'))} players"
+        if _truthy(p.get("uploaded_at")):
+            who += f"\nUploaded {_when(p['uploaded_at'])}"
+        rows.append([who, standings_cell(p, "current", ranks), standings_cell(p.get("at_upload"), "at_upload", ranks)])
+    return {"note": f"{js_string(_first(ranks.get('note'), ''))} {js_string(_first(ranks.get('cohort_note'), ''))}",
+            "unranked": f"This encounter is <b>unranked</b>: {html_escape(unranked)} {UNRANKED_FIX}" if unranked else "",
+            "none": (f"No player standings: {js_string(_first(ranks.get('note'), NO_STANDINGS))}"
+                     if not players and not unranked else ""),
+            "rows": rows,
+            "run": [standings_cell(ranks.get("run"), "run", ranks), standings_cell(ranks.get("run_at_upload"), "run", ranks)]}
+
+
+def context_line(doc: dict, segment: dict) -> str:
+    """The encounter's boss, type, game version and difficulty (``context``), as the metadata's line reads them."""
+    meta = _dict(doc.get("meta"))
+    parts = [_first(segment.get("boss"), segment.get("label"), "Unknown")]
+    parts += [_first(segment.get(key), meta.get(key), "Unknown") for key in ("encounter_type", "game_patch", "difficulty")]
+    return build_label(" · ".join(js_string(x) for x in parts))
+
+
+def metadata(doc: dict, d: dict, kind: str) -> dict:
+    """The encounter's metadata (``metadataHTML``): its line; for a completed recording on this computer, the fields to
+    correct and whether its run can take them."""
+    if kind != "local" or reconstructed(doc) or _truthy(_dict(doc.get("meta")).get("capture_active")):
+        return {"line": context_line(doc, d["segment"])}
+    seg, meta = d["segment"], _dict(doc.get("meta"))
+    from .combat import TYPES
+    return {"type": js_string(_first(seg.get("encounter_type"), meta.get("encounter_type"), "unknown")), "types": list(TYPES.items()),
+            "run": _truthy(seg.get("run_id")),
+            "fields": [(key, "game version" if key == "game_patch" else key.replace("_", " "),
+                        js_string(_first(seg.get(key), meta.get(key), ""))) for key in METADATA_FIELDS]}
+
+
+def corrected(doc: dict, segment: int, values: dict, whole_run: bool) -> dict:
+    """The log with the metadata changed (``data-meta-save``): each field whose value differs from the encounter's is set
+    on the encounter, or on every encounter of its run, its source marked a manual override; the region on the session;
+    the boss on this encounter alone. Raises ValueError when a run is asked of an encounter without one."""
+    import copy
+    log = copy.deepcopy(doc)
+    current = _dict(segments(doc)[segment])
+    meta = _dict(doc.get("meta"))
+    everything = segments(log)
+    targets = [s for s in everything if _truthy(current.get("run_id")) and s.get("run_id") == current.get("run_id")] \
+        if whole_run else [everything[segment]]
+    if not targets:
+        raise ValueError(NO_RUN_ID)
+    for key, value in values.items():
+        value = js_text(value).strip()
+        previous = current.get(key)
+        if previous is None:
+            previous = meta.get(key)
+        if previous is None:
+            previous = "unknown" if key == "encounter_type" else ""
+        if value == js_string(previous):
+            continue
+        if key == "region":
+            log.setdefault("meta", {})
+            log["meta"]["region"] = value
+            log["meta"]["region_source"] = MANUAL
+            continue
+        for s in ([everything[segment]] if key == "boss" else targets):
+            s[key] = value
+            if key in ("game_patch", "zone", "difficulty", "encounter_type"):
+                s[key + "_source"] = MANUAL
+            if key == "game_patch":
+                s["game_patch_basis"] = "manual"
+    return log
