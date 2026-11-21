@@ -23,9 +23,10 @@ Drawn here so far:
 - Since 0.2.464 the matched public comparisons (each player's standings and the run's speed), the encounter's metadata
   (corrected and saved for a recording on this computer), a shared log's report to its server's operator, and a
   recording's upload.
+- Since 0.2.465 the comparisons with other logs: a shared log by its link or ID, or an a2log file on this computer, each
+  player's DPS against a same-class player chosen in it.
 
-The rest of the review (its comparisons with other logs and the movement replay) opens in the web interface for now,
-from a button on the page.
+The rest of the review (its movement replay) opens in the web interface for now, from a button on the page.
 """
 from __future__ import annotations
 
@@ -145,6 +146,9 @@ class ReviewPage(QWidget):
         self.report = {"reason": "privacy", "details": "", "status": "", "busy": False}
         self.meta_result, self.meta_open, self.meta_busy = "", False, False
         self.publish = {"visibility": "public", "result": "", "busy": False}
+        self.compared: list[dict] = []                               # the logs compared (``comparisons``)
+        self.compare_result, self.compare_segment = "", 0
+        self.compare_status = None
         self.mapping_status = self.meta_parts = self.publish_parts = self.standings_box = None
 
     def _forget_timeline(self) -> None:
@@ -230,6 +234,14 @@ class ReviewPage(QWidget):
             self.report.update(busy=False, details="",
                                status=f"{cw.js_string(receipt.get('message'))} Receipt: {cw.js_string(receipt.get('id'))}")
             self.draw()
+        elif kind == "compare":                                      # another log read to compare
+            try:
+                self.compared.append(cw.comparison_of(answer, self.compare_segment))
+            except ValueError as problem:
+                self._compare_said(str(problem))
+                return
+            self.compare_result = ""
+            self.draw()
         elif kind == "publish":
             shared = _dict(answer)
             link = safe_link(shared.get("url"))
@@ -256,6 +268,8 @@ class ReviewPage(QWidget):
             self.draw()
         elif kind == "publish":
             self._published(html.escape(why))
+        elif kind == "compare":
+            self._compare_said(why)
 
     def _refused(self, why: str) -> None:
         _clear(self.box)
@@ -436,6 +450,8 @@ class ReviewPage(QWidget):
             body.addWidget(row)
         if local and not combined:                                   # ``options.publish``: a recording on this computer's
             body.addWidget(self._publish_form())
+        body.addWidget(self._compare_row())
+        body.addWidget(self._comparisons(d))
         elsewhere = QFrame()
         elsewhere.setObjectName("note")
         line = QVBoxLayout(elsewhere)
@@ -1218,6 +1234,111 @@ class ReviewPage(QWidget):
                 parts["upload"].setEnabled(True)
             except RuntimeError:                                     # drawn again meanwhile: the new fold shows it
                 pass
+
+    # ---------------------------------------------------------------- comparisons with other logs (0.2.465)
+    def _compare_row(self) -> QWidget:
+        """Another log to compare (``data-compare``): its link or ID, or an a2log file on this computer."""
+        box = QWidget()
+        box.setObjectName("plain")
+        flow = FlowLayout(box, align=Qt.AlignLeft, gap=(8, 6))
+        field = QLineEdit()
+        field.setPlaceholderText(cw.COMPARE_PLACEHOLDER)
+        field.setAccessibleName("Link or ID of the log to compare")
+        field.setMinimumWidth(240)
+        field.returnPressed.connect(lambda: self._compare(field.text()))
+        flow.addWidget(field)
+        flow.addWidget(_button(cw.COMPARE_GO, lambda: self._compare(field.text())))
+        self.compare_status = _label(self.compare_result, "small", wrap=False)
+        flow.addWidget(self.compare_status)
+        flow.addWidget(_button(cw.COMPARE_FILE, self._compare_file))
+        return box
+
+    def _compare_said(self, words: str) -> None:
+        self.compare_result = words
+        if self.compare_status is not None:
+            try:
+                self.compare_status.setText(words)
+            except RuntimeError:                                     # drawn again meanwhile
+                pass
+
+    def _compare(self, text: str) -> None:
+        """A shared log compared (``data-compare-go``): read by its ID, at the encounter its link names."""
+        log = cw.log_id_of(text)
+        if not log:
+            self._compare_said(cw.COMPARE_ID)
+            return
+        self._compare_said(cw.COMPARE_LOADING)
+        self.compare_segment = cw.segment_of(text)
+        self._ask("compare", f"/api/v1/logs/{cw.encode_component(log)}/raw", proxied=True)
+
+    def _ask_a2log(self) -> str:
+        path, _kind = QFileDialog.getOpenFileName(self, cw.COMPARE_FILE, "", "a2log JSON (*.json)")
+        return path
+
+    def _compare_file(self) -> None:
+        """An a2log file on this computer compared (``data-compare-file``)."""
+        import json
+        path = self._ask_a2log()
+        if not path:
+            return
+        try:
+            with open(path, encoding="utf-8") as file:
+                imported = json.load(file)
+            if not isinstance(imported, dict) or imported.get("format") != "a2log" or not isinstance(imported.get("segments"), list):
+                raise ValueError(cw.NOT_A2LOG_FILE)
+            self.compared.append(cw.comparison_of(imported))
+        except (OSError, ValueError) as problem:
+            self._compare_said(str(problem))
+            return
+        self.compare_result = ""
+        self.draw()
+
+    def _comparisons(self, d: dict) -> QWidget:
+        """The logs compared (``comparisonHTML``): each its encounter, Remove, its note and the players side by side."""
+        box, column = _plain(spacing=8)
+        for c in cw.comparisons(self.doc, d, self.compared):
+            index = c["index"]
+            column.addWidget(_head(c["title"]))
+            row, line = _plain(QHBoxLayout, 8)
+            encounter = QComboBox()
+            encounter.setAccessibleName("Comparison encounter")
+            for value, words in c["encounters"]:
+                encounter.addItem(words, value)
+            encounter.setCurrentIndex(max(0, encounter.findData(c["segment"])))
+            encounter.activated.connect(lambda _i, index=index, pick=encounter: self._compare_encounter(index, pick.currentData()))
+            line.addWidget(_field_row("Comparison encounter", encounter))
+            line.addWidget(_button("Remove", lambda index=index: self._compare_remove(index)))
+            line.addStretch(1)
+            column.addWidget(row)
+            column.addWidget(_muted(c["note"]))
+            cells = []
+            for r in c["rows"]:
+                pick = QComboBox()
+                pick.setAccessibleName("Same-class player to compare with")
+                pick.addItem(cw.PICK_PLAYER, "")
+                for value, words in r["choices"]:
+                    pick.addItem(words, value)
+                pick.setCurrentIndex(max(0, pick.findData(r["chosen"])))
+                pick.activated.connect(lambda _i, index=index, player=r["player"].get("id"), pick=pick:
+                                       self._compare_player(index, player, pick.currentData()))
+                cells.append([self._actor(r["player"]), r["class"], r["own"], pick, r["theirs"], r["difference"]])
+            column.addWidget(self._grid(cw.COMPARE_COLUMNS, cells, {n: 1 for n in range(len(cw.COMPARE_COLUMNS))}))
+        return box
+
+    def _compare_encounter(self, index: int, segment) -> None:
+        """Another encounter of a compared log (``data-compare-segment``)."""
+        self.compared[index]["segment"] = int(segment)
+        self.draw()
+
+    def _compare_player(self, index: int, player, other) -> None:
+        """The player a player is compared with (``data-compare-player``)."""
+        self.compared[index]["players"][player] = other
+        self.draw()
+
+    def _compare_remove(self, index: int) -> None:
+        """A compared log let go (``data-compare-remove``)."""
+        del self.compared[index]
+        self.draw()
 
     # ---------------------------------------------------------------- the encounter's context, mapping and insights (0.2.463)
     def _context(self, d: dict) -> QWidget | None:

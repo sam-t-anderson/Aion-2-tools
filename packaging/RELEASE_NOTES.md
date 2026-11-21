@@ -1,3 +1,13 @@
+## A combat log's own page in the native interface, part 9 (0.2.465)
+
+**A log's review in the app's window now compares it with other logs**, as the web page does:
+- paste another shared log's link or ID and press **Compare log** (a link that names an encounter opens at it), or choose an a2log file on this computer with **Compare a local a2log file**;
+- each comparison shows the other log's title, its encounter to choose, and whether its boss, type, game version and difficulty differ from this one's;
+- each of your players' recorded DPS beside the same-class player you choose in the other log, and the difference; players are never paired automatically;
+- **Remove** lets a comparison go.
+
+The review's movement replay still opens in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 8 (0.2.464)
 
 **A log's review in the app's window now has its foot**, as on the web page:
