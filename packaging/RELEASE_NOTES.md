@@ -1,3 +1,22 @@
+## The Daevanion and Equipment windows in the native interface (0.2.435)
+
+**Two more result windows are native now.** A saved build's **Daevanion** and **Equipment** windows open in the app's window, as the web page draws them:
+- **Daevanion:**
+  - a tab for each board, with its points used of its total;
+  - the board: each node on its grid in its grade's colour, those the build takes bright and ringed, the others dim; a skill level is a circle with the skill's picture (its initials until the picture is read), the start a hexagon. Point at a node for its words, grade and cost;
+  - beside the board: the points used (and the Ariel crystal's, when the build has any), the board's points and nodes, and the skill levels and stats all the boards give;
+  - the board's key, and the stats as a grid under it;
+  - **Copy as text** (each board's points and the planner link) and **Open in metabot planner**.
+- **Equipment:**
+  - the paper doll: the weapons and armour on its left, the accessories on its right, the class, who wears the gear and its combat power in the middle;
+  - each slot with its item's picture and enchant level, the item in its grade's colour, its first four stats, its rolls, manastones, theostones and skill levels, and where it comes from;
+  - the rolls to keep or reroll toward, best first, and where an enchant level is worth most;
+  - the stats from the equipment, rolls and manastones, and **Copy as text**.
+- On a narrow window the board goes under its side and the paper doll into one column, as on the web page.
+- The Skills and Stigma counters show their words muted, as the web page does.
+
+Pet Genus, Arcana, Titles & wings, Skills hotbar and Macro & rotation are on the web Saved Results page for now.
+
 ## The Saved Results page in the native interface (0.2.434)
 
 **Saved Results is native now.** The app's window draws Character → Saved Results itself, as the web page shows it:
