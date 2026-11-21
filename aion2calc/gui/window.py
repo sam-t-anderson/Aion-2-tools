@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
+import urllib.parse
 import webbrowser
 
 from PySide6.QtCore import Qt, QTimer
@@ -283,13 +285,25 @@ class MainWindow(QMainWindow):
             self.pages.setCurrentIndex(self.page_index[key])
 
     def open_web(self, page: str) -> None:
-        """Open a page in the web interface: the app's own window for it when Edge or Chrome is there."""
+        """Open a page: here when this window draws it (an analyzed encounter, 0.2.456), else in the web interface, the
+        app's own window for it when Edge or Chrome is there."""
+        if self._open_here(page):
+            return
         url = f"{self.web_base.rstrip('/')}/#/{page}"
         try:
             from ..launcher import open_window
             open_window(url, True, native=False)
         except Exception:
             webbrowser.open(url)
+
+    def _open_here(self, page: str) -> bool:
+        """A page this window draws itself, shown: an analyzed encounter opens on Combat Logs."""
+        match = re.fullmatch(r"combat-log/analysis/([^/?#]+)", page or "")
+        if match is None or "combat" not in self.page_index:
+            return False
+        self.show_page("combat")
+        self.page("combat").open_analysis(urllib.parse.unquote(match.group(1)))
+        return True
 
     def start(self) -> None:
         self.page("meter").start()

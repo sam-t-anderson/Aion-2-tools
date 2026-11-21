@@ -2,7 +2,8 @@
 file with its progress, the logs folder, the log server shared to, the encounters analyzed), as pages/combat.js shows
 them; since 0.2.451 Saved Logs' recorded encounters by type (saved-logs.js) and its upload queue (archive-upload.js);
 since 0.2.452 My Uploads (log-ownership.js) and My Character Identities (identity.js); since 0.2.453 the community's
-views (logs-view.js); since 0.2.454 Personal records (community.js); since 0.2.455 the featured encounters (featured.js).
+views (logs-view.js); since 0.2.454 Personal records (community.js); since 0.2.455 the featured encounters (featured.js);
+since 0.2.456 an analyzed encounter's page with its parse card (pages/combat.js, parse.js).
 Off screen over a fake app answering as the app does, a fake share server and a fake log server behind the app's
 community proxy (made-up logs, recordings, credentials, characters, teams and encounters).
 """
@@ -28,6 +29,8 @@ from aion2calc.gui import combat as cb  # noqa: E402
 from aion2calc.gui import combat_views as cv  # noqa: E402
 from aion2calc.gui import combat_records as cr  # noqa: E402
 from aion2calc.gui import combat_featured as cf  # noqa: E402
+from aion2calc.gui import combat_analysis as ca  # noqa: E402
+from aion2calc.gui.combat_analysis_page import Bar, DpsChart, Donut, ParseCard  # noqa: E402
 from aion2calc.gui.combat_community import BossProgression, BuildPoints, CommunityLogs, RunSpeed  # noqa: E402
 from aion2calc.gui.combat_extras import BoxPlot, PersonalRecords, TrendChart  # noqa: E402
 from aion2calc.gui.combat_featured_page import _Closer, _Painted, _Segment, _Spread  # noqa: E402
@@ -66,6 +69,7 @@ OLDER = [{"file": "session-0.a2log.json", "title": "Old raid", "updated": T0 - 3
                         "difficulty": "normal", "duration": 200, "encounter_type": "sanctuary"}]}]
 PORTRAIT = "https://img.example/npc/2001.png"
 SORCERER = "https://metabot.gg/web/aion2/classes/sorcerer.webp"
+SKILL = "https://metabot.gg/web/aion2/skills/11010000.webp"
 #: The log server's public logs, as its pages give them (PvE, then PvP).
 COMMUNITY_LOGS = [
     {"id": "log0001", "created_at": T0, "uploader": "Uploader A", "bosses": [{"name": "Ice Queen", "icon": PORTRAIT}],
@@ -168,6 +172,38 @@ FE_SPEED = {"entries": [{"rank": 1, "team": TEAM_A, "elapsed": 754, "patch": "ve
 FE_STATISTICS = {"classes": [{"class": "sorcerer", "role": "dps", "count": 12, "p25": 40000, "median": 50000, "p75": 60000,
                               "p95": 80000, "max": 90000},
                              {"class": "cleric", "role": "support", "count": 3, "median": 20000, "max": 25000}]}
+
+# an analyzed encounter (/api/encounters/<id>): one player's fight, compared with the optimal rotation and the top logs
+ANALYSIS = {"id": 3, "file": "/data/logs/3.json",
+            "meta": {"player": "TestSorc", "class": "sorcerer", "target": "Ice Queen", "source": "abysslogs",
+                     "combat_power": 123456, "url": "https://abysslogs.com/e/abc", "notes": ["party log", "8 players"],
+                     "party": [{"name": "TestSorc", "class": "sorcerer", "damage": 900000},
+                               {"name": "TestCleric", "class": "cleric", "damage": 120000}]},
+            "summary": {"total": 1000000, "dps": 8333.3, "duration": 120, "hits": 410, "cpm": 41.5, "idle_seconds": 3.25,
+                        "crit": 0.42, "double": 0.1, "perfect": 0.05, "multi": 0.2, "back": 0.3, "front": 0.6,
+                        "biggest_hit": {"skill": "Flame Burst", "damage": 52345}},
+            "skills": [{"skill": "Flame Burst", "skill_id": 11010001, "hits": 40, "share": 0.5, "avg_hit": 12500,
+                        "max_hit": 52345},
+                       {"skill": "Ice Spear", "skill_id": 11020005, "hits": 120, "share": 0.2, "avg_hit": 1666.7,
+                        "max_hit": 4000},
+                       {"skill": "Frost Nova", "hits": 30, "share": 0.1, "avg_hit": 3333, "max_hit": 5000},
+                       {"skill": "Arcane Bolt", "hits": 100, "share": 0.08, "avg_hit": 800, "max_hit": 1200},
+                       {"skill": "Wind Cut", "hits": 60, "share": 0.06, "avg_hit": 1000, "max_hit": 1500},
+                       {"skill": "Ember", "hits": 40, "share": 0.04, "avg_hit": 1000, "max_hit": 1100},
+                       {"skill": "Spark", "hits": 20, "share": 0.02, "avg_hit": 1000, "max_hit": 1000}],
+            "rotation": [[0.0, "Flame Burst"], [1.24, "Ice Spear"], [2.5, "Unknown Strike"]],
+            "timeline": {"per_second": [8000, 9000, 7000, 12000, 6000], "rolling10": [8000, 8500, 8000, 9000, 8400]},
+            "buffs": [{"name": "Arcane Focus", "uptime": 0.8}, {"name": "Haste", "uptime": None}],
+            "gaps": [{"start": 10.0, "end": 12.25, "length": 2.25}],
+            "vs_optimal": {"share_overlap": 0.71, "comparable_dps": True, "sim_dps": 9800, "actual_dps": 8333.3,
+                           "note": "Simulated with the optimized build.", "tips": ["Cast Flame Burst on cooldown."],
+                           "skills": [{"skill": "Flame Burst", "share": 0.5, "sim_share": 0.55, "casts": 12, "sim_casts": 14}],
+                           "specs": [{"skill": "Flame Burst", "yours": "Spec A", "optimal": "Spec B", "differs": True},
+                                     {"skill": "Ice Spear", "yours": None, "optimal": "Spec C", "differs": False}]},
+            "vs_top": {"overlap": 0.64, "rows": [{"skill": "Flame Burst", "share": 0.5, "top_share": 0.45, "hpm": 20,
+                                                  "top_hpm": 22.4}]}}
+CLERIC_ANALYSIS = {**ANALYSIS, "id": 4, "meta": {**ANALYSIS["meta"], "player": "TestCleric", "class": "cleric"},
+                   "vs_optimal": {"error": "no optimized build for cleric"}, "vs_top": {"error": "no top logs"}}
 
 
 class LogServer:
@@ -337,6 +373,7 @@ class FakeApp:
         self.asked: list[dict] = []                        # what was asked of the uploads' servers
         self.claims = json.loads(json.dumps(CLAIMS))
         self.log_server = LogServer()
+        self.share_refusal = None
 
     def fingerprint(self, file):
         return self.prints.get(file) or hashlib.sha256(file.encode()).hexdigest()
@@ -379,7 +416,8 @@ class FakeApp:
 
     def get_bytes(self, path, timeout=None):
         self.calls.append(path)
-        if path in ("/static/game-assets/npc/2001.png", "/static/game-assets/class/sorcerer.png"):
+        if path in ("/static/game-assets/npc/2001.png", "/static/game-assets/class/sorcerer.png",
+                    "/static/game-assets/skill/11010000.png"):
             return _red_png()
         raise OSError("no such picture")
 
@@ -391,8 +429,14 @@ class FakeApp:
             return dict(self.server)
         if path == "/api/encounters":
             return json.loads(json.dumps(self.encounters))
+        if path.startswith("/api/encounters/"):
+            found = {"3": ANALYSIS, "4": CLERIC_ANALYSIS}.get(path.rsplit("/", 1)[1])
+            if found is None:
+                raise ValueError("No such encounter")
+            return json.loads(json.dumps(found))
         if path == "/static/game-assets.json":
-            return {"assets": {PORTRAIT: "game-assets/npc/2001.png", SORCERER: "game-assets/class/sorcerer.png"},
+            return {"assets": {PORTRAIT: "game-assets/npc/2001.png", SORCERER: "game-assets/class/sorcerer.png",
+                               SKILL: "game-assets/skill/11010000.png"},
                     "npc_portraits": {"2001": PORTRAIT}}
         if path.startswith("/api/community?path="):
             return self.log_server(urllib.parse.unquote(path.split("=", 1)[1]))
@@ -428,6 +472,10 @@ class FakeApp:
             return {"url": body["url"], "has_key": True, "visibility": body["visibility"]}
         if path == "/api/encounters/import":
             return {"job": "imp"}
+        if path.startswith("/api/encounters/") and path.endswith("/share"):
+            if self.share_refusal:
+                raise ValueError(self.share_refusal)
+            return {"url": "https://logs.example/log/rep0009", "ownership_warning": "Keep this log's delete token safe."}
         if path == "/api/upload-queue":
             self.queue_kept = json.loads(json.dumps(body))
             return {"ok": True}
@@ -457,8 +505,16 @@ def _page(app, **kwargs):
     return page
 
 
-def _texts(widget):
+def _shown():
+    """What was drawn last, shown: the waiting events handled, then the shows a redraw among them queued (a widget
+    added to a shown layout is shown by a queued call, so a redraw a timer starts in ``processEvents`` would otherwise
+    leave its widgets unshown for the next look)."""
     QCoreApplication.processEvents()
+    QCoreApplication.sendPostedEvents()
+
+
+def _texts(widget):
+    _shown()
     return [label.text() for label in widget.findChildren(QLabel) if label.isVisibleTo(widget)]
 
 
@@ -526,8 +582,10 @@ def test_saved_logs(qapp, tmp_path):
     note = next(label for label in page.findChildren(QLabel) if "AbyssLogs meter" in label.text())
     note.linkActivated.emit(cb.ABYSSLOGS)
     assert links == [cb.ABYSSLOGS]
-    _button(page.encounters_box, "Open").click()
-    assert opened == ["combat-log/analysis/3"]
+    _button(page.encounters_box, "Open").click()                      # in place of the views since 0.2.456
+    settle(lambda: page.analysis_page.isVisibleTo(page) and "TestSorc" in _texts(page.analysis_page))
+    assert not page.frame.isVisibleTo(page) and page.analysis_page.identifier == 3 and opened == []
+    _button(page, cf.BACK).click()
     _button(page, "Open folder").click()
     settle(lambda: ("/api/logs/open", {}) in app.posts)
     page.server_seen.setCurrentIndex(page.server_seen.findData("private"))
@@ -539,7 +597,8 @@ def test_saved_logs(qapp, tmp_path):
     page.player.setText("TestSorc")
     page.analyze.click()
     settle(lambda: page.message.text() == "reading 812 hits")
-    settle(lambda: opened[-1] == "combat-log/analysis/4")
+    settle(lambda: page.analysis_page.isVisibleTo(page) and page.analysis_page.identifier == 4)
+    _button(page, cf.BACK).click()
     settle(lambda: "Party" in _texts(page))
     assert ("/api/encounters/import", {"ref": "https://abysslogs.com/e/123", "player": "TestSorc"}) in app.posts
     # and from a file, an AbyssLogs segment unpacked
@@ -705,18 +764,18 @@ def _recorded(app, tmp_path, **kwargs):
 
 
 def _labels(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [label.text() for label in widget.findChildren(QLabel) if label.isVisibleTo(widget)]
 
 
 def _folds(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [f for f in widget.findChildren(Section) if f.isVisibleTo(widget)]
 
 
 def _find(widget, kind, test):
     """The first shown ``kind`` passing ``test``, once what was drawn last has shown."""
-    QCoreApplication.processEvents()
+    _shown()
     return next(w for w in widget.findChildren(kind) if test(w) and w.isVisibleTo(widget))
 
 
@@ -793,7 +852,7 @@ def _click(widget, words):
 
 
 def _picks(queue):
-    QCoreApplication.processEvents()
+    _shown()
     return {b.accessibleName(): b for b in queue.findChildren(QCheckBox) if b.accessibleName().startswith("Select ")
             and b.isVisibleTo(queue)}
 
@@ -1056,12 +1115,12 @@ def _owned(app, tmp_path, answers=(), **kwargs):
 
 
 def _row_buttons(widget, words):
-    QCoreApplication.processEvents()
+    _shown()
     return [b for b in widget.findChildren(QPushButton) if b.text() == words and b.isVisibleTo(widget)]
 
 
 def _visibility_boxes(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [c for c in widget.findChildren(QComboBox) if c.accessibleName() == "Upload visibility" and c.isVisibleTo(widget)]
 
 
@@ -1361,7 +1420,7 @@ def _view(kind, app, tmp_path, **kwargs):
 
 
 def _cells(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [label.text() for label in widget.findChildren(QLabel) if label.objectName() == "tcell" and label.isVisibleTo(widget)]
 
 
@@ -1898,6 +1957,173 @@ def test_a_featured_encounters_pages(qapp):
     page.open_featured(FE_ID, "statistics")
     _drawn(fp, "Recorded damage per second by class")
     assert asked.count(base + "/race") == races and cf.CLOSER not in _labels(fp)
+
+
+def test_the_analysis_words():
+    import pytest as _pytest
+    d = ca.parse_from_encounter(ANALYSIS)
+    assert (d["name"], d["cls"], d["cp"], d["dmg"], d["dps"], d["hits"], d["boss"], d["highest"]) == (
+        "TestSorc", "sorcerer", 123456, 1000000, 8333.3, 410, "Ice Queen", 52345)
+    assert d["gs"] is None and d["contrib"] is None and d["rates"]["crit"] == 0.42 and d["rates"]["front"] == 0.6
+    first = d["skills"][0]
+    assert (first["skill"], first["damage"], first["min"], first["max"]) == ("Flame Burst", 500000.0, None, 52345)
+    assert first["dps"] == _pytest.approx(500000 / 120)
+    assert d["rotation"] == [{"t": 0.0, "skill": "Flame Burst", "skill_id": 11010001},
+                             {"t": 1.24, "skill": "Ice Spear", "skill_id": 11020005},
+                             {"t": 2.5, "skill": "Unknown Strike", "skill_id": None}]
+    assert ca.skill_art(11010001) == SKILL and ca.skill_art(None) == ca.skill_art(0) == ""
+    assert [ca.rate(None), ca.rate(0.425)] == ["—", "43%"]
+    # the parse card
+    parts = ca.donut(d)
+    assert [(p["label"], p["share"]) for p in parts] == [("Flame Burst", "50%"), ("Ice Spear", "20%"), ("Frost Nova", "10%"),
+                                                         ("Arcane Bolt", "8%"), ("Wind Cut", "6%"), ("Other (2)", "6%")]
+    assert parts[-1]["colour"] == ca.PALETTE[8]
+    arcs = ca.donut_arcs(parts)
+    assert arcs[0][0] == -90 and arcs[0][1] == _pytest.approx(180) and sum(a[1] for a in arcs) == _pytest.approx(360)
+    assert ca.donut_arcs([]) == [(-90.0, _pytest.approx(359.9964), ca.EMPTY_DONUT)]
+    row = ca.skill_rows(d)[0]
+    assert {k: row[k] for k in ("hits", "dps", "avg", "min", "max", "damage", "share", "bar")} == {
+        "hits": "40", "dps": "4.17K", "avg": "12.50K", "min": "—", "max": "52.34K", "damage": "500.00K", "share": "50%",
+        "bar": 1.0}
+    assert ca.accuracy(d) == [("Hits", "410"), ("Crit", "42%"), ("Back", "30%"), ("Front", "60%"), ("Double", "10%"),
+                              ("Perfect", "5%"), ("Multi", "20%"), ("Parried", "—")]
+    assert ca.hits({**d, "hits": None}) == 410 and ca.hits({"skills": [{"skill": "x"}]}) is None
+    assert ca.defense(d) is None
+    live = {"incoming": {"damage": 54321, "hits": 30, "parries": 2, "shield_blocks": 1, "endurance": 0,
+                         "sources": {"Frost Hound": 4321, "Ice Queen": 50000}}, "healing": 1500}
+    assert ca.defense(live) == {"cards": [("Damage taken", "54.32K"), ("Incoming hits", "30"), ("Parried hits", "2"),
+                                          ("Shield blocks", "1"), ("Endurance", "0"), ("Healing done", "1.50K")],
+                                "attackers": [("Ice Queen", "50.00K"), ("Frost Hound", "4.32K")]}
+    assert [c["at"] for c in ca.rotation(d)] == ["0s", "1s", "3s"]
+    assert ca.head_stats(d) == [("CP", "123.46K", False), ("DMG", "1.00M", False), ("DPS", "8.33K", True)]
+    assert ca.head_stats({"gs": 3456, "contrib": 0.456, "dmg": 1000, "dps": 50}) == [
+        ("GS", "3,456", False), ("DMG", "1.00K", False), ("DPS", "50", True), ("Contrib", "46%", False)]
+    assert ca.head_line(d) == "Sorcerer · Ice Queen" and ca.head_line({}) == ""
+    chart = ca.chart(d)
+    assert (chart["top"], chart["peak"], len(chart["per"])) == (12000, "peak 10 s: 9,000", 5)
+    assert ca.chart({"timeline": None}) is None
+    # the analysis page
+    assert ca.subtitle(ANALYSIS) == "TestSorc · Sorcerer · Ice Queen · abysslogs · CP 123,456"
+    assert ca.party(ANALYSIS) == [{"name": "TestSorc", "class": "sorcerer", "you": True, "tip": "sorcerer · 900,000 damage"},
+                                  {"name": "TestCleric", "class": "cleric", "you": False, "tip": "cleric · 120,000 damage"}]
+    assert ca.party({"meta": {"party": [{"name": "TestSorc"}]}}) == []
+    assert ca.info_html(ANALYSIS, "#39c2e0") == (
+        "party log · 8 players · <a href='https://abysslogs.com/e/abc' style='color: #39c2e0;'>open on AbyssLogs</a> · "
+        "saved as <code>/data/logs/3.json</code>")
+    assert ca.info_html({}, "#39c2e0") == ""
+    assert ca.chips(ANALYSIS) == [("Casts / min", "42"), ("Multi-hit", "20.0%"), ("Idle", "3.3 s")]
+    assert ca.buffs(ANALYSIS) == [{"name": "Arcane Focus", "bar": 0.8, "words": "80%"}, {"name": "Haste", "bar": 0.0, "words": "—"}]
+    assert ca.gaps(ANALYSIS) == "Idle gaps: 10.0–12.3s" and ca.gaps({}) == ""
+    assert ca.optimal(ANALYSIS) == {
+        "error": "", "note": "Simulated with the optimized build.", "overlap": "71%", "dps": " · optimal DPS 9,800 vs yours 8,333",
+        "tips": ["Cast Flame Burst on cooldown."],
+        "rows": [{"skill": "Flame Burst", "share": 0.5, "share_words": "50.0%", "sim": 0.55, "sim_words": "55.0%",
+                  "casts": "12", "sim_casts": "14"}],
+        "specs": [{"skill": "Flame Burst", "yours": "Spec A", "optimal": "Spec B", "differs": True},
+                  {"skill": "Ice Spear", "yours": "none", "optimal": "Spec C", "differs": False}]}
+    assert ca.optimal(CLERIC_ANALYSIS) == {"error": "no optimized build for cleric"}
+    assert ca.top(ANALYSIS) == {"overlap": "64%", "rows": [["Flame Burst", "50.0%", "45.0%", "20", "22"]]}
+    assert ca.top(CLERIC_ANALYSIS) is None
+    assert ca.import_body(ANALYSIS, "TestCleric") == {"ref": "https://abysslogs.com/e/abc", "player": "TestCleric"}
+
+
+def test_an_analyzed_encounter(qapp):
+    from aion2calc.gui import combat_analysis_page as cap
+    links = []
+    app = FakeApp()
+    page = _page(app, open_link=links.append)
+    page.open_analysis(3)
+    view = page.analysis_page
+    settle(lambda: "TestSorc" in _labels(view) and view.findChildren(ParseCard))
+    card = view.findChildren(ParseCard)[0]
+    settle(lambda: card.wide and any(not label.pixmap().isNull() for label in card.findChildren(QLabel)
+                                     if label.objectName() == "pIcon"))
+    assert not page.frame.isVisibleTo(page) and page.featured_box.isVisibleTo(page)
+    texts = _labels(view)
+    assert "ENCOUNTER" in texts and ca.subtitle(ANALYSIS) in texts and "Sorcerer · Ice Queen" in texts
+    # every section at once on a wide card: their headings, the notes in their tooltips, no tabs
+    assert all(h in texts for h in ("DAMAGE BY SKILL", "DPS OVER THE FIGHT", "SKILLS", "ACCURACY", "DEFENSE", "SKILL ROTATION"))
+    accuracy = _find(card, QLabel, lambda label: label.text() == "ACCURACY")
+    assert accuracy.toolTip() == ca.ACCURACY_NOTE and ca.ACCURACY_NOTE not in texts
+    assert not [b for b in card.findChildren(QPushButton) if b.objectName() == "pTab" and b.isVisibleTo(card)]
+    assert all(t in texts for t in ("123.46K", "1.00M", "8.33K", "52.34K", "4.17K", "12.50K", "Other (2)", "42%", ca.NO_INCOMING,
+                                    "0s", "1s", "3s"))
+    assert card.findChildren(Donut)[0].value == "8.33K" and len(card.findChildren(Donut)[0].arcs) == 6
+    assert card.findChildren(DpsChart)[0].per == [8000, 9000, 7000, 12000, 6000]
+    assert any("500.00K" in t and "50%" in t for t in texts)
+    # a narrower card: the tabs, one section at a time, the tab chosen kept for the next card
+    page.resize(700, 1400)
+    settle(lambda: card.wide is False and [b for b in card.findChildren(QPushButton) if b.objectName() == "pTab"
+                                           and b.isVisibleTo(card)])
+    assert ca.ACCURACY_NOTE not in _labels(card) and "4.17K" in _labels(card)
+    _click(card, "Defense")
+    assert cap._TAB["chosen"] == "def" and ca.NO_INCOMING in _labels(card) and "4.17K" not in _labels(card)
+    _click(card, "Accuracy")
+    assert ca.ACCURACY_NOTE in _labels(card) and "42%" in _labels(card)
+    _click(card, "DPS")
+    page.resize(1200, 1400)
+    settle(lambda: card.wide)
+    # under the card, the buffs, the optimal rotation and the top logs
+    texts = _labels(view)
+    assert all(t in texts for t in ("Casts / min: <b>42</b>", "Multi-hit: <b>20.0%</b>", "Idle: <b>3.3 s</b>",
+                                    "Idle gaps: 10.0–12.3s", "Cast Flame Burst on cooldown.", "SPECIALIZATIONS (from the log)"))
+    bars = [(b.words, b.alt) for b in view.findChildren(Bar) if b.isVisibleTo(view)]
+    assert ("80%", True) in bars and ("—", True) in bars and ("50.0%", False) in bars and ("55.0%", True) in bars
+    assert any("71%" in t and " · optimal DPS 9,800 vs yours 8,333" in t for t in texts)
+    assert f"<span style='color: {theme_colour('bad')};'>Spec A</span>" in texts
+    assert any("64%" in t and "top Korean logs" in t for t in texts) and "22" in _cells(view)
+    notes = _find(view, QLabel, lambda label: "open on AbyssLogs" in label.text())
+    notes.linkActivated.emit("https://abysslogs.com/e/abc")
+    assert links == ["https://abysslogs.com/e/abc"]
+    # Share link: its link, the warning; or why not
+    _click(view, ca.SHARE)
+    settle(lambda: any(ca.SHARED in t for t in _labels(view)))
+    assert page.toast.text() == "Keep this log's delete token safe."
+    _find(view, QLabel, lambda label: ca.SHARED in label.text()).linkActivated.emit("https://logs.example/log/rep0009")
+    assert links[-1] == "https://logs.example/log/rep0009"
+    app.share_refusal = "Sign in to share"
+    _click(view, ca.SHARE)
+    settle(lambda: "Sign in to share" in _labels(view))
+    # the fight as another of its party: analyzed, then opened
+    _find(view, QPushButton, lambda b: b.accessibleName() == "Analyze as TestCleric").click()
+    settle(lambda: view.identifier == 4 and "TestCleric · Cleric · Ice Queen · abysslogs · CP 123,456" in _labels(view))
+    assert ("/api/encounters/import", {"ref": "https://abysslogs.com/e/abc", "player": "TestCleric"}) in app.posts
+    assert "no optimized build for cleric" in _labels(view) and "COMPARED WITH TOP PLAYERS" not in _labels(view)
+    # an encounter the app can't read
+    page.open_analysis(99)
+    settle(lambda: "No such encounter" in _labels(view))
+    _click(page, cf.BACK)
+    assert page.frame.isVisibleTo(page) and not page.featured_box.isVisibleTo(page)
+
+
+def theme_colour(name):
+    from aion2calc.gui import theme
+    return theme.COLORS[name]
+
+
+def test_a_parse_card_with_incoming_damage(qapp):
+    live = {"name": "TestSorc", "cls": "sorcerer", "gs": 3456, "contrib": 0.456, "dmg": 1000, "dps": 50, "healing": 1500,
+            "skills": [], "rates": {}, "incoming": {"damage": 54321, "hits": 30, "parries": 2, "shield_blocks": 1, "endurance": 0,
+                                                    "sources": {"Frost Hound": 4321, "Ice Queen": 50000}}}
+    card = ParseCard(live)
+    card.resize(1000, 900)
+    card.show()
+    settle(lambda: card.wide)
+    texts = _labels(card)
+    assert all(t in texts for t in ("GS", "3,456", "CONTRIB", "46%", "54.32K", "Ice Queen", "50.00K", "4.32K", ca.NO_SKILLS))
+    defense = _find(card, QLabel, lambda label: label.text() == "DEFENSE")
+    assert defense.toolTip() == ca.DEFENSE_NOTE
+    assert card.findChildren(Donut)[0].arcs == [(-90.0, 359.9964, ca.EMPTY_DONUT)] and not card.findChildren(DpsChart)
+    assert "SKILL ROTATION" not in texts
+
+
+def test_the_window_opens_an_analysis_itself(qapp):
+    window = MainWindow(None)
+    window.open_web("combat-log/analysis/7")
+    combat = window.page("combat")
+    assert window.pages.currentWidget() is combat and combat.analysis_page.identifier == "7"
+    QCoreApplication.processEvents()
+    assert combat.analysis_page.isVisibleTo(combat) and not combat.frame.isVisibleTo(combat)
 
 
 def test_the_window_draws_combat_logs_itself(qapp):

@@ -19,6 +19,8 @@
 - Since 0.2.455 the **featured encounters** too (combat_featured_page.py). Their landing cards are drawn above the views.
   Each encounter's pages (race summary, progress, all reports, rankings and statistics) are shown in place of the views,
   with **← Back to combat logs**.
+- Since 0.2.456 an **analyzed encounter's page** too (combat_analysis_page.py), shown in place of the views likewise:
+  opened from the encounters analyzed, after a fight is analyzed, and from any page that links to it.
 - A log's own page opens in the web interface for now.
 """
 from __future__ import annotations
@@ -36,6 +38,7 @@ from . import combat_featured as cf
 from . import theme
 from .api import AppApi, Job, Requests
 from .combat_community import BossProgression, BuildPoints, Community, CommunityLogs, RunSpeed
+from .combat_analysis_page import STYLE as ANALYSIS_STYLE, AnalysisPage
 from .combat_extras import PersonalRecords
 from .combat_featured_page import STYLE as FEATURED_STYLE, FeaturedPage, FeaturedSection
 from .combat_owned import Identities, OwnedUploads
@@ -97,7 +100,7 @@ class CombatPage(QWidget):
             QFrame#rowNote {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
                 border-radius: 5px; padding: 6px 9px; }}
             QFrame#note QToolButton#fold {{ color: #f1d4a3; }}
-            """ + FEATURED_STYLE + Toast.STYLE)
+            """ + FEATURED_STYLE + ANALYSIS_STYLE + Toast.STYLE)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.NoFrame)
@@ -109,7 +112,7 @@ class CombatPage(QWidget):
         layout = QVBoxLayout(content)
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(14)
-        self.featured_box = QWidget()                    # a featured encounter's page, shown in place of the views
+        self.featured_box = QWidget()                    # a featured encounter's or an analysis's page, in place of the views
         self.featured_box.setObjectName("plain")
         self.featured_line = QVBoxLayout(self.featured_box)
         self.featured_line.setContentsMargins(0, 0, 0, 0)
@@ -118,6 +121,7 @@ class CombatPage(QWidget):
         self.featured_box.setVisible(False)
         layout.addWidget(self.featured_box)
         self.featured_page: FeaturedPage | None = None   # drawn when first opened and kept
+        self.analysis_page: AnalysisPage | None = None   # likewise
         self.frame = Window("Combat logs", cb.SUBTITLE)
         layout.addWidget(self.frame)
         layout.addStretch(1)
@@ -235,15 +239,32 @@ class CombatPage(QWidget):
             self.featured_page = FeaturedPage(self.api, self.open_web, self.pictures, opened=self.open_featured)
             self.featured_line.addWidget(self.featured_page)
         self.featured_page.show_page(fid, view, metric)
+        self._in_place(self.featured_page)
+
+    def open_analysis(self, identifier) -> None:
+        """An analyzed encounter's page in place of the views (``#/combat-log/analysis/<id>``), from its top."""
+        if self.analysis_page is None:
+            self.analysis_page = AnalysisPage(self.api, self.open_analysis, self.open_link, self.toast.say, self.pictures)
+            self.featured_line.addWidget(self.analysis_page)
+        self.analysis_page.show_encounter(identifier)
+        self._in_place(self.analysis_page)
+
+    def _in_place(self, shown: QWidget) -> None:
+        for page in (self.featured_page, self.analysis_page):
+            if page is not None:
+                page.setVisible(page is shown)
         self.frame.setVisible(False)
         self.featured_box.setVisible(True)
         self.scroll.verticalScrollBar().setValue(0)
 
     def close_featured(self) -> None:
-        """Back to the views as they were left, the featured encounters read again (``#/combat``)."""
+        """Back to the views as they were left, the featured encounters and the encounters analyzed read again
+        (``#/combat``)."""
         self.featured_box.setVisible(False)
         self.frame.setVisible(True)
         self.featured.load()
+        if self.requests is not None and self.saved_panel is not None:
+            self.requests.get("encounters", "/api/encounters")
         self.scroll.verticalScrollBar().setValue(0)
 
     # ---------------------------------------------------------------- saved logs
@@ -313,8 +334,10 @@ class CombatPage(QWidget):
                 if view is not None and view.isVisibleTo(self):
                     view.refresh()                       # the one shown, read again as the web page reads it
             self.featured.load()
-            if self.featured_page is not None and self.featured_box.isVisibleTo(self):
+            if self.featured_page is not None and self.featured_page.isVisibleTo(self):
                 self.featured_page.reload()
+            if self.analysis_page is not None and self.analysis_page.isVisibleTo(self):
+                self.analysis_page.show_encounter(self.analysis_page.identifier)
         self.seen = True
 
     def _replied(self, name: str, answer) -> None:
@@ -388,7 +411,7 @@ class CombatPage(QWidget):
             self.encounters.addWidget(_label(cb.NO_ENCOUNTERS, "faint"))
             return
         cells = [[str(r["id"]), r["player"], r["class"], r["boss"], r["source"], r["duration"], r["dps"],
-                  _button("Open", lambda identifier=r["id"]: self._web(cb.analysis_page(identifier)))] for r in rows]
+                  _button("Open", lambda identifier=r["id"]: self.open_analysis(identifier))] for r in rows]
         self.encounters.addWidget(GridTable(cb.ENCOUNTER_COLUMNS, cells, {column: 1 for column in range(1, 7)}, right=(5, 6)))
 
     def _say(self, words: str) -> None:
@@ -420,7 +443,7 @@ class CombatPage(QWidget):
         """The fight analyzed: its analysis opened, and the list read again."""
         identifier = (result or {}).get("id") if isinstance(result, dict) else None
         if identifier is not None:
-            self._web(cb.analysis_page(identifier))
+            self.open_analysis(identifier)
         if self.requests is not None and self.saved_panel is not None:
             self.requests.get("encounters", "/api/encounters")
 
@@ -445,7 +468,7 @@ class CombatPage(QWidget):
     def closeEvent(self, event) -> None:
         for worker in (self.requests, self.job, self.recorded, self.queue, self.owned, self.identities,
                        self.community_logs, self.speed, self.progression, self.points, self.records, self.featured,
-                       self.featured_page, self.pictures):
+                       self.featured_page, self.analysis_page, self.pictures):
             if worker is not None:
                 worker.stop()
         super().closeEvent(event)

@@ -1,3 +1,18 @@
+## Combat Logs' analyzed encounters in the native interface (0.2.456)
+
+**An analyzed encounter opens in the app's window too**: a fight you analyzed from an AbyssLogs or A2DIL link, or from a file. It opens in place of Combat Logs' views, with **← Back to combat logs**, when you analyze a fight, when you open one under **Analyzed encounters**, and from Gear & Advice's fights:
+- **Encounter:** the party, to analyze the fight as another of them; **Share link**; its notes, its AbyssLogs page and the file it is saved in; its casts a minute, multi-hits and idle time; and its **parse card**. The card has the player's figures, then:
+  - **DPS:** damage by skill as a ring with the five largest skills, the highest hit, the DPS over the fight (each second, and the ten-second average), and every skill's hits, DPS, average, most and damage;
+  - **Defense** and **Accuracy**;
+  - the skill rotation.
+
+  From 900 px wide the card shows every section at once in two columns, as the web card does; narrower, it has tabs, and the tab you chose is kept for the next card.
+- **Buff uptime**, with the idle gaps;
+- **Compared with your optimal rotation:** the share overlap, the optimal DPS, tips, each skill's shares and casts, and the specializations;
+- **Compared with top players**, when the app has the class's top logs.
+
+Only the log review, a recorded or shared log's own page, still opens in the web interface.
+
 ## Combat Logs' featured encounters in the native interface (0.2.455)
 
 **The featured encounters open in the app's window too**, read from your log server as the web page reads them:
