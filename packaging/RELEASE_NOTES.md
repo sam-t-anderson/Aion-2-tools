@@ -1,3 +1,17 @@
+## The Pet Tracker page in the native interface (0.2.431)
+
+**The Pet Tracker page is native now.** The app's window draws Game → Pet Tracker itself, as the web page shows it:
+- **Pet Tracker:**
+  - **Install Pet Tracker** while it is not installed, with what its install is doing;
+  - its version and folder, and a newer release with its button (or the link to its releases);
+  - *Use Pet Tracker with Aion 2 Calc*, *Show the Pet Tracker overlay* and the window it opens in;
+  - its status line and **Open Pet Tracker**.
+- **Now:** **Recent** or **Nearby**, **Hide maxed**, and the pets of the moment. Each shows its portrait, name and rank, souls toward the next rank with a bar, its family, Pet Tracker's notice and the star that pins it. A character Pet Tracker waits to link to its account is named, with **Link <character> to <account>**.
+- **This session:** the souls gained and pets ranked up, each pet's souls and rank-ups, and **Reset session**.
+- **Collection:** your whole collection, with its counts, a search, the family and rank filters, the sort by name or by closest to the next rank, and each pet's farming goal.
+
+The page reads Pet Tracker every 1.5 seconds while it is connected (every 3 otherwise) and the collection every 10, only while it is shown. Pet Tracker's own settings (its accent, portraits and bars) apply as on the web page.
+
 ## The Gathering page in the native interface (0.2.430)
 
 **The Gathering page is native now.** The app's window draws Game → Gathering itself, as the web page shows it:
