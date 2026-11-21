@@ -1,3 +1,14 @@
+## A combat log's own page in the native interface, part 2 (0.2.458)
+
+**A log's review in the app's window now draws its graph and its enemies too:**
+- **The rate chart:** the total damage done (or healing, or damage taken, by the tab chosen) each second as bars under its ten-second average, or each player's series in their class's colour (**Graph style**). The bosses' HP is drawn in red on the right scale; in an opponent's view, their own. Move the pointer over it, click it, or use the arrow keys to see every player's rates and each boss's HP at that moment. Hide a series by its button, and bring them all back with **Show all series**;
+- **Recorder ping:** the recording connection's latency over the fight, its average, least and most, each sample on hover;
+- **Remaining boss HP**, as last recorded;
+- **Enemy encounters:** each enemy once by name (an add's spawns together, with their count), its portrait when the app bundles it, its creature type, the damage it received and when it was seen. **Filter** narrows the review to it, and **All enemies** shows all again. The summons nobody struck are folded away. An NPC the game data names only by its number takes the community's name for it;
+- **Graph**, **Pets** and **Combine pets with owner** choose what the review shows.
+
+The review's other sections (timeline, events, abilities and skills, actions, death recaps, insights, rankings, reports, comparisons and movement replay) still open in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 1 (0.2.457)
 
 **A recorded or shared log's review opens in the app's window too**, in place of Combat Logs' views, with **← Back to combat logs**. It opens from wherever a log is linked: your recorded encounters and recordings, the community's logs, the featured encounters, your records and your account. So far it shows:
