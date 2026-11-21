@@ -152,7 +152,7 @@ def test_new_shows_the_meter_empty_until_the_next_fight_begins(qapp):
     assert window.cleared_fight == "5" and window.tools["split"].text() == "New ✓"
     assert window.status.text() == "New fight · waiting for combat"
     assert _rows(window) == [] and window.empty.text() == "New fight — waiting for the first hit."
-    assert window.target.isHidden() and window.copy_text == "DPS · Atiel · 75s\n— Aion 2 Calc"
+    assert window.target_card.isHidden() and window.copy_text == "DPS · Atiel · 75s\n— Aion 2 Calc"
     following = fight()
     following["snapshot"]["selected_segment"] = 6                               # its first hit gave it an id
     window.apply_meter(following)
@@ -246,7 +246,7 @@ def test_what_the_rows_place_says_without_rows(qapp):
     meter["snapshot"]["battle_over"] = True
     window = _overlay(meter)
     assert _rows(window) == [] and window.empty.text() == "Ready — waiting for the next fight."
-    assert window.target.isHidden()
+    assert window.target_card.isHidden()
     window.apply_meter({"running": False, "snapshot": {}})
     assert window.empty.text() == "No fight yet. Start the meter in the app." and window.status.text() == "Idle"
     window.apply_meter({"running": True, "snapshot": {}})

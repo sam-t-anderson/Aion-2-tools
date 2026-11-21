@@ -1,3 +1,23 @@
+## The native overlay's rows and target card (0.2.421)
+
+**Native overlay, eighth part.** The native interface's overlay (Settings → Native interface, a preview) now draws its player rows and its target card as the web overlay's compact layout does:
+- **The rows:**
+  - each class's emblem before the name, from the art the app comes with, and a green dot on your own;
+  - rows a little taller than the row height setting, the bar darkening toward the card, your row edged in the glow colour with *Highlight my own row* on, and ME beside your name;
+  - the rate in whole digits (23,400/s) and the share of the total to a tenth (51.2%), as the web overlay writes them;
+  - the rank numbers of the top three in gold, silver and bronze;
+  - DEAD beside the name, and the combat power as a chip with its crossed swords. In a narrow overlay the chip, then the share, step aside so the names keep their room.
+- **The row effects** for your row and the top row: gold, rainbow, ember, frost, aether and starlight, held still in performance mode and when Windows' animations are off.
+- **Long names** cut short scroll under the pointer, with *Scroll long names on hover* on.
+- **The target card:**
+  - the boss's portrait where the app has its art, else the target mark;
+  - its name with the others struck in the same instant, by name; in a narrow card their names give way first and the count is never cut;
+  - its HP in damage units where the community has measured it (1.2M / 2.5M) and its share to a tenth (47.0%);
+  - the HP, time-to-kill and break bars inside the card, the break gauge striped once broken;
+  - under them the time to kill, the enrage timer (red when the kill runs past it) and the break, written as the web overlay writes them (1m06s).
+
+The bosses' portraits are the ones the app comes with; the web overlay can also show one the log server's community map links to.
+
 ## The native overlay's look (0.2.420)
 
 **Native overlay, seventh part.** The native interface's overlay (Settings → Native interface, a preview) now takes the look you give the overlay in Settings, as the web overlay does:

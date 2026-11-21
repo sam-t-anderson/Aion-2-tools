@@ -36,6 +36,9 @@ GLOW_BLURS = (8, 4)                       # ``0 0 4px, 0 0 8px``
 #: The outline: a ring a pixel round the glyphs, at the strength of the web overlay's 0.6 px stroke (measured
 #: against Chromium's drawing of the same text: a whole pixel at full strength put four times its colour round it).
 OUTLINE_OPACITY = 0.25
+#: The compact layout's shadow under the rows' text (``--nm-row-shadow: 0 1px 2px rgba(0, 0, 0, .55)``), which the
+#: glow and the halo replace when either is on.
+ROW_SHADOW = (QColor(0, 0, 0, 140), 1, 2)
 _RING = ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1))
 _HEX = re.compile(r"#[0-9a-fA-F]{6}")
 _UNSAFE = re.compile(r"[\"'\\;:{}<>]")         # what would end a family's quotes in a style sheet or rich text
@@ -124,13 +127,19 @@ class TextLook:
         font.setWeight(QFont.Weight(max(100, min(900, self.weight_of(key, weight)))))
         return font
 
+    def family_css(self, key: str) -> str:
+        """A style sheet's family for an element with one of its own, else "" (the window's)."""
+        if not self.fonts.get(key, (None,))[0]:
+            return ""
+        return "font-family: " + ", ".join(f'"{name}"' for name in self.families(key)) + ";"
+
     def css(self, key: str, px: float, weight: int, colour: str | None = None) -> str:
         """A style sheet's font for an element, and its colour when ``colour`` (its own default) is given: its own
         where set, else these. The family is the window's (the overlay's own, or ``overlay_font_family``) unless
         the element has one of its own."""
         parts = [f"color: {self.colour(key, colour)};"] if colour else []
-        if self.fonts.get(key, (None,))[0]:
-            parts.append("font-family: " + ", ".join(f'"{name}"' for name in self.families(key)) + ";")
+        if family := self.family_css(key):
+            parts.append(family)
         parts += [f"font-size: {self.size(key, px)}px;", f"font-weight: {self.weight_of(key, weight)};"]
         return " ".join(parts)
 
@@ -148,6 +157,15 @@ class TextLook:
         if own_weight or weight:
             parts.append(f"font-weight:{own_weight or weight}")
         return "; ".join(parts)
+
+    def span(self, key: str, text: str, colour: str, px: float, weight: int) -> str:
+        """``text`` (already escaped) as rich text at an element's own size within a label (the target card's name,
+        the others struck, the time to kill): its colour, size and weight, its own where set, else these."""
+        style = [f"color:{self.colour(key, colour)}", f"font-size:{self.size(key, px)}px",
+                 f"font-weight:{self.weight_of(key, weight)}"]
+        if self.fonts.get(key, (None,))[0]:
+            style.insert(1, "font-family:" + ", ".join(f"'{name}'" for name in self.families(key)))
+        return f'<span style="{"; ".join(style)}">{text}</span>'
 
     def inline(self, key: str, text: str, px: float, colour: str | None = None, weight: int | None = None) -> str:
         """``text`` (already escaped) as rich text in the element's own look, or as it is when it has none."""
@@ -221,12 +239,16 @@ def _blurred(pixmap: QPixmap, radius: float) -> QPixmap:
     return out
 
 
-def _masks(source: QPixmap, look: TextLook) -> tuple[QPixmap | None, QPixmap | None]:
+def _masks(source: QPixmap, look: TextLook, shadow: bool = False) -> tuple:
     """The effects of a text's picture, white, to be tinted: the halo's or the glow's spread (the compact layout
-    shows the halo alone when both are on), and the outline's ring a pixel round the glyphs."""
+    shows the halo alone when both are on), or with neither the rows' shadow (``shadow``); and the outline's ring a
+    pixel round the glyphs."""
     behind = ring = None
-    white = _tinted(source, "#ffffff") if look.effects else None
-    if look.halo or look.glow:
+    shadow = shadow and not (look.halo or look.glow)
+    white = _tinted(source, "#ffffff") if look.effects or shadow else None
+    if shadow:
+        behind = _blurred(white, ROW_SHADOW[2])
+    elif look.halo or look.glow:
         behind = _clear(source)
         painter = QPainter(behind)
         for radius in HALO_BLURS if look.halo else GLOW_BLURS:
@@ -256,7 +278,9 @@ def _layer(source: QPixmap, look: TextLook, masks, fill=None, shift=None) -> QPi
     turn = shift or (lambda colour: colour)
     layer = _clear(source)
     painter = QPainter(layer)
-    if behind is not None:
+    if behind is not None and not (look.halo or look.glow):   # the rows' shadow, a pixel down
+        painter.drawPixmap(0, ROW_SHADOW[1], _tinted(behind, ROW_SHADOW[0]))
+    elif behind is not None:
         painter.drawPixmap(0, 0, _tinted(behind, turn(QColor(look.halo_colour if look.halo else look.glow_colour))))
     if ring is not None:
         painter.setOpacity(OUTLINE_OPACITY)
@@ -277,25 +301,27 @@ def forget_pictures() -> None:
 
 
 def draw_text(painter: QPainter, rect: QRectF, text: str, font: QFont, colour: QColor, align, look: TextLook,
-              brush=None, shift=None) -> float:
+              brush=None, shift=None, shadow: bool = False) -> float:
     """Draw ``text`` in ``rect`` (left or right aligned, centred upright) in ``colour`` or ``brush`` (the sheen),
     with the look's effects as the labels have them (``TextEffect``), their colours turned by ``shift`` (the colour
-    cycle), and blended with what lies behind it in the blend mode; answers its width. The text's picture and its
-    effects' masks are kept for the next drawing of the same text, so a frame of the cycle or the sheen only tints
-    them."""
+    cycle), with the rows' shadow under it (``shadow``) where no glow or halo takes its place, and blended with what
+    lies behind it in the blend mode; answers its width. The text's picture and its effects' masks are kept for the
+    next drawing of the same text, so a frame of the cycle or the sheen only tints them."""
     metrics = QFontMetricsF(font)
     width = metrics.horizontalAdvance(text)
-    if not look.painted and brush is None:
+    if not text:
+        return 0.0
+    if not look.painted and brush is None and not shadow:
         painter.setFont(font)
         painter.setPen(colour)
         painter.drawText(rect, align | Qt.AlignVCenter, text)
         return width
     x = rect.right() - width if align & Qt.AlignRight else rect.left()
-    pad = _pad(look)
+    pad = max(_pad(look), 4 if shadow else 0)
     box = QRectF(round(x) - pad, round(rect.top()) - pad, math.ceil(width) + 2 * pad + 1, rect.height() + 2 * pad)
     ratio = painter.device().devicePixelRatioF()
     key = (text, font.key(), ratio, box.width(), box.height(), round(x - box.left(), 3),
-           round(rect.top() - box.top(), 3), look.halo, look.glow, look.outline)
+           round(rect.top() - box.top(), 3), look.halo, look.glow, look.outline, shadow)
     kept = _GLYPHS.pop(key, None)
     if kept is None:
         glyphs = QPixmap(max(1, math.ceil(box.width() * ratio)), max(1, math.ceil(box.height() * ratio)))
@@ -307,7 +333,7 @@ def draw_text(painter: QPainter, rect: QRectF, text: str, font: QFont, colour: Q
         inner.drawText(QRectF(x - box.left(), rect.top() - box.top(), width + 1, rect.height()),
                        Qt.AlignLeft | Qt.AlignVCenter, text)
         inner.end()
-        kept = (glyphs, _masks(glyphs, look))
+        kept = (glyphs, _masks(glyphs, look, shadow))
         while len(_GLYPHS) >= _GLYPHS_KEPT:
             _GLYPHS.popitem(last=False)
     _GLYPHS[key] = kept
