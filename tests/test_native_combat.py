@@ -1,8 +1,9 @@
 """The native Combat Logs page, part 1 (0.2.450): its views and lists, and Saved Logs (a fight analyzed from a link or a
 file with its progress, the logs folder, the log server shared to, the encounters analyzed), as pages/combat.js shows
 them; since 0.2.451 Saved Logs' recorded encounters by type (saved-logs.js) and its upload queue (archive-upload.js);
-since 0.2.452 My Uploads (log-ownership.js) and My Character Identities (identity.js). Off screen over a fake app
-answering as the app does and a fake share server (made-up logs, recordings, credentials, characters and encounters).
+since 0.2.452 My Uploads (log-ownership.js) and My Character Identities (identity.js); since 0.2.453 the community's
+views (logs-view.js). Off screen over a fake app answering as the app does, a fake share server and a fake log server
+behind the app's community proxy (made-up logs, recordings, credentials, characters and encounters).
 """
 import gzip
 import hashlib
@@ -23,6 +24,8 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QLabel, QLine
                                QPushButton)
 
 from aion2calc.gui import combat as cb  # noqa: E402
+from aion2calc.gui import combat_views as cv  # noqa: E402
+from aion2calc.gui.combat_community import BossProgression, BuildPoints, CommunityLogs, RunSpeed  # noqa: E402
 from aion2calc.gui.combat_page import CombatPage  # noqa: E402
 from aion2calc.gui.combat_owned import Identities, OwnedUploads  # noqa: E402
 from aion2calc.gui.combat_saved import RecordedEncounters, Section, UploadQueue  # noqa: E402
@@ -57,6 +60,77 @@ OLDER = [{"file": "session-0.a2log.json", "title": "Old raid", "updated": T0 - 3
           "contexts": [{"segment": 0, "boss": "Ice Queen", "boss_code": 2001, "category": "raid", "role": "final",
                         "difficulty": "normal", "duration": 200, "encounter_type": "sanctuary"}]}]
 PORTRAIT = "https://img.example/npc/2001.png"
+SORCERER = "https://metabot.gg/web/aion2/classes/sorcerer.webp"
+#: The log server's public logs, as its pages give them (PvE, then PvP).
+COMMUNITY_LOGS = [
+    {"id": "log0001", "created_at": T0, "uploader": "Uploader A", "bosses": [{"name": "Ice Queen", "icon": PORTRAIT}],
+     "players": [{"name": "TestSorc", "class": "sorcerer"}],
+     "contexts": [{"segment": 0, "boss": "Combat 3", "duration": 10},
+                  {"segment": 1, "boss": "Frost Hound", "boss_role": "mini", "duration": 40},
+                  {"segment": 2, "boss": "Ice Queen", "boss_role": "final", "difficulty": "Hard", "duration": 125,
+                   "start": T0 + 60, "party_size": 4, "encounter_type": "sanctuary", "game_patch": "version:product:2.1",
+                   "players": [{"name": "TestSorc", "class": "sorcerer", "verified": True},
+                               {"name": "TestCleric", "class": "cleric", "pseudonym": True}, {"name": ""}]}]},
+    {"id": "log0002", "created_at": T0 - DAY, "players": [{"name": "Solo", "class": "ranger"}],
+     "contexts": [{"segment": 0, "boss": "Ash Wyrm", "difficulty": "normal", "duration": 300,
+                   "encounter_type": "pve_open_world"}]}]
+PVP_LOGS = [{"id": "log0003", "created_at": T0, "contexts": [
+    {"segment": 0, "boss": "Combat 1", "zone": "Abyss Gate", "encounter_type": "pvp_abyss", "duration": 30, "party_size": 6},
+    {"segment": 1, "boss": "Combat 2", "encounter_type": "pvp_unknown", "duration": 12}]}]
+
+
+class LogServer:
+    """The log server's public routes behind the app's community proxy, as logs-view.js asks them."""
+
+    def __init__(self):
+        self.asked: list[str] = []
+        self.refusal = None
+        self.many = 0                                       # that many more fights of Ice Queen in the first log
+        self.facets = {"boss": ["Ice Queen", "Frost Hound", "Combat 3", "Ash Wyrm"],
+                       "boss_roles": {"Frost Hound": "mini", "Ice Queen": "final"},
+                       "difficulty": ["normal", "Hard", "easy"],
+                       "encounter_type": ["sanctuary", "pve_open_world", "pvp_arena", "pvp_abyss"],
+                       "region": ["NA", "EU"], "game_patch": ["version:product:2.1", "version:product:2.0"],
+                       "party_size": [4, 8]}
+        self.speed = {"entries": [
+            {"rank": 1, "count": 3, "boss_route": ["iq", "fh"], "attempts": [{"boss_key": "iq", "boss": "Ice Queen"}],
+             "encounter_type": "sanctuary", "difficulty": "Hard", "elapsed_seconds": 1234, "party_size": 4, "log": "log0001"},
+            {"rank": 2, "count": 1, "boss_route": [], "elapsed_seconds": None, "party_size": None}],
+            "note": "Runs from public logs."}
+        self.progression = {"groups": [
+            {"boss": "Ice Queen", "difficulty": "normal", "region": "NA", "game_patch": "version:product:2.1", "attempts": 10,
+             "kills": 4, "wipes": 6, "observed_kill_rate": 0.4, "fastest_kill_seconds": 180, "icon": PORTRAIT},
+            {"boss": "Frost Hound", "difficulty": "normal", "attempts": 3, "kills": 3, "wipes": 0},
+            {"boss": "Ash Wyrm", "difficulty": "Hard", "attempts": 2, "kills": 0, "wipes": 2, "observed_kill_rate": None,
+             "fastest_kill_seconds": 0},
+            {"boss": "Ice Queen", "difficulty": "Hard", "region": "EU", "attempts": 5, "kills": 1, "wipes": 4,
+             "observed_kill_rate": 0.2, "fastest_kill_seconds": 400}]}
+        self.points = {"observations": [
+            {"class_name": "sorcerer", "skill": 100, "stigma": 20, "daevanion": 300, "ariel": None, "region": "NA"},
+            {"class_name": "sorcerer", "skill": 110, "stigma": 20, "daevanion": 300, "ariel": 5, "region": "EU"},
+            {"class_name": "cleric", "skill": 50, "stigma": 10, "daevanion": 100}]}
+
+    def __call__(self, path):
+        self.asked.append(path)
+        if self.refusal:
+            raise ValueError(self.refusal)
+        route, _, query = path.partition("?")
+        q = urllib.parse.parse_qs(query)
+        if route == "/api/v1/report-facets":
+            return json.loads(json.dumps(self.facets))
+        if route == "/api/v1/logs":
+            logs = json.loads(json.dumps(PVP_LOGS if q.get("combat_mode") == ["pvp"] else COMMUNITY_LOGS))
+            for i in range(self.many):
+                logs[0]["contexts"].append({"segment": 10 + i, "boss": "Ice Queen", "difficulty": "Hard", "duration": 100,
+                                            "start": T0 - 2 * DAY - i})
+            return {"logs": logs if q["page"] == ["1"] else [], "total": None}
+        if route == "/api/v1/run-leaderboard":
+            return json.loads(json.dumps(self.speed)) if "boss" not in q else {"entries": []}
+        if route == "/api/v1/encounter-progression":
+            return json.loads(json.dumps(self.progression))
+        if route == "/api/v1/progression":
+            return json.loads(json.dumps(self.points))
+        raise AssertionError(path)
 TOKEN = "t" * 24
 #: The private credentials of this computer's uploads, on two servers.
 OWNERS = [{"server": "https://logs.example", "id": "abc123", "delete_token": TOKEN, "title": "Raid night"},
@@ -153,6 +227,7 @@ class FakeApp:
         self.owner_refusal = None
         self.asked: list[dict] = []                        # what was asked of the uploads' servers
         self.claims = json.loads(json.dumps(CLAIMS))
+        self.log_server = LogServer()
 
     def fingerprint(self, file):
         return self.prints.get(file) or hashlib.sha256(file.encode()).hexdigest()
@@ -195,7 +270,7 @@ class FakeApp:
 
     def get_bytes(self, path, timeout=None):
         self.calls.append(path)
-        if path == "/static/game-assets/npc/2001.png":
+        if path in ("/static/game-assets/npc/2001.png", "/static/game-assets/class/sorcerer.png"):
             return _red_png()
         raise OSError("no such picture")
 
@@ -208,7 +283,10 @@ class FakeApp:
         if path == "/api/encounters":
             return json.loads(json.dumps(self.encounters))
         if path == "/static/game-assets.json":
-            return {"assets": {PORTRAIT: "game-assets/npc/2001.png"}, "npc_portraits": {"2001": PORTRAIT}}
+            return {"assets": {PORTRAIT: "game-assets/npc/2001.png", SORCERER: "game-assets/class/sorcerer.png"},
+                    "npc_portraits": {"2001": PORTRAIT}}
+        if path.startswith("/api/community?path="):
+            return self.log_server(urllib.parse.unquote(path.split("=", 1)[1]))
         if path == "/api/upload-queue":
             return json.loads(json.dumps(self.queue_kept))
         if path == "/api/log-ownership":
@@ -307,19 +385,22 @@ def test_the_views_and_lists(qapp):
     page = _page(FakeApp(), open_web=opened.append)
     chosen = {b.text(): b.objectName() for b in page.findChildren(QPushButton) if b.property("chosen")}
     assert chosen == {"Browse logs": "small", "Community Combat Logs": "primary"}  # the view underlined, the list gold
-    assert cb.ON_THE_WEB_LIST in _texts(page)                       # the community's logs: on the web page for now
+    QCoreApplication.processEvents()
+    assert [w for w in page.findChildren(CommunityLogs) if w.isVisibleTo(page)]   # drawn here since 0.2.453
+    for name, kind in (("Completed-run speed", RunSpeed), ("Boss progression", BossProgression),
+                       ("Highest observed build points", BuildPoints)):
+        next(b for b in page.findChildren(QPushButton) if b.accessibleName() == name).click()
+        QCoreApplication.processEvents()
+        assert cb.ON_THE_WEB_VIEW not in _texts(page) and [w for w in page.findChildren(kind) if w.isVisibleTo(page)]
+    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Personal records").click()
+    assert cb.ON_THE_WEB_VIEW in _texts(page)                       # Personal records: on the web page for now
     _button(page, "Open it on the web page").click()
-    assert opened == ["combat/community"]
-    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Boss progression").click()
-    assert cb.ON_THE_WEB_VIEW in _texts(page)
-    _button(page, "Open it on the web page").click()
-    assert opened[-1] == "combat"
+    assert opened == ["combat"]
     next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Browse logs").click()
     for name, kind in (("My Uploads", OwnedUploads), ("My Character Identities", Identities)):
         next(b for b in page.findChildren(QPushButton) if b.accessibleName() == name).click()
         QCoreApplication.processEvents()
-        assert cb.ON_THE_WEB_LIST not in _texts(page)                       # drawn here since 0.2.452
-        assert [w for w in page.findChildren(kind) if w.isVisibleTo(page)]
+        assert [w for w in page.findChildren(kind) if w.isVisibleTo(page)]           # drawn here since 0.2.452
 
 
 def test_saved_logs(qapp, tmp_path):
@@ -760,7 +841,8 @@ def test_saved_logs_keep_their_queue(qapp, tmp_path):
     queue, recorded = page.queue, page.recorded
     _click(queue, "Select eligible rows on this page")
     next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Community Combat Logs").click()
-    assert not page.saved_panel.isVisible() and cb.ON_THE_WEB_LIST in _texts(page)
+    QCoreApplication.processEvents()
+    assert not page.saved_panel.isVisible() and page.community_logs.isVisibleTo(page)
     next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Saved Logs").click()
     assert page.queue is queue and page.recorded is recorded and len(queue.selected) == 2     # the same queue
     logs = app.calls.count("/api/logs")
@@ -1091,6 +1173,190 @@ def test_an_upload_reads_my_uploads_and_identities_again(qapp, tmp_path):
     lists = app.calls.count("/api/log-ownership")
     page.queue.uploaded.emit()
     settle(lambda: app.calls.count("/api/log-ownership") >= lists + 2)    # My Uploads, and the characters' evidence
+
+
+def test_the_community_views_words():
+    f = {"combat_mode": "pve", "boss": "Ice Queen", "region": "", "party_size": "4"}
+    assert cv.community_query(f, 2) == "page=2&limit=50&combat_mode=pve&boss=Ice+Queen&party_size=4"
+    assert cv.community_path("/api/v1/logs?page=1&limit=50") == "/api/community?path=%2Fapi%2Fv1%2Flogs%3Fpage%3D1%26limit%3D50"
+    assert cv.shared_page("log 1", "pve", 2) == "combat-log/shared/log%201?mode=pve&segment=2"
+    assert cv.shared_page("log0001", None) == "combat-log/shared/log0001?mode="
+    assert cv.patch_of("version:product:2.1") == "2.1" and cv.patch_of(None) == ""
+    assert cv.pretty_enc("pve_open_world") == "open world" and cv.pretty_enc("pvp_pve_x") == "pve x" and cv.pretty_enc("") == "—"
+    assert cv.pvp_type("pvp_abyss") == "Abyss" and cv.pvp_type("pvp_unknown") == "Other PvP"
+    assert not cv.real_boss(" Combat 3 ") and not cv.real_boss("combat") and cv.real_boss("Combatant")
+    # a page of logs as fights: generic combat out in PvE, a mini-boss out unless shown, the fight's own party and time
+    pve = {"combat_mode": "pve"}
+    rows, total, logs = cv.community_page({"logs": COMMUNITY_LOGS, "total": 7}, pve, False, LogServer().facets)
+    assert (total, logs) == (7, 2) and [r["boss"] for r in rows] == ["Ice Queen", "Ash Wyrm"]
+    queen, wyrm = rows
+    assert queen["icon"] == PORTRAIT and queen["when"] == T0 + 60 and queen["party"] == 4 and queen["known"]
+    assert [m["name"] for m in queen["members"]] == ["TestSorc", "TestCleric"] and queen["members"][0]["verified"]
+    assert wyrm["party"] == 1 and not wyrm["known"] and wyrm["when"] == T0 - DAY and wyrm["uploader"] is None
+    assert [r["boss"] for r in cv.community_page({"logs": COMMUNITY_LOGS}, pve, True, {})[0]] == [
+        "Frost Hound", "Ice Queen", "Ash Wyrm"]
+    hidden_by_name = [{"id": "x", "contexts": [{"boss": "Frost Hound", "boss_role": "unknown"}]}]
+    assert cv.community_page({"logs": hidden_by_name}, pve, False, LogServer().facets)[0] == []
+    pvp, _, _ = cv.community_page({"logs": PVP_LOGS}, {"combat_mode": "pvp"}, False, {})
+    assert [r["boss"] for r in pvp] == ["Abyss Gate", "Combat 2"]          # a PvP fight named by its zone
+    assert [r["boss"] for r in cv.newest_first(rows + pvp)] == ["Ice Queen", "Combat 2", "Abyss Gate", "Ash Wyrm"]
+    assert cv.community_done(0, None, 1) and cv.community_done(5, 40, 1) and not cv.community_done(5, 120, 1)
+    assert not cv.community_done(5, None, 9)
+    assert cv.community_row(queen, "pve") == {"boss": "Ice Queen", "kind": "Hard", "party": "4", "unknown": False,
+                                              "time": "2:05", "uploader": "Uploader A", "date": cb.saved_at(T0 + 60),
+                                              "patch": "2.1"}
+    assert cv.community_row(wyrm, "pve")["uploader"] == "Anonymous" and cv.community_row(wyrm, "pve")["patch"] == "—"
+    assert cv.community_row(pvp[0], "pvp")["kind"] == "Abyss" and cv.community_row(pvp[1], "pvp")["kind"] == "Other PvP"
+    assert cv.member_tip(queen["members"][0]) == "TestSorc · Sorcerer · verified"
+    assert cv.member_tip(queen["members"][1]) == "TestCleric · Cleric · hidden by its player"
+    assert cv.member_tip({"class": "ranger"}) == "Ranger"
+    assert cv.pager_line(2, 50, 10) == "Page 2 · encounters 51–60"
+    facets = LogServer().facets
+    choices = cv.community_choices(facets, pve, False)
+    assert [b for b, _ in choices["boss"]] == ["Ice Queen", "Ash Wyrm"]     # real bosses; a mini-boss when shown
+    assert [b for b, _ in cv.community_choices(facets, pve, True)["boss"]] == ["Ice Queen", "Frost Hound", "Ash Wyrm"]
+    assert [d for d, _ in choices["difficulty"]] == ["easy", "Hard", "normal"]
+    assert choices["encounter_type"] == [("sanctuary", "sanctuary"), ("pve_open_world", "open world")]
+    assert cv.community_choices(facets, {"combat_mode": "pvp"}, False)["encounter_type"] == [
+        ("pvp_arena", "Arena"), ("pvp_abyss", "Abyss")]
+    assert choices["game_patch"] == [("version:product:2.1", "2.1"), ("version:product:2.0", "2.0")]
+    assert choices["party_size"] == [(4, "4"), (8, "8")]
+    assert cv.pve_choices(facets, False)["encounter_type"] == choices["encounter_type"]
+    assert cv.pve_choices(None, False)["boss"] == []
+    # completed-run speed, boss progression, build points
+    assert cv.filter_query({"boss": "Ice Queen", "region": ""}, (("limit", "100"),)) == "limit=100&boss=Ice+Queen"
+    assert cv.speed_rows(LogServer().speed) == [
+        {"rank": "1", "of": "of 3", "route": "Ice Queen → fh", "kind": "Sanctuary · Hard", "time": "20:34", "party": "4",
+         "log": "log0001"},
+        {"rank": "2", "of": "", "route": "—", "kind": "—", "time": "—", "party": "—", "log": None}]
+    groups = cv.progression_rows(LogServer().progression, {}, False, facets)
+    assert [(g["boss"], g["difficulty"]) for g in groups] == [("Ash Wyrm", "Hard"), ("Ice Queen", "Hard"),
+                                                             ("Ice Queen", "normal")]
+    assert groups[0]["rate"] == "—" and groups[0]["fastest"] == "—" and groups[0]["region"] == "—"
+    assert groups[2] == {"boss": "Ice Queen", "icon": PORTRAIT, "difficulty": "normal", "region": "NA", "patch": "2.1",
+                         "attempts": "10", "kills": "4", "wipes": "6", "rate": "40%", "fastest": "3:00"}
+    assert [g["boss"] for g in cv.progression_rows(LogServer().progression, {"boss": "Frost Hound"}, False, facets)] == [
+        "Ash Wyrm", "Frost Hound", "Ice Queen", "Ice Queen"]                # a mini-boss chosen shows
+    assert cv.points_rows(LogServer().points) == [
+        {"class": "Sorcerer", "skill": "110", "stigma": "20", "daevanion": "300", "ariel": "5", "total": "435", "region": "EU"},
+        {"class": "Cleric", "skill": "50", "stigma": "10", "daevanion": "100", "ariel": "—", "total": "160", "region": ""}]
+    assert cv.points_rows(None) == [] and cv.source_note({"note": "Runs from public logs."}) == "Runs from public logs."
+
+
+def _view(kind, app, tmp_path, **kwargs):
+    from aion2calc.gui.combat_community import Community
+    from aion2calc.gui.pictures import Pictures
+    shared = kwargs.pop("shared", None) or Community(_store(tmp_path))
+    view = kind(app, shared, kwargs.pop("open_web", None), Pictures(app))
+    view.resize(1300, 1000)
+    view.show()
+    return view
+
+
+def _cells(widget):
+    QCoreApplication.processEvents()
+    return [label.text() for label in widget.findChildren(QLabel) if label.objectName() == "tcell" and label.isVisibleTo(widget)]
+
+
+def test_community_combat_logs(qapp, tmp_path):
+    opened = []
+    app = FakeApp()
+    view = _view(CommunityLogs, app, tmp_path, open_web=opened.append)
+    settle(lambda: "Uploader A" in _cells(view))
+    asked = app.log_server.asked
+    assert asked[0] == "/api/v1/report-facets" and asked[1] == "/api/v1/logs?page=1&limit=50&combat_mode=pve"
+    assert asked[2] == "/api/v1/logs?page=2&limit=50&combat_mode=pve"   # read until the page is full or the logs end
+    cells = _cells(view)
+    assert ["Hard", "2:05", "Uploader A", "normal", "5:00", "Anonymous"] == [c for c in cells if c in (
+        "Hard", "2:05", "Uploader A", "normal", "5:00", "Anonymous")]       # newest first
+    labels = _labels(view)
+    assert "Ice Queen" in labels and "Frost Hound" not in labels and "Combat 3" not in labels
+    assert "<b>4</b>" in labels and any(t.startswith("<b>1</b>") and ">?<" in t for t in labels)   # a party list not captured
+    assert "Page 1 · encounters 1–2" in labels
+    unknown = next(label for label in view.findChildren(QLabel) if label.text().startswith("<b>1</b>"))
+    assert unknown.toolTip() == cv.PARTY_UNKNOWN
+    # the portrait and the class emblem the app bundles, with the player's words
+    settle(lambda: any(label.toolTip() == "TestSorc · Sorcerer · verified" for label in view.findChildren(QLabel)))
+    settle(lambda: any(label.pixmap() is not None and not label.pixmap().isNull() and label.width() == 22
+                       for label in view.findChildren(QLabel)))
+    _find(view, QPushButton, lambda b: b.text() == "view").click()
+    assert opened == ["combat-log/shared/log0001?mode=pve&segment=2"]
+    # a filter, the mini-bosses shown (kept), the mode, Clear
+    boss = _find(view, QComboBox, lambda c: c.accessibleName() == "Boss")
+    assert [boss.itemText(i) for i in range(boss.count())] == ["any", "Ice Queen", "Ash Wyrm"]
+    boss.setCurrentIndex(boss.findData("Ice Queen"))
+    boss.activated.emit(boss.currentIndex())
+    settle(lambda: asked[-1].endswith("&boss=Ice+Queen") and "Uploader A" in _cells(view))
+    _find(view, QCheckBox, lambda c: c.accessibleName() == "Show mini-bosses").setChecked(True)
+    settle(lambda: "Frost Hound" in _labels(view))
+    assert view.shared.store.value(cb.MINI_KEY) == "1" and view.f["boss"] == "Ice Queen"
+    mode = _find(view, QComboBox, lambda c: c.accessibleName() == "Mode")
+    mode.setCurrentIndex(1)
+    mode.activated.emit(1)
+    settle(lambda: "Abyss Gate" in _labels(view))
+    assert view.f == {"combat_mode": "pvp", "boss": "", "encounter_type": ""} and "SKIRMISH" in _labels(view)
+    assert "Abyss" in _cells(view) and "Other PvP" in _cells(view) and "6" in [t.strip("<b>/") for t in _labels(view)]
+    assert not [c for c in view.findChildren(QComboBox) if c.accessibleName() == "Boss" and c.isVisibleTo(view)]
+    _find(view, QPushButton, lambda b: b.text() == "Clear").click()
+    settle(lambda: "Abyss Gate" in _labels(view))
+    assert view.f == {"combat_mode": "pvp"}
+    # the next page of fifty
+    app.log_server.many = 60
+    mode = _find(view, QComboBox, lambda c: c.accessibleName() == "Mode")
+    mode.setCurrentIndex(0)
+    mode.activated.emit(0)
+    settle(lambda: "Page 1 · encounters 1–50" in _labels(view))
+    _find(view, QPushButton, lambda b: b.text() == "Next →").click()
+    settle(lambda: "Page 2 · encounters 51–63" in _labels(view))
+    assert not _find(view, QPushButton, lambda b: b.text() == "Next →").isEnabled()
+    _find(view, QPushButton, lambda b: b.text() == "← Prev").click()
+    settle(lambda: "Page 1 · encounters 1–50" in _labels(view))
+    # an answer to a question asked before the latest is let go; a refusal is said
+    before = list(_cells(view))
+    view._replied("logs:1", {"logs": PVP_LOGS})
+    assert _cells(view) == before
+    app.log_server.refusal = "RuntimeError: Community server (503): busy"
+    view.refresh()
+    settle(lambda: "RuntimeError: Community server (503): busy" in _labels(view))
+
+
+def test_run_speed_boss_progression_and_build_points(qapp, tmp_path):
+    opened = []
+    app = FakeApp()
+    speed = _view(RunSpeed, app, tmp_path, open_web=opened.append)
+    settle(lambda: "Ice Queen → fh" in _cells(speed))
+    assert app.log_server.asked[-1] == "/api/v1/run-leaderboard?limit=100"
+    cells = _cells(speed)
+    assert ["Sanctuary · Hard", "20:34", "4", "—"] == [c for c in cells if c in ("Sanctuary · Hard", "20:34", "4", "—")][:4]
+    assert "1 <span style='color: #9aa3b5;'>of 3</span>" in _labels(speed) and "Runs from public logs." in _labels(speed)
+    _find(speed, QPushButton, lambda b: b.text() == "view").click()
+    assert opened == ["combat-log/shared/log0001?mode=pve"]
+    boss = _find(speed, QComboBox, lambda c: c.accessibleName() == "Boss")
+    boss.setCurrentIndex(boss.findData("Ash Wyrm"))
+    boss.activated.emit(boss.currentIndex())
+    settle(lambda: cv.NO_SPEED_MATCH in _labels(speed))
+    assert app.log_server.asked[-1] == "/api/v1/run-leaderboard?limit=100&boss=Ash+Wyrm"
+    progression = _view(BossProgression, app, tmp_path)
+    settle(lambda: "40%" in _cells(progression))
+    cells = _cells(progression)
+    assert cells.count("Ice Queen") == 0 and "3:00" in cells and "6:40" in cells and "20%" in cells   # bosses in cells
+    assert [label.text() for label in progression.findChildren(QLabel) if label.text() in ("Ash Wyrm", "Ice Queen")] == [
+        "Ash Wyrm", "Ice Queen", "Ice Queen"]
+    assert app.log_server.asked[-1] == "/api/v1/encounter-progression"
+    region = _find(progression, QComboBox, lambda c: c.accessibleName() == "Region")
+    region.setCurrentIndex(region.findData("EU"))
+    region.activated.emit(region.currentIndex())
+    settle(lambda: app.log_server.asked[-1] == "/api/v1/encounter-progression?region=EU")
+    points = _view(BuildPoints, app, tmp_path)
+    settle(lambda: "Sorcerer" in _cells(points))
+    assert cv.POINTS_NOTE in _labels(points) and "435" in _cells(points) and "Cleric" in _cells(points)
+    app.log_server.refusal = "RuntimeError: Community server (500): down"
+    points.refresh()
+    settle(lambda: "RuntimeError: Community server (500): down" in _labels(points))
+    app.log_server.refusal = None
+    app.log_server.points = {"observations": []}
+    points.refresh()
+    settle(lambda: cv.NO_POINTS in _labels(points))
 
 
 def test_the_window_draws_combat_logs_itself(qapp):

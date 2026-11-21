@@ -60,6 +60,7 @@ class Pictures(QObject):
         self.classes: dict[str, str] = {}         # a class's name: its emblem's bundled file
         self.npcs: dict[str, str] = {}            # a boss's code: its portrait's bundled file
         self.items: dict[str, str] = {}           # an item's picture's address: its bundled file (the counters')
+        self.files: dict[str, str] = {}           # any picture's address: its bundled file (``A2AssetHealth.source``)
         self._map_state = "unread"                # "asking", "read", or the monotonic time it failed at
         self._kept: dict[str, QPixmap | None] = {}
         self._failed_at: dict[str, float] = {}
@@ -77,6 +78,7 @@ class Pictures(QObject):
         self.npcs = {str(code): file for code, url in portraits.items()
                      if isinstance(url, str) and _bundled(file := files.get(url))}
         self.items = {url: file for url in ITEMS if _bundled(file := files.get(url))}
+        self.files = {url: file for url, file in files.items() if isinstance(url, str) and _bundled(file)}
         self._map_state = "read"
         self.changed.emit()
 
@@ -94,6 +96,14 @@ class Pictures(QObject):
         """An item's picture by the address the web pages know it by (``ITEMS``), or None."""
         self._ask_map()
         return self._picture(self.items.get(url))
+
+    def by_address(self, url) -> QPixmap | None:
+        """A picture by the address the web pages know it by, when the app bundles it, or None: a boss's portrait the
+        log server names, a class's emblem (0.2.453)."""
+        if not isinstance(url, str) or not url:
+            return None
+        self._ask_map()
+        return self._picture(self.files.get(url))
 
     def portrait(self, code) -> QPixmap | None:
         """A boss's portrait by its code (``mob_code``), or None."""
