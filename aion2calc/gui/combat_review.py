@@ -11,6 +11,8 @@ These are the review's model and the frame's words:
 - Since 0.2.458 the rate chart (``graph``), the recorder's ping, the bosses' HP and the enemy encounters.
 - Since 0.2.459 the Table, Timeline and Events views: the events' list with a spreadsheet's column filters
   (``efPass``, ``efColumn``), a page of a hundred at a time, and the recorded effect timeline (``timeline``).
+- Since 0.2.460 the abilities and skills (``detailsHTML``): each player's abilities by amount, as bars and as a table;
+  their skills' casts with cooldown usage (``skillsHTML``); and every press over the fight (``castTimeline``).
 """
 from __future__ import annotations
 
@@ -48,8 +50,8 @@ OPPONENT_NOTE = ("The review below reads the fight from their side: the summary,
                  "their deaths, and the buffs, debuffs and crowd control on and from them. Only what the recording holds of "
                  "them is shown.")
 REFRESH = "Refresh rankings"
-ELSEWHERE = ("The abilities and skills, actions, death recaps, insights, rankings, reports, comparisons and movement replay "
-             "of this log open in the web interface for now.")
+ELSEWHERE = ("The actions, death recaps, insights, rankings, reports, comparisons and movement replay of this log open in the "
+             "web interface for now.")
 OPEN_WEB = "Open the full review in the web interface"
 SUMMARY_COLUMNS = ["Player / server", "Class", "Damage done", "DPS", "Damage taken", "Healing", "HPS", "Deaths"]
 
@@ -189,7 +191,8 @@ def fresh_state(mode=None, segment=None) -> dict:
     return {"mode": mode if mode in ("pve", "pvp") else "", "run": "", "segment": segment if isinstance(segment, int) else 0,
             "metric": "summary", "view": "table", "combine": True, "pets": True, "actor": "", "enemy": "", "graph": True,
             "graph_mode": "total", "hidden": set(), "timeline": True, "timeline_window": 30, "timeline_start": 0.0,
-            "skills": True, "deaths": True, "heals": True, "page": 0, "ef": None, "ef_search": {}, "ef_open": ""}
+            "skills": True, "deaths": True, "heals": True, "page": 0, "ef": None, "ef_search": {}, "ef_open": "",
+            "detail": "contribution", "hide_procs": True}
 
 
 def settle_segment(doc: dict, state: dict) -> None:
@@ -1305,3 +1308,270 @@ def notes_line(d: dict) -> str:
                if not any(e.get("kind") == "death" for e in events) else "")
             + ("Movement replay is unavailable: no positions were recorded (recordings made before 0.2.350 have none)."
                if not _list(seg.get("positions")) and not _list(seg.get("movement")) else ""))
+
+
+# ------------------------------------------------------------------ the abilities and skills (0.2.460)
+DETAILS = (("contribution", "Ability contribution"), ("abilities", "Abilities"), ("skills", "Skills"),
+           ("casts", "Cast timeline"), ("", "Hide"))
+ABILITY_COLUMNS = ["Player / server", "Ability", "Effects", "Amount", "Share", "Per second", "Average", "Minimum", "Maximum"]
+SKILL_COLUMNS = ["Player", "Skill", "Casts", "Average gap", "Cooldown", "Cooldown usage", "Cast time", "First → last"]
+NO_ABILITIES = "No abilities were recorded for this view."
+DEATHS_ABILITIES = "Choose Summary, Damage Done, Damage Taken or Healing above to see each ability."
+SKILLS_NOTE = ("Casts are the game's own cast records. Cooldown usage compares the casts made with how many fit between the "
+               "first cast and the end of the fight at the cooldown the game sent (cooldown reduction included). It does not "
+               "judge priorities or account for mechanics that stop you casting.")
+CASTS_NOTE = ("Each skill press across the fight; hover a cast for its time, target and cooldown. The line under a cast is how "
+              "long it locked the caster, recorded for the player who made the recording only. Casts before the pull show at "
+              "negative times.")
+HIDE_PROCS = "Hide procs and passive effects"
+NO_FOE_CASTS = ("Their casts are not recorded in this log: the live meter records an opponent's casts since 0.2.398, once the "
+                "game has named them. <i>Abilities</i> lists each skill they hit with, and the Timeline view each hit.")
+COMBINED_CASTS = ("This combined review leaves out the casts: across these parts they exceed what one review can hold. Open a "
+                  "single part to see them.")
+NO_PLAYER_CASTS = "No skill casts by the selected player in this encounter."
+PROC = "#8a93a6"
+
+
+def abilities(d: dict, v: dict, events: list[dict], state: dict) -> dict:
+    """Each player's abilities by amount (``skillRows``): a row per player, kind and ability with its effects, amount,
+    least and most; the metric's: damage done by the party in the Summary, else the events the review shows. ``d`` is
+    the encounter's records, ``v`` the view (an opponent's own)."""
+    metric, owner = state["metric"], d["owner"]
+    rows: dict = {}
+    for e in events:
+        kind = e.get("kind")
+        if kind in ("death", "revive") or (metric == "summary" and (kind != "damage" or not v["ours"](e.get("source")))):
+            continue
+        actor = owner(e.get("target") if metric == "taken" else e.get("source"))
+        skill = _first(e.get("skill_id"), e.get("skill"), None)
+        key = (js_string(actor) if actor is not None else "", js_string(kind), js_string(skill) if skill is not None else "")
+        row = rows.get(key)
+        if row is None:
+            row = rows[key] = {"actor": actor, "kind": kind, "skill": js_string(_first(e.get("skill"), e.get("skill_id"), "Unknown")),
+                               "amount": 0.0, "hits": 0, "min": math.inf, "max": 0.0}
+        amount = _amount(e)
+        row["amount"] += amount
+        row["hits"] += 1
+        row["min"], row["max"] = min(row["min"], amount), max(row["max"], amount)
+    ordered = sorted(rows.values(), key=lambda r: -r["amount"])
+    return {"rows": ordered, "total": sum(r["amount"] for r in ordered)}
+
+
+def ability_table(found: dict, v: dict, state: dict, duration: float) -> list[dict]:
+    """The abilities' table (``breakdown``): each one's effects, amount, share, rate, average, least and most. A player's
+    damage done runs on the active clock (DPS), the rest on the encounter's length."""
+    total = found["total"]
+    out = []
+    for s in found["rows"]:
+        per = v["dps_duration"] if s["kind"] == "damage" and state["metric"] != "taken" else duration
+        out.append({"actor": s["actor"], "cells": [
+            s["skill"] + (" (heal)" if s["kind"] == "heal" else ""), str(s["hits"]), number(s["amount"]),
+            (theme.fixed(100 * s["amount"] / total, 1) if total else "0") + "%", number(s["amount"] / per),
+            number(s["amount"] / s["hits"]), number(s["min"]), number(s["max"])]})
+    return out
+
+
+def contribution(found: dict, r: dict, state: dict) -> dict:
+    """The abilities as bars (``skillChart``): the top twenty rows, each against the largest."""
+    rows = found["rows"]
+    if not rows:
+        return {"note": NO_ABILITIES, "bars": []}
+    metric = state["metric"]
+    word = "Healing" if metric == "healing" else "Damage taken" if metric == "taken" else "Damage done"
+    top = max(1.0, rows[0]["amount"])
+    bars = [{"actor": s["actor"], "name": f"{actor_label(r.get(s['actor']))} · {s['skill']}", "value": number(s["amount"]),
+             "share": float(theme.fixed(100 * s["amount"] / top, 2))} for s in rows[:20]]
+    return {"note": (f"{word} by player and ability, the top 20 rows; <i>Abilities</i> lists every one. Select a player to "
+                     "see only theirs."), "bars": bars}
+
+
+def family(skill_id):
+    """A skill's family (``family``): the rank and specialization digits nought; a class's own action (dodge, a weapon
+    put on: ``xx00``) whole."""
+    n = _num(skill_id)
+    if n is None:
+        return skill_id
+    return n if math.floor(n / 10000) % 100 == 0 else math.floor(n / 10000) * 10000
+
+
+def signed_clock(t) -> str:
+    """A moment, before the pull with a minus (``signedClock``)."""
+    value = _num(t) or 0.0
+    return ("−" if value < 0 else "") + clock(abs(value), True)
+
+
+def cooldown_text(ms) -> str:
+    value = _num(ms)
+    return "—" if ms is None or value is None else theme.fixed(value / 1000, 1 if value < 10000 else 0) + "s"
+
+
+def percent(x) -> str:
+    value = _num(x)
+    return "—" if x is None or value is None else theme.fixed(value, 1) + "%"
+
+
+def presses(casts: list[dict]) -> list[dict]:
+    """The presses among cast records (``presses``): one press can send several records of a skill. The ones with the
+    skill's cooldown count when it has one, else its aimed ones; a skill with neither is a proc or passive effect.
+    Records within a quarter second of the one before are the same press."""
+    groups: dict = {}
+    for c in casts:
+        groups.setdefault((js_string(c.get("source")), js_string(family(c.get("skill_id")))), []).append(c)
+    out = []
+    for rows in groups.values():
+        rows = sorted(rows, key=lambda c: _num(c.get("t")) or 0.0)
+        timed = [c for c in rows if _truthy(c.get("cooldown_ms"))]
+        aimed = [c for c in rows if _truthy(c.get("target"))]
+        kind = "skill" if timed or aimed else "proc"
+        pick = timed or aimed or rows
+        for i, c in enumerate(pick):
+            if i == 0 or (_num(c.get("t")) or 0.0) - (_num(pick[i - 1].get("t")) or 0.0) > 0.25:
+                out.append({**c, "kind": kind})
+    return sorted(out, key=lambda c: _num(c.get("t")) or 0.0)
+
+
+def _median(values: list):
+    values = sorted(values)
+    return values[len(values) >> 1] if values else None
+
+
+def rotation_of(segment: dict, actor) -> dict:
+    """An opponent's casts summarised as the analyzer summarises the party's (``rotationOf``): each skill's presses, the
+    cooldown the game sent, how many fit from the first press to the end, the gaps and the cast time."""
+    duration = max(0.001, _num(segment.get("duration")) or 0.0)
+    groups: dict = {}
+    for c in presses([c for c in _list(segment.get("casts")) if isinstance(c, dict) and c.get("source") == actor]):
+        groups.setdefault(js_string(family(c.get("skill_id"))), []).append(c)
+    skills, dodges = [], []
+    casts = procs = 0
+    for rows in groups.values():
+        times = [_num(c.get("t")) or 0.0 for c in rows]
+        gaps = [b - a for a, b in zip(times, times[1:])]
+        cooldown = _median([_num(c.get("cooldown_ms")) for c in rows if _truthy(c.get("cooldown_ms"))])
+        possible = (math.floor(max(0.0, duration - max(0.0, times[0]) - 0.5) / (cooldown / 1000)) + 1
+                    if cooldown is not None and cooldown >= 1000 else None)
+        skill = js_string(rows[0]["skill"]) if _truthy(rows[0].get("skill")) else js_string(rows[0].get("skill_id"))
+        if rows[0]["kind"] == "skill":
+            casts += len(rows)
+        else:
+            procs += len(rows)
+        if skill == "Dodge":
+            dodges.append({"source": actor, "count": len(rows)})
+        skills.append({"source": actor, "skill_id": rows[0].get("skill_id"), "skill": skill, "kind": rows[0]["kind"],
+                       "casts": len(rows), "first": times[0], "last": times[-1],
+                       "average_gap": sum(gaps) / len(gaps) if gaps else None, "cooldown_ms": cooldown, "possible": possible,
+                       "usage_pct": min(100.0, 100 * len(rows) / possible) if possible else None,
+                       "cast_ms": _median([_num(c["cast_ms"]) for c in rows if c.get("cast_ms") is not None
+                                           and _num(c["cast_ms"]) is not None])})
+    return {"totals": [{"source": actor, "casts": casts, "procs": procs, "per_minute": 60 * casts / duration}] if skills else [],
+            "skills": sorted(skills, key=lambda k: -k["casts"]), "chains": [], "dodges": dodges}
+
+
+def actions_of(doc: dict, state: dict):
+    """The actions the analyzer read from the encounter's records (``actionsOf``), or None for an older log."""
+    for s in _list(_dict(doc.get("encounter_insights")).get("segments")):
+        if isinstance(s, dict) and s.get("segment") == state["segment"]:
+            return s.get("actions")
+    return None
+
+
+def casts_missing(doc: dict, d: dict, state: dict) -> str:
+    """Why the encounter's casts can't be shown (``castsMissing``), or nothing when they can. Rich text."""
+    if _list(_dict(_dict(doc.get("meta")).get("reconstruction")).get("omitted_actions")):
+        return COMBINED_CASTS
+    casts = _list(d["segment"].get("casts"))
+    if d["foe"]:
+        return "" if any(isinstance(c, dict) and c.get("source") == d["foe"] for c in casts) else NO_FOE_CASTS
+    s = actions_of(doc, state)
+    if not _truthy(s) or not casts:
+        return ("Skill casts are not recorded for this encounter. The live meter records them since 0.2.306"
+                + ("" if _truthy(s) else "; reopen the file with the updated app, or update the sharing server, to see them")
+                + ".")
+    return ""
+
+
+def rotation_for(doc: dict, d: dict, state: dict) -> dict:
+    """The casts behind the Skills table and the cast timeline (``rotationFor``): an opponent's summarised here, the
+    party's as the analyzer summarised them."""
+    if d["foe"]:
+        return rotation_of(d["segment"], d["foe"])
+    return _dict(_dict(actions_of(doc, state)).get("rotation"))
+
+
+def skill_rows(doc: dict, d: dict, state: dict) -> list[dict]:
+    """The Skills table's rows (``skillsHTML``): the player chosen's, the procs left out while they are hidden."""
+    out = []
+    for k in _list(rotation_for(doc, d, state).get("skills")):
+        if not isinstance(k, dict) or (state["actor"] and k.get("source") != state["actor"]):
+            continue
+        if state.get("hide_procs", True) and k.get("kind") != "skill":
+            continue
+        possible = k.get("possible")
+        out.append({"source": k.get("source"), "skill_id": k.get("skill_id"),
+                    "skill": js_string(_first(k.get("skill"), k.get("skill_id"), "Unknown skill")), "proc": k.get("kind") == "proc",
+                    "cells": [number(k.get("casts")),
+                              "—" if k.get("average_gap") is None else theme.fixed(_num(k["average_gap"]) or 0.0, 1) + "s",
+                              cooldown_text(k.get("cooldown_ms")),
+                              f"{number(k.get('casts'))} of {number(possible)} · {percent(k.get('usage_pct'))}" if _truthy(possible) else "—",
+                              "—" if k.get("cast_ms") is None else number(k["cast_ms"]) + " ms",
+                              f"{signed_clock(k.get('first'))} → {signed_clock(k.get('last'))}"]})
+    return out
+
+
+def cast_timeline(doc: dict, d: dict, state: dict, colours: dict | None = None) -> dict | None:
+    """Every press over the fight (``castTimeline``): a lane per player (or the opponent), three stacks deep, each press
+    its skill's tile with the line of its cast time under it; None when no one in view cast."""
+    from .combat_records import class_colour
+    seg, r = d["segment"], d["r"]
+    players = {d["foe"]} if d["foe"] else {_dict(p).get("id") for p in _list(doc.get("players"))}
+    actor = state["actor"]
+    shown = [c for c in presses([c for c in _list(seg.get("casts")) if isinstance(c, dict) and c.get("source") in players
+                                 and (not actor or c.get("source") == actor)])
+             if not state.get("hide_procs", True) or c["kind"] == "skill"]
+    ids = [i for i in dict.fromkeys(_dict(t).get("source") for t in _list(rotation_for(doc, d, state).get("totals")))
+           if not actor or i == actor]
+    if not ids:
+        return None
+    times = [_num(c.get("t")) or 0.0 for c in shown]
+    start = min([0.0] + times)
+    end = max([_num(seg.get("duration")) or 0.0] + times)
+    span = max(1.0, end - start)
+    width = theme.js_round(max(900.0, min(24000.0, span * 36)))
+
+    def x(t):
+        return (t - start) * (width - 20) / span
+    lanes = []
+    for who in ids:
+        occupied = [-100.0, -100.0, -100.0]
+        marks, omitted = [], 0
+        colour = class_colour(_dict(r.get(who)).get("class"), colours or {})
+        for c in shown:
+            if c.get("source") != who:
+                continue
+            left = x(_num(c.get("t")) or 0.0)
+            row = next((i for i, last in enumerate(occupied) if left >= last + 17), -1)
+            if row < 0:
+                omitted += 1
+                continue
+            occupied[row] = left
+            proc = c["kind"] == "proc"
+            parts = [signed_clock(c.get("t")), _first(c.get("skill"), c.get("skill_id"), ""),
+                     ("→ " + actor_label(r.get(c.get("target")))) if _truthy(c.get("target")) else "",
+                     ("cooldown " + cooldown_text(c.get("cooldown_ms"))) if _truthy(c.get("cooldown_ms")) else "",
+                     f"cast {js_string(c['cast_ms'])} ms" if c.get("cast_ms") is not None else "",
+                     "proc or passive" if proc else ""]
+            cast = (max(2.0, (_num(c["cast_ms"]) or 0.0) / 1000 * (width - 20) / span)
+                    if c.get("cast_ms") is not None else None)
+            marks.append({"x": left, "y": 4 + row * 19, "cast": cast, "fill": PROC if proc else colour, "style": "cast",
+                          "detail": " · ".join(js_string(p) for p in parts if _truthy(p)), "icon": skill_icon(c.get("skill_id"))})
+        lanes.append({"id": who, "actor": r.get(who), "label": actor_label(r.get(who)), "collapsed": False, "marks": marks,
+                      "omitted": omitted})
+    tick = 5 if span <= 120 else 10 if span <= 600 else 30
+    ticks = []
+    t = math.ceil(start / tick) * tick
+    while t <= end:
+        px = x(t)
+        ticks.append({"x": px, "top": 18, "text": re.sub(r"\.\d+$", "", signed_clock(t)), "at": max(18.0, min(width - 18.0, px))})
+        t += tick
+    return {"width": float(width), "lanes": lanes, "ticks": ticks, "ruler": 33, "lane": 65, "bottom": 30, "corner": "",
+            "empty": "No casts recorded"}

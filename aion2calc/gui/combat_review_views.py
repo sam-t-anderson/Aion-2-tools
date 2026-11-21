@@ -8,6 +8,8 @@
   at the left and the ruler at the top as the lanes scroll under them (the web page's ``position: sticky``). Its
   markers are drawn as the web page's SVG draws them, and an effect is inspected by the pointer, a click, or the arrow
   keys once the lanes have the focus (left and right along a lane, up and down to the lanes beside it).
+- Since 0.2.460 **the cast timeline** (``castTimeline``) in the same box: its geometry is the model's (``ruler``,
+  ``lane``, ``bottom``, ``corner``, ``empty``), and a press is drawn as its skill's small tile with its cast time's line.
 """
 from __future__ import annotations
 
@@ -217,9 +219,82 @@ class Placer(QObject):
         return False
 
 
+# ---------------------------------------------------------------- the abilities as bars (0.2.460)
+class ContributionBars(QWidget):
+    """The abilities as bars (``.cr-bars``): each row its player's and ability's name, its bar against the largest in the
+    player's class colour, and its amount; both on hover. The columns share the width as ``minmax(6em, 2fr)
+    minmax(3em, 3fr) auto`` do, ten pixels apart."""
+
+    ROW, GAP = 22, 4
+
+    def __init__(self, bars: list[dict], colour_of, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.bars, self.colour_of = bars, colour_of
+        self.setAccessibleName("Amount by player and ability")
+        self.setFixedHeight(max(0, len(bars) * (self.ROW + self.GAP) - self.GAP))
+
+    def sizeHint(self) -> QSize:
+        return QSize(600, self.height())
+
+    def _columns(self) -> tuple[float, float, float]:
+        from PySide6.QtGui import QFontInfo
+        em = QFontInfo(self.font()).pixelSize() or 13
+        metrics = self.fontMetrics()
+        value = max([5.5 * em] + [metrics.horizontalAdvance(b["value"]) for b in self.bars])
+        room = max(0.0, self.width() - value - 20)
+        name = max(6 * em, room * 2 / 5)
+        return name, max(3 * em, room - name), value
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        name_w, track_w, value_w = self._columns()
+        metrics = self.fontMetrics()
+        ink = QColor(C["text"])
+        track_colour = QColor(136, 136, 136, 34)                   # ``#8882``
+        edge = QColor(0, 0, 0, 71)                                 # ``inset 0 0 0 1px rgba(0,0,0,.28)``
+        for i, bar in enumerate(self.bars):
+            y = i * (self.ROW + self.GAP)
+            painter.setPen(ink)
+            painter.drawText(QRectF(0, y, name_w, self.ROW), Qt.AlignLeft | Qt.AlignVCenter,
+                             metrics.elidedText(bar["name"], Qt.ElideRight, int(name_w)))
+            track = QRectF(name_w + 10, y + (self.ROW - 18) / 2, track_w, 18)
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(track_colour)
+            painter.drawRoundedRect(track, 3, 3)
+            fill = QRectF(track.left(), track.top(), max(2.0, track_w * bar["share"] / 100), 18)
+            painter.setBrush(QColor(self.colour_of(bar["actor"])))
+            painter.setPen(QPen(edge, 1))
+            painter.drawRoundedRect(fill.adjusted(0.5, 0.5, -0.5, -0.5), 3, 3)
+            painter.setBrush(Qt.NoBrush)
+            painter.setPen(ink)
+            painter.drawText(QRectF(name_w + 20 + track_w, y, value_w, self.ROW), Qt.AlignRight | Qt.AlignVCenter, bar["value"])
+        painter.end()
+
+    def row_at(self, y: float) -> int | None:
+        index = int(y // (self.ROW + self.GAP))
+        return index if 0 <= index < len(self.bars) and y - index * (self.ROW + self.GAP) < self.ROW else None
+
+    def event(self, event) -> bool:
+        if event.type() == QEvent.ToolTip:
+            index = self.row_at(event.pos().y())
+            if index is None:
+                QToolTip.hideText()
+            else:
+                QToolTip.showText(event.globalPos(), f"{self.bars[index]['name']} · {self.bars[index]['value']}", self)
+            return True
+        return super().event(event)
+
+
 # ---------------------------------------------------------------- the timeline
+def _geometry(model: dict) -> tuple[int, int]:
+    """The ruler's height and a lane's, each with the line under it: the effect timeline's unless the model says."""
+    return model.get("ruler", RULER), model.get("lane", LANE)
+
+
 def _lane_heights(model: dict) -> list[int]:
-    return [FOLDED if lane["collapsed"] else LANE for lane in model["lanes"]]
+    lane = _geometry(model)[1]
+    return [FOLDED if lane_["collapsed"] else lane for lane_ in model["lanes"]]
 
 
 class _Ruler(QWidget):
@@ -233,9 +308,11 @@ class _Ruler(QWidget):
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        ruler = _geometry(self.model)[0]
+        bottom = self.model.get("bottom", 32)
         painter.fillRect(self.rect(), QColor(C["panel"]))
         painter.setPen(QPen(RULE, 1))
-        painter.drawLine(QPointF(0, RULER - 0.5), QPointF(self.width(), RULER - 0.5))
+        painter.drawLine(QPointF(0, ruler - 0.5), QPointF(self.width(), ruler - 0.5))
         ink = QColor(C["text"])
         faint = QColor(ink)
         faint.setAlphaF(0.6)
@@ -244,8 +321,9 @@ class _Ruler(QWidget):
         painter.setFont(font)
         for tick in self.model["ticks"]:
             painter.setPen(QPen(faint, 1))
-            painter.drawLine(QPointF(tick["x"], 17 if tick["long"] else 24), QPointF(tick["x"], 32))
-            if tick["long"]:
+            top = tick["top"] if "top" in tick else 17 if tick["long"] else 24
+            painter.drawLine(QPointF(tick["x"], top), QPointF(tick["x"], bottom))
+            if tick["text"]:
                 painter.setPen(ink)
                 painter.drawText(QRectF(tick["at"] - 40, 0, 80, 16), Qt.AlignHCenter | Qt.AlignBottom, tick["text"])
         painter.end()
@@ -276,9 +354,10 @@ class _Tracks(QWidget):
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
         ink = QColor(C["text"])
         width = self.width()
+        lane_height = _geometry(self.model)[1]
         for index, lane in enumerate(self.model["lanes"]):
             top = self.tops[index]
-            height = FOLDED if lane["collapsed"] else LANE
+            height = FOLDED if lane["collapsed"] else lane_height
             if index % 2 == 0:                                  # ``.cr-lane:nth-child(even)``, the ruler the first
                 painter.fillRect(QRectF(0, top, width, height - 1), SHADE)
             painter.setPen(QPen(RULE, 1))
@@ -290,7 +369,7 @@ class _Tracks(QWidget):
                 font.setPixelSize(12)
                 painter.setFont(font)
                 painter.setPen(ink)
-                painter.drawText(QPointF(12, top + 25), cw.NO_EFFECTS)
+                painter.drawText(QPointF(12, top + 25), self.model.get("empty", cw.NO_EFFECTS))
                 continue
             for number, mark in enumerate(lane["marks"]):
                 self._mark(painter, mark, top, (index, number) == self.current and self.hasFocus())
@@ -299,7 +378,21 @@ class _Tracks(QWidget):
     def _mark(self, painter: QPainter, mark: dict, top: int, focused: bool) -> None:
         fill = QColor(mark["fill"])
         x, y = mark["x"], top + mark["y"]
-        if mark["death"]:
+        if mark.get("style") == "cast":                         # a press: a 16 px tile, its cast time's line under it
+            tile = QColor(fill)
+            tile.setAlphaF(0.45)
+            painter.setPen(QPen(QColor(C["text"]), 2) if focused else Qt.NoPen)
+            painter.setBrush(tile)
+            painter.drawRoundedRect(QRectF(x, y, 16, 16), 2, 2)
+            painter.setBrush(Qt.NoBrush)
+            picture = self.icon(mark["icon"]) if mark["icon"] else None
+            if picture is not None and not picture.isNull():
+                painter.drawPixmap(QRectF(x + 1, y + 1, 14, 14), picture, QRectF(picture.rect()))
+            if mark.get("cast") is not None:
+                painter.setPen(QPen(fill, 2))
+                painter.drawLine(QPointF(x, y + 17), QPointF(x + mark["cast"], y + 17))
+            return
+        if mark.get("death"):
             painter.setPen(QPen(fill, 2))
             painter.drawLine(QPointF(x + 11, top), QPointF(x + 11, top + 84))
             font = painter.font()
@@ -328,7 +421,9 @@ class _Tracks(QWidget):
     # finding a marker
     @staticmethod
     def _bounds(mark: dict, top: int) -> list[QRectF]:
-        if mark["death"]:
+        if mark.get("style") == "cast":
+            return [QRectF(mark["x"], top + mark["y"], 16, 18)]
+        if mark.get("death"):
             return [QRectF(mark["x"], top, 18, 24), QRectF(mark["x"] + 8, top, 6, 84)]
         return [QRectF(mark["x"], top + mark["y"], 23, 25)]
 
@@ -336,7 +431,7 @@ class _Tracks(QWidget):
         """The marker under a point, the one drawn last when they overlap."""
         for index in range(len(self.model["lanes"]) - 1, -1, -1):
             lane, top = self.model["lanes"][index], self.tops[index]
-            if lane["collapsed"] or not (top <= point.y() < top + LANE):
+            if lane["collapsed"] or not (top <= point.y() < top + _geometry(self.model)[1]):
                 continue
             for number in range(len(lane["marks"]) - 1, -1, -1):
                 if any(r.contains(point) for r in self._bounds(lane["marks"][number], top)):
@@ -418,7 +513,8 @@ class _Tracks(QWidget):
         mark = self.model["lanes"][index]["marks"][number]
         area = self.parent().parent().parent() if self.parent() is not None else None
         if isinstance(area, QScrollArea):
-            area.ensureVisible(NAME_WIDTH + round(mark["x"]) + 11, RULER + self.tops[index] + 14, NAME_WIDTH + 40, RULER + 30)
+            ruler = _geometry(self.model)[0]
+            area.ensureVisible(NAME_WIDTH + round(mark["x"]) + 11, ruler + self.tops[index] + 14, NAME_WIDTH + 40, ruler + 30)
         self._show(self.current)
 
 
@@ -441,16 +537,17 @@ class Timeline(QScrollArea):
                            f" QLabel#crCorner {{ background: {C['panel']}; padding-left: 8px;"
                            f" border-right: 1px solid {EDGE.name(QColor.HexArgb)}; border-bottom: 1px solid {RULE.name(QColor.HexArgb)}; }}")
         heights = _lane_heights(model)
+        self.ruler_height = ruler = _geometry(model)[0]
         width = math.ceil(model["width"])
         self.content_width = NAME_WIDTH + width
         lanes_height = sum(heights)
         self.sheet = QWidget()
         self.sheet.setObjectName("crSheet")
-        self.sheet.setFixedSize(NAME_WIDTH + width, RULER + max(lanes_height, 32 if not heights else 0))
+        self.sheet.setFixedSize(NAME_WIDTH + width, ruler + max(lanes_height, 32 if not heights else 0))
         self.tracks = _Tracks(model, icon, self.sheet)
-        self.tracks.setGeometry(NAME_WIDTH, RULER, width, lanes_height)
+        self.tracks.setGeometry(NAME_WIDTH, ruler, width, lanes_height)
         self.tracks.inspected.connect(self.inspected)
-        top = RULER
+        top = ruler
         self.folded: list[QWidget] = []
         for lane, height in zip(model["lanes"], heights):
             if lane["collapsed"]:
@@ -461,7 +558,7 @@ class Timeline(QScrollArea):
             top += height
         self.names = QWidget(self.sheet)
         self.names.setObjectName("plain")
-        self.names.setGeometry(0, RULER, NAME_WIDTH, lanes_height)
+        self.names.setGeometry(0, ruler, NAME_WIDTH, lanes_height)
         top = 0
         self.cells: list[QWidget] = []
         for lane, height in zip(model["lanes"], heights):
@@ -473,13 +570,13 @@ class Timeline(QScrollArea):
         if not heights:
             empty = QLabel(cw.NO_LANES, self.sheet)
             empty.setObjectName("plain")
-            empty.move(8, RULER + 6)
+            empty.move(8, ruler + 6)
             empty.adjustSize()
         self.ruler = _Ruler(model, self.sheet)
-        self.ruler.setGeometry(NAME_WIDTH, 0, width, RULER)
-        self.corner = QLabel("Encounter time", self.sheet)
+        self.ruler.setGeometry(NAME_WIDTH, 0, width, ruler)
+        self.corner = QLabel(model.get("corner", "Encounter time"), self.sheet)
         self.corner.setObjectName("crCorner")
-        self.corner.setGeometry(0, 0, NAME_WIDTH, RULER)
+        self.corner.setGeometry(0, 0, NAME_WIDTH, ruler)
         self.names.raise_()
         self.ruler.raise_()
         self.corner.raise_()
@@ -492,7 +589,7 @@ class Timeline(QScrollArea):
     def _stick(self) -> None:
         """The names kept at the left and the ruler at the top (``position: sticky``)."""
         x, y = self.horizontalScrollBar().value(), self.verticalScrollBar().value()
-        self.names.move(x, RULER)
+        self.names.move(x, self.ruler_height)
         self.ruler.move(NAME_WIDTH, y)
         self.corner.move(x, y)
 
@@ -519,7 +616,7 @@ class Timeline(QScrollArea):
         if self.sheet.width() != wide:
             self.sheet.setFixedWidth(wide)
             self.tracks.resize(wide - NAME_WIDTH, self.tracks.height())
-            self.ruler.resize(wide - NAME_WIDTH, RULER)
+            self.ruler.resize(wide - NAME_WIDTH, self.ruler_height)
             for cell in self.folded:
                 cell.resize(wide - NAME_WIDTH, cell.height())
         height = self._height(self.width())
