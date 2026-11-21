@@ -32,8 +32,8 @@ HITS = [{"name": "Example", "level": 45, "server": "Testserver", "character_id":
         {"name": "Example Two", "level": 30, "server": "Other", "character_id": "id9", "server_id": 8, "region": "eu"}]
 
 
-@pytest.fixture(scope="module")
-def view():
+def sorcerer_view() -> dict:
+    """The bundled sorcerer build as the app's view of it, dressed as a made-up character."""
     from aion2calc.app.views import build_view
     built = build_view(json.loads((ROOT / "results" / "sorcerer_l45" / "build.json").read_text(encoding="utf-8")))
     built.update(key="eu:7:id0", name="Example", server="Testserver", level=45, level_cap=45, combat_power=3512,
@@ -41,6 +41,11 @@ def view():
                  points={"skill": 380, "stigma": 180, "daevanion": 410, "ariel": 0},
                  budgets={"skill": 383, "stigma": 188, "daevanion": 417, "ariel": 12})
     return built
+
+
+@pytest.fixture(scope="module")
+def view():
+    return sorcerer_view()
 
 
 @pytest.fixture(scope="module")
@@ -62,15 +67,18 @@ def _windows_closed():
 
 
 class FakeApp:
-    """The app as My Character asks it: the characters imported before, the settings, the search, and the import and
-    optimization jobs (each read ``reads`` times before it ends)."""
+    """The app as My Character asks it: the characters imported before, the settings, the search, the import and
+    optimization jobs (each read ``reads`` times before it ends), and the survival panel's imports (``answers``: a
+    path's answers in turn, an exception raised)."""
 
     def __init__(self, view, ui=None, known=KNOWN):
         self.view, self.ui, self.known = view, ui or {}, known
-        self.calls, self.posts = [], []
+        self.calls, self.posts, self.waits = [], [], []
         self.jobs = {"imp": {"reads": 2, "log": ["Reading the profile"], "result": view}}
+        self.answers = {}
 
-    def get(self, path):
+    def get(self, path, timeout=None):
+        self.waits.append((path, timeout))
         self.calls.append(path)
         if path == "/api/characters":
             return json.loads(json.dumps(self.known))
@@ -92,8 +100,14 @@ class FakeApp:
     def get_bytes(self, path):
         raise OSError("no pictures here")
 
-    def post(self, path, body):
+    def post(self, path, body, timeout=None):
+        self.waits.append((path, timeout))
         self.posts.append((path, json.loads(json.dumps(body))))
+        if path in self.answers:
+            answer = self.answers[path].pop(0)
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
         return {"job": {"/api/character/import": "imp", "/api/character/optimize": "opt"}[path]}
 
 
@@ -160,9 +174,12 @@ def test_the_character_words(view):
         with pytest.raises(ValueError, match="Set a positive PvE Genus mix"):
             c.genus_choice(True, wrong, "pve")
     assert c.genus_choice(True, {**mix, "Special": ""}, "pve")["mix"]["Special"] == 0.0           # Number("") is 0
-    body = c.optimize_body(HITS[0], "world", "balanced", {"skill": 383}, {"enabled": False}, " 1.2 ")
+    survival = {"preserve_hp": True, "min_node_hp": 2000.0, "current_hp": float("nan"), "action_windows": [], "opponents": []}
+    body = c.optimize_body(HITS[0], "world", "balanced", {"skill": 383}, survival, {"sp": {"15": 8.0}, "stigmas": {}, "specs": {}},
+                           {"enabled": False}, " 1.2 ")
     assert body["mode"] == "world" and body["objective"] == "balanced" and body["game_patch"] == "1.2"
-    assert body["survival"] == c.SURVIVAL_DEFAULT and body["skill_reserves"] == {"sp": {}, "stigmas": {}, "specs": {}}
+    assert body["survival"] == {"preserve_hp": True, "min_node_hp": 2000, "current_hp": None, "action_windows": [], "opponents": []}
+    assert body["skill_reserves"] == {"sp": {"15": 8}, "stigmas": {}, "specs": {}} and isinstance(body["survival"]["min_node_hp"], int)
     assert body["character_id"] == "id0" and body["budgets"] == {"skill": 383} and body["genus"] == {"enabled": False}
     # the run's progress and result
     assert c.running("world", []) == ("Optimizing World PvP (experimental) — starting…", "")
@@ -242,7 +259,8 @@ def test_budgets_kept_and_an_optimization(qapp, view, tmp_path):
     assert path == "/api/character/optimize" and body["mode"] == "pve" and body["objective"] == "balanced"
     assert body["budgets"] == {"skill": 400, "stigma": 150, "daevanion": 417, "ariel": 12} and body["game_patch"] == "1.2.3"
     assert body["genus"] == {"enabled": True, "mix": {"Cogni": 25.0, "Fera": 25.0, "Natura": 25.0, "Varian": 25.0, "Special": 0.0}}
-    assert body["survival"] == c.SURVIVAL_DEFAULT and body["character_id"] == "id0"
+    assert body["survival"] == {"preserve_hp": True, "min_node_hp": 0, "current_hp": None, "action_windows": [], "opponents": []}
+    assert body["skill_reserves"] == {"sp": {}, "stigmas": {}, "specs": {}} and body["character_id"] == "id0"
     assert json.loads(store.value("character-genus-options:eu:7:id0"))["enabled"] is True
     settle(lambda: page.opt["status"] == "done")
     QCoreApplication.processEvents()

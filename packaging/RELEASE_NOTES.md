@@ -1,3 +1,16 @@
+## My Character's survival options and skill reserves in the native interface (0.2.441)
+
+**All of My Character's options are native now.** Its last two panels open in the app's window as the web page draws them, each closed under its title until you open it:
+- **Survivability · preserve HP while optimizing damage:**
+  - whether the crystal boards' HP is kept, its minimum, and your current maximum HP for the scenarios;
+  - the **incoming-damage scenarios**: hit damage, incoming DPS, seconds, healing and HP reserve. Each has its **timed pressure reductions**, which can link a skill and a supporting effect and assume a cooldown. The table scrolls sideways in its panel on a narrow window;
+  - the **outgoing action-time windows**, with the same links and a cooldown reserved in the rotation;
+  - **Import recorded incoming damage** from an a2log file (an encounter, a recipient and a window), and **Import optimized PvP opponent benchmark** from saved optimized PvP results;
+  - up to eight scenarios, eight action-time windows, and eight reductions in each scenario.
+- **Retain trained skills and equipped stigmas:** a minimum level for any skill or equipped stigma, and the supporting effects of active skills to keep.
+- What you set is kept for each character, and an optimization from this window sends it, as the web page's does. A minimum outside its range is said, and the optimization waits for it.
+- A character search, and a large recording's import, now wait as long as a browser would; the window gave up on the official site after a few seconds.
+
 ## My Character in the native interface (0.2.440)
 
 **My Character is native now.** The app's window draws Character → My Character itself, as the web page shows it:
