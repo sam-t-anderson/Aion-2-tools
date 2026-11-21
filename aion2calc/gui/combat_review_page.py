@@ -29,8 +29,11 @@ Drawn here so far:
   profile saved with the log (or a current one looked up), and the class colours' panel (**Class colors**).
 - Since 0.2.467 a recording's other parts, listed, opened and combined into an unranked review; the combined review with
   its parts, runs and totals; the other uploads of the same fight, and the log server's combination of them.
+- Since 0.2.468 the movement replay (``combat_replay``, ``combat_replay_view``): the fight's positions on the ground
+  they covered, played back, paused, rewound or scrubbed at the speed chosen, in the arena's shape chosen.
 
-The rest of the review (its movement replay) opens in the web interface for now, from a button on the page.
+The rest of the replay (the boss casts and events, the measured areas, its key, other recordings' movement and its
+Raid Planner file) opens in the web interface for now, from a button on the page.
 """
 from __future__ import annotations
 
@@ -45,6 +48,7 @@ from PySide6.QtGui import QPixmap, QRegularExpressionValidator
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel,
                                QLineEdit, QPlainTextEdit, QSlider, QSpinBox, QVBoxLayout, QWidget)
 
+from . import combat_replay as rp
 from . import combat_review as cw
 from . import combat_records as cr
 from . import combat_views as cv
@@ -57,10 +61,12 @@ from .combat import safe_link
 from .combat_community import _note
 from .chrome import FlowLayout
 from .combat_review_charts import HP, LINE, PingChart, RateChart
+from .combat_replay_view import ReplayPanel
 from .combat_review_views import ContributionBars, FilterPopup, GaugeChart, Placer, Timeline
 from .combat_saved import TIMEOUT, Section, _button, _clear, _head, _label
 from .database_page import Window
 from .pictures import Pictures
+from .planner_page import interface_store
 from .result_windows import GridTable
 from .results import _dict, _list, _truthy, js_text
 
@@ -191,13 +197,16 @@ LOGO = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 class ReviewPage(QWidget):
     """A log's own page (``pageCombatLog``, ``A2CombatReview.mount``). ``open_web`` opens a page of the app (another log
     opens here again); ``open_in_web`` opens a page in the web interface itself (the full review). ``uploaded`` says this
-    recording was uploaded (``a2log-uploaded``)."""
+    recording was uploaded (``a2log-uploaded``). ``store`` keeps what the web page keeps in its browser (the movement
+    replay's speed and arena shape)."""
 
     uploaded = Signal()
 
     def __init__(self, api: AppApi | None, open_web=None, open_in_web=None, parent: QWidget | None = None,
-                 pictures: Pictures | None = None, read_picture=None):
+                 pictures: Pictures | None = None, read_picture=None, store=None):
         super().__init__(parent)
+        self.store = store if store is not None else interface_store()
+        self.replay: ReplayPanel | None = None           # the movement replay drawn last, while it may be playing
         self.setObjectName("plain")
         self.official = OfficialPictures(self, read_picture)          # a character's pictures off the official hosts
         self.official.loaded.connect(self._official_picture)
@@ -235,6 +244,7 @@ class ReviewPage(QWidget):
 
     def stop(self) -> None:
         self.soon.stop()
+        self._stop_replay()
         self.official.stop()
         if self.popup is not None:
             self.popup.hide()
@@ -514,6 +524,7 @@ class ReviewPage(QWidget):
         if doc is None:
             return
         self.awaiting = False
+        self._stop_replay()
         _clear(self.box)
         state = self.state
         if self.fight["segment"] != state["segment"] and not self.fight["loading"]:   # another encounter: this recording's
@@ -633,6 +644,9 @@ class ReviewPage(QWidget):
             body.addWidget(row)
         if local and not combined:                                   # ``options.publish``: a recording on this computer's
             body.addWidget(self._publish_form())
+        replay = self._replay(d)
+        if replay is not None:
+            body.addWidget(replay)
         body.addWidget(self._compare_row())
         body.addWidget(self._comparisons(d))
         elsewhere = QFrame()
@@ -1710,6 +1724,26 @@ class ReviewPage(QWidget):
         line.addStretch(1)
         column.addWidget(row)
         return box
+
+    # ---------------------------------------------------------------- the movement replay (0.2.468)
+    def _replay(self, d: dict) -> QWidget | None:
+        """The fight's movement replay (``replay``); for a shared log that holds no movement, why not; else nothing."""
+        model = rp.Replay(self.doc, d, self.colours, self.names)
+        if not model.world and not model.flat:
+            if self.where.get("kind") == "shared" and not cw.reconstructed(self.doc):   # ``options.movement``
+                box, column = _plain(spacing=8)
+                column.addWidget(_head(rp.HEAD))
+                column.addWidget(_muted(rp.NO_MOVEMENT + rp.MAY_HOLD))
+                return box
+            return None
+        self.replay = ReplayPanel(model, self.store)
+        return self.replay
+
+    def _stop_replay(self) -> None:
+        """The replay drawn last stopped (``cancelAnimationFrame``), as the page is drawn again or left."""
+        if self.replay is not None:
+            self.replay.stop()
+            self.replay = None
 
     # ---------------------------------------------------------------- character builds and class colours (0.2.466)
     def _builds(self, d: dict) -> QWidget:
