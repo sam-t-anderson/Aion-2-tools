@@ -9,7 +9,9 @@ import re
 
 from .character import js_number
 from .news import when
-from .results import _dict, _entries, _list, _number, _truthy, arcana_deity, cap, js_text, n0, pct, sp
+from . import theme
+from .results import (GENERA, _dict, _entries, _list, _number, _truthy, _whole_number, arcana_deity, cap, js_text,
+                      n0, pct, sp)
 
 DOLL_LEFT = ("MainHand", "SubHand", "Helmet", "Shoulder", "Torso", "Pants", "Gloves", "Boots", "Cape", "Belt")
 DOLL_RIGHT = ("Necklace", "Earring1", "Earring2", "Ring1", "Ring2", "Bracelet1", "Bracelet2", "Amulet", "Rune1", "Rune2")
@@ -518,6 +520,166 @@ def pantheon_copy(a: dict) -> str:
                 r = _dict(r)
                 sources = "; ".join(js_text(x) for x in _list(r.get("sources")))
                 lines.append(f"{KIND_LABEL[kind]}: {js_text(r.get('short'))} ({_stats(r)}) {sp(r.get('gain'))} — {sources}")
+    return "\n".join(lines)
+
+
+# ------------------------------------------------------------------ genus insight
+GENUS_SUB = ("pet genus lines: what each slot can roll, what to roll for, and your saved lines weighted by your fight time "
+             "per genus")
+GENUS_NOTE = ("Genus levels and analysis lines are manual inputs; they are not included in the official profile. Enter and "
+              "save them in the Genus Insight editor above, then run advice again. Blank slots are not recorded, not evidence "
+              "of a locked Insight. \"Roll for\" lines come from the Global slot property tables and are modeled damage on your "
+              "build, whether or not you recorded anything.")
+ROLLS_FOLD = "All slots · what each can roll and what to aim for"
+ROLLS_COLUMNS = ["Slot", "Roll for (best listed grade)", "Then", "Options"]
+NO_CANDIDATE = "No modeled candidate for this genus."
+CHASE_NOTE = "Damage-only candidate; confirm the defensive tradeoff in game."
+
+
+def genus_state(a: dict, inventory=None) -> dict:
+    """The genus lines the advice used (``g.state``), else those of the inventory it was given or the page's."""
+    g = _dict(a.get("genus"))
+    if _truthy(g.get("state")):
+        return _dict(g["state"])
+    inv = a.get("inventory_snapshot") if _truthy(a.get("inventory_snapshot")) else inventory
+    return _dict(_dict(inv).get("genus")) if _truthy(inv) and _truthy(_dict(inv).get("genus")) else {}
+
+
+def genus_tab(a: dict, chosen=None) -> str:
+    """The genus shown (``S.gear.genusTab``): the one chosen, else the first to level, else Cogni."""
+    if chosen:
+        return chosen
+    order = _list(_dict(a.get("genus")).get("level_order"))
+    first = _dict(order[0]).get("genus") if order and _truthy(order[0]) else None
+    return first or "Cogni"
+
+
+def _known(state: dict, genus) -> int | None:
+    return _whole_number(_dict(state.get(genus)).get("level"))
+
+
+def genus_tabs(state: dict) -> list[tuple[str, str]]:
+    """The five genera's tabs, each with its recorded level."""
+    return [(x, "Not recorded" if _known(state, x) is None else f"Lv {js_text(state[x]['level'])}") for x in GENERA]
+
+
+def _rolls(a: dict, genus: str):
+    rolls = _dict(_dict(_dict(a.get("genus")).get("roll_targets")).get("genera")).get(genus)
+    return _dict(rolls) if _truthy(rolls) else None
+
+
+def _aim(row) -> tuple[str, str, str] | None:
+    """A roll's stat, grade and range, and gain."""
+    row = _dict(row)
+    return js_text(row.get("stat")), f"{js_text(row.get('grade'))} {js_text(row.get('range'))}", sp(row.get("gain"))
+
+
+def genus_cells(a: dict, state: dict, genus: str) -> list[dict]:
+    """The chosen genus's nine slots (``advGenus``'s ``cells``): locked (and what to roll for once open), not recorded
+    (what to roll for, or the line to chase in slot 4), or the line saved with its modeled gain and whether it is the
+    best line for its slot."""
+    g = _dict(a.get("genus"))
+    group = state.get(genus)
+    st = _dict(group) if _truthy(group) else {"level": 0, "lines": []}
+    scored = {}
+    for line in _list(g.get("lines")):
+        if isinstance(line, dict) and line.get("genus") == genus:
+            scored[js_text(line.get("slot"))] = line
+    chase = next((c for c in _list(g.get("chase")) if isinstance(c, dict) and c.get("genus") == genus), None)
+    rolls = _rolls(a, genus)
+    known = _known(state, genus) is not None
+    cells = []
+    for n in range(1, 10):
+        line = next((x for x in _list(st.get("lines")) if isinstance(x, dict) and js_number(x.get("slot")) == n), None)
+        score = scored.get(str(n))
+        x = _dict(_dict(rolls.get("slots")).get(str(n))) if rolls else {}
+        aims = _list(x.get("aim"))
+        aim = _dict(aims[0]) if aims and _truthy(aims[0]) else None
+        more = ", ".join(f"{js_text(_dict(r).get('stat'))} ({js_text(_dict(r).get('grade'))} {js_text(_dict(r).get('range'))}, "
+                         f"{sp(_dict(r).get('gain'))})" for r in aims[1:3])
+        title = (f"Roll for: {js_text(aim.get('stat'))} {js_text(aim.get('grade'))} {js_text(aim.get('range'))} "
+                 f"({sp(aim.get('gain'))})" + (f"; then {more}" if more else "")) if aim is not None else ""
+        cell = {"n": str(n), "special": n == 4, "title": title}
+        level = _number(st.get("level"))
+        if known and level is not None and n > level:
+            cell.update(kind="locked", text=f"opens at Lv {n}",
+                        aim=f"then roll for {js_text(aim.get('stat'))}" if aim is not None else "")
+        elif line is None:
+            cell.update(kind="empty", aimed=aim is not None, text="Not recorded" if known else "Level not entered",
+                        aim=_aim(aim) if aim is not None else None,
+                        possible=f"Possible line: {js_text(chase.get('line'))}" if aim is None and n == 4 and chase else "")
+        else:
+            gain = _number(_dict(score).get("gain")) if score is not None and score.get("gain") is not None else None
+            dead = gain is not None and gain <= 1e-6
+            if gain is None:
+                shown = ("note", js_text(_dict(score).get("reason") or "Not modeled"))
+            elif dead:
+                shown = ("down", "No modeled damage gain")
+            else:
+                shown = ("up", f"+{theme.fixed(100 * gain, 2)}%" if gain < 0.001 else sp(gain))
+            verdict = None
+            if aim is not None:
+                verdict = (("keep", "✓ best modeled line for this slot") if line.get("stat") == aim.get("stat")
+                           else ("reroll", _aim(aim)))
+            cell.update(kind="filled", stat=js_text(line.get("stat")), value=js_text(line.get("value")), gain=shown, dead=dead,
+                        verdict=verdict)
+        cells.append(cell)
+    return cells
+
+
+def genus_side(a: dict, state: dict, genus: str) -> dict:
+    """The genus's side (``.gside``): what to roll for first, the basis, your fight time per genus, the line to chase,
+    and the order to level the genera in."""
+    g = _dict(a.get("genus"))
+    rolls = _rolls(a, genus)
+    best = None
+    if rolls is not None and _truthy(rolls.get("best")):
+        best = [(js_text(_dict(r).get("slot")),) + _aim(r) for r in _list(rolls.get("best"))]
+    basis = f"{js_text(_dict(g.get('roll_targets')).get('basis') or '')}. Gains are not additive across slots."
+    mix = [(js_text(k), _number(v) or 0.0, f"{js_text(k)} {pct(v, 0)}") for k, v in _entries(_dict(g.get("mix")))]
+    chase = next((c for c in _list(g.get("chase")) if isinstance(c, dict) and c.get("genus") == genus), None)
+    shown_chase = None
+    if chase is not None:
+        shown_chase = {"line": f"{js_text(chase.get('line'))} · slot {js_text(chase.get('slot'))}", "value": js_text(chase.get("value")),
+                       "gain": sp(chase.get("gain")), "note": f"{js_text(chase.get('assumption'))}. {CHASE_NOTE}"}
+    order = []
+    for i, r in enumerate(_list(g.get("level_order"))[:5]):
+        r = _dict(r)
+        nxt = _dict(r.get("next"))
+        step = ("" if not _truthy(r.get("next")) else f" · next opens slot {js_text(nxt['opens_slot'])}" if nxt.get("opens_slot")
+                else " · next changes grade chances")
+        level = js_text(r.get("level")) if _known(state, r.get("genus")) is not None else "not recorded"
+        order.append((f"{i + 1}. {js_text(r.get('genus'))}", f"Lv {level} · {pct(r.get('share'), 0)} of fights{step}"))
+    return {"best": best, "basis": basis, "mix": mix, "chase": shown_chase, "order": order}
+
+
+def genus_rolls_table(a: dict, genus: str) -> list[dict] | None:
+    """Every slot of the genus (``.grolls``): what to roll for, the next two, and how many options it has."""
+    rolls = _rolls(a, genus)
+    if rolls is None:
+        return None
+    rows = []
+    for n, x in _entries(_dict(rolls.get("slots"))):
+        x = _dict(x)
+        aims = _list(x.get("aim"))
+        rows.append({"slot": js_text(n), "amp": js_number(n) == 4, "aim": _aim(aims[0]) if aims and _truthy(aims[0]) else None,
+                     "then": [(js_text(_dict(y).get("stat")), sp(_dict(y).get("gain"))) for y in aims[1:3]],
+                     "options": f"{js_text(x.get('options'))} ({js_text(x.get('unmodeled'))} unmodeled)"})
+    return rows
+
+
+def genus_copy(a: dict, genus: str) -> str:
+    g = _dict(a.get("genus"))
+    lines = []
+    for row in genus_rolls_table(a, genus) or []:
+        aim = row["aim"]
+        lines.append(f"{genus} slot {row['slot']}: roll for "
+                     + (f"{aim[0]} ({aim[1]}, {aim[2]})" if aim else "no modeled line"))
+    for line in _list(g.get("lines")):
+        line = _dict(line)
+        gain = line.get("gain")
+        lines.append(f"{js_text(line.get('genus'))} slot {js_text(line.get('slot'))}: {js_text(line.get('stat'))} "
+                     f"{js_text(line.get('value'))} ({js_text(line.get('reason') or 'Not modeled') if gain is None else sp(gain)})")
     return "\n".join(lines)
 
 

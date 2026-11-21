@@ -1044,6 +1044,38 @@ def _section(title: str) -> tuple[QFrame, QVBoxLayout]:
     return box, column
 
 
+def coverage_section(v: dict) -> QFrame | None:
+    """The genera's coverage (``genusCoverageHTML``) as a note of the window, or none; the advice's genus shows it too."""
+    coverage = r.genus_coverage(v)
+    if coverage is None:
+        return None
+    box, column = _section("Genus coverage")
+    column.addWidget(_label(coverage["line"]))
+    column.addWidget(GridTable(r.COVERAGE_COLUMNS, coverage["rows"], {2: 2, 3: 2}))
+    column.addWidget(_label(coverage["note"], "muted"))
+    fold = Fold("Catalog basis")
+    fold.add(_label(coverage["basis"], "muted"))
+    column.addWidget(fold)
+    return box
+
+
+def targets_section(v: dict) -> QFrame | None:
+    """The genus roll targets (``genusTargetsHTML``) as a note of the window, or none; the advice's genus shows them
+    too."""
+    targets = r.genus_targets(v)
+    if targets is None:
+        return None
+    box, column = _section("Genus roll targets")
+    if targets["rows"]:
+        rows = [[a, b, c, d, _cell(f"<b>{html.escape(e)}</b><br><small>{html.escape(f)}</small>"), g]
+                for a, b, c, d, e, f, g in targets["rows"]]
+        column.addWidget(GridTable(r.TARGET_COLUMNS, rows, {0: 2, 2: 2, 3: 2, 4: 2, 5: 3}))
+    column.addWidget(_label(targets["note"], "muted"))
+    if targets["source"]:
+        column.addWidget(_label(targets["source"], "muted"))
+    return box
+
+
 def _cell(rich: str) -> QLabel:
     """A table's cell of rich text (bold, faint and gain words)."""
     return _label(rich, rich=True)
@@ -1870,27 +1902,9 @@ class ResultWindows(QWidget):
             column.addWidget(GridTable(r.ROLL_COLUMNS, table_rows, {1: 3, 2: 3, 3: 2, 4: 2, 5: 1}))
             column.addWidget(_label(rolls["basis"], "muted"))
             window.body.addWidget(box)
-        coverage = r.genus_coverage(v)
-        if coverage is not None:
-            box, column = _section("Genus coverage")
-            column.addWidget(_label(coverage["line"]))
-            column.addWidget(GridTable(r.COVERAGE_COLUMNS, coverage["rows"], {2: 2, 3: 2}))
-            column.addWidget(_label(coverage["note"], "muted"))
-            fold = Fold("Catalog basis")
-            fold.add(_label(coverage["basis"], "muted"))
-            column.addWidget(fold)
-            window.body.addWidget(box)
-        targets = r.genus_targets(v)
-        if targets is not None:
-            box, column = _section("Genus roll targets")
-            if targets["rows"]:
-                rows = [[a, b, c, d, _cell(f"<b>{html.escape(e)}</b><br><small>{html.escape(f)}</small>"), g]
-                        for a, b, c, d, e, f, g in targets["rows"]]
-                column.addWidget(GridTable(r.TARGET_COLUMNS, rows, {0: 2, 2: 2, 3: 2, 4: 2, 5: 3}))
-            column.addWidget(_label(targets["note"], "muted"))
-            if targets["source"]:
-                column.addWidget(_label(targets["source"], "muted"))
-            window.body.addWidget(box)
+        for section in (coverage_section(v), targets_section(v)):
+            if section is not None:
+                window.body.addWidget(section)
         assumptions = r.genus_assumptions(v)
         if assumptions is not None:
             fold = Fold(r.ASSUMPTIONS)
