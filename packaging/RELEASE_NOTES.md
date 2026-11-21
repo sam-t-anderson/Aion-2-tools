@@ -1,3 +1,13 @@
+## A combat log's own page in the native interface, part 8 (0.2.464)
+
+**A log's review in the app's window now has its foot**, as on the web page:
+- **Matched public comparisons:** each player's standings among the log server's public logs, by server, region and world, now and as at their upload: their rank, percentile, samples and distinct identities, or why a scope has none (no verified profile, too few comparable logs, not uploaded, an unranked capture). Then the run's speed, on the recording player's world when the party spans several. **Refresh rankings** asks again.
+- **The encounter's metadata:** its boss, type, game version and difficulty; for a completed recording on this computer, **Encounter metadata for comparisons** corrects them, on this encounter or its whole run, and saves them to the recording (an uploaded copy is unchanged). The standings are asked for again once it is saved, and the fold stays open with what was saved said.
+- **Report this shared log:** a reason and details sent privately to the log server's operator, with the receipt it gives.
+- **Publish this log:** a recording uploaded at the visibility chosen, with the link to it (opened in your browser) and any warning about its delete token; My Uploads reads it again.
+
+The review's other sections (comparisons with other logs and the movement replay) still open in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 7 (0.2.463)
 
 **A log's review in the app's window now has its Encounter insights**, shown when **Encounter insights** beside the player is ticked:

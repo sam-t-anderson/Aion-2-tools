@@ -20,9 +20,12 @@ Drawn here so far:
 - Since 0.2.462 the player death recaps, each opened with its effects and HP samples.
 - Since 0.2.463 the encounter insights, shown with **Encounter insights**; and the automatic encounter context and the
   mapping coverage, folded, the coverage's report exported to a file.
+- Since 0.2.464 the matched public comparisons (each player's standings and the run's speed), the encounter's metadata
+  (corrected and saved for a recording on this computer), a shared log's report to its server's operator, and a
+  recording's upload.
 
-The rest of the review (its rankings, reports, comparisons and movement replay) opens in the web interface for now, from
-a button on the page.
+The rest of the review (its comparisons with other logs and the movement replay) opens in the web interface for now,
+from a button on the page.
 """
 from __future__ import annotations
 
@@ -30,10 +33,10 @@ import html
 import math
 import os
 
-from PySide6.QtCore import QRegularExpression, QStandardPaths, Qt, QTimer
+from PySide6.QtCore import QRegularExpression, QStandardPaths, Qt, QTimer, Signal
 from PySide6.QtGui import QRegularExpressionValidator
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
-                               QSlider, QVBoxLayout, QWidget)
+                               QPlainTextEdit, QSlider, QVBoxLayout, QWidget)
 
 from . import combat_review as cw
 from . import combat_records as cr
@@ -42,6 +45,7 @@ from . import theme
 from .account import TIER_COLOURS
 from .account_page import _parse_pill
 from .api import AppApi, Requests
+from .combat import safe_link
 from .combat_community import _note
 from .chrome import FlowLayout
 from .combat_review_charts import HP, LINE, PingChart, RateChart
@@ -69,6 +73,15 @@ def _muted(words: str) -> QLabel:
     return _label(words, "small")
 
 
+def _field_row(words: str, widget: QWidget) -> QWidget:
+    """A field with its name before it (``<label>words <input></label>``)."""
+    box, line = _plain(QHBoxLayout, 6)
+    line.addWidget(_label(words, wrap=False))
+    line.addWidget(widget)
+    line.addStretch(1)
+    return box
+
+
 def _noted(widget: QWidget) -> QFrame:
     """A part in a note's frame (``.note``), as a ``details`` of the web page's is."""
     frame = QFrame()
@@ -81,7 +94,10 @@ def _noted(widget: QWidget) -> QFrame:
 
 class ReviewPage(QWidget):
     """A log's own page (``pageCombatLog``, ``A2CombatReview.mount``). ``open_web`` opens a page of the app (another log
-    opens here again); ``open_in_web`` opens a page in the web interface itself (the full review)."""
+    opens here again); ``open_in_web`` opens a page in the web interface itself (the full review). ``uploaded`` says this
+    recording was uploaded (``a2log-uploaded``)."""
+
+    uploaded = Signal()
 
     def __init__(self, api: AppApi | None, open_web=None, open_in_web=None, parent: QWidget | None = None,
                  pictures: Pictures | None = None):
@@ -112,6 +128,7 @@ class ReviewPage(QWidget):
         self.popup: FilterPopup | None = None          # a column's filter of the events, while it is open
         self.filter_buttons: dict = {}
         self._forget_timeline()
+        self._forget_forms()
         self.box = QVBoxLayout(self)
         self.box.setContentsMargins(0, 0, 0, 0)
         self.box.setSpacing(14)
@@ -122,6 +139,13 @@ class ReviewPage(QWidget):
             self.popup.hide()
         if self.requests is not None:
             self.requests.stop()
+
+    def _forget_forms(self) -> None:
+        """The report, the metadata's save and the upload as a log opens: nothing written, sent or said (``reportReason``…)."""
+        self.report = {"reason": "privacy", "details": "", "status": "", "busy": False}
+        self.meta_result, self.meta_open, self.meta_busy = "", False, False
+        self.publish = {"visibility": "public", "result": "", "busy": False}
+        self.mapping_status = self.meta_parts = self.publish_parts = self.standings_box = None
 
     def _forget_timeline(self) -> None:
         """The timeline's lanes all shown and open again, its window at the start, nothing inspected: as another encounter
@@ -155,6 +179,7 @@ class ReviewPage(QWidget):
         self.doc, self.ranks = None, None
         self.state = cw.fresh_state(mode, segment)
         self._forget_timeline()
+        self._forget_forms()
         for kind_of in ("log", "ranks"):
             self.asked[kind_of] = self.asked.get(kind_of, 0) + 1     # answers about the log shown before are let go
         _clear(self.box)
@@ -195,6 +220,24 @@ class ReviewPage(QWidget):
         elif kind == "ranks":
             self.ranks = answer if isinstance(answer, dict) else {}
             self.draw()
+        elif kind == "save":                                         # the metadata saved: the log as the app keeps it
+            self.doc, self.meta_busy, self.meta_result = _dict(answer), False, cw.METADATA_SAVED
+            self.ranks = None
+            self.draw()
+            self.ask_ranks()
+        elif kind == "report":
+            receipt = _dict(answer)
+            self.report.update(busy=False, details="",
+                               status=f"{cw.js_string(receipt.get('message'))} Receipt: {cw.js_string(receipt.get('id'))}")
+            self.draw()
+        elif kind == "publish":
+            shared = _dict(answer)
+            link = safe_link(shared.get("url"))
+            words = f"<a href='{html.escape(link)}'>Open shared log</a>" if link else ""
+            if _truthy(shared.get("ownership_warning")):
+                words += f"<p>{html.escape(cw.js_string(shared['ownership_warning']))}</p>"
+            self._published(words)
+            self.uploaded.emit()
 
     def _failed(self, name: str, why: str) -> None:
         kind = self._current(name)
@@ -203,6 +246,16 @@ class ReviewPage(QWidget):
         elif kind == "ranks":
             self.ranks = {"error": why}
             self.draw()
+        elif kind == "save":                                         # the form left as it is, to be sent again
+            self.meta_busy, self.meta_result = False, why
+            if self.meta_parts is not None:
+                self.meta_parts["result"].setText(why)
+                self.meta_parts["save"].setEnabled(True)
+        elif kind == "report":
+            self.report.update(busy=False, status=why)
+            self.draw()
+        elif kind == "publish":
+            self._published(html.escape(why))
 
     def _refused(self, why: str) -> None:
         _clear(self.box)
@@ -367,6 +420,22 @@ class ReviewPage(QWidget):
             body.addWidget(self._timeline(v, events))
         body.addWidget(self._details(d, v, events))
         body.addWidget(self._actions(v))
+        notes = cw.notes_line(d)
+        if notes:
+            body.addWidget(_muted(notes))
+        local, combined = self.where.get("kind") == "local", cw.reconstructed(doc)
+        if self.where.get("kind") == "shared" and not combined:      # ``options.report``: a shared log's
+            body.addWidget(self._report_form())
+        body.addWidget(self._metadata(d))
+        self.standings_box = None
+        if self.rankings():
+            body.addWidget(self._standings())
+            row, line = _plain(QHBoxLayout)
+            line.addWidget(_button(cw.REFRESH, self.ask_ranks))
+            line.addStretch(1)
+            body.addWidget(row)
+        if local and not combined:                                   # ``options.publish``: a recording on this computer's
+            body.addWidget(self._publish_form())
         elsewhere = QFrame()
         elsewhere.setObjectName("note")
         line = QVBoxLayout(elsewhere)
@@ -378,14 +447,6 @@ class ReviewPage(QWidget):
         row_line.addStretch(1)
         line.addWidget(row)
         body.addWidget(elsewhere)
-        notes = cw.notes_line(d)
-        if notes:
-            body.addWidget(_muted(notes))
-        if self.rankings():
-            row, line = _plain(QHBoxLayout)
-            line.addWidget(_button(cw.REFRESH, self.ask_ranks))
-            line.addStretch(1)
-            body.addWidget(row)
         self.box.addWidget(frame)
 
     def _pick(self, words: str, values, chosen, changed, groups=None) -> QWidget:
@@ -979,6 +1040,184 @@ class ReviewPage(QWidget):
         if tab and omitted:
             column.addWidget(_muted(omitted))
         return box
+
+    # ---------------------------------------------------------------- comparisons, metadata, report and upload (0.2.464)
+    def _post_app(self, kind: str, path: str, body: dict) -> None:
+        """A request to the app itself (``api(path, body)``): the metadata saved, the recording uploaded."""
+        self.asked[kind] = self.asked.get(kind, 0) + 1
+        if self.requests is not None:
+            self.requests.post(f"{kind}:{self.asked[kind]}", path, body)
+
+    def _standings(self) -> QWidget:
+        """The matched public comparisons (``ranksHTML``): each player's standings now and at upload, and the run's speed;
+        or that they are loading, or why they could not be read."""
+        model = cw.standings(self.ranks)
+        if "loading" in model:
+            return _muted(model["loading"])
+        box, column = _plain(spacing=8)
+        self.standings_box = box
+        column.addWidget(_head(cw.STANDINGS_HEAD))
+        column.addWidget(_muted(model["note"]))
+        for words in (model["unranked"], html.escape(model["none"], quote=False)):
+            if words:
+                column.addWidget(_noted(_label(words, rich=True)))
+        column.addWidget(self._grid(cw.STANDINGS_COLUMNS, [[row[0], self._scopes(row[1]), self._scopes(row[2])]
+                                                          for row in model["rows"]], {0: 1, 1: 1, 2: 1}))
+        column.addWidget(_label(f"<b>{html.escape(cw.RUN_HEAD, quote=False)}</b>", rich=True))
+        column.addWidget(self._grid(cw.RUN_COLUMNS, [[self._scopes(cell) for cell in model["run"]]], {0: 1, 1: 1}))
+        return box
+
+    @staticmethod
+    def _scopes(cell: dict) -> QWidget:
+        """A cell of standings: Server, Region and World, each its own line, its reasons its tip (``title``)."""
+        box, column = _plain(spacing=4)
+        box.setProperty("fill", True)                                # across its column, as the web page's cell is
+        for name, standing in cell["standings"]:
+            line = _label(f"{name}: {standing['html']}", rich=True)
+            if standing["tip"]:
+                line.setToolTip(standing["tip"])
+            column.addWidget(line)
+        return box
+
+    def _metadata(self, d: dict) -> QWidget:
+        """The encounter's metadata (``metadataHTML``): its line; for a completed recording on this computer, its fields
+        to correct and save, folded."""
+        model = cw.metadata(self.doc, d, self.where.get("kind", ""))
+        self.meta_parts = None
+        if "line" in model:
+            return _muted(model["line"])
+        fold = Section(cw.METADATA_HEAD, None, self.meta_open or bool(self.meta_result) or self.meta_busy)
+        fold.button.setAccessibleName(cw.METADATA_HEAD)
+        fold.button.toggled.connect(lambda opened: setattr(self, "meta_open", opened))
+        fold.body_layout.addWidget(_muted(cw.METADATA_NOTE))
+        row = QWidget()
+        row.setObjectName("plain")
+        flow = FlowLayout(row, align=Qt.AlignLeft, gap=(12, 6))
+        scope = QComboBox()
+        scope.setAccessibleName("Apply changed fields to")
+        scope.addItem("This encounter", "encounter")
+        if model["run"]:
+            scope.addItem("All encounters in this run", "run")
+        kind = QComboBox()
+        kind.setAccessibleName("Encounter type")
+        for value, words in model["types"]:
+            kind.addItem(words, value)
+        kind.setCurrentIndex(max(0, kind.findData(model["type"])))
+        fields: dict = {"encounter_type": kind}
+        flow.addWidget(_field_row("Apply changed fields to", scope))
+        flow.addWidget(_field_row("Encounter type", kind))
+        for key, words, value in model["fields"]:
+            edit = QLineEdit(value)
+            edit.setMaxLength(200)
+            edit.setAccessibleName(words)
+            fields[key] = edit
+            flow.addWidget(_field_row(words, edit))
+        save = _button("Save metadata", lambda: self._save_metadata(fields, scope))
+        save.setEnabled(not self.meta_busy)
+        flow.addWidget(save)
+        result = _label(self.meta_result, "small")
+        flow.addWidget(result)
+        self.meta_parts = {"save": save, "result": result}
+        fold.body_layout.addWidget(row)
+        return fold
+
+    def _save_metadata(self, fields: dict, scope: QComboBox) -> None:
+        """The metadata saved to the recording (``data-meta-save``): the fields changed, on this encounter or its run."""
+        values = {key: (widget.currentData() if isinstance(widget, QComboBox) else widget.text()) for key, widget in fields.items()}
+        try:
+            log = cw.corrected(self.doc, self.state["segment"], values, scope.currentData() == "run")
+        except ValueError as problem:
+            self.meta_parts["result"].setText(str(problem))
+            return
+        self.meta_busy, self.meta_open = True, True
+        self.meta_parts["save"].setEnabled(False)
+        self._post_app("save", "/api/sessions", {"file": self.where.get("value"), "log": log})
+
+    def _report_form(self) -> QWidget:
+        """A shared log's report to its server's operator (``reportHTML``), folded; open while anything is written, sent
+        or said."""
+        report = self.report
+        fold = Section(cw.REPORT_HEAD, None, bool(report["details"] or report["status"] or report["busy"]))
+        fold.button.setAccessibleName(cw.REPORT_HEAD)
+        layout = fold.body_layout
+        layout.addWidget(_muted(cw.REPORT_NOTE))
+        reason = QComboBox()
+        reason.setAccessibleName("Reason")
+        for value, words in cw.REPORT_REASONS:
+            reason.addItem(words, value)
+        reason.setCurrentIndex(max(0, reason.findData(report["reason"])))
+        reason.activated.connect(lambda _i: report.update(reason=reason.currentData()))
+        details = QPlainTextEdit(report["details"])
+        details.setAccessibleName("Details")
+        details.setFixedSize(260, 72)                                # ``rows="3"``
+
+        def written() -> None:
+            text = details.toPlainText()
+            if len(text) > 1000:                                     # ``maxlength="1000"``
+                details.setPlainText(text[:1000])
+                return
+            report["details"] = text
+        details.textChanged.connect(written)
+        send = _button("Send report", self._send_report)
+        send.setEnabled(not report["busy"])
+        row = QWidget()                                              # the reason, the details and Send on one line
+        row.setObjectName("plain")
+        flow = FlowLayout(row, align=Qt.AlignLeft, gap=(12, 6))
+        flow.addWidget(_field_row("Reason", reason))
+        flow.addWidget(_field_row("Details (10–1,000 characters)", details))
+        flow.addWidget(send)
+        layout.addWidget(row)
+        layout.addWidget(_label(report["status"]))
+        return fold
+
+    def _send_report(self) -> None:
+        """The report sent (``data-report-send``), once at a time."""
+        if self.report["busy"]:
+            return
+        self.report["busy"] = True
+        path = f"/api/v1/logs/{cw.encode_component(self.where.get('value', ''))}/reports"
+        self._ask("report", path, body={"reason": self.report["reason"], "details": self.report["details"]})
+        self.draw()
+
+    def _publish_form(self) -> QWidget:
+        """A recording's upload to the log server (``Publish this log``), folded; open once it is sent."""
+        publish = self.publish
+        fold = Section(cw.PUBLISH_HEAD, None, bool(publish["result"]) or publish["busy"])
+        fold.button.setAccessibleName(cw.PUBLISH_HEAD)
+        row, line = _plain(QHBoxLayout, 8)
+        visibility = QComboBox()
+        visibility.setAccessibleName("Upload visibility")
+        for value in cw.VISIBILITIES:
+            visibility.addItem(value, value)
+        visibility.setCurrentIndex(max(0, visibility.findData(publish["visibility"])))
+        visibility.activated.connect(lambda _i: publish.update(visibility=visibility.currentData()))
+        line.addWidget(visibility)
+        upload = _button("Upload saved session", self._upload)
+        upload.setEnabled(not publish["busy"])
+        line.addWidget(upload)
+        result = _label(publish["result"], rich=True)
+        result.setOpenExternalLinks(True)
+        line.addWidget(result, 1)
+        self.publish_parts = {"upload": upload, "result": result}
+        fold.body_layout.addWidget(row)
+        return fold
+
+    def _upload(self) -> None:
+        """The recording uploaded (``data-upload``) at the visibility chosen."""
+        self.publish["busy"] = True
+        self.publish_parts["upload"].setEnabled(False)
+        self._post_app("publish", "/api/sessions/share", {"file": self.where.get("value"), "visibility": self.publish["visibility"]})
+
+    def _published(self, words: str) -> None:
+        """The upload's answer: its link and warning, or why it failed, the fold left as it is."""
+        self.publish.update(busy=False, result=words)
+        parts = self.publish_parts
+        if parts is not None:
+            try:
+                parts["result"].setText(words)
+                parts["upload"].setEnabled(True)
+            except RuntimeError:                                     # drawn again meanwhile: the new fold shows it
+                pass
 
     # ---------------------------------------------------------------- the encounter's context, mapping and insights (0.2.463)
     def _context(self, d: dict) -> QWidget | None:

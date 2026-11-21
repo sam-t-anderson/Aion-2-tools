@@ -308,6 +308,7 @@ class LogServer:
         self.featured: list[dict] = []                       # none featured, unless a test features one
         self.posted: list[tuple[str, dict]] = []               # what was sent to the server's routes
         self.review_log = REVIEW_LOG                            # the log its raw route gives, and the app's recording
+        self.ranks = REVIEW_RANKS                               # what its rankings routes answer
         self.points = {"observations": [
             {"class_name": "sorcerer", "skill": 100, "stigma": 20, "daevanion": 300, "ariel": None, "region": "NA"},
             {"class_name": "sorcerer", "skill": 110, "stigma": 20, "daevanion": 300, "ariel": 5, "region": "EU"},
@@ -346,7 +347,7 @@ class LogServer:
                 raise ValueError("RuntimeError: Community server (404): no such log")
             return json.loads(json.dumps(self.review_log))
         if route.startswith("/api/v1/logs/") and route.endswith("/rankings"):
-            return {**json.loads(json.dumps(REVIEW_RANKS)), "segment": int(q["segment"][0])}
+            return {**json.loads(json.dumps(self.ranks)), "segment": int(q["segment"][0])}
         if route == "/api/v1/npc-portraits":
             return {"portraits": {"4242": {"name": "Ice Wraith", "icon": "https://img.example/npc/4242.png"}}}
         if route == "/api/v1/featured":
@@ -478,7 +479,9 @@ class FakeApp:
         if self.log_server.refusal:
             raise ValueError(self.log_server.refusal)
         if body["path"] == "/api/v1/rankings":
-            return {**json.loads(json.dumps(REVIEW_RANKS)), "segment": body["body"]["segment"]}
+            return {**json.loads(json.dumps(self.log_server.ranks)), "segment": body["body"]["segment"]}
+        if body["path"].startswith("/api/v1/logs/") and body["path"].endswith("/reports"):
+            return {"message": "Report received for review.", "id": "rpt_0001"}
         raise AssertionError(body["path"])
 
     def ownership(self, body):
@@ -583,6 +586,8 @@ class FakeApp:
             assert body["action"] == "replace"
             self.claims = json.loads(json.dumps(body["claims"]))
             return self.claims
+        if path == "/api/sessions":                               # a recording's metadata saved: the log as kept
+            return json.loads(json.dumps(body["log"]))
         if path == "/api/sessions/share":
             if body["file"] in self.refusals:
                 raise ValueError(self.refusals.pop(body["file"]))
@@ -3592,6 +3597,207 @@ def test_the_review_insights(qapp, tmp_path):
     view.reload()
     settle(lambda: cw.INSIGHTS_OLDER in _labels(view) and not view.awaiting)
     assert not any(f.button.accessibleName() == "Mapping coverage" for f in view.findChildren(Section) if f.isVisibleTo(view))
+
+
+#: The log server's standings for the shared log, as its rankings route gives them: the sorcerer ranked on their server
+#: and, provisionally, worldwide (and at upload); the cleric without a verified profile; the run on the recording
+#: player's world.
+STANDINGS = {
+    "note": "World means submitted public logs on this server.", "cohort_note": "Cohorts match the boss and version.",
+    "quality": {"eligible": True, "messages": []},
+    "players": [
+        {"id": "p1", "name": "TestSorc", "class": "sorcerer", "character_server": "2102", "party_size": 4, "uploaded_at": T0,
+         "parse": 98.6, "parse_runs": 12, "parse_rank": 2,
+         "server": {"rank": 2, "count": 12, "public_samples": 11, "identities": 6, "percentile": 85.5, "provisional": False,
+                    "reasons": []},
+         "region": None,
+         "world": {"rank": None, "count": 30, "public_samples": 29, "identities": 3, "percentile": None, "provisional": True,
+                   "reasons": ["Complete matched party/instance metadata is unavailable."]},
+         "at_upload": {"server": None, "region": None,
+                       "world": {"rank": 5, "count": 9, "public_samples": 8, "identities": 5, "percentile": 50.0,
+                                 "provisional": False, "reasons": []}}},
+        {"id": "p2", "name": "TestCleric", "class": "cleric", "character_server": "", "party_size": None, "parse": None,
+         "server": None, "region": None, "world": None, "at_upload": {"server": None, "region": None, "world": None}}],
+    "run": {"world": {"rank": 1, "count": 3, "public_samples": 2, "identities": 2, "percentile": 83.3, "provisional": True,
+                      "reasons": []},
+            "region": None,
+            "server": {"rank": 1, "count": 2, "public_samples": 1, "identities": 1, "percentile": 75.0, "provisional": False,
+                       "reasons": [], "basis": "recording_player", "world": "Zikel"}},
+    "run_at_upload": {"world": None, "region": None, "server": None},
+    "run_detail": {"speed_eligible": True}}
+
+
+def _scopes_words(cell):
+    return [(name, s["html"], s["tip"]) for name, s in cell["standings"]]
+
+
+def test_the_review_standings_and_metadata_words():
+    from aion2calc.gui.combat_records import _when
+    # loading, and why they could not be read
+    assert cw.standings(None) == {"loading": cw.STANDINGS_LOADING}
+    assert cw.standings({"error": "The log server is not answering."}) == {"loading": "The log server is not answering."}
+    m = cw.standings(STANDINGS)
+    assert m["note"] == "World means submitted public logs on this server. Cohorts match the boss and version."
+    assert m["unranked"] == "" and m["none"] == ""
+    sorc, cleric = m["rows"]
+    assert sorc[0] == f"TestSorc · 4 players\nUploaded {_when(T0)}" and cleric[0] == "TestCleric · Unknown players"
+    # a player's standings: a rank, a provisional rank with its reasons, and why a scope has none
+    assert _scopes_words(sorc[1]) == [
+        ("Server", "#2 / 12<br>85.5 percentile · 11 public samples · 6 distinct identities", ""),
+        ("Region", cw.NOT_ELIGIBLE, ""),
+        ("World", "Rank unavailable (provisional)<br>Percentile unavailable · 29 public samples · 3 distinct identities<br>"
+                  "Complete matched party/instance metadata is unavailable.",
+         "Complete matched party/instance metadata is unavailable.")]
+    home = "Unavailable — this player’s home {} is unknown (no server or class on the recording), so only World can compare."
+    assert _scopes_words(sorc[2]) == [
+        ("Server", home.format("server"), ""), ("Region", home.format("region"), ""),
+        ("World", "#5 / 9<br>50.0 percentile · 8 public samples · 5 distinct identities", "")]
+    profile = ("Unavailable — no verified official profile for this character, so its home {} can’t be matched. World still "
+               "compares globally.")
+    assert _scopes_words(cleric[1]) == [("Server", profile.format("server"), ""), ("Region", profile.format("region"), ""),
+                                        ("World", cw.WORLD_UNAVAILABLE, "")]
+    # the run's speed: on the recording player's world; a scope without a cohort says why
+    assert _scopes_words(m["run"][0]) == [
+        ("Server", "#1 / 2<br>75.0 percentile · 1 public samples · 1 distinct identities<br>On the recording player’s world "
+                   "(Zikel): the party spans several worlds.", ""),
+        ("Region", "Unavailable — the run’s region is unknown, so only World ranks it.", ""),
+        ("World", "#1 / 3 (provisional)<br>83.3 percentile · 2 public samples · 2 distinct identities", "")]
+    assert [words for _, words, _ in _scopes_words(m["run"][1])] == [
+        "Unavailable — no verified home world for the party or the recording player, so the run has no Server cohort. "
+        "Region and World still rank it.",
+        "Unavailable — the run’s region is unknown, so only World ranks it.", "Unavailable — no comparable public runs yet."]
+    # not a timed run; not uploaded; unranked; no standings at all
+    other = json.loads(json.dumps(STANDINGS))
+    other["run_detail"] = {"speed_eligible": False, "speed_reasons": ["No instance entry."]}
+    other["players"][0].pop("uploaded_at")
+    m = cw.standings(other)
+    assert _scopes_words(m["run"][1])[0][1] == ("Not a timed run — run speed is ranked only for a complete, cleanly captured "
+                                                "instance clear (entry to final boss). No instance entry.")
+    assert _scopes_words(m["rows"][0][2])[0][1] == cw.NOT_UPLOADED and m["rows"][0][0] == "TestSorc · 4 players"
+    other["quality"] = {"eligible": False, "messages": ["Boss not seen at full HP.", "Roster changed."]}
+    m = cw.standings(other)
+    assert m["unranked"] == f"This encounter is <b>unranked</b>: Boss not seen at full HP. Roster changed. {cw.UNRANKED_FIX}"
+    assert _scopes_words(m["rows"][1][1])[0][1] == "Unranked — Boss not seen at full HP. Roster changed."
+    assert m["none"] == ""
+    assert cw.standings({"players": [], "note": "Rankings unavailable: record the boss."})["none"] == (
+        "No player standings: Rankings unavailable: record the boss.")
+    assert cw.standings({})["none"] == f"No player standings: {cw.NO_STANDINGS}"
+    # the metadata: a shared log's line; a recording's fields to correct
+    fight = json.loads(json.dumps(REVIEW_LOG))
+    d = cw.data(fight, cw.fresh_state())
+    assert cw.metadata(fight, d, "shared") == {"line": "Ice Queen · pve_raid · Product version 2.1 · Hard"}
+    m = cw.metadata(fight, d, "local")
+    assert m["type"] == "pve_raid" and m["run"] and ("pvp_arena", "PvP · Arena") in m["types"]
+    assert m["fields"] == [("game_patch", "game version", "version:product:2.1"), ("difficulty", "difficulty", "Hard"),
+                           ("region", "region", ""), ("boss", "boss", "Ice Queen"), ("zone", "zone", "Frost Spire")]
+    still = json.loads(json.dumps(fight))
+    still["meta"]["capture_active"] = True
+    assert "line" in cw.metadata(still, d, "local")
+    # corrections: unchanged fields kept; a changed field marked a manual override; the region on the session; the boss on
+    # this encounter alone, even for its whole run
+    fight["segments"][1]["run_id"] = "r1"
+    values = {"encounter_type": "pve_raid", "game_patch": "version:product:2.2", "difficulty": "Hard", "region": "EU",
+              "boss": "Ice Queen II", "zone": "Frost Spire"}
+    log = cw.corrected(fight, 0, values, True)
+    first, second = log["segments"]
+    assert first["game_patch"] == second["game_patch"] == "version:product:2.2"
+    assert first["game_patch_source"] == cw.MANUAL and first["game_patch_basis"] == "manual"
+    assert first["boss"] == "Ice Queen II" and "boss" not in second and "boss_source" not in first
+    assert first["difficulty_source"] == "instance" and "encounter_type" not in first      # unchanged, as recorded
+    assert log["meta"]["region"] == "EU" and log["meta"]["region_source"] == cw.MANUAL
+    assert fight["segments"][0]["boss"] == "Ice Queen"                   # the log shown is left as it is
+    assert "game_patch" not in cw.corrected(fight, 0, {**values, "game_patch": "version:product:2.1"}, False)["segments"][0]
+    log = cw.corrected(fight, 0, {"zone": "  Ice Hall "}, False)
+    assert log["segments"][0]["zone"] == "Ice Hall" and "zone" not in log["segments"][1]
+    fight["segments"][0].pop("run_id")
+    with pytest.raises(ValueError, match="no recorded run ID"):
+        cw.corrected(fight, 0, values, True)
+
+
+def test_the_review_standings_report_and_metadata(qapp):
+    from aion2calc.gui.combat_saved import Section
+    app = FakeApp()
+    app.log_server.ranks = STANDINGS
+    page = _page(app)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: view.standings_box is not None and view.names is not None and not view.awaiting)
+
+    def fold(name):
+        return _find(view, Section, lambda f: f.button.accessibleName() == name)
+    # a shared log: its standings, its metadata's line and its report; no upload, no metadata to correct
+    labels, cells = _labels(view), _cells(view)
+    assert cw.STANDINGS_HEAD in labels and any(c.startswith("TestSorc · 4 players\nUploaded ") for c in cells)
+    assert "Server: #2 / 12<br>85.5 percentile · 11 public samples · 6 distinct identities" in labels
+    world = _find(view, QLabel, lambda l: l.text().startswith("World: Rank unavailable (provisional)"))
+    assert world.toolTip() == "Complete matched party/instance metadata is unavailable."
+    assert f"<b>{cw.RUN_HEAD}</b>" in labels and "Ice Queen · pve_raid · Product version 2.1 · Hard" in labels
+    assert not any(f.button.accessibleName() in (cw.PUBLISH_HEAD, cw.METADATA_HEAD) for f in view.findChildren(Section)
+                   if f.isVisibleTo(view))
+    # the report: its reason and details sent to the log server, its receipt said, the fold kept open
+    report = fold(cw.REPORT_HEAD)
+    assert not report.body.isVisibleTo(view)
+    report.button.click()
+    _choose(view, "Reason", "harassment")
+    _find(view, QPlainTextEdit, lambda e: e.accessibleName() == "Details").setPlainText("Names in the title.")
+    _click(view, "Send report")
+    settle(lambda: any(t.startswith("Report received") for t in _labels(view)))
+    assert app.log_server.posted[-1] == ("/api/v1/logs/log0001/reports", {"reason": "harassment", "details": "Names in the title."})
+    assert "Report received for review. Receipt: rpt_0001" in _labels(view) and fold(cw.REPORT_HEAD).body.isVisibleTo(view)
+    assert _find(view, QPlainTextEdit, lambda e: e.accessibleName() == "Details").toPlainText() == ""
+    long = "x" * 1200
+    _find(view, QPlainTextEdit, lambda e: e.accessibleName() == "Details").setPlainText(long)
+    assert view.report["details"] == "x" * 1000
+    app.log_server.refusal = "Too many reports from this address."
+    _click(view, "Send report")
+    settle(lambda: "Too many reports from this address." in " ".join(_labels(view)))
+    app.log_server.refusal = None
+    # the standings asked for again
+    asked = len(app.log_server.asked)
+    _click(view, cw.REFRESH)
+    settle(lambda: len(app.log_server.asked) > asked and view.ranks is not None)
+
+
+def test_a_recordings_metadata_and_upload(qapp):
+    from aion2calc.gui.combat_saved import Section
+    app = FakeApp()
+    app.log_server.ranks = STANDINGS
+    page = _page(app)
+    page.open_review("local", "session-1.a2log.json")
+    view = page.review_page
+    settle(lambda: view.standings_box is not None and not view.awaiting)
+    uploads = []
+    view.uploaded.connect(lambda: uploads.append(True))
+
+    def fold(name):
+        return _find(view, Section, lambda f: f.button.accessibleName() == name)
+    # a recording: its metadata to correct, its upload; no report
+    assert not any(f.button.accessibleName() == cw.REPORT_HEAD for f in view.findChildren(Section) if f.isVisibleTo(view))
+    fold(cw.METADATA_HEAD).button.click()
+    boss = _find(view, QLineEdit, lambda e: e.accessibleName() == "boss")
+    assert boss.text() == "Ice Queen" and boss.maxLength() == 200
+    boss.setText("Ice Queen II")
+    asked = len([p for p in app.posts if p[0] == "/api/community"])
+    _click(view, "Save metadata")
+    settle(lambda: cw.METADATA_SAVED in _labels(view))
+    path, body = next(p for p in reversed(app.posts) if p[0] == "/api/sessions")
+    assert body["file"] == "session-1.a2log.json" and body["log"]["segments"][0]["boss"] == "Ice Queen II"
+    assert "boss" not in body["log"]["segments"][1] and view.doc["segments"][0]["boss"] == "Ice Queen II"
+    assert fold(cw.METADATA_HEAD).body.isVisibleTo(view)                   # kept open, with what was saved said
+    settle(lambda: len([p for p in app.posts if p[0] == "/api/community"]) > asked)   # the standings asked for again
+    # the upload at the visibility chosen: its link, and My Uploads told
+    fold(cw.PUBLISH_HEAD).button.click()
+    _choose(view, "Upload visibility", "private")
+    _click(view, "Upload saved session")
+    settle(lambda: uploads)
+    path, body = app.posts[-1]
+    assert (path, body) == ("/api/sessions/share", {"file": "session-1.a2log.json", "visibility": "private"})
+    result = _find(view, QLabel, lambda l: "Open shared log" in l.text())
+    assert "https://logs.example/log/rep0001?key=s3cret" in result.text() and result.openExternalLinks()
+    app.refusals["session-1.a2log.json"] = "The log server is full."
+    _click(view, "Upload saved session")
+    settle(lambda: any("The log server is full." in t for t in _labels(view)))
+    assert len(uploads) == 1
 
 
 def _buttons(widget):
