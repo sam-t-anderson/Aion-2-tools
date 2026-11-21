@@ -109,20 +109,28 @@ def test_the_target_hp_ttk_enrage_and_break_gauge(qapp):
     assert window.gauge.broken and window.gauge.shown() == 1.0             # broken: the whole bar in stripes
 
 
-def test_your_contribution_or_the_dummy_parse(qapp):
+def test_your_contribution_and_the_dummy_parse(qapp):
     meter = fight()
     meter["snapshot"]["contribution"] = {"damage": 1_170_000, "share": 0.34, "dps": 15_600}
     window = _overlay(meter)
-    assert window.extra_text == "Your contribution: 34% · 1.17M (15.60K/s)"
+    assert window.contribution_text == "Your contribution: 34% · 1.17M (15.60K/s)"
+    assert window.contribution.text() == window.contribution_text and not window.contribution.isHidden()
+    assert window.dummy.isHidden()
     window.set_metric("hps")
-    assert window.extra.isHidden()                                         # the DPS view only
+    assert window.contribution.isHidden()                                  # the DPS view only
     window.set_metric("dps")
     meter["snapshot"]["dummy_parse"] = {"duration": 45.4, "window_seconds": 60, "window_reached": False,
                                         "your_dps": 15_600, "target_dps": 45_700}
     window.apply_meter(meter)
-    assert window.extra_text == "Dummy parse 45s / 60s · You 15.60K/s · Total 45.70K/s"
+    assert window.dummy_text == "Dummy parse 45s / 60s · You 15.60K/s · Total 45.70K/s"
+    assert not window.dummy.isHidden() and not window.contribution.isHidden()   # both: the dummy at the top
+    assert window.box.indexOf(window.dummy) < window.box.indexOf(window.content) < window.box.indexOf(window.chips)
+    assert window.dummy.property("ok") is False
+    meter["snapshot"]["dummy_parse"]["window_reached"] = True
+    window.apply_meter(meter)
+    assert window.dummy.property("ok") is True and window.dummy_text.startswith("Dummy parse 45s / 60s ✓")
     window.apply_ui({"overlay_width": 340, "meter_show_dummy_parse": False, "overlay_show_contribution": False})
-    assert window.extra.isHidden()
+    assert window.dummy.isHidden() and window.contribution.isHidden()
 
 
 def test_the_cooldown_strip_counts_down_between_readings(qapp):
@@ -154,11 +162,14 @@ def test_only_in_combat_auto_expand_and_the_status(qapp):
     assert len(_rows(window)) == 11                                        # every player with damage
     meter["snapshot"].update(paused=True, decode_backlog={"catching_up": True, "queue_depth": 1200})
     window.apply_meter(meter)
-    assert window.status.text().startswith("Paused DPS · Atiel") and window.status.text().endswith("catching up (1200)")
+    assert window.status_text.startswith("Latest combat · Paused DPS · Atiel")
+    assert window.status_text.endswith("⏳ catching up (1200)")
+    assert window.clock.text() == "01:15 Paused catching up (1200) Party DPS 53.67K"   # the notes, all eleven
     meter["snapshot"].update(battle_over=True)
     window.apply_ui({"overlay_width": 340, "overlay_only_in_combat": True})
-    assert window.status.text() == "Idle · waiting for combat" and _rows(window) == []
-    assert window.target_card.isHidden() and window.lines.isHidden()
+    assert window.status_text == "Idle · waiting for combat" and _rows(window) == []
+    assert window.target_card.isHidden() and window.lines.isHidden() and window.clock.isHidden()
+    assert window.ping.isHidden() and window.metric_chip.isHidden() and not window.toolbar.isHidden()
 
 
 def test_the_background_modes(qapp):
@@ -169,7 +180,8 @@ def test_the_background_modes(qapp):
         window.apply_meter(fight())
         assert window.card.mode == mode
         window.grab()
-    assert window.card.rows_top == _rows(window)[0].geometry().top()      # the top mode's panel ends there
+    assert window.card.rows_part is window.content                       # the top mode's panel ends where it begins
+    assert window.content.geometry().top() == window.target_card.geometry().bottom() + 1
     window.apply_ui({"overlay_width": 340, "overlay_bg_mode": "nonsense"})
     assert window.card.mode == "card"
 

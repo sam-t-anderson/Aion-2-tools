@@ -25,7 +25,7 @@ from PySide6.QtWidgets import QApplication, QLabel, QWidget  # noqa: E402
 
 from aion2calc.gui import events, overlay, theme  # noqa: E402
 from aion2calc.gui.api import AppApi  # noqa: E402
-from aion2calc.gui.look import (TextEffect, TextLook, background_rect, contrast_colour, cycled,  # noqa: E402
+from aion2calc.gui.look import (CHIP_SHADOW, TextEffect, TextLook, background_rect, contrast_colour, cycled,  # noqa: E402
                                 family_name, sheen_brush)
 from aion2calc.gui.overlay import MeterOverlay  # noqa: E402
 
@@ -157,23 +157,31 @@ def test_the_fonts_and_colours_reach_each_element(qapp):
                                            "rate": "#ffd36b"},
                       overlay_text_fonts={"ping": {"scale": 120, "weight": 400}, "header": {"family": "Fira Mono"}})
     px = 18                                                                       # 12 px at 150%
-    status, target, ping, lines = (window.status.font(), window.target.font(), window.ping.font(),
-                                   window.lines.font())
-    assert status.families()[0] == "Fira Mono" and status.pixelSize() == px and int(status.weight()) == 700
+    target, lines = window.target.font(), window.lines.font()
     assert target.families()[0] == "Fira Sans" and target.pixelSize() == px and int(target.weight()) == 400
-    assert ping.pixelSize() == round(round(px * 0.9) * 1.2) and int(ping.weight()) == 400
     assert lines.pixelSize() == round(px * 1.2) and int(lines.weight()) == 400   # the counter lines: the ping's font
-    assert window.extra.font().families()[0] == "Fira Sans" and window.extra.font().pixelSize() == px
-    assert _text_colour(window.status) == "#9be7a0" and _text_colour(window.target) == "#c0c8ff"
-    assert _text_colour(window.ping) == "#60ffff" and _text_colour(window.lines) == "#60ffff"
-    assert _text_colour(window.tools["lock"]) == "#9be7a0"                       # the toolbar: the header's
-    assert window.tools["lock"].font().families()[0] == "Fira Mono"
+    assert _text_colour(window.target) == "#c0c8ff" and _text_colour(window.lines) == "#60ffff"
+    # The ping chip: its own size (120%) and colour, its weights the compact layout's (800 for the time, 600 after).
+    (time_, time_font, time_colour), (unit, unit_font, _colour) = window.ping.parts[1].runs
+    assert (unit, time_colour) == ("ms", "#60ffff") and time_font.families()[0] == "Fira Sans"
+    assert time_font.pixelSize() == round(12 * 1.5 * 1.2) and int(time_font.weight()) == 800
+    assert int(unit_font.weight()) == 600
+    # The toolbar: the header's colour, at the text's size; the metric chip in the header's family, in teal.
+    lock = window.tools["lock"]
+    assert lock.colour == "#9be7a0" and lock.scale == 1.5 and lock.sizeHint().toTuple() == (39, 36)
+    chip = window.metric_chip.label_font()
+    assert chip.families()[0] == "Fira Mono" and chip.pixelSize() == px and int(chip.weight()) == 800
+    # The footer's own sizes, which the text size leaves (overlay.css ``.ovidentity``, ``.ovdummy``).
+    assert _text_colour(window.identity) == "#ffff60" and window.identity.font().pixelSize() == 10
+    assert window.dummy.font().families()[0] == "Fira Sans" and window.dummy.font().pixelSize() == 11
     assert window.panel.value_colour == "#ffd36b"                                # the panel's tiles: the rate's
     rows = _rows(window)
     assert rows and all(row.text_look is window.text_look for row in rows)
     window.apply_ui({"overlay_width": 340})                                       # cleared: the overlay's own again
-    assert window.status.font().families()[0] == theme.FONT_FAMILIES[0] and window.status.font().pixelSize() == 12
-    assert _text_colour(window.status) == "#e8cf8e" and _text_colour(window.tools["lock"]) == "#c9d1db"
+    assert window.metric_chip.label_font().families()[0] == theme.FONT_FAMILIES[0]
+    assert window.metric_chip.label_font().pixelSize() == 12
+    assert window.tools["lock"].colour == "#c9d1db" and window.tools["lock"].sizeHint().toTuple() == (26, 24)
+    assert window.ping.parts[1].runs[0][2] == "#eef1f4" and _text_colour(window.identity) == "#e8cf8e"
     assert window.panel.value_colour == "#ffffff"
 
 
@@ -230,8 +238,8 @@ def test_the_dummy_parse_and_events_labels_take_the_labels_look(qapp):
                                         "your_dps": 15_600, "target_dps": 45_700}
     window = _overlay(meter, overlay_text_colors={"label": "#60ff60"},
                       overlay_text_fonts={"label": {"weight": 800}})
-    assert window.extra_text == "Dummy parse 45s / 60s ✓ · You 15.60K/s · Total 45.70K/s"
-    assert window.extra.text().startswith('<span style="color:#60ff60; font-weight:800">Dummy parse</span> 45s')
+    assert window.dummy_text == "Dummy parse 45s / 60s ✓ · You 15.60K/s · Total 45.70K/s"
+    assert window.dummy.text().startswith('<span style="color:#60ff60; font-weight:800">Dummy parse</span> 45s')
     strip = MeterOverlay(None)
     strip._catalog = CATALOG
     strip.events_clock = lambda: utc(2026, 11, 20, 0, 50)
@@ -247,7 +255,7 @@ def test_settings_that_change_nothing_redraw_nothing(qapp, monkeypatch):
     effects = [label.graphicsEffect() for label in window._text_labels()]
     told, looks = [], []
     monkeypatch.setattr(overlay.PlayerRow, "set_text_look", lambda row, look: told.append(look))
-    monkeypatch.setattr(TextEffect, "set_look", lambda effect, look: looks.append(look))
+    monkeypatch.setattr(TextEffect, "set_look", lambda effect, look, shadow=None: looks.append(look))
     window.apply_ui(dict(ui))                                                     # the settings' poll, every 3 s
     assert told == [] and looks == []
     assert [label.graphicsEffect() for label in window._text_labels()] == effects   # each kept as it was
@@ -257,16 +265,25 @@ def test_settings_that_change_nothing_redraw_nothing(qapp, monkeypatch):
 
 def test_the_effects_are_drawn_round_each_text(qapp):
     window = _overlay()
-    assert all(label.graphicsEffect() is None for label in window._text_labels())   # none: plain text
+    chips = window._chip_labels()
+    plain = [label for label in window._text_labels() if label not in chips]
+    assert all(label.graphicsEffect() is None for label in plain)                 # none: plain text
+    # The chips float over the game in every background, their text over the chips' shadow (``--nm-shadow``).
+    assert all(label.graphicsEffect().shadow == CHIP_SHADOW for label in chips)
+    assert chips[0].graphicsEffect().boundingRectFor(QRectF(0, 0, 10, 10)) == QRectF(-6, -6, 22, 22)
     window.apply_ui({"overlay_width": 340, "overlay_glow": True})
     effects = [label.graphicsEffect() for label in window._text_labels()]
     assert all(isinstance(effect, TextEffect) and effect.look is window.text_look for effect in effects)
     assert effects[0].boundingRectFor(QRectF(0, 0, 10, 10)) == QRectF(-10, -10, 30, 30)
     window.apply_ui({"overlay_width": 340, "overlay_glow": True, "overlay_text_halo": True})
-    assert window.status.graphicsEffect() is effects[0]                         # kept, with the new look
+    assert window.target.graphicsEffect() is effects[0]                         # kept, with the new look
     assert effects[0].boundingRectFor(QRectF(0, 0, 10, 10)) == QRectF(-16, -16, 42, 42)
     window.apply_ui({"overlay_width": 340})
-    assert all(label.graphicsEffect() is None for label in window._text_labels())
+    assert all(label.graphicsEffect() is None for label in plain)
+    window.apply_ui({"overlay_width": 340, "overlay_bg_mode": "none"})           # nothing behind: the top parts too
+    assert window.target.graphicsEffect().shadow == CHIP_SHADOW and window.lines.graphicsEffect() is not None
+    window.apply_ui({"overlay_width": 340})
+    assert window.target.graphicsEffect() is None
     # Drawn: the outline in its colour round a label's text and a row's, a quarter of its strength as the web
     # overlay's 0.6 px stroke shows.
     card = QWidget()                                 # a label draws its text alone on a clear ground, as the overlay's
@@ -312,21 +329,21 @@ def test_the_sheen_crosses_the_names_twice_a_turn():
 def test_the_cycle_and_the_sheen_move_unless_held_still(qapp, monkeypatch):
     window = _overlay(overlay_color_cycle=True)
     assert window._anim_timer.isActive() and window._anim_timer.interval() == 50
-    effect = window.status.graphicsEffect()                                       # the header turns through it
-    assert isinstance(effect, TextEffect)
     window._paint_moment(3.0)
     assert all(row.seconds == 3.0 for row in _rows(window))
-    assert effect.tint.name() == cycled("#e8cf8e", 3.0).name()
-    assert effect.shift(QColor("#40c0ff")).name() == cycled("#40c0ff", 3.0).name()   # its glow turns with it
+    capture = window.tools["capture"]                                             # the toolbar turns through the hues
+    assert capture.seconds == 3.0 and window.metric_chip.seconds == 3.0
+    assert capture.tone == "#ff8585"                                              # the fight runs: the red stop
+    assert capture.shown_colour().name() == cycled("#ff8585", 3.0).name() != "#ff8585"
     window.apply_ui({"overlay_width": 340, "overlay_color_cycle": True, "performance_mode": True})
     assert not window._anim_timer.isActive() and all(row.seconds is None for row in _rows(window))
-    assert window.status.graphicsEffect() is None                                 # held still: plain text
-    window.apply_ui({"overlay_width": 340, "overlay_color_cycle": True, "performance_mode": True,
-                     "overlay_glow": True})
-    effect = window.status.graphicsEffect()                                       # the glow's, not turning
-    assert isinstance(effect, TextEffect) and effect.tint is None and effect.shift is None
+    assert capture.seconds is None and capture.shown_colour().name() == "#ff8585"   # held still
     window.apply_ui({"overlay_width": 340, "overlay_text_retro": True})
-    assert window._anim_timer.isActive() and window.status.graphicsEffect() is None   # the sheen: the names alone
+    window._paint_moment(3.0)
+    assert window._anim_timer.isActive() and capture.seconds is None             # the sheen: the names alone
+    window.apply_ui({"overlay_width": 340, "overlay_text_retro": True, "overlay_color_cycle": True})
+    window._paint_moment(3.0)                     # both: the sheen's animation takes the cycle's place, as on the web
+    assert capture.seconds is None and all(row.seconds == 3.0 for row in _rows(window))
     monkeypatch.setattr(overlay, "reduced_motion", lambda: True)                  # the system asks for less motion
     window.apply_ui({"overlay_width": 340, "overlay_text_retro": True})
     assert not window._anim_timer.isActive()
@@ -366,8 +383,8 @@ def test_the_background_image_lies_under_the_readings(qapp):
     window.apply_ui({"overlay_width": 340, "overlay_bg_set": True, "overlay_bg_mode": "none"})
     assert window.card.background is None                                         # nothing behind: no image
     window.apply_ui({"overlay_width": 340, "overlay_bg_set": True, "overlay_bg_mode": "top", "overlay_bg_darken": 0})
-    first = _rows(window)[0].geometry()
-    assert edge(24) == (255, 255, 255) and edge(first.center().y()) != (255, 255, 255)   # the top portion's alone
+    first = _rows(window)[0]
+    assert edge(24) == (255, 255, 255) and edge(first.mapTo(window.card, first.rect().center()).y()) != (255, 255, 255)
     window.apply_ui({"overlay_width": 340, "overlay_bg_set": True, "overlay_bg_opacity": 0})
     assert window.card.background is None
     window.apply_ui({"overlay_width": 340, "overlay_bg_set": True})               # on again: read afresh
@@ -423,18 +440,19 @@ def test_auto_contrast_picks_the_texts_colour_for_the_image(qapp):
                       overlay_bg_darken=0)
     settle(lambda: window.text_look.contrast is not None)
     assert window.text_look.contrast == "#0a0e16"                                 # dark over a light image
-    assert _text_colour(window.status) == "#0a0e16" and _text_colour(window.ping) == "#0a0e16"
+    assert _text_colour(window.target) == "#0a0e16" and window.ping.parts[1].runs[0][2] == "#0a0e16"
+    assert window.tools["lock"].colour == "#0a0e16"                               # the toolbar's colour too
     assert all(row.text_look.contrast == "#0a0e16" for row in _rows(window))     # read after the rows: theirs too
     window.apply_ui({**ui, "overlay_bg_darken": 90})                              # darkened, light text
-    assert window.text_look.contrast == "#f4f1ea" and _text_colour(window.status) == "#f4f1ea"
+    assert window.text_look.contrast == "#f4f1ea" and _text_colour(window.target) == "#f4f1ea"
     window.apply_ui({**ui, "overlay_bg_mode": "none", "overlay_bg_darken": 0})    # no image shown: still by it
     assert window.card.background is None and window.text_look.contrast == "#0a0e16"
     window.apply_ui({**ui, "overlay_text_autocontrast": "blend"})                 # white, blended with what is behind
     assert window.text_look.contrast == "#ffffff" and window.text_look.blend
     assert all(isinstance(label.graphicsEffect(), TextEffect) for label in window._text_labels())
     window.apply_ui({**ui, "overlay_bg_set": False})                              # no image: the user's colours
-    assert window.text_look.contrast is None and _text_colour(window.status) == "#9be7a0"
-    assert window.status.graphicsEffect() is None
+    assert window.text_look.contrast is None and window.tools["lock"].colour == "#9be7a0"
+    assert window.target.graphicsEffect() is None
     assert contrast_colour(QImage(picture("#000000")), 0) == "#f4f1ea"
     assert contrast_colour(QImage.fromData(picture("#ffffff")), 0.5) == "#0a0e16"   # 1 × 0.5 is past 0.179
     missing = PictureApp(None)                                                    # none can be read

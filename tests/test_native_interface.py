@@ -77,7 +77,9 @@ def test_the_overlay_draws_the_meters_reading(qapp):
     assert [(row.rate, row.share) for row in rows] == [("23,400/s", "51.2%"), ("15,600/s", "34.1%"), ("6,700/s", "14.7%")]
     assert rows[0].fill == 1.0 and 0 < rows[2].fill < rows[1].fill < 1
     assert [row.mine for row in rows] == [False, True, False]                         # you, by the local name
-    assert window.status.text() == "Atiel · 75s · 45.70K raid DPS"
+    # The fight's clock under the rows, the status (the web overlay's words) its tooltip.
+    assert window.clock.text() == "01:15 Party DPS 45.70K" and not window.clock.isHidden()
+    assert window.status_text == "Latest combat · Atiel · 75s · 45.70K DPS" == window.clock.toolTip()
     assert window.target_text == "Atiel  ·  47.0%  ·  TTK 1m06s" and window.hp.fraction == pytest.approx(0.47)
     assert window.width() == 340
     window.grab()                                                                     # paints without error
@@ -112,10 +114,16 @@ def test_the_metric_switches_the_rows_and_the_settings_shape_the_window(qapp):
     assert [row.name for row in window.rows if not row.isHidden()] == ["Seraphel", "Nyxara"]     # two rows
     assert all(row.height() == 36 for row in window.rows) and window.width() == 300   # the row height and 6
     assert window.target_card.isHidden()
-    window.metric_buttons["hps"].click()
-    assert window.rate_metric == "hps" and window.metric_buttons["hps"].isChecked()
+    assert window.metric_chip.text() == "DPS"
+    window.metric_chip.click()                    # the chip moves on to the next metric
+    assert window.rate_metric == "hps" and window.metric_chip.text() == "HPS"
     assert [row.name for row in window.rows if not row.isHidden()][0] == "Velmira"
-    assert window.status.text().endswith("raid HPS")
+    assert window.status_text.endswith(" HPS") and window.clock.text().endswith("Party HPS 900")
+    window.metric_chip.click()
+    assert window.rate_metric == "dtps" and window.metric_chip.text() == "D.Taken"
+    assert window.metric_chip.toolTip() == "D.Taken — click for the next: DPS, HPS, damage taken"
+    window.metric_chip.click()
+    assert window.rate_metric == "dps"            # and round again
 
 
 def test_click_through_and_the_remembered_position(qapp):
@@ -130,9 +138,12 @@ def test_click_through_and_the_remembered_position(qapp):
 def test_an_idle_meter_says_so(qapp):
     window = MeterOverlay()
     window.apply_meter({"running": False, "snapshot": {}})
-    assert window.status.text() == "Idle" and all(row.isHidden() for row in window.rows)
+    assert window.empty.text() == "No fight yet. Start the meter in the app." and window.clock.isHidden()
+    assert all(row.isHidden() for row in window.rows)
+    assert window.status_text == "Latest combat · idle · 0s · 0 DPS"
     window.apply_meter({"running": True, "snapshot": {"players": []}})
-    assert window.status.text() == "Idle · waiting for combat"
+    assert window.empty.text() == "Waiting for combat data…"
+    assert window.status_text == "Latest combat · recording · 0s · 0 DPS"
 
 
 # ------------------------------------------------------------------ the app window

@@ -16,8 +16,9 @@ COLORS = {
     "gold": "#e8cf8e", "gold_dim": "#b49a5c", "text": "#e9e6df", "muted": "#9aa3b5", "faint": "#848b9a",
     "accent": "#39c2e0", "good": "#6fcf7a", "bad": "#e66a5a", "warn": "#e9a43a",
 }
-#: The overlay card's background (overlay.css ``.ovcard``): rgb(27, 32, 42) at the overlay's opacity.
-OVERLAY_CARD = (27, 32, 42)
+#: The overlay card's background (overlay.css ``--nm-card``, the compact layout's): rgb(12, 14, 17) at the overlay's
+#: opacity.
+OVERLAY_CARD = (12, 14, 17)
 #: Each class's bar colour on the overlay (overlay.js ``OVERLAY_CLASS_COLORS``).
 CLASS_COLORS = {"sorcerer": "#3a86c8", "assassin": "#4caf6e", "templar": "#c9772b", "ranger": "#b9962a",
                 "chanter": "#b84f9e", "gladiator": "#c8474f", "spiritmaster": "#7a63d8", "cleric": "#3fb4b0",
