@@ -1,3 +1,13 @@
+## A combat log's own page in the native interface, part 1 (0.2.457)
+
+**A recorded or shared log's review opens in the app's window too**, in place of Combat Logs' views, with **← Back to combat logs**. It opens from wherever a log is linked: your recorded encounters and recordings, the community's logs, the featured encounters, your records and your account. So far it shows:
+- the encounter, chosen by combat mode, run and encounter, and a player, or in PvP an opponent to read the fight from their side;
+- an arena match's result, rating, fighters and rounds; an opponent's records and whom they struck; the heals left out of a PvP fight or rebuilt in an older log; and where the version, zone, difficulty and region come from;
+- the capture's quality, with how a cut fight was joined (and the other part or encounter that holds the rest), and the run timing and boss progression;
+- the summary: every player's damage done and taken, DPS on the shared active clock, healing, HPS, deaths and revives, sorted by **Summary**, **Damage Done**, **Damage Taken** or **Healing**, with each player's parse from the log server (**Refresh rankings**). Names are in their class's colour, your palette from Settings when you set one.
+
+Its other sections (the graph, timeline, events, abilities and skills, actions, death recaps, insights, rankings, reports, comparisons and movement replay) open in the web interface for now, from **Open the full review in the web interface** on the page.
+
 ## Combat Logs' analyzed encounters in the native interface (0.2.456)
 
 **An analyzed encounter opens in the app's window too**: a fight you analyzed from an AbyssLogs or A2DIL link, or from a file. It opens in place of Combat Logs' views, with **← Back to combat logs**, when you analyze a fight, when you open one under **Analyzed encounters**, and from Gear & Advice's fights:
