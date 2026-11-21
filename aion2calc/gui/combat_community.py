@@ -206,6 +206,7 @@ class _View(QWidget):
         if mode:
             pick = QComboBox()
             pick.setAccessibleName("Mode")
+            pick.setMinimumWidth(120)
             pick.addItem("PvE", "pve")
             pick.addItem("PvP", "pvp")
             pick.setCurrentIndex(1 if f.get("combat_mode") == "pvp" else 0)
@@ -336,7 +337,7 @@ class CommunityLogs(_View):
                           _button("view", lambda r=r, mode=mode: self._open(r.get("id"), mode, r.get("segment")))])
         heads = ["Skirmish" if mode == "pvp" else "Boss", "Type" if mode == "pvp" else "Difficulty", "Party", "Time",
                  "Uploaded by", "Date", "Product", ""]
-        self.table.addWidget(GridTable(heads, cells, {0: 3, 1: 1, 2: 3, 4: 2, 5: 2, 6: 1}, left=True, right=(3,)))
+        self.table.addWidget(GridTable(heads, cells, {0: 2, 1: 1, 2: 1, 4: 2, 5: 2, 6: 1}, left=True, right=(3,)))
         more = len(self.buf) > self.page * cv.COMM_PER_PAGE or not self.done
         self.table.addWidget(_row(_button("← Prev", self.previous, enabled=self.page > 1),
                                   _label(cv.pager_line(self.page, start, len(self.rows)), "small", wrap=False),
@@ -473,7 +474,7 @@ class RunSpeed(_Ranked):
                                              if r["of"] else "")
             log = _button("view", lambda r=r: self._open(r["log"], "pve")) if _truthy(r["log"]) else ""
             cells.append([_label(rank, rich=True, wrap=False), r["route"], r["kind"], r["time"], r["party"], log])
-        self.content.addWidget(GridTable(cv.SPEED_COLUMNS, cells, {1: 4, 2: 2}, left=True, right=(0, 3, 4)))
+        self.content.addWidget(GridTable(cv.SPEED_COLUMNS, cells, {1: 2, 2: 2, 3: 1, 4: 1}, left=True, right=(0, 3, 4)))
 
 
 class BossProgression(_Ranked):
@@ -490,7 +491,7 @@ class BossProgression(_Ranked):
             return
         cells = [[self._boss(r["boss"], r["icon"]), r["difficulty"], r["region"], _muted(r["patch"]), r["attempts"],
                   r["kills"], r["wipes"], r["rate"], r["fastest"]] for r in rows]
-        self.content.addWidget(GridTable(cv.PROGRESSION_COLUMNS, cells, {0: 3, 1: 1, 2: 1, 3: 1}, left=True,
+        self.content.addWidget(GridTable(cv.PROGRESSION_COLUMNS, cells, {0: 2, 1: 1, 2: 1, 3: 1}, left=True,
                                          right=(4, 5, 6, 7, 8)))
 
 
@@ -517,10 +518,10 @@ class BuildPoints(_View):
             self.box.addWidget(_empty(cv.NO_POINTS))
         else:
             self.box.addWidget(_label(cv.POINTS_NOTE, "small"))
-            cells = [[r["class"], r["skill"], r["stigma"], r["daevanion"], r["ariel"], _label(f"<b>{html.escape(r['total'])}</b>",
-                                                                                            rich=True, wrap=False),
-                      _muted(r["region"])] for r in rows]
-            self.box.addWidget(GridTable(cv.POINTS_COLUMNS, cells, {0: 2, 6: 2}, left=True, right=(1, 2, 3, 4, 5)))
+            cells = [[r["class"], r["skill"], r["stigma"], r["daevanion"], r["ariel"], r["total"], _muted(r["region"])]
+                     for r in rows]
+            self.box.addWidget(GridTable(cv.POINTS_COLUMNS, cells, {0: 2, 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}, left=True,
+                                         right=(1, 2, 3, 4, 5)))
         note = cv.source_note(answer)
         if note:
             self.box.addWidget(_label(note, "small"))

@@ -1349,7 +1349,7 @@ def test_run_speed_boss_progression_and_build_points(qapp, tmp_path):
     settle(lambda: app.log_server.asked[-1] == "/api/v1/encounter-progression?region=EU")
     points = _view(BuildPoints, app, tmp_path)
     settle(lambda: "Sorcerer" in _cells(points))
-    assert cv.POINTS_NOTE in _labels(points) and "<b>435</b>" in _labels(points) and "Cleric" in _cells(points)
+    assert cv.POINTS_NOTE in _labels(points) and "435" in _cells(points) and "Cleric" in _cells(points)
     app.log_server.refusal = "RuntimeError: Community server (500): down"
     points.refresh()
     settle(lambda: "RuntimeError: Community server (500): down" in _labels(points))
