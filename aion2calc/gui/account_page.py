@@ -30,9 +30,9 @@ from __future__ import annotations
 import html
 
 from PySide6.QtCore import QDate, Qt, QTimer
-from PySide6.QtGui import QGuiApplication
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFrame, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
-                               QMessageBox, QPushButton, QScrollArea, QVBoxLayout, QWidget)
+from PySide6.QtGui import QColor, QGuiApplication
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QInputDialog,
+                               QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
 from . import account as ac
 from . import theme
@@ -83,6 +83,54 @@ def _note(text: str, *extra: QWidget) -> QFrame:
     for widget in extra:
         line.addWidget(widget, 0, Qt.AlignVCenter)
     return note
+
+
+def _bare(layout):
+    """A layout without margins of its own (a note's padding is enough)."""
+    layout.setContentsMargins(0, 0, 0, 0)
+    return layout
+
+
+def _chip(words: str, gold: bool = False) -> QLabel:
+    """A chip (``.chip``, ``.chip.gold``): "you", "claim lapsed", "under review"."""
+    return _label(words, "chipGold" if gold else "chip", wrap=False)
+
+
+def _with_chips(main: QLabel, *chips: QLabel) -> QWidget:
+    """A cell's words with its chips after them (a table's cell keeps its own chips' look only as a widget)."""
+    cell = QWidget()
+    cell.setObjectName("plain")
+    line = QHBoxLayout(cell)
+    line.setContentsMargins(0, 0, 0, 0)
+    line.setSpacing(6)
+    line.addWidget(main)
+    for chip in chips:
+        line.addWidget(chip, 0, Qt.AlignTop)
+    line.addStretch(1)
+    return cell
+
+
+def _parse_pill(text: str, colour: str, provisional: bool, tip: str) -> QWidget:
+    """A parse (``.parse-badge``): its number in its colour on a pill of it, paler when provisional."""
+    tint = QColor(colour)
+    pill = QLabel(text)
+    pill.setAlignment(Qt.AlignCenter)
+    pill.setMinimumWidth(38)
+    pill.setToolTip(tip)
+    pill.setStyleSheet(f"QLabel {{ color: {colour}; font-weight: {600 if provisional else 700}; border-radius: 10px; padding: 1px 7px; "
+                       f"border: 1px solid rgba({tint.red()}, {tint.green()}, {tint.blue()}, 0.55); "
+                       f"background: rgba({tint.red()}, {tint.green()}, {tint.blue()}, 0.14); }}")
+    if provisional:
+        effect = QGraphicsOpacityEffect(pill)
+        effect.setOpacity(0.6)
+        pill.setGraphicsEffect(effect)
+    holder = QWidget()
+    holder.setObjectName("plain")
+    line = QHBoxLayout(holder)
+    line.setContentsMargins(0, 0, 0, 0)
+    line.addWidget(pill)
+    line.addStretch(1)
+    return holder
 
 
 def _clear(layout) -> None:
@@ -423,12 +471,12 @@ class AccountPage(QWidget):
             for row in rows:
                 title = (f"<a href='web:{html.escape(row['page'])}' style='color: {theme.COLORS['accent']};'>"
                          f"{html.escape(row['title'])}</a>")
-                if row["held"]:
-                    title += " <span style='color: #9fe3f2;'>[under review]</span>"
                 if row["boss"]:
                     title += f"<br><span style='color: {theme.COLORS['muted']};'>{html.escape(row['boss'])}</span>"
                 link = _label(title, rich=True)
                 link.linkActivated.connect(self._link)
+                if row["held"]:
+                    link = _with_chips(link, _chip("under review"))
                 visibility = QComboBox()
                 for key, words in ac.VISIBILITY:
                     visibility.addItem(words, key)
@@ -500,7 +548,7 @@ class AccountPage(QWidget):
         note = QFrame()
         note.setObjectName("note")
         fold = Fold(title, opened)
-        QVBoxLayout(note).addWidget(fold)
+        _bare(QVBoxLayout(note)).addWidget(fold)
         return note, fold
 
     def _claim_note(self) -> None:
@@ -652,15 +700,12 @@ class AccountPage(QWidget):
         self.body.addWidget(_label("Members", "acctHead"))
         cells = []
         for m in ac.roster(legion):
-            who = html.escape(m["character"])
-            if m["you"]:
-                who += f" <span style='color: {theme.COLORS['gold']};'>[you]</span>"
-            if m["lapsed"]:
-                who += " <span style='color: #9fe3f2;'>[claim lapsed]</span>"
+            chips = ([_chip("you", gold=True)] if m["you"] else []) + ([_chip("claim lapsed")] if m["lapsed"] else [])
+            who = _with_chips(_label(m["character"]), *chips) if chips else _label(m["character"])
             tools = [_button(words, lambda member=m["member"], to=to: self.set_role(member, to)) for to, words in m["tools"]]
             if m["remove"]:
                 tools.append(_button("Remove", lambda m=m: self.remove(m)))
-            cells.append([_label(who, rich=True), m["role"], m["joined"], _row(*tools) if tools else ""])
+            cells.append([who, m["role"], m["joined"], _row(*tools) if tools else ""])
         self.body.addWidget(GridTable(["Character", "Role", "Joined", ""], cells, {0: 3, 3: 3}, left=True))
         requests = ac.join_requests(legion) if staff else []
         if requests:
@@ -876,9 +921,7 @@ class AccountPage(QWidget):
             for row in rows:
                 text, tier, provisional, tip = row["parse"]
                 colour = ac.TIER_COLOURS[tier]
-                badge = _label(f"<span style='color: {colour}; font-weight: {600 if provisional else 700};'>{html.escape(text)}</span>",
-                               rich=True, wrap=False)
-                badge.setToolTip(tip)
+                badge = _parse_pill(text, colour, provisional, tip)
                 character = _label(f"{html.escape(row['character'])} <span style='color: {theme.COLORS['muted']};'>"
                                    f"{html.escape(row['world'])}</span>", rich=True)
                 dps = _label(row["dps"], wrap=False)
@@ -962,7 +1005,7 @@ class AccountPage(QWidget):
         fold.add(_row(self.recover, _label(ac.RECOVER_NOTE, "muted")))
         note = QFrame()
         note.setObjectName("note")
-        QVBoxLayout(note).addWidget(fold)
+        _bare(QVBoxLayout(note)).addWidget(fold)
         window.body.addWidget(note)
         self.message = _label("", "acctMessage")
         window.body.addWidget(self.message)
@@ -1043,7 +1086,7 @@ class AccountPage(QWidget):
         fold.add(_row(self.close_words, _button(ac.CLOSE, self.close_account)))
         note = QFrame()
         note.setObjectName("note")
-        QVBoxLayout(note).addWidget(fold)
+        _bare(QVBoxLayout(note)).addWidget(fold)
         self.body.addWidget(note)
 
     def rename(self) -> None:

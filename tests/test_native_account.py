@@ -434,7 +434,7 @@ def test_my_logs(qapp):
     settle(lambda: any(t == "60 logs" for t in _texts(page)))                      # My logs, the tab shown first
     texts = _texts(page)
     assert "Page 1 of 2" in texts and ac.LOGS_NOTE in texts and any("Best pull" in t and "Black Smoke Murute" in t for t in texts)
-    assert any("Ice Queen" in t and "under review" in t for t in texts)
+    assert "under review" in texts and any(t.startswith("<a href='web:combat-log/shared/lg2'") and "Ice Queen" in t for t in texts)
     link = next(label for label in page.findChildren(QLabel) if "web:combat-log/shared/lg1?segment=2" in label.text())
     link.linkActivated.emit("web:combat-log/shared/lg1?segment=2")
     assert opened == ["combat-log/shared/lg1?segment=2"]
@@ -473,7 +473,8 @@ def test_top_parses(qapp):
         settle(lambda: any(t == "Page 1 of 1 · 3 parses" for t in _texts(page)))
         texts = _texts(page)
         assert ac.PARSES_NOTE in texts and any("TestSorc" in t and "Zikel" in t for t in texts)
-        assert any(t.startswith("<span style='color: #e5cc80") and ">100<" in t for t in texts)   # the bracket's best, gold
+        best = next(label for label in page.findChildren(QLabel) if label.text() == "100" and label.isVisibleTo(page))
+        assert "color: #e5cc80" in best.styleSheet() and best.graphicsEffect() is not None    # gold, paler: provisional
         heads = [b.text() for b in page.findChildren(QPushButton) if b.objectName() in ("sortHead", "sortHeadOn")]
         assert heads == ["Boss", "Difficulty", "Character", "Class", "DPS", "Parse ▼", "Date", "Log"]
         next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Sort by DPS").click()
@@ -647,7 +648,7 @@ def test_a_legion_you_lead(qapp):
     for words in ("Zikel · Asmodian · 3 members · led by TestSorc", "Members", "Asking to join", "Hi!", "Invite links",
                   "2 of 25 used", "Featured encounters", ac.FEATURED_NOTE, "The legion's logs", "1 log", "Legion only"):
         assert any(words in t for t in texts), words
-    assert any("TestSorc" in t and "[you]" in t for t in texts) and any("Member1" in t and "claim lapsed" in t for t in texts)
+    assert "you" in texts and "claim lapsed" in texts and "Member1" in texts
     _button(page, "Make member").click()
     settle(lambda: "Roles updated" in _texts(page))
     assert _sent(app, f"/api/v1/legions/{LEGION}/role")["body"] == {"member": 2, "role": "member"}
