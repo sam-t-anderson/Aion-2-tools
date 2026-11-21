@@ -1,3 +1,19 @@
+## Account's Legions in the native interface (0.2.449)
+
+**Account is whole in the native interface now**: its **Legions** open in the app's window too, as the web page draws them:
+- **Your legions**, each with its server, the character you are in it as, your role and its members. Without a claimed character, it says where to claim one (Combat Logs → My Character Identities);
+- **Join with an invite link**: paste the link, **Look** at the legion it opens, then **Join** with one of your characters on its server;
+- **Find a legion** by server and name, and open one;
+- **Found a legion** with one of your claimed characters, its faction and a line about it;
+- **A legion's page:**
+  - **Ask to join**, with a message, or withdraw the request;
+  - as a member, its members with their roles. A leader makes officers and members, hands the legion over and removes members; an officer removes members;
+  - those asking to join, approved or declined;
+  - its invite links: how long one lasts and how many it admits, a new one shown once with **Copy**, and old ones revoked;
+  - whether it shows on the featured encounters' race and progress pages;
+  - its shared logs, filtered and paged as My logs;
+  - **Leave the legion**, or **Disband** it once its name is typed.
+
 ## Account's logs and top parses in the native interface (0.2.448)
 
 **Account's My logs and Top parses open in the app's window too**, as the web page draws them:

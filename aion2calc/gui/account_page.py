@@ -1,5 +1,5 @@
-"""The native Account page (0.2.447; its logs and top parses since 0.2.448): Account as pages/account.js and
-account-view.js show it.
+"""The native Account page (0.2.447; its logs and top parses since 0.2.448, whole since 0.2.449): Account as
+pages/account.js and account-view.js show it.
 
 - **Signed out:** why (a sign-in that ended, one on another server than Settings uses, no log server), what an account
   offers, **Create my account** with an optional name, and under **I already have an account**: **Sign in with
@@ -16,7 +16,11 @@ account-view.js show it.
 - **Top parses** (0.2.448): the best run on each boss and difficulty for each character with its parse, filtered by
   boss, difficulty, class and character, sorted by any column and paged; an older log server's whole list is filtered,
   sorted and paged here.
-- **Legions** open in the web interface for now.
+- **Legions** (0.2.449): your legions; one joined by an invite link (looked at first), found by server and name, or
+  founded with one of your claimed characters; and a legion's own page: asking to join (or withdrawing), its members
+  with their roles (a leader makes officers, hands over and removes; an officer removes members), who asks to join,
+  its invite links (made, revoked, shown once), whether it shows on the featured encounters' pages, its shared logs,
+  and leaving or disbanding it.
 
 The app keeps the credential and talks to the server (``/api/account``); this page asks the app. **Sign out** stands
 on the page, where the web page has it in its header's account menu.
@@ -26,6 +30,7 @@ from __future__ import annotations
 import html
 
 from PySide6.QtCore import QDate, Qt, QTimer
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFrame, QHBoxLayout, QInputDialog, QLabel, QLineEdit,
                                QMessageBox, QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
@@ -109,9 +114,14 @@ class AccountPage(QWidget):
         self.parses = ac.fresh_parses()                  # Top parses' (``st.parses``); its page size kept for the visit
         self.parses_all: dict | None = None             # an older log server's whole list (``st.parsesAll``)
         self.logs_answer: dict = {}
+        self.legion: str | None = None                   # the legion opened (``st.legion``)
+        self.shared = ac.fresh_filter()                  # its logs' page and filters (``st.shared``)
+        self.shared_for: str | None = None
+        self.legion_answer: dict = {}
+        self.after: dict = {}                            # what each action leads to, once done
         self.parses_answer: dict = {}
         self.busy: QPushButton | None = None            # the signed-out view's button whose request runs
-        self.acting = None                               # what the action running says when done
+        self.acting: dict = {}                           # what each action running says when done
         self.approving = False
         self.interval = 3.0
         self.message: QLabel | None = None
@@ -178,18 +188,21 @@ class AccountPage(QWidget):
         """A request to the server for the account, through the app (``accountCall``)."""
         self._post(name, {"action": "request", "method": method, "path": path, "body": body})
 
-    def act(self, name: str, method: str, path: str, body: dict | None, done) -> None:
+    def act(self, name: str, method: str, path: str, body: dict | None, done, after=None) -> None:
         """An action on the account (``act``): what it did, or why not, is said over the tab drawn again; a log changed,
-        an older server's whole list of parses is asked for again."""
+        an older server's whole list of parses is asked for again. ``after`` takes its answer first (the legion joined
+        opens, the one left closes)."""
         self.parses_all = None
-        self.acting = done
+        self.acting[name], self.after[name] = done, after       # each action's own, should another run meanwhile
         self.call(f"act:{name}", method, path, body)
 
     def _replied(self, name: str, answer) -> None:
         if name == "status":
             self._draw(ac.status_view(answer))
         elif name.startswith("act:"):
-            done = self.acting
+            done, after = self.acting.pop(name[4:], None), self.after.pop(name[4:], None)
+            if after is not None:
+                after(answer if isinstance(answer, dict) else {})
             self.flash = (done(answer) if callable(done) else done) or ""
             self.render()
         elif name == "logs":
@@ -205,6 +218,22 @@ class AccountPage(QWidget):
                 answer = ac.locally(self.parses_all["parses"], self.parses)
             if self.tab == "parses":
                 self._show_parses(answer)
+        elif name == "legions":
+            if self.tab == "legions" and self.legion is None:
+                self._legions(answer)
+        elif name == "preview":
+            self._preview(answer)
+        elif name == "found":
+            self._found(answer)
+        elif name == "legion":
+            self.legion_answer = answer if isinstance(answer, dict) else {}
+            if self.tab == "legions" and self.legion is not None:
+                self._legion()
+        elif name == "legion-logs":
+            if self.tab == "legions" and self.legion is not None:
+                self._legion_logs(answer)
+        elif name == "invite":
+            self._invite_made(answer)
         elif name == "sessions":
             self.security["sessions"] = answer
             self.call("activity", "GET", "/api/v1/account/activity")
@@ -248,6 +277,18 @@ class AccountPage(QWidget):
                 self.render()
             else:
                 self._tab_problem(words)
+        elif name in ("legions", "legion"):
+            if ac.signed_out_answer(why):
+                self.render()
+            else:
+                self._tab_problem(words)
+        elif name in ("preview", "found", "invite", "legion-logs"):
+            holder = {"preview": "invite_out", "found": "find_out", "invite": "invite_out_made",
+                      "legion-logs": "legion_logs"}[name]
+            layout = getattr(self, holder, None)
+            if layout is not None:
+                _clear(layout)
+                layout.addWidget(_note(words))
         elif name == "parses":
             if ac.signed_out_answer(why):
                 self.render()
@@ -327,9 +368,11 @@ class AccountPage(QWidget):
             self.body.addWidget(_label(ac.LOADING_PARSES, "muted"))
             self.fetch_parses()
         else:
-            self.body.addWidget(_label(ac.ON_THE_WEB[self.tab], "muted"))
-            self.body.addWidget(_row(_button("Open them on the web page",
-                                             lambda: self.open_web(f"account/{self.tab}") if self.open_web else None)))
+            self.body.addWidget(_label("Loading…", "muted"))
+            if self.legion is not None:
+                self.call("legion", "GET", "/api/v1/legions/" + self.legion)
+            else:
+                self.call("legions", "GET", "/api/v1/legions/mine")
 
     def _tab_problem(self, words: str, note: bool = True) -> None:
         _clear(self.body)
@@ -337,6 +380,7 @@ class AccountPage(QWidget):
 
     def show_tab(self, key: str) -> None:
         self.tab = key
+        self.legion = None
         self.render()
 
     # ---------------------------------------------------------------- my logs
@@ -443,6 +487,343 @@ class AccountPage(QWidget):
         """This app's uploads and characters added to the account (``afterLogs``)."""
         self.sync_button.setEnabled(False)
         self._post("sync", {"action": "sync"})
+
+    # ---------------------------------------------------------------- legions
+    def _choices(self, choices: list[tuple[str, str]], words: str) -> QComboBox:
+        box = QComboBox()
+        for value, shown in choices:
+            box.addItem(shown, value)
+        box.setAccessibleName(words)
+        return box
+
+    def _fold_note(self, title: str, opened: bool = False) -> tuple[QFrame, Fold]:
+        note = QFrame()
+        note.setObjectName("note")
+        fold = Fold(title, opened)
+        QVBoxLayout(note).addWidget(fold)
+        return note, fold
+
+    def _claim_note(self) -> None:
+        """No claimed character (``noCharacter``): where characters are claimed."""
+        if not ac.characters(self.me):
+            link = _button(ac.CLAIM_LINK, lambda: self.open_web(ac.CLAIM_PAGE) if self.open_web else None)
+            self.body.addWidget(_note(ac.CLAIM_NOTE, link))
+
+    def _legions(self, answer) -> None:
+        """Your legions, and joining, finding or founding one (``renderLegions``)."""
+        _clear(self.body)
+        self._claim_note()
+        self.body.addWidget(_label("Your legions", "acctHead"))
+        rows = ac.my_legions(answer)
+        if rows:
+            cells = []
+            for row in rows:
+                name = (f"<a href='legion:{html.escape(row['id'])}' style='color: {theme.COLORS['accent']};'>"
+                        f"{html.escape(row['name'])}</a>")
+                if row["faction"]:
+                    name += f" <span style='color: {theme.COLORS['muted']};'>{html.escape(row['faction'])}</span>"
+                link = _label(name, rich=True)
+                link.linkActivated.connect(self._open_legion)
+                cells.append([link, row["world"], row["character"], row["role"], row["members"]])
+            self.body.addWidget(GridTable(["Legion", "Server", "As", "Your role", "Members"], cells, {0: 3, 1: 2, 2: 2}))
+        else:
+            self.body.addWidget(_label(ac.NO_LEGION, "faint"))
+        note, fold = self._fold_note(ac.JOIN_HEAD)
+        self.invite_field = QLineEdit()
+        self.invite_field.setPlaceholderText(ac.INVITE_HINT)
+        self.invite_field.setAccessibleName("Invite link")
+        self.invite_field.setMinimumWidth(360)
+        fold.add(_row(self.invite_field, _button("Look", self.look)))
+        holder = QWidget()
+        holder.setObjectName("plain")
+        self.invite_out = QVBoxLayout(holder)
+        self.invite_out.setContentsMargins(0, 0, 0, 0)
+        fold.add(holder)
+        self.body.addWidget(note)
+        note, fold = self._fold_note(ac.FIND_HEAD)
+        self.find_server = self._choices([("", "Every server")] + ac.legion_servers(self.me), "Server")
+        self.find_name = QLineEdit()
+        self.find_name.setPlaceholderText("Legion name")
+        self.find_name.setAccessibleName("Legion name")
+        fold.add(_row(self.find_server, self.find_name, _button("Search", self.find)))
+        holder = QWidget()
+        holder.setObjectName("plain")
+        self.find_out = QVBoxLayout(holder)
+        self.find_out.setContentsMargins(0, 0, 0, 0)
+        fold.add(holder)
+        self.body.addWidget(note)
+        note, fold = self._fold_note(ac.FOUND_HEAD)
+        self.new_name = QLineEdit()
+        self.new_name.setMaxLength(24)
+        self.new_name.setPlaceholderText(ac.FOUND_NAME_HINT)
+        self.new_name.setAccessibleName("Legion name")
+        self.new_character = self._choices(ac.character_choices(self.me), "Your character")
+        self.new_faction = self._choices([("", "Faction")] + [(f, f) for f in ac.FACTIONS], "Faction")
+        self.new_description = QLineEdit()
+        self.new_description.setMaxLength(200)
+        self.new_description.setPlaceholderText(ac.FOUND_DESC_HINT)
+        self.new_description.setAccessibleName("Description")
+        fold.add(_row(self.new_name, self.new_character, self.new_faction, self.new_description,
+                      _button("Found", self.found_legion, "primary")))
+        fold.add(_label(ac.FOUND_NOTE, "muted"))
+        self.body.addWidget(note)
+        self.body.addWidget(_label(ac.LEGIONS_NOTE, "muted"))
+
+    def _open_legion(self, href: str) -> None:
+        if href.startswith("legion:"):
+            self.legion = href[len("legion:"):]
+            self.render()
+
+    def look(self) -> None:
+        """An invite link looked at before joining (``preview``)."""
+        self.token = ac.invite_token(self.invite_field.text())
+        _clear(self.invite_out)
+        if not self.token:
+            self.invite_out.addWidget(_note(ac.NOT_INVITE))
+            return
+        self.call("preview", "POST", "/api/v1/legions/invite/preview", {"invite": self.token})
+
+    def _preview(self, answer) -> None:
+        if getattr(self, "invite_out", None) is None:
+            return
+        _clear(self.invite_out)
+        legion = (answer or {}).get("legion") or {}
+        self.invite_out.addWidget(_label(ac.preview_line(answer)))
+        self.join_character = self._choices(ac.character_choices(self.me, legion.get("server")), "Your character")
+        self.invite_out.addWidget(_row(self.join_character, _button("Join", lambda: self.join(legion), "primary")))
+
+    def join(self, legion: dict) -> None:
+        character = self.join_character.currentData()
+        self.act("join", "POST", "/api/v1/legions/join", {"invite": self.token, "character": int(character) if character else 0},
+                 f"Welcome to {legion.get('name') or ''}", after=lambda joined: setattr(self, "legion", joined.get("id")))
+
+    def find(self) -> None:
+        self.call("found", "GET", "/api/v1/legions?" + ac.find_query(self.find_server.currentData(), self.find_name.text()))
+
+    def _found(self, answer) -> None:
+        if getattr(self, "find_out", None) is None:
+            return
+        _clear(self.find_out)
+        rows = ac.found_rows(answer)
+        if not rows:
+            self.find_out.addWidget(_label(ac.NO_LEGION_FOUND, "faint"))
+            return
+        cells = []
+        for row in rows:
+            link = _label(f"<a href='legion:{html.escape(row['id'])}' style='color: {theme.COLORS['accent']};'>"
+                          f"{html.escape(row['name'])}</a>", rich=True)
+            link.linkActivated.connect(self._open_legion)
+            cells.append([link, row["world"], row["faction"], row["leader"], row["members"]])
+        self.find_out.addWidget(GridTable([], cells, {0: 3, 3: 2}))
+
+    def found_legion(self) -> None:
+        name = self.new_name.text().strip()
+        character = self.new_character.currentData()
+        body = {"name": name, "character": int(character) if character else 0, "faction": self.new_faction.currentData(),
+                "description": self.new_description.text().strip()}
+        self.act("found", "POST", "/api/v1/legions", body, f"{name} is founded. Make an invite link for your members.",
+                 after=lambda made: setattr(self, "legion", made.get("id")))
+
+    def _legion(self) -> None:
+        """A legion's own page (``renderLegion``)."""
+        _clear(self.body)
+        legion, identifier = self.legion_answer, self.legion
+        name = str(legion.get("name") or "")
+        self.body.addWidget(_row(_button("← Legions", self.back)))
+        self.body.addWidget(_label(name, "acctName"))
+        self.body.addWidget(_label(ac.legion_line(legion), "muted"))
+        if legion.get("description"):
+            self.body.addWidget(_label(str(legion["description"])))
+        role = legion.get("role")
+        if not role:
+            if legion.get("requested"):
+                self.body.addWidget(_label(ac.REQUEST_WAITING))
+                self.body.addWidget(_row(_button("Withdraw the request", lambda: self.act(
+                    "withdraw", "POST", f"/api/v1/legions/{identifier}/request/withdraw", {}, "Request withdrawn"))))
+            else:
+                self.ask_character = self._choices(ac.character_choices(self.me, legion.get("server")), "Your character")
+                self.ask_message = QLineEdit()
+                self.ask_message.setMaxLength(200)
+                self.ask_message.setPlaceholderText(ac.ASK_HINT)
+                self.ask_message.setAccessibleName("Message")
+                self.body.addWidget(_row(self.ask_character, self.ask_message, _button("Ask to join", self.ask_to_join, "primary")))
+            return
+        lead, staff = role == "leader", role in ("leader", "officer")
+        self.body.addWidget(_label("Members", "acctHead"))
+        cells = []
+        for m in ac.roster(legion):
+            who = html.escape(m["character"])
+            if m["you"]:
+                who += f" <span style='color: {theme.COLORS['gold']};'>[you]</span>"
+            if m["lapsed"]:
+                who += " <span style='color: #9fe3f2;'>[claim lapsed]</span>"
+            tools = [_button(words, lambda member=m["member"], to=to: self.set_role(member, to)) for to, words in m["tools"]]
+            if m["remove"]:
+                tools.append(_button("Remove", lambda m=m: self.remove(m)))
+            cells.append([_label(who, rich=True), m["role"], m["joined"], _row(*tools) if tools else ""])
+        self.body.addWidget(GridTable(["Character", "Role", "Joined", ""], cells, {0: 3, 3: 3}, left=True))
+        requests = ac.join_requests(legion) if staff else []
+        if requests:
+            self.body.addWidget(_label("Asking to join", "acctHead"))
+            rows = [[r["character"], r["message"], r["when"],
+                     _row(_button("Approve", lambda r=r: self.decide(r, True), "primary"), _button("Decline", lambda r=r: self.decide(r, False)))]
+                    for r in requests]
+            self.body.addWidget(GridTable([], rows, {1: 3}, left=True))
+        if staff:
+            self.body.addWidget(_label("Invite links", "acctHead"))
+            made = ac.invites(legion)
+            if made:
+                self.body.addWidget(GridTable([], [[v["made"], v["until"], v["used"], _button(
+                    "Revoke", lambda v=v: self.act("revoke", "POST", f"/api/v1/legions/{identifier}/invites/revoke", {"id": v["id"]},
+                                                   "Invite link revoked"))] for v in made], {0: 2, 1: 2, 2: 2}, left=True))
+            self.invite_days = self._choices([(str(d), many_days) for d, many_days in
+                                              ((d, ac.many(d, "{0} day", "{0} days")) for d in ac.INVITE_DAYS)], "Lasts")
+            self.invite_days.setCurrentIndex(ac.INVITE_DAYS.index(ac.INVITE_DAYS_FIRST))
+            self.invite_uses = self._choices([(str(u), ac.many(u, "{0} player", "{0} players")) for u in ac.INVITE_USES], "Admits")
+            self.invite_uses.setCurrentIndex(ac.INVITE_USES.index(ac.INVITE_USES_FIRST))
+            self.body.addWidget(_row(_label("Lasts", wrap=False), self.invite_days, _label("Admits", wrap=False), self.invite_uses,
+                                     _button("New invite link", self.new_invite, "primary")))
+            holder = QWidget()
+            holder.setObjectName("plain")
+            self.invite_out_made = QVBoxLayout(holder)
+            self.invite_out_made.setContentsMargins(0, 0, 0, 0)
+            self.body.addWidget(holder)
+        if lead:
+            self.body.addWidget(_label("Featured encounters", "acctHead"))
+            self.featured = QCheckBox(ac.FEATURED_LABEL)
+            self.featured.setChecked(bool(legion.get("show_progress")))
+            self.featured.toggled.connect(self.set_featured)
+            self.body.addWidget(self.featured)
+            self.body.addWidget(_label(ac.FEATURED_NOTE, "muted"))
+        elif legion.get("show_progress"):
+            self.body.addWidget(_label(ac.FEATURED_SHOWN, "muted"))
+        self.body.addWidget(_label("The legion's logs", "acctHead"))
+        holder = QWidget()
+        holder.setObjectName("plain")
+        self.legion_logs = QVBoxLayout(holder)
+        self.legion_logs.setContentsMargins(0, 0, 0, 0)
+        self.legion_logs.addWidget(_label("Loading…", "muted"))
+        self.body.addWidget(holder)
+        leave = [_button("Leave the legion", lambda: self.leave(name))]
+        if lead:
+            leave.append(_button("Disband", lambda: self.disband(name)))
+        self.body.addWidget(_row(*leave))
+        if self.shared_for != identifier:
+            self.shared, self.shared_for = ac.fresh_filter(), identifier
+        self.fetch_legion_logs()
+
+    def back(self) -> None:
+        self.legion = None
+        self.render()
+
+    def ask_to_join(self) -> None:
+        character = self.ask_character.currentData()
+        self.act("ask", "POST", f"/api/v1/legions/{self.legion}/request",
+                 {"character": int(character) if character else 0, "message": self.ask_message.text()}, "Request sent")
+
+    def set_role(self, member, role: str) -> None:
+        if role == "leader" and not self.confirm(ac.HAND_OVER_ASK):
+            return
+        self.act("role", "POST", f"/api/v1/legions/{self.legion}/role", {"member": member, "role": role}, "Roles updated")
+
+    def remove(self, member: dict) -> None:
+        if self.confirm(f"Remove {member['name']} from the legion?"):
+            self.act("remove", "POST", f"/api/v1/legions/{self.legion}/remove", {"member": member["member"]}, "Member removed")
+
+    def decide(self, request: dict, approve: bool) -> None:
+        self.act("decide", "POST", f"/api/v1/legions/{self.legion}/requests/decide", {"id": request["id"], "approve": approve},
+                 "Approved" if approve else "Declined")
+
+    def set_featured(self, shown: bool) -> None:
+        self.act("progress", "POST", f"/api/v1/legions/{self.legion}/progress", {"show": shown},
+                 "Shown on the featured encounters' pages" if shown else "Hidden from the featured encounters' pages")
+
+    def new_invite(self) -> None:
+        self.call("invite", "POST", f"/api/v1/legions/{self.legion}/invites",
+                  {"days": int(self.invite_days.currentData()), "uses": int(self.invite_uses.currentData())})
+
+    def _invite_made(self, answer) -> None:
+        """A new invite link, shown once, with Copy."""
+        if getattr(self, "invite_out_made", None) is None:
+            return
+        _clear(self.invite_out_made)
+        link = ac.invite_link(str((answer or {}).get("invite") or ""))
+        field = QLineEdit(link)
+        field.setReadOnly(True)
+        field.setAccessibleName("Invite link")
+        field.setMinimumWidth(420)
+        self.invite_out_made.addWidget(_note(ac.INVITE_ONCE))
+        self.invite_out_made.addWidget(_row(field, _button("Copy", lambda: self.copy(link))))
+
+    def copy(self, words: str) -> None:
+        QGuiApplication.clipboard().setText(words)
+
+    def leave(self, name: str) -> None:
+        if self.confirm(f"Leave {name}?"):
+            self.act("leave", "POST", f"/api/v1/legions/{self.legion}/leave", {}, f"You left {name}",
+                     after=lambda _answer: setattr(self, "legion", None))
+
+    def disband(self, name: str) -> None:
+        typed = self.ask(ac.disband_ask(name), "")
+        if typed:
+            self.act("disband", "POST", f"/api/v1/legions/{self.legion}/disband", {"confirm": typed}, f"{name} is disbanded",
+                     after=lambda _answer: setattr(self, "legion", None))
+
+    def fetch_legion_logs(self) -> None:
+        self.call("legion-logs", "GET", f"/api/v1/legions/{self.legion}/logs?" + ac.list_query(self.shared))
+
+    def _legion_logs(self, answer) -> None:
+        """The legion's logs (``legionLogs``): the filters and paging My logs has, drawn on their own."""
+        layout = self.legion_logs
+        _clear(layout)
+        f = self.shared
+        self.shared_boss = QLineEdit(f["boss"])
+        self.shared_boss.setPlaceholderText("Boss")
+        self.shared_boss.setAccessibleName("Filter the legion's logs by boss")
+        self.shared_boss.returnPressed.connect(self.filter_shared)
+        self.shared_since = self._date_field(f["since"], "Uploaded on or after")
+        self.shared_until = self._date_field(f["until"], "Uploaded on or before")
+        tools = [self.shared_boss, _label("From", wrap=False), self.shared_since, _label("To", wrap=False), self.shared_until,
+                 _button("Filter", self.filter_shared)]
+        if ac.filtering(f):
+            tools.append(_button("Clear", self.clear_shared))
+        tools.append(_label(ac.logs_count(answer), "muted", wrap=False))
+        layout.addWidget(_row(*tools))
+        rows = ac.legion_log_rows(answer)
+        if rows:
+            cells = []
+            for row in rows:
+                title = (f"<a href='web:{html.escape(row['page'])}' style='color: {theme.COLORS['accent']};'>"
+                         f"{html.escape(row['title'])}</a>")
+                if row["boss"]:
+                    title += f"<br><span style='color: {theme.COLORS['muted']};'>{html.escape(row['boss'])}</span>"
+                link = _label(title, rich=True)
+                link.linkActivated.connect(self._link)
+                cells.append([link, row["member"], row["uploaded"], row["duration"], row["visibility"]])
+            layout.addWidget(GridTable(["Description", "Member", "Uploaded", "Duration", "Visibility"], cells, {0: 4, 1: 2, 2: 2}))
+            pages = ac.page_count(answer)
+            pager = []
+            if f["page"] > 1:
+                pager.append(_button("Previous", lambda: self.shared_page(f["page"] - 1)))
+            pager.append(_label(f"Page {f['page']} of {pages}", "muted", wrap=False))
+            if f["page"] < pages:
+                pager.append(_button("Next", lambda: self.shared_page(f["page"] + 1)))
+            layout.addWidget(_row(*pager))
+        else:
+            layout.addWidget(_label(ac.NO_LOGS_MATCH if ac.filtering(f) else ac.NO_SHARED_LOGS, "faint"))
+
+    def filter_shared(self) -> None:
+        self.shared.update(boss=self.shared_boss.text().strip(), since=self._day(self.shared_since),
+                           until=self._day(self.shared_until), page=1)
+        self.fetch_legion_logs()
+
+    def clear_shared(self) -> None:
+        self.shared = ac.fresh_filter()
+        self.fetch_legion_logs()
+
+    def shared_page(self, page: int) -> None:
+        self.shared["page"] = page
+        self.fetch_legion_logs()
 
     # ---------------------------------------------------------------- top parses
     def fetch_parses(self) -> None:

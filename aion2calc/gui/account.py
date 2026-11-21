@@ -1,8 +1,9 @@
 """The Account page's words (0.2.447), as pages/account.js and account-view.js write them: the account offered when
 signed out, the account's name and counts, Sign-in & security (the ways in, where it is signed in, what it did lately,
-closing it), and since 0.2.448 My logs (filtered, paged, each with its visibility) and Top parses (the best run on each
-boss for each character, with its parse). The app keeps the credential and talks to the server (combat/account.py);
-the page asks the app.
+closing it), since 0.2.448 My logs (filtered, paged, each with its visibility) and Top parses (the best run on each boss
+for each character, with its parse), and since 0.2.449 Legions (yours, joined by an invite link, found, founded, and
+each one's members, requests, invite links and shared logs). The app keeps the credential and talks to the server
+(combat/account.py); the page asks the app.
 """
 from __future__ import annotations
 
@@ -59,7 +60,6 @@ ACTIVITY = {"created": "Account created", "signed_in": "Signed in", "signed_out"
             "signin_denied": "Website sign-in denied", "link_code": "Link code made", "legion_created": "Legion founded",
             "legion_joined": "Legion joined", "recovered": "Recovered", "disabled": "Disabled by the operator",
             "active": "Enabled by the operator"}
-ON_THE_WEB = {"legions": "Legions open in the web interface for now."}
 
 
 def when(t) -> str:
@@ -442,3 +442,166 @@ def sorted_by(p: dict, key: str) -> dict:
 def missing_parses(message: str) -> bool:
     """A server without top parses (``missing``)."""
     return bool(re.search(r"not found|404|does not send that request", message or "", re.IGNORECASE))
+
+
+# ------------------------------------------------------------------ legions (0.2.449)
+ROLES = {"leader": "Leader", "officer": "Officer", "member": "Member"}
+INVITE = re.compile(r"a2inv_[A-Za-z0-9_-]{20,60}")
+NO_LEGION = "You are in no legion yet."
+JOIN_HEAD = "Join with an invite link"
+INVITE_HINT = "Paste the invite link"
+NOT_INVITE = "That is not an invite link."
+FIND_HEAD = "Find a legion"
+NO_LEGION_FOUND = "No legion found."
+FOUND_HEAD = "Found a legion"
+FOUND_NAME_HINT = "Legion name, as in the game"
+FOUND_DESC_HINT = "A line about it (optional)"
+FOUND_NOTE = "The legion is on your character's server, and you lead it. Its name must be free there."
+LEGIONS_NOTE = ("The game does not say who is in a legion, so each legion's leader decides: an invite link joins at once, and a "
+                "request waits for the leader or an officer. Members see each other's public and legion-only logs.")
+CLAIM_NOTE = ("A legion needs one of your claimed characters. Claim yours on Combat Logs → My Character Identities, and it "
+              "joins your account.")
+CLAIM_LINK = "Open My Character Identities"
+CLAIM_PAGE = "combat/identities"
+REQUEST_WAITING = "Your request is waiting for the leader."
+ASK_HINT = "A message for the leader (optional)"
+HAND_OVER_ASK = "Hand the legion over? You stay an officer."
+FEATURED_LABEL = "Show this legion on the featured encounters' race and progress pages"
+FEATURED_NOTE = ("Off until you turn it on. When on, a featured boss fought by a member with the character they joined with "
+                 "counts for the legion, under its name; its members are never listed.")
+FEATURED_SHOWN = "The leader shows this legion on the featured encounters' race and progress pages."
+INVITE_ONCE = "Share this link with your members. It is shown once."
+NO_SHARED_LOGS = "No logs shared yet. Members share a log by making it public or legion only."
+INVITE_DAYS, INVITE_DAYS_FIRST = (1, 3, 7, 14, 30), 7
+INVITE_USES, INVITE_USES_FIRST = (1, 5, 10, 25, 50, 100), 25
+FACTIONS = ("Elyos", "Asmodian")
+
+
+def characters(me: dict) -> list[dict]:
+    """The account's claimed characters still active (``characters``)."""
+    return [c for c in _list(_dict(me).get("characters")) if isinstance(c, dict) and c.get("status") == "active"]
+
+
+def character_choices(me: dict, server=None) -> list[tuple[str, str]]:
+    """The characters to act as (``characterOptions``), on one server or any; or why there are none."""
+    shown = [c for c in characters(me) if not server or c.get("server") == server]
+    if shown:
+        return [(js_text(c.get("id")), f"{js_text(c.get('name'))} ({world(c.get('server'))})") for c in shown]
+    return [("", f"No claimed character on {world(server)}" if server else "No claimed character yet")]
+
+
+def legion_servers(me: dict) -> list[tuple[str, str]]:
+    """The servers to find a legion on: those of your characters, each once."""
+    seen = []
+    for c in characters(me):
+        if c.get("server") not in [s for s, _w in seen]:
+            seen.append((c.get("server"), world(c.get("server"))))
+    return [(js_text(server), words) for server, words in seen]
+
+
+def my_legions(answer) -> list[dict]:
+    """Your legions (``renderLegions``): each one's name and faction, world, the character you are in it as, your role
+    and its members."""
+    return [{"id": js_text(row.get("id")), "name": js_text(row.get("name")), "faction": js_text(row.get("faction") or ""),
+             "world": world(row.get("server")), "character": js_text(row.get("character") or "—"),
+             "role": ROLES.get(row.get("role"), js_text(row.get("role"))), "members": js_text(row.get("members"))}
+            for row in _list(_dict(answer).get("legions")) if isinstance(row, dict)]
+
+
+def invite_token(text) -> str:
+    """The invite in what was pasted (a link or the token alone), or none."""
+    found = INVITE.search(js_text(text or ""))
+    return found.group(0) if found else ""
+
+
+def invite_link(token: str) -> str:
+    """An invite as a link to the website (``inviteLink``)."""
+    return SITE + "account.html#a2invite=" + token
+
+
+def legion_line(legion) -> str:
+    """A legion in a sentence: its world (and faction), its members and who leads it."""
+    legion = _dict(legion)
+    faction = f" · {js_text(legion['faction'])}" if legion.get("faction") else ""
+    leader = f" · led by {js_text(legion['leader'])}" if legion.get("leader") else ""
+    return f"{world(legion.get('server'))}{faction} · {many(legion.get('members'), '{0} member', '{0} members')}{leader}"
+
+
+def preview_line(answer) -> str:
+    """An invite looked at: the legion, its world, its members and its leader."""
+    legion = _dict(_dict(answer).get("legion"))
+    leader = f" · led by {js_text(legion['leader'])}" if legion.get("leader") else ""
+    return (f"{js_text(legion.get('name'))} · {world(legion.get('server'))} · "
+            f"{many(legion.get('members'), '{0} member', '{0} members')}{leader}")
+
+
+def found_rows(answer) -> list[dict]:
+    """The legions found: name, world, faction, leader and members."""
+    return [{"id": js_text(row.get("id")), "name": js_text(row.get("name")), "world": world(row.get("server")),
+             "faction": js_text(row.get("faction") or ""), "leader": f"led by {js_text(row['leader'])}" if row.get("leader") else "",
+             "members": many(row.get("members"), "{0} member", "{0} members")}
+            for row in _list(_dict(answer).get("legions")) if isinstance(row, dict)]
+
+
+def find_query(server: str, name: str) -> str:
+    query = []
+    if server:
+        query.append(("server", server))
+    if name.strip():
+        query.append(("q", name.strip()))
+    return urllib.parse.urlencode(query)
+
+
+def roster(legion) -> list[dict]:
+    """The legion's members (``roster``): each one's character (and you, and a lapsed claim), role and when they joined,
+    with what you may do to them: a leader makes officers and members, hands over and removes; an officer removes
+    members."""
+    legion = _dict(legion)
+    lead = legion.get("role") == "leader"
+    staff = lead or legion.get("role") == "officer"
+    rows = []
+    for m in _list(legion.get("roster")):
+        if not isinstance(m, dict):
+            continue
+        tools = []
+        if lead and not m.get("you"):
+            if m.get("role") != "officer":
+                tools.append(("officer", "Make officer"))
+            if m.get("role") == "officer":
+                tools.append(("member", "Make member"))
+            tools.append(("leader", "Hand over"))
+        removable = staff and not m.get("you") and m.get("role") != "leader" and (lead or m.get("role") == "member")
+        rows.append({"member": m.get("member"), "character": js_text(m.get("character") or "—"), "you": bool(m.get("you")),
+                     "lapsed": m.get("claim") != "active", "role": ROLES.get(m.get("role"), js_text(m.get("role"))),
+                     "joined": when(m.get("joined_at")), "tools": tools, "remove": removable,
+                     "name": js_text(m.get("character") or "")})
+    return rows
+
+
+def join_requests(legion) -> list[dict]:
+    """Who asks to join, for the leader and officers: their character, message and when."""
+    return [{"id": js_text(r.get("id")), "character": js_text(r.get("character") or "—"), "message": js_text(r.get("message") or ""),
+             "when": when(r.get("created_at"))} for r in _list(_dict(legion).get("requests")) if isinstance(r, dict)]
+
+
+def invites(legion) -> list[dict]:
+    """The invite links, for the leader and officers: when made, until when, and how many used of how many."""
+    return [{"id": js_text(v.get("id")), "made": f"made {when(v.get('created_at'))}", "until": f"until {when(v.get('expires_at'))}",
+             "used": f"{js_text(v.get('uses'))} of {js_text(v.get('max_uses'))} used"}
+            for v in _list(_dict(legion).get("invites")) if isinstance(v, dict)]
+
+
+def legion_log_rows(answer) -> list[dict]:
+    """The legion's logs: each one's description and page, boss, member, upload time, length and visibility."""
+    rows = []
+    for log in _list(_dict(answer).get("logs")):
+        if isinstance(log, dict):
+            rows.append({"title": js_text(log.get("title") or log.get("boss") or log.get("id")), "page": log_page(log),
+                         "boss": js_text(log.get("boss") or ""),
+                         "member": js_text(log.get("member") or log.get("uploader") or "—"), "uploaded": when(log.get("created_at")),
+                         "duration": length(log.get("duration")), "visibility": vis_label(log.get("visibility"))})
+    return rows
+
+
+def disband_ask(name: str) -> str:
+    return f"This ends {name} for every member. Type its name to disband it."
