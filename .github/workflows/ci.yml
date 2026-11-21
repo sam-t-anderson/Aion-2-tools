@@ -214,11 +214,13 @@ jobs:
       - name: Bundle pywebview for the transparent overlay (Windows)
         if: runner.os == 'Windows'
         run: pip install pywebview
-      - name: Bundle PySide6 for the native interface (Windows)
-        # The native interface's windows (aion2calc/gui, a preview behind its setting); PyInstaller's own PySide6
-        # hooks bundle Qt with them. Without it the app opens its web interface as before.
-        if: runner.os == 'Windows'
-        run: pip install "PySide6-Essentials>=6.8"
+      - name: Qt's system libraries for the native interface (Linux)
+        # PySide6 (a requirement since 0.2.426: the native interface is the default) comes with "pip install ." and
+        # PyInstaller's own hooks bundle its Qt. QtGui loads libEGL and libxkbcommon, which the runner image lacks
+        # and a Linux desktop has: the smoke test below draws the native overlay off screen with them.
+        if: runner.os == 'Linux'
+        timeout-minutes: 5
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libegl1 libxkbcommon0
       - name: Preset the log server for new users (repository variable A2LOGS_PUBLIC_URL)
         # This is the same deliberately public community-upload key used by Pages.
         # Do not configure an administrative or ownership token here.

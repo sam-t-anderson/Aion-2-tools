@@ -14,6 +14,7 @@ from functools import wraps
 import ipaddress
 import json
 import mimetypes
+import os
 import re
 import threading
 import time
@@ -713,7 +714,7 @@ class Handler(BaseHTTPRequestHandler):
             s = SYNC.get("sync")
             from .. import __version__
             return self._json({"sync": s.state.as_dict() if s else None, "db": status(), "home": str(home()),
-                               "app": "aion2calc", "version": __version__,
+                               "app": "aion2calc", "version": __version__, "pid": os.getpid(),
                                "update": update_info(fresh=bool(q.get("fresh"))), "update_state": update_state(),
                                "update_prompt": ui_settings().get("auto_update", True),
                                # the quiet update (0.2.353): its download, and whether it installs as the app closes
@@ -1471,6 +1472,8 @@ class Handler(BaseHTTPRequestHandler):
                                                                "app_default_page", "pettracker_overlay_style",
                                                                "overlay_arena_layout", "overlay_players_style",
                                                                *(k for k, _, _ in _ui_int_ranges), *_ui_bool_flags)})
+            if "interface_native" in body:        # chosen, not the default written back: kept from now on
+                cur["interface_native_chosen"] = True
             write_user_json(cur, "ui.json")
             if any(k.startswith("rtss_") for k in body):
                 try:
@@ -2003,7 +2006,7 @@ def save_plans(plans) -> dict:
 
 def ui_settings() -> dict:
     from ..paths import data_file, read_json
-    defaults = {"app_window": True, "interface_native": False, "auto_update": True, "update_on_close": True, "overlay_on_start": True, "tray_on_close": False,
+    defaults = {"app_window": True, "interface_native": True, "auto_update": True, "update_on_close": True, "overlay_on_start": True, "tray_on_close": False,
                 "overlay_open_on_app_start": True,
                 # The app's text size (percent of the shipped size) and the page it opens on (0.2.329).
                 "app_text_scale": 100, "app_default_page": "meter",
@@ -2078,7 +2081,13 @@ def ui_settings() -> dict:
                 "overlay_name_mode": "name",
                 "overlay_dps_interpolate": True, "overlay_interpolate_ms": 200, "overlay_show_fps": False,
                 "overlay_presets": [], "hotkeys": {}}
-    return {**defaults, **(read_json("ui.json") if data_file("ui.json").exists() else {})}
+    saved = read_json("ui.json") if data_file("ui.json").exists() else {}
+    # The native interface is the default since 0.2.426. Every save writes the whole of the settings, so a file from
+    # before holds the old default (off) as if it were chosen: a saved value counts only once it was chosen
+    # (``interface_native_chosen``), and the new default stands for everyone else.
+    if isinstance(saved, dict) and saved.get("interface_native_chosen") is not True:
+        saved = {k: v for k, v in saved.items() if k != "interface_native"}
+    return {**defaults, **saved}
 
 
 def set_overlay_background(body: dict) -> dict:

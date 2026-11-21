@@ -44,6 +44,7 @@ def test_open_window_sizes_and_places_the_window_instead_of_maximizing_it(monkey
     monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
     monkeypatch.setattr(launcher, "app_browser", lambda: "C:/Edge/msedge.exe")
     monkeypatch.setattr(launcher, "work_area", lambda: (2560, 1400))
+    monkeypatch.setattr("aion2calc.gui.enabled", lambda ui=None: False)      # the web interface's window
     launched = []
     monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: launched.append(args) or "the process")
     assert launcher.open_window("http://127.0.0.1:1/") == "the process"

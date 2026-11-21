@@ -1,4 +1,5 @@
-"""The native app window (0.2.413, a preview of the native interface): the app's navigation and pages drawn by Qt.
+"""The native app window (0.2.413; the native interface is the default since 0.2.426): the app's navigation and
+pages drawn by Qt.
 
 The navigation lists the web interface's sections and pages in its order (``SECTIONS``, after index.html). The
 pages are moved over one at a time: the Live Meter page first, then Settings (0.2.414). A page the native window does not draw yet

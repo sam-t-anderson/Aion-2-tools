@@ -77,6 +77,7 @@ def test_smoke_test_and_running_app(home, tmp_path, monkeypatch):
         tls.uninstall()
     text = out.read_text()
     assert "solver OK" in text and f"aion2calc {__version__}: OK" in text
+    assert "Native interface OK (Qt " in text and "the overlay 340x" in text      # the default since 0.2.426
     assert "HTTPS certificates: system verifier and bundled roots OK" in text
     assert "HTTPS request" not in text
     srv = make_server("127.0.0.1", 0)
@@ -120,6 +121,22 @@ def test_spec_requires_highspy_to_be_bundled():
     spec = _spec_source()
     assert "import highspy" in spec
     assert "skipping highspy" not in spec                        # no silent-skip fallback for a required dep
+
+
+def test_the_native_interface_ships_with_the_app():
+    """The native interface is the default since 0.2.426: PySide6 is a requirement of the package, so the build and
+    a source install get it, and the spec bundles it with its Qt. Until 0.2.426 the spec left it out, and the
+    installed app could not open the native interface at all."""
+    import pathlib
+    import re
+    root = pathlib.Path(__file__).resolve().parents[1]
+    project = (root / "pyproject.toml").read_text(encoding="utf-8")
+    requirements = project.split("dependencies = [", 1)[1].split("]", 1)[0]
+    assert re.search(r'"PySide6-Essentials>=6\.8"', requirements)
+    excludes = _spec_source().split("excludes=[", 1)[1].split("]", 1)[0]
+    assert "PySide6" not in excludes and "PyQt5" in excludes
+    ci = (root / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert 'pip install "PySide6-Essentials' not in ci                       # with the package, on every platform
 
 
 def test_the_https_certificate_check_ships_with_the_app():

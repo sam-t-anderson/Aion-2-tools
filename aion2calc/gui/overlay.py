@@ -1,5 +1,5 @@
-"""The native meter overlay (0.2.413, a preview of the native interface): the meter's reading in a frameless,
-always-on-top, see-through Qt window over the game, in place of the overlay page in a pywebview window.
+"""The native meter overlay (0.2.413; the native interface is the default since 0.2.426): the meter's reading in a
+frameless, always-on-top, see-through Qt window over the game, in place of the overlay page in a pywebview window.
 
 It shows what the overlay page does first: the fight's status, the target with its HP (and the time to kill when
 that is on), the counter lines (Odyle Energy, Shugo Keys, Nightmare tickets, the dungeon's weekly runs) and a row

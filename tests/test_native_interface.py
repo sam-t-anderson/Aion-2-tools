@@ -1,4 +1,4 @@
-"""The native interface (0.2.413, a preview): the app's windows drawn by Qt (PySide6) in Python.
+"""The native interface (0.2.413; the default since 0.2.426): the app's windows drawn by Qt (PySide6) in Python.
 
 The windows read the app through its local API, as the web pages do, so they are tested here on the same meter
 answers the browser tests use (``tests/browser/test_browser_overlay_look.py``), off screen. The setting that
@@ -6,8 +6,10 @@ turns them on, and the launcher and overlay hooks that open them, are tested wit
 """
 import json
 import os
+import subprocess
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
@@ -230,15 +232,45 @@ def test_the_poll_hands_each_answer_to_the_window(qapp):
 
 
 # ------------------------------------------------------------------ the setting and the hooks
-def test_the_setting_is_off_by_default_and_kept_in_the_backup(home, monkeypatch):
-    assert server.ui_settings()["interface_native"] is False
-    assert _clean({"interface_native": True}) == {"interface_native": True}
+def test_the_setting_is_on_by_default_and_a_choice_is_kept(home, monkeypatch):
+    from aion2calc.paths import write_user_json
+    assert server.ui_settings()["interface_native"] is True                     # the default since 0.2.426
+    # Every save writes the whole of the settings: a file from before holds the old default as if it were chosen.
+    write_user_json({"interface_native": False, "app_window": False}, "ui.json")
+    ui = server.ui_settings()
+    assert ui["interface_native"] is True and ui["app_window"] is False         # the new default, for everyone once
+    write_user_json({"interface_native": False, "interface_native_chosen": True}, "ui.json")
+    assert server.ui_settings()["interface_native"] is False                    # chosen: kept
+    assert _clean({"interface_native": True, "interface_native_chosen": True}) == {
+        "interface_native": True, "interface_native_chosen": True}               # and in the backup
     with pytest.raises(ValueError):
         _clean({"interface_native": "yes"})
     monkeypatch.setattr(gui, "available", lambda: True)
     assert gui.enabled({"interface_native": True}) and not gui.enabled({"interface_native": False})
     monkeypatch.setattr(gui, "available", lambda: False)
     assert not gui.enabled({"interface_native": True})                                # without PySide6: the web
+
+
+def test_turning_the_native_interface_off_in_settings_is_a_choice_kept(home):
+    from http.server import ThreadingHTTPServer
+    import urllib.request
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+
+    def post(body):
+        request = urllib.request.Request(base + "/api/ui", json.dumps(body).encode(), {"Content-Type": "application/json"})
+        return json.loads(urllib.request.urlopen(request, timeout=30).read())
+    try:
+        post({"app_window": False})                                            # another setting: the default stays
+        assert server.ui_settings()["interface_native"] is True
+        post({"interface_native": False})                                      # turned off in Settings
+        post({"app_window": True})
+        assert server.ui_settings()["interface_native"] is False
+        post({"interface_native": True})
+        assert server.ui_settings()["interface_native"] is True
+    finally:
+        srv.shutdown()
 
 
 def test_the_native_windows_open_in_their_own_processes(monkeypatch):
@@ -250,6 +282,10 @@ def test_the_native_windows_open_in_their_own_processes(monkeypatch):
     assert env[gui.ENV_KIND] == "window" and env["AION2CALC_PARENT_PID"] == str(os.getpid())
     gui.spawn("overlay", "http://127.0.0.1:8765/overlay")
     assert started[-1][0][1:3] == ["-m", "aion2calc.gui.overlay"]
+    gui.spawn("window", "http://127.0.0.1:8765/", 4321)                               # the app runs in another process
+    assert started[-1][1]["AION2CALC_PARENT_PID"] == "4321"
+    gui.spawn("window", "http://127.0.0.1:8765/", 0)                                  # one not known: tied to none
+    assert started[-1][1]["AION2CALC_PARENT_PID"] == ""
     monkeypatch.setattr(gui.sys, "frozen", True, raising=False)                       # the installed app
     gui.spawn("overlay", "http://127.0.0.1:8765/overlay")
     args, env = started[-1]
@@ -260,7 +296,7 @@ def test_the_native_windows_open_in_their_own_processes(monkeypatch):
 
 def test_the_launcher_and_the_overlay_open_the_native_windows_when_it_is_on(monkeypatch):
     spawned = []
-    monkeypatch.setattr(gui, "spawn", lambda kind, url: spawned.append((kind, url)) or kind)
+    monkeypatch.setattr(gui, "spawn", lambda kind, url, parent_pid=None: spawned.append((kind, url)) or kind)
     monkeypatch.setattr(gui, "enabled", lambda ui=None: True)
     assert launcher.open_window("http://127.0.0.1:8765/") == "window"
     assert overlay_launch._spawn("http://127.0.0.1:8765/overlay") == "overlay"
@@ -275,3 +311,139 @@ def test_the_launcher_and_the_overlay_open_the_native_windows_when_it_is_on(monk
     monkeypatch.setattr(native_overlay, "main", lambda argv: ran.append(argv) or 0)
     monkeypatch.setattr("aion2calc.tls.install", lambda: True)
     assert launcher.main([]) == 0 and ran == [["--url", "http://127.0.0.1:8765/overlay"]]
+
+
+class _Process:
+    """A native window's process for the launcher: it ends with ``code`` once let go (``end``), or runs on (None)."""
+
+    def __init__(self, code=None):
+        self.code, self.done = code, threading.Event()
+
+    def end(self):
+        self.done.set()
+
+    def wait(self, timeout=None):
+        if self.code is None or not self.done.wait(timeout):
+            raise subprocess.TimeoutExpired("aion2calc", timeout)
+        return self.code
+
+
+def _until(condition, seconds=5.0):
+    deadline = time.time() + seconds
+    while not condition() and time.time() < deadline:
+        time.sleep(0.01)
+    return condition()
+
+
+def _finished_starting():
+    for thread in threading.enumerate():
+        if thread.name == "native-window-start":
+            thread.join(5)
+
+
+@pytest.fixture
+def web(monkeypatch):
+    """The web interface's window as the launcher opens it (Edge in app mode), recorded; the native interface not
+    given up on yet, and a native window's start watched for half a second."""
+    opened = []
+    monkeypatch.setattr(gui, "_FAILED", {})
+    monkeypatch.setattr(gui, "FAILS_WITHIN", 0.5)
+    monkeypatch.setattr(launcher, "app_browser", lambda: "C:/Edge/msedge.exe")
+    monkeypatch.setattr(launcher, "work_area", lambda: (1920, 1080))
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **kw: opened.append(args) or "web")
+    monkeypatch.setitem(server.APP_WINDOW, "process", None)
+    return opened
+
+
+def test_a_native_window_that_fails_as_it_starts_gives_way_to_the_web_interface(home, web, monkeypatch):
+    url = "http://127.0.0.1:8765/"
+    monkeypatch.setattr(gui, "available", lambda: True)
+    window, spawned = _Process(1), []
+    monkeypatch.setattr(gui, "spawn", lambda kind, url, parent_pid=None: spawned.append((kind, parent_pid)) or window)
+    assert gui.enabled() and launcher.open_window(url) is window and spawned == [("window", None)]
+    server.APP_WINDOW["process"] = window                                       # the app keeps its window
+    window.end()                                                                # Qt could not open it on this computer
+    assert _until(lambda: web) and web[0][0] == "C:/Edge/msedge.exe" and f"--app={url}" in web[0]
+    assert _until(lambda: server.APP_WINDOW["process"] == "web")                # the app closes this one when it quits
+    assert gui.failed() == "the native window ended with code 1 as it started"
+    assert not gui.enabled() and not gui.enabled({"interface_native": True})    # until the app starts again
+    overlay_launch._spawn(url + "overlay")                                      # and the overlay is the web one
+    assert web[-1][1:3] == ["-m", "aion2calc.overlay"]
+    # A native window that runs on, or that was closed normally, stays the app's window.
+    monkeypatch.setattr(gui, "_FAILED", {})
+    for code in (None, 0):
+        window = _Process(code)
+        window.end()
+        web.clear()
+        assert launcher.open_window(url) is window
+        _finished_starting()
+        assert web == [] and not gui.failed()
+    # One the app closed as it quit, soon after its start, is not a failure either.
+    monkeypatch.setitem(server.HTTPD, "closing", True)
+    window = _Process(1)
+    window.end()
+    assert launcher.open_window(url) is window
+    _finished_starting()
+    assert web == [] and not gui.failed()
+    monkeypatch.setitem(server.HTTPD, "closing", False)
+
+    def missing(kind, url, parent_pid=None):                                    # one that cannot be started at all
+        raise OSError("no such file")
+    monkeypatch.setattr(gui, "spawn", missing)
+    assert launcher.open_window(url) == "web" and gui.failed() == "the native window could not start: no such file"
+
+
+def test_a_second_start_ties_its_native_window_to_the_running_app(home, web, monkeypatch):
+    from aion2calc import tls
+    from aion2calc.app.server import make_server
+    url = "http://127.0.0.1:8765/"
+    running, spawned = _Process(None), []
+    monkeypatch.setattr(gui, "spawn", lambda kind, url, parent_pid=None: spawned.append(parent_pid) or running)
+    # The second start ends at once, so it sees the window open before it does: this one ran on.
+    assert launcher.open_window(url, native=True, parent_pid=4321, wait=True) is running
+    assert spawned == [4321] and web == []
+    failing = _Process(3)
+    failing.end()
+    monkeypatch.setattr(gui, "spawn", lambda kind, url, parent_pid=None: failing)
+    assert launcher.open_window(url, native=True, parent_pid=4321, wait=True) == "web"      # this one failed
+    assert web[0][0] == "C:/Edge/msedge.exe"
+    # The running app says which process it is, and the second start hands that to the window.
+    srv = make_server("127.0.0.1", 0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        assert launcher._app_pid(srv.server_address[1]) == os.getpid()
+    finally:
+        srv.shutdown()
+    assert launcher._app_pid(launcher.free_port(0)) == 0                       # no app there
+    calls = []
+    monkeypatch.setattr(launcher, "running_app", lambda port: True)
+    monkeypatch.setattr(launcher, "_app_pid", lambda port: 4321)
+    monkeypatch.setattr(launcher, "open_window", lambda *args, **kwargs: calls.append((args, kwargs)))
+    try:
+        assert launcher.main(["--port", "8765"]) == 0
+    finally:
+        tls.uninstall()
+    assert calls == [(("http://127.0.0.1:8765/", True), {"parent_pid": 4321, "wait": True})]
+
+
+def test_a_native_overlay_that_fails_as_it_starts_gives_way_to_the_web_overlay(home, monkeypatch):
+    from aion2calc.overlay_health import RelaunchLimiter
+
+    class Overlay(_Process):
+        native = True
+
+    spawned = []
+    monkeypatch.setattr(gui, "_FAILED", {})
+    monkeypatch.setattr(overlay_launch, "_RELAUNCHES", RelaunchLimiter())
+    monkeypatch.setattr(overlay_launch, "_PROCESS", None)
+    monkeypatch.setattr(overlay_launch, "_spawn", lambda url: spawned.append(Overlay(3)) or spawned[-1])
+    monkeypatch.setattr(overlay_launch, "available", lambda: True)
+    monkeypatch.setattr(overlay_launch, "_party_enabled", lambda: False)
+    overlay_launch.launch("http://127.0.0.1:1/overlay")
+    spawned[0].end()                                                            # Qt could not open the overlay
+    assert _until(lambda: len(spawned) == 2)                                    # started again
+    assert gui.failed() == "the native overlay ended with code 3 as it started"
+    log = (home / "home" / "logs" / "overlay.log").read_text(encoding="utf-8")
+    assert "the overlay opens in pywebview until the app starts again" in log
+    monkeypatch.setattr(overlay_launch, "_PROCESS", None)                       # the app lets the second one go
+    spawned[1].end()

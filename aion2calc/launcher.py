@@ -152,9 +152,15 @@ def window_geometry(area: tuple[int, int] | None) -> tuple[int, int, int, int]:
     return width, height, max(0, (area[0] - width) // 2), max(0, (area[1] - height) // 2)
 
 
-def open_window(url: str, prefer_app: bool = True, native: bool | None = None):
+def open_window(url: str, prefer_app: bool = True, native: bool | None = None, parent_pid: int | None = None,
+                wait: bool = False):
     """Open the UI: the native window while the native interface is on (0.2.413; ``native`` None reads the
-    setting), else its own app window when Edge/Chrome is there (returns the process), else a browser tab."""
+    setting), else its own app window when Edge/Chrome is there (returns the process), else a browser tab.
+
+    A native window that fails as it starts is replaced by the web interface's window (0.2.426), and the native
+    interface is given up on until the app starts again (``gui.mark_failed``): watched in the background, or before
+    this returns with ``wait``, for a second start of the app that ends at once. ``parent_pid`` is the app's process
+    when that is another one (``gui.spawn``)."""
     import subprocess
     from . import gui
     from .paths import home
@@ -162,9 +168,20 @@ def open_window(url: str, prefer_app: bool = True, native: bool | None = None):
         native = gui.enabled()
     if native:
         try:
-            return gui.spawn("window", url)
-        except OSError:
-            pass
+            proc = gui.spawn("window", url, parent_pid)
+        except OSError as err:
+            gui.mark_failed(f"the native window could not start: {err}")
+            print(time.strftime("%Y-%m-%d %H:%M:%S"), f"the native window could not start ({err}); opening the web interface")
+        else:
+            if not wait:
+                threading.Thread(target=_replace_failed_window, args=(proc, url, prefer_app), daemon=True,
+                                 name="native-window-start").start()
+                return proc
+            code = gui.failed_at_start(proc)
+            if code is None:
+                return proc
+            print(time.strftime("%Y-%m-%d %H:%M:%S"), f"the native window ended with code {code} as it started; "
+                  "opening the web interface")
     exe = app_browser() if prefer_app else None
     if exe:
         width, height, left, top = window_geometry(work_area())
@@ -176,6 +193,33 @@ def open_window(url: str, prefer_app: bool = True, native: bool | None = None):
             pass
     webbrowser.open(url)
     return None
+
+
+def _replace_failed_window(proc, url: str, prefer_app: bool) -> None:
+    """Open the web interface's window in place of a native window that failed as it started (0.2.426), and give up
+    on the native interface until the app starts again, so the overlay opens in the web interface too. Its log
+    line says why. The app's window becomes the new one, so the app still closes it when it quits."""
+    from . import gui
+    from .app import server
+    code = gui.failed_at_start(proc)
+    if code is None or server.HTTPD.get("closing"):   # a quit soon after the start closes the window itself
+        return
+    gui.mark_failed(f"the native window ended with code {code} as it started")
+    print(time.strftime("%Y-%m-%d %H:%M:%S"), f"the native window ended with code {code} as it started; opening the "
+          "web interface until the app starts again")
+    web = open_window(url, prefer_app, native=False)
+    if web is not None and server.APP_WINDOW.get("process") is proc:
+        server.APP_WINDOW["process"] = web
+
+
+def _app_pid(port: int) -> int:
+    """The process of our app answering on ``port`` (0.2.426), or 0 when it does not say (an older app)."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=2) as r:
+            pid = json.load(r).get("pid")
+        return pid if isinstance(pid, int) and pid > 0 else 0
+    except Exception:
+        return 0
 
 
 def watch(proc, stop, idle_after: float = 180.0) -> None:
@@ -207,6 +251,39 @@ def _https_check(url: str) -> tuple[bool, str]:
         return True, f"HTTPS request verified ({err.code} from {url})"
     except Exception as err:
         return False, f"HTTPS request to {url} FAILED {type(err).__name__}: {err}"
+
+
+def _native_check() -> str:
+    """The native interface as the installed app has it: PySide6 bundled with its Qt, the toolbar's icons drawn (Qt's
+    SVG), a class emblem read from the bundled art (WebP, Qt's or Pillow's), and the meter overlay drawn off screen."""
+    from . import gui
+    if not gui.available():
+        raise RuntimeError("PySide6 is not in the app")
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtCore import qVersion
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance() or QApplication([])   # Qt's application, for the overlay's window
+    from .app.server import STATIC
+    from .gui import chrome, pictures
+    from .gui.overlay import MeterOverlay
+    icon = chrome.icon("camera", 16, 16, "#ff0000").toImage()
+    if not any(icon.pixelColor(x, y).alpha() > 0 for x in range(16) for y in range(16)):
+        raise RuntimeError("the toolbar's icons do not draw")
+    assets = json.loads((STATIC / "game-assets.json").read_text(encoding="utf-8"))
+    emblem = pictures.decoded((STATIC / assets["assets"][pictures.CLASS_ART.format("sorcerer")]).read_bytes())
+    if emblem.isNull():
+        raise RuntimeError("the bundled art does not read")
+    window = MeterOverlay()
+    window.apply_ui({"overlay_width": 340})
+    window.apply_meter({"running": True, "snapshot": {"boss": "Smoke", "duration": 30.0, "players": [
+        {"id": "1", "key": "1", "name": "Smoke", "class": "sorcerer", "dps": 1000.0, "damage": 30000.0}]}})
+    image = window.grab().toImage()
+    window.close()
+    app.processEvents()
+    chrome.forget_icons()
+    if image.isNull() or image.width() != 340 or image.height() < 60:
+        raise RuntimeError(f"the overlay drew {image.width()}x{image.height()}")
+    return f"OK (Qt {qVersion()}, the overlay {image.width()}x{image.height()})"
 
 
 def smoke_test(out: str | None = None) -> int:
@@ -274,6 +351,11 @@ def smoke_test(out: str | None = None) -> int:
         except Exception as err:
             ok = False
             lines.append(f"Screen read FAILED {type(err).__name__}: {err}")
+    try:                                          # the native interface, the default since 0.2.426
+        lines.append("Native interface " + _native_check())
+    except Exception as err:
+        ok = False
+        lines.append(f"Native interface FAILED {type(err).__name__}: {err}")
     from . import __version__
     lines.append(f"aion2calc {__version__}: {'OK' if ok else 'FAILED'}")
     srv.shutdown()
@@ -435,7 +517,9 @@ def main(argv=None) -> int:
         prefer_app = server.ui_settings().get("app_window", True)
         if running_app(args.port):                # already running: just show it
             if not args.no_browser:
-                open_window(f"http://127.0.0.1:{args.port}/", prefer_app)
+                # A native window belongs to the running app, not to this start of it, which ends at once: until
+                # 0.2.426 it watched this one and closed within seconds. Whether it opened is known before the end.
+                open_window(f"http://127.0.0.1:{args.port}/", prefer_app, parent_pid=_app_pid(args.port), wait=True)
             return 0
         port = free_port(args.port)
         print(time.strftime("%Y-%m-%d %H:%M:%S"), "starting on port", port)

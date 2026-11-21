@@ -1,3 +1,14 @@
+## The native interface by default, and in the installed app (0.2.426)
+
+**The app and the meter overlay now open in the native interface**, drawn by the app in Python (Qt) instead of in a browser. Until now it was a preview you had to turn on in Settings.
+- **On for everyone, once.** Each save of your settings also stored the old default, so a setting left alone can't be told from one you chose: the native interface turns on for everyone with this version. To keep the web interface, turn **Settings → Native interface** off; that choice is kept from now on.
+- **The installed app comes with it.** The Windows, macOS and Linux builds now include PySide6 and its Qt. Until now the builds left them out, so the installed app opened the web interface whatever the setting said. Run from source, `pip install .` installs PySide6 with the app's other requirements; no separate `pip install PySide6-Essentials`.
+- **What's native so far:** the meter overlay, and the app's window with the Live Meter page and Settings. The window lists every other page, which opens from it in the web interface as before.
+- **If the native interface can't start on your computer** (a window that ends with an error as it starts), the app opens the web interface in its place and uses it, for the overlay too, until the app is started again. `aion2calc.log` in the data folder says why (`logs/overlay.log` for the overlay).
+- **Starting the app again while it runs** now opens its native window and keeps it open. That window used to belong to the second start, which ends at once, so it closed within seconds.
+- Each build's start-up check (`--smoke-test`) now also draws the native overlay off screen, so a build that can't draw it is not released.
+- The download is larger by Qt's libraries. They come signed by The Qt Company, so a release has no more files to sign than before.
+
 ## The native overlay's counters with their icons (0.2.425)
 
 **Native overlay, twelfth part.** The native interface's overlay (Settings → Native interface, a preview) now shows the counters across the top of its card as the web overlay does:
