@@ -1,3 +1,15 @@
+## A combat log's own page in the native interface, part 3 (0.2.459)
+
+**A log's review in the app's window now has its Table, Timeline and Events views**, chosen at the right of the metric tabs:
+- **Events:** every event of the encounter, a hundred to a page (**Previous**, **Next**), with a spreadsheet's filters:
+  - **Event**, **Caster / attacker**, **Recipient / target** and **Ability** each open a list of their values, each with how many events have it. Tick the ones to keep, find them with the search, or keep **All**, **None** or **Only the found**;
+  - a **Time** range in seconds and an **Amount** range, and **Sort** by time or by amount, largest first;
+  - the events kept, their total, average, smallest and largest, and when they start and end. **Clear filters** lets them all go.
+- **Timeline:** the recorded effects in a window of 15, 30, 60 or 120 seconds, or the whole encounter, a lane per player. Each hit or heal is its skill's tile, three stacks deep, and each death a red cross. Move the window **Earlier** or **Later**, type its **Start** or scrub to it, or click the graph to move it there. Point at an effect, click it, or use the arrow keys to see it. Collapse or hide a player's lane, or choose whose lanes show under **Player timeline visibility**. **Timeline**, **Skills**, **Deaths** and **Healing** choose what it shows.
+- **Table** is the summary, as before.
+
+The review's other sections (abilities and skills, actions, death recaps, insights, rankings, reports, comparisons and movement replay) still open in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 2 (0.2.458)
 
 **A log's review in the app's window now draws its graph and its enemies too:**

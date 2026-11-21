@@ -2,7 +2,8 @@
 recorder's ping (``latencyHTML``). Each keeps the web chart's viewBox, scaled to its width.
 
 The rate chart says what it holds at a moment of the fight: a move of the pointer over it, a click on it, or the
-left and right arrow keys once it has the focus (``inspect``) emit ``inspected`` with that time.
+left and right arrow keys once it has the focus (``inspect``) emit ``inspected`` with that time. A click also emits
+``clicked`` (0.2.459): in Timeline view it moves the timeline's window there.
 """
 from __future__ import annotations
 
@@ -27,6 +28,7 @@ class RateChart(QWidget):
     the right scale."""
 
     inspected = Signal(float)
+    clicked = Signal(float)
 
     def __init__(self, model: dict, r: dict, colours: dict, parent: QWidget | None = None):
         super().__init__(parent)
@@ -139,6 +141,7 @@ class RateChart(QWidget):
         if self._inside(position.x(), position.y()):
             self.setFocus()
             self.inspect(self._time(position.x()))
+            self.clicked.emit(self.at)
         super().mousePressEvent(event)
 
     def focusInEvent(self, event) -> None:

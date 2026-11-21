@@ -446,3 +446,20 @@ def test_the_window_draws_the_timers_page_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("timers"), TimersPage) and not isinstance(window.page("timers"), WebPage)
     assert isinstance(window.page("raid"), WebPage)                                # not moved over yet
+
+
+def test_a_card_shows_no_window_of_its_own(qapp):
+    """A card's note that its group's times are unavailable is put in the card before it is made visible: shown
+    first, the parentless label would flash as a window of its own, and a window shown closes any popup open."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QFrame
+    from aion2calc.gui.timers_page import EventCard
+    popup = QFrame(None, Qt.Popup)
+    popup.resize(60, 40)
+    popup.show()
+    QCoreApplication.processEvents()
+    siege = next(item for item in timers.prepare(CATALOG, "kr", "", NOW) if item["event"]["id"] == "siege")
+    card = EventCard(siege, "")
+    QCoreApplication.processEvents()
+    assert popup.isVisible() and not card.unavailable.isHidden() and card.countdown.isHidden()
+    popup.close()

@@ -201,3 +201,20 @@ def test_the_window_draws_the_database_page_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("database"), DatabasePage) and not isinstance(window.page("database"), WebPage)
     assert isinstance(window.page("raid"), WebPage)                               # not moved over yet
+
+
+def test_a_window_with_a_subtitle_shows_no_window_of_its_own(qapp):
+    """A window's subtitle is put in its head before it is made visible: shown first, the parentless label would
+    flash as a window of its own, and a window shown closes any popup open (a filter's list of values)."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QFrame
+    popup = QFrame(None, Qt.Popup)
+    popup.resize(60, 40)
+    popup.show()
+    QCoreApplication.processEvents()
+    assert popup.isVisible()
+    window = db.Window("Frost Spire night", "120.0s")
+    QCoreApplication.processEvents()
+    assert popup.isVisible() and window.subtitle.parentWidget() is not None and not window.subtitle.isHidden()
+    assert db.Window("Database").subtitle.isHidden()
+    popup.close()
