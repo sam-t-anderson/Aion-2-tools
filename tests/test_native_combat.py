@@ -3246,6 +3246,169 @@ def test_the_review_casts_buffs_and_break_gauge(qapp):
     assert "Casts, buffs and break gauge" not in _labels(view)
 
 
+def _dying():
+    """The fuller fight with its deaths recapped by the app's own analyzer (``death_analysis``): the cleric's two in the
+    PvE fight, with their HP readings; in the arena the opponent's two (their healing on themselves, a hit with no
+    skill name, their HP), and three of the party's: one in which the opponent struck, one whose marker names them as
+    the round's winner, and one they had no part in."""
+    from aion2calc.combat import recaps
+    fight = _fight()
+    seg, arena = fight["segments"]
+    seg["events"] += [{"kind": "death", "t": 12.0, "target": "p2"}]
+    seg["health"] += [{"entity": "p2", "t": 3.2, "current": 1200, "max": 2000}, {"entity": "p2", "t": 4.9, "current": 0},
+                      {"entity": "p2", "t": 10.0, "current": 2000, "max": 2000}]
+    arena["events"] += [{"kind": "damage", "t": 4.0, "source": "p1", "target": "e1", "amount": 100, "skill": "Spark"},
+                        {"kind": "damage", "t": 6.0, "source": "p1", "target": "e1", "amount": 300, "skill_id": 13100002},
+                        {"kind": "heal", "t": 7.0, "source": "e1", "target": "e1", "amount": 250, "skill": "Mending"},
+                        {"kind": "death", "t": 8.0, "target": "e1"},
+                        {"kind": "damage", "t": 14.0, "source": "e1", "target": "p2", "amount": 700, "skill": "Arrow"},
+                        {"kind": "death", "t": 15.0, "target": "p2"},
+                        {"kind": "death", "t": 20.0, "target": "p1", "source": "e1"},
+                        {"kind": "death", "t": 30.0, "target": "p2"}]
+    arena["health"] = [{"entity": "e1", "t": 3.9, "current": 100, "max": 5000}]
+    fight["death_analysis"] = recaps.summarize(fight)
+    return fight
+
+
+def _recaps(fight, segment=0, actor="", recap=None):
+    state = cw.fresh_state()
+    state.update(segment=segment, actor=actor, recap=recap)
+    d = cw.data(fight, state)
+    foe = actor if any(e.get("id") == actor for e in cw.opponents_of(fight, d)) else ""
+    return cw.recaps(fight, cw.data(fight, state, foe) if foe else d, state)
+
+
+def _recap_words(rows):
+    """A recap table's rows with its first cell as the recap's key and player, and a last hit as its attacker and words."""
+    return [[(c["recap"], c["actor"]) if isinstance(c, dict) and "recap" in c else
+             (c["hit"], c["words"]) if isinstance(c, dict) and "hit" in c else c for c in row] for row in rows]
+
+
+def test_the_review_death_recaps_words():
+    from aion2calc.combat.recaps import NOTE
+    fight = _dying()
+    # the cleric's two deaths in the PvE fight, the first opened: a short window from the pull, then back to the first
+    m = _recaps(fight)
+    assert m["intro"] == f"{NOTE} {cw.RECAPS_CONTEXT} "
+    assert _recap_words(m["rows"]) == [
+        [("0", "p2"), "5.000s", "5.0s (short / split boundary)", "800", "600", "0 (maximum unavailable) at 4.900s",
+         ("b1", " · Frost Breath · 800 at 3.100s")],
+        [("1", "p2"), "12.000s", "7.0s (short / split boundary)", "50", "0", "2,000 / 2,000 at 10.000s",
+         ("u1", " · Spike · 50 at 8.000s")]]
+    assert m["rows"][0][0]["at"] == "5.000s"
+    chosen = m["selected"]
+    assert chosen["key"] == "0" and chosen["title"] == "TestCleric · death marker at 5.000s"
+    assert chosen["note"] == cw.RECAP_NOTE.format(events=0, health=0) and "; 0 effects and 0 HP samples omitted." in chosen["note"]
+    assert _words(chosen["events"]) == [["-1.900s", "damage", ("actor", "b1"), "Frost Breath", "800"],
+                                        ["-1.500s", "heal", ("actor", "p2"), "Heal", "600"]]
+    assert chosen["health"] == [["-1.800s", "1,200 / 2,000"], ["-0.100s", "0 (maximum unavailable)"]]
+    # another opened; one that isn't the encounter's opens the first
+    chosen = _recaps(fight, recap="1")["selected"]
+    assert chosen["title"] == "TestCleric · death marker at 12.000s"
+    assert _words(chosen["events"]) == [["-4.000s", "damage", ("actor", "u1"), "Spike", "50"]]
+    assert chosen["health"] == [["-2.000s", "2,000 / 2,000"]]
+    assert _recaps(fight, recap="3")["selected"]["key"] == "0"
+    # a player chosen alone: none for the sorcerer, who didn't die; the session limit's words when it left recaps out
+    m = _recaps(fight, actor="p1")
+    assert m["rows"] == [] and m["selected"] is None and m["none"] == cw.RECAPS_NONE
+    assert [r[0]["recap"] for r in _recaps(fight, actor="p2")["rows"]] == ["0", "1"]
+    limited = json.loads(json.dumps(fight))
+    limited["death_analysis"]["omitted_recaps"] = 3
+    m = _recaps(limited, actor="p1")
+    assert m["intro"] == f"{NOTE} {cw.RECAPS_CONTEXT} 3 recaps omitted by the 200-recap session limit."
+    assert m["none"] == cw.RECAPS_NONE_OMITTED
+    # the arena's: the party's three, one without a hit or HP in its window
+    m = _recaps(fight, segment=1)
+    assert _recap_words(m["rows"]) == [
+        [("2", "p2"), "15.000s", "10.0s", "700", "0", "Unavailable", ("e1", " · Arrow · 700 at 14.000s")],
+        [("3", "p1"), "20.000s", "10.0s", "0", "0", "Unavailable", "Unavailable"],
+        [("4", "p2"), "30.000s", "10.0s", "0", "0", "Unavailable", "Unavailable"]]
+    assert m["selected"]["health"] == []
+    # an opponent's: their own two (back to their first death, healing themselves, a hit by its skill's id), and the
+    # party's they struck in, by a hit in its window or as the round's winner its marker names, in time order
+    m = _recaps(fight, segment=1, actor="e1")
+    assert m["intro"] == f"{cw.RECAPS_FOE} {NOTE}"
+    assert _recap_words(m["rows"]) == [
+        [("o0", "e1"), "4.000s", "4.0s (short / split boundary)", "2,100", "0", "100 / 5,000 at 3.900s",
+         ("p1", " · Spark · 100 at 4.000s")],
+        [("o1", "e1"), "8.000s", "4.0s (short / split boundary)", "300", "250", "Unavailable",
+         ("p1", " · 13100002 · 300 at 6.000s")],
+        [("2", "p2"), "15.000s", "10.0s", "700", "0", "Unavailable", ("e1", " · Arrow · 700 at 14.000s")],
+        [("3", "p1"), "20.000s", "10.0s", "0", "0", "Unavailable", "Unavailable"]]
+    chosen = m["selected"]
+    assert chosen["title"] == "Rival · Zikel · death marker at 4.000s"
+    assert _words(chosen["events"]) == [["-3.000s", "damage", ("actor", "p1"), "Flame Burst", "2,000"],
+                                        ["0.000s", "damage", ("actor", "p1"), "Spark", "100"]]
+    assert chosen["health"] == [["-0.100s", "100 / 5,000"]]
+    assert _words(_recaps(fight, segment=1, actor="e1", recap="o1")["selected"]["events"]) == [
+        ["-2.000s", "damage", ("actor", "p1"), "13100002", "300"], ["-1.000s", "heal", ("actor", "e1"), "Mending", "250"]]
+    # an older log: none for the party; an opponent's own still, as the web page builds them
+    older = json.loads(json.dumps(fight))
+    del older["death_analysis"]
+    assert _recaps(older) == {"missing": cw.RECAPS_OLDER}
+    m = _recaps(older, segment=1, actor="e1")
+    assert m["intro"] == f"{cw.RECAPS_FOE} {cw.RECAPS_FOE_OLDER}" and [r[0]["recap"] for r in m["rows"]] == ["o0", "o1"]
+    deathless = json.loads(json.dumps(older))
+    deathless["segments"][1]["events"] = [e for e in deathless["segments"][1]["events"] if e["kind"] != "death"]
+    m = _recaps(deathless, segment=1, actor="e1")
+    assert m["rows"] == [] and m["selected"] is None and m["none"] == cw.RECAPS_NONE_FOE
+    # the last 200 effects and HP samples, the rest counted; an HP reading's words
+    long = json.loads(json.dumps(older))
+    arena = long["segments"][1]
+    arena["events"] += [{"kind": "damage", "t": 30.0 + i / 100, "source": "p1", "target": "e1", "amount": 1} for i in range(205)]
+    arena["events"].append({"kind": "death", "t": 33.0, "target": "e1"})
+    arena["health"] += [{"entity": "e1", "t": 31.0 + i / 1000, "current": 10} for i in range(201)]
+    d = cw.data(long, {**cw.fresh_state(), "segment": 1})
+    last = cw.recaps_of(d, "e1")[-1]
+    assert (last["window_seconds"], last["short_window"], len(last["events"]), last["omitted_events"]) == (10.0, False, 200, 5)
+    assert (len(last["health"]), last["omitted_health"], last["incoming_damage"]) == (200, 1, 205)
+    assert last["events"][0]["t"] == 30.05 and last["health"][0]["t"] == 31.001
+    assert cw.recap_hp(None) == "Unavailable" and cw.recap_hp({"current": 1500.4, "max": 3000}) == "1,500 / 3,000"
+
+
+def test_the_review_death_recaps(qapp):
+    app = FakeApp()
+    app.log_server.review_log = _dying()
+    page = _page(app)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: view.summary is not None and view.ranks is not None and view.names is not None and not view.awaiting)
+    assert "Player death recaps" not in _labels(view)
+    _click(view, "Death recaps")
+    labels, cells = _labels(view), _cells(view)
+    assert "Player death recaps" in labels and any(t.startswith("Recaps use explicit player death markers") for t in labels)
+    assert all(c in cells for c in ("5.000s", "5.0s (short / split boundary)", "800", "600", "0 (maximum unavailable) at 4.900s",
+                                    "12.000s", "2,000 / 2,000 at 10.000s"))
+    assert "Ice Queen · Frost Breath · 800 at 3.100s" in labels and "Unnamed summon · Spike · 50 at 8.000s" in labels
+    assert "<b>TestCleric · death marker at 5.000s</b>" in labels
+    assert all(c in cells for c in ("-1.900s", "damage", "Frost Breath", "-0.100s", "1,200 / 2,000"))
+    # another recap opened: its effects and HP in place of the first's
+    _find(view, QPushButton, lambda b: b.accessibleName() == "Open the recap of TestCleric at 12.000s").click()
+    labels, cells = _labels(view), _cells(view)
+    assert view.state["recap"] == "1" and "<b>TestCleric · death marker at 12.000s</b>" in labels
+    assert "-4.000s" in cells and "-1.900s" not in cells
+    # an opponent's: their own and the party's they struck in, the players in their class's colour
+    _choose(view, "Encounter", 1)
+    settle(lambda: view.ranks is not None and not view.awaiting)
+    _choose(view, "Player", "e1")
+    labels, cells = _labels(view), _cells(view)
+    assert any(t.startswith(cw.RECAPS_FOE) for t in labels) and "<b>Rival · Zikel · death marker at 4.000s</b>" in labels
+    assert all(c in cells for c in ("4.000s", "8.000s", "15.000s", "20.000s", "2,100", "100 / 5,000 at 3.900s"))
+    assert "30.000s" not in cells
+    assert any(t.endswith(" · Spark · 100 at 4.000s") and "TestSorc" in t and "color:" in t for t in labels)
+    # a log without the party's recaps: an opponent's own still; for the party the older view's note in place of the
+    # section
+    older = json.loads(json.dumps(app.log_server.review_log))
+    del older["death_analysis"]
+    app.log_server.review_log = older
+    view.reload()
+    settle(lambda: any(t.endswith(cw.RECAPS_FOE_OLDER) for t in _labels(view)) and not view.awaiting)
+    assert "8.000s" in _cells(view) and "15.000s" not in _cells(view)
+    _choose(view, "Player", "")
+    settle(lambda: cw.RECAPS_OLDER in _labels(view))
+    assert "Player death recaps" not in _labels(view)
+
+
 def _buttons(widget):
     """The buttons shown, once what was drawn last has shown."""
     _shown()

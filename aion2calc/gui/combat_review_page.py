@@ -17,9 +17,10 @@ Drawn here so far:
   cooldown usage, and the cast timeline.
 - Since 0.2.461 the casts, buffs and break gauge: the rotation, the buffs and debuffs, the crowd control, the break
   gauge, the boss casts and the buff contribution estimate.
+- Since 0.2.462 the player death recaps, each opened with its effects and HP samples.
 
-The rest of the review (its death recaps, insights, rankings, reports, comparisons and movement replay) opens in the web
-interface for now, from a button on the page.
+The rest of the review (its insights, rankings, reports, comparisons and movement replay) opens in the web interface for
+now, from a button on the page.
 """
 from __future__ import annotations
 
@@ -341,6 +342,9 @@ class ReviewPage(QWidget):
             body.addWidget(self._table(["Boss", "Remaining HP", "Observed maximum", "Remaining %", "Sample time"], bosses))
             body.addWidget(_muted(cw.HP_NOTE))
         body.addWidget(self._enemies(d))
+        self.recaps_box = None
+        if state["metric"] == "deaths":
+            body.addWidget(self._recaps(v))
         self.summary = self.timeline = None
         self.filter_buttons = {}
         if state["view"] == "table":                                 # the view chosen (``data-view``)
@@ -962,6 +966,35 @@ class ReviewPage(QWidget):
             column.addWidget(_muted(omitted))
         return box
 
+    # ---------------------------------------------------------------- the death recaps (0.2.462)
+    def _recaps(self, v: dict) -> QWidget:
+        """The player death recaps (``recapsHTML``): the encounter's recaps, the one opened with its effects and HP
+        samples; or why the log holds none."""
+        model = cw.recaps(self.doc, v, self.state)
+        if model.get("missing"):
+            return _note(model["missing"])
+        box, column = _plain(spacing=8)
+        self.recaps_box = box
+        column.addWidget(_head("Player death recaps"))
+        column.addWidget(_muted(model["intro"]))
+        # the columns shared out evenly: the web page's recap tables have no wide first column (its HP readings' two
+        # columns sit near the middle)
+        column.addWidget(self._rows(cw.RECAP_COLUMNS, model["rows"], v, first=1))
+        chosen = model["selected"]
+        if chosen is None:
+            column.addWidget(_label(model["none"]))
+            return box
+        column.addWidget(_label(f"<b>{html.escape(chosen['title'], quote=False)}</b>", rich=True))
+        column.addWidget(_muted(chosen["note"]))
+        column.addWidget(self._rows(cw.RECAP_EFFECT_COLUMNS, chosen["events"], v, first=1))
+        column.addWidget(self._rows(cw.RECAP_HP_COLUMNS, chosen["health"], v, first=1))
+        return box
+
+    def _recap(self, key: str) -> None:
+        """A recap opened (``data-recap``)."""
+        self.state["recap"] = key
+        self.draw()
+
     def _actions_tab(self, key: str) -> None:
         """A tab of the casts, buffs and break gauge chosen (``data-actions``)."""
         self.state["actions"] = key
@@ -975,10 +1008,23 @@ class ReviewPage(QWidget):
         return words
 
     def _cell(self, cell, v: dict):
-        """A cell of the model's rows: text, an actor, a skill with its icon, rich text, or a list of actors with counts."""
+        """A cell of the model's rows: text, an actor (with **Open recap** under a recap's), a recap's last hit, a skill
+        with its icon, rich text, or a list of actors with counts."""
         if not isinstance(cell, dict):
             return cell
         r = v["r"]
+        if "recap" in cell:                                          # a recap's player, and **Open recap** under them
+            box, column = _plain(spacing=4)
+            column.addWidget(self._actor(r.get(cell["actor"])))
+            row, line = _plain(QHBoxLayout)
+            open_recap = _button(cw.OPEN_RECAP, lambda key=cell["recap"]: self._recap(key))
+            open_recap.setAccessibleName(f"Open the recap of {cw.actor_label(r.get(cell['actor']))} at {cell['at']}")
+            line.addWidget(open_recap)
+            line.addStretch(1)
+            column.addWidget(row)
+            return box
+        if "hit" in cell:                                            # a recap's last hit: its attacker, then its words
+            return _label(self._actor_html(r.get(cell["hit"])) + html.escape(cell["words"], quote=False), rich=True)
         if "actor" in cell:
             if cell.get("boss"):
                 return _label(self._actor_html(r.get(cell["actor"])) + cw._muted_html("boss"), rich=True)
@@ -997,10 +1043,11 @@ class ReviewPage(QWidget):
                           or "—", rich=True)
         return ""
 
-    def _rows(self, columns: list[str], rows: list[list], v: dict) -> QWidget:
-        """One of the section's tables, its first column with a larger share, as the web page's tables share the width."""
+    def _rows(self, columns: list[str], rows: list[list], v: dict, first: int = 2) -> QWidget:
+        """One of the section's tables, its first column with a larger share (``first``), as the web page's tables share
+        the width."""
         return self._grid(columns, [[self._cell(c, v) for c in row] for row in rows],
-                          {c: 2 if c == 0 else 1 for c in range(len(columns))})
+                          {c: first if c == 0 else 1 for c in range(len(columns))})
 
     # ---------------------------------------------------------------- the timeline (0.2.459)
     def _timeline(self, v: dict, events: list[dict]) -> QWidget:

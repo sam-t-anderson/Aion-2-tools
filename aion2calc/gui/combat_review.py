@@ -15,6 +15,8 @@ These are the review's model and the frame's words:
   their skills' casts with cooldown usage (``skillsHTML``); and every press over the fight (``castTimeline``).
 - Since 0.2.461 the casts, buffs and break gauge (``actionsHTML``): the rotation's totals, MP and chain skills; the
   buffs and debuffs; the crowd control; the break gauge; the boss casts; and the buff contribution estimate.
+- Since 0.2.462 the player death recaps (``recapsHTML``): the analyzer's recaps of the party's deaths, an opponent's own
+  (``recapsOf``) with the party's deaths they struck in, and each recap's effects and HP samples.
 """
 from __future__ import annotations
 
@@ -52,8 +54,7 @@ OPPONENT_NOTE = ("The review below reads the fight from their side: the summary,
                  "their deaths, and the buffs, debuffs and crowd control on and from them. Only what the recording holds of "
                  "them is shown.")
 REFRESH = "Refresh rankings"
-ELSEWHERE = ("The death recaps, insights, rankings, reports, comparisons and movement replay of this log open in the web "
-             "interface for now.")
+ELSEWHERE = "The insights, rankings, reports, comparisons and movement replay of this log open in the web interface for now."
 OPEN_WEB = "Open the full review in the web interface"
 SUMMARY_COLUMNS = ["Player / server", "Class", "Damage done", "DPS", "Damage taken", "Healing", "HPS", "Deaths"]
 
@@ -194,7 +195,7 @@ def fresh_state(mode=None, segment=None) -> dict:
             "metric": "summary", "view": "table", "combine": True, "pets": True, "actor": "", "enemy": "", "graph": True,
             "graph_mode": "total", "hidden": set(), "timeline": True, "timeline_window": 30, "timeline_start": 0.0,
             "skills": True, "deaths": True, "heals": True, "page": 0, "ef": None, "ef_search": {}, "ef_open": "",
-            "detail": "contribution", "hide_procs": True, "actions": "rotation"}
+            "detail": "contribution", "hide_procs": True, "actions": "rotation", "recap": None}
 
 
 def settle_segment(doc: dict, state: dict) -> None:
@@ -1984,3 +1985,128 @@ def contribution_tab(doc: dict, d: dict, state: dict) -> dict:
     unlisted = (f"{number(c['unlisted_source_damage'])} of the damage added came from casters who are not in the roster."
                 if _truthy(c.get("unlisted_source_damage")) else "")
     return {"note": CONTRIBUTION_NOTE, "players": players, "unlisted": unlisted, "given": given, "buffs": buffs, "checks": checks}
+
+
+# ------------------------------------------------------------------ the death recaps (0.2.462)
+RECAP_WINDOW = 10.0                                  # seconds before a death marker (recaps.WINDOW)
+RECAP_LIMIT = 200                                    # effects and HP samples kept (recaps.MAX_EVENTS)
+RECAPS_OLDER = ("Death recaps are unavailable in this older view. Reopen the local file with the updated app, or update the "
+                "sharing server.")
+RECAPS_FOE = ("Their deaths, and your party's deaths they struck in during the window before (an arena round's death marker "
+              "names its winner).")
+RECAPS_FOE_OLDER = ("Up to 10 seconds of recorded history before each death marker. Your party's recaps are unavailable in "
+                    "this older view.")
+RECAPS_CONTEXT = ("Recaps include all recorded incoming sources for the selected player; enemy/metric/pet filters do not "
+                  "remove their context.")
+RECAPS_NONE_FOE = ("No death markers were recorded for them, or for your party's deaths they struck in; this does not prove "
+                   "survival.")
+RECAPS_NONE_OMITTED = ("No recap was retained for this selection; the session limit may have omitted it. Use Events to inspect "
+                       "recorded markers.")
+RECAPS_NONE = "No explicit player death markers were recorded for this selection; this does not prove survival."
+RECAP_COLUMNS = ["Player", "Death marker", "Window", "Recorded incoming damage", "Recorded received healing",
+                 "Latest recorded HP", "Last observed incoming hit"]
+RECAP_EFFECT_COLUMNS = ["Relative time", "Effect", "Source", "Ability", "Recorded amount"]
+RECAP_HP_COLUMNS = ["Relative time", "Observed HP"]
+RECAP_NOTE = ("Negative times are seconds before this marker. Equal timestamps do not establish ordering. Showing the last 200 "
+              "effects and 200 HP samples; {events} effects and {health} HP samples omitted. Window totals include omitted "
+              "effects.")
+OPEN_RECAP = "Open recap"
+
+
+def recaps_of(d: dict, victim) -> list[dict]:
+    """An opponent's own death recaps (``recapsOf``), built as the analyzer builds the party's (recaps.py, which covers
+    the party only): the damage and heals on them in the 10 seconds before each death marker, back to no earlier than
+    their previous death, and their HP readings then."""
+    effects = [e for e in d["events"] if e.get("kind") in ("damage", "heal") and e.get("target") == victim]
+    health = sorted((s for s in _list(d["segment"].get("health")) if isinstance(s, dict) and s.get("entity") == victim),
+                    key=lambda s: _num(s.get("t")) or 0.0)
+    deaths = sorted({t for t in (_num(e.get("t")) for e in d["events"] if e.get("kind") == "death" and e.get("target") == victim)
+                     if t is not None})
+    out, previous = [], None
+    for index, t in enumerate(deaths):
+        start = max(0.0, t - RECAP_WINDOW, previous if previous is not None else 0.0)
+        after = previous is not None and previous >= start
+
+        def inside(x, low_open: bool, low: float) -> bool:
+            value = _num(x.get("t"))
+            return value is not None and (value > low if low_open else value >= low) and value <= t
+        rows = [e for e in effects if inside(e, after, previous if after else start)]
+        samples = [s for s in health if inside(s, False, start)]
+        hits = [e for e in rows if e.get("kind") == "damage"]
+        previous = t
+        out.append({"key": f"o{index}", "player": victim, "t": t, "window_seconds": t - start,
+                    "short_window": t - start < RECAP_WINDOW,
+                    "incoming_damage": sum(_amount(e) for e in rows if e.get("kind") == "damage"),
+                    "received_healing": sum(_amount(e) for e in rows if e.get("kind") == "heal"),
+                    "last_incoming_hit": hits[-1] if hits else None, "last_hp": samples[-1] if samples else None,
+                    "events": rows[-RECAP_LIMIT:], "omitted_events": max(0, len(rows) - RECAP_LIMIT),
+                    "health": samples[-RECAP_LIMIT:], "omitted_health": max(0, len(samples) - RECAP_LIMIT)})
+    return out
+
+
+def recap_hp(x) -> str:
+    """An HP reading (``hp``): its current HP and maximum, or that the maximum or the reading is unavailable."""
+    if not _truthy(x):
+        return "Unavailable"
+    x = _dict(x)
+    return number(x.get("current")) + (f" / {number(x['max'])}" if _truthy(x.get("max")) else " (maximum unavailable)")
+
+
+def recaps(doc: dict, d: dict, state: dict) -> dict:
+    """The player death recaps (``recapsHTML``): the analyzer's recaps of the party's deaths in the encounter chosen
+    (``death_analysis``), a player's alone when one is chosen; for an opponent, their own deaths and the party's
+    deaths they struck in. With the one opened (``state.recap``, else the first): its effects and HP samples."""
+    analysis, foe = doc.get("death_analysis"), d["foe"]
+    if not _truthy(analysis) and not foe:
+        return {"missing": RECAPS_OLDER}
+    a = _dict(analysis)
+    party = [{**_dict(x), "key": str(i)} for i, x in enumerate(_list(a.get("recaps")))]
+    party = [x for x in party if x.get("segment") == state["segment"]]
+
+    def struck(x) -> bool:
+        """A party death an opponent struck in: their hit in its window, or the arena round's winner its marker names."""
+        return (any(_dict(e).get("kind") == "damage" and _truthy(_dict(e).get("source")) and d["ours"](_dict(e)["source"])
+                    for e in _list(x.get("events")))
+                or any(e.get("kind") == "death" and e.get("target") == x.get("player") and e.get("t") == x.get("t")
+                       and _truthy(e.get("source")) and d["ours"](e["source"]) for e in d["events"]))
+    if foe:
+        shown = sorted(recaps_of(d, foe) + [x for x in party if struck(x)], key=lambda x: _num(x.get("t")) or 0.0)
+        intro = f"{RECAPS_FOE} {js_string(a.get('note')) if _truthy(analysis) else RECAPS_FOE_OLDER}"
+        none = RECAPS_NONE_FOE
+    else:
+        shown = [x for x in party if not state["actor"] or x.get("player") == state["actor"]]
+        omitted = a.get("omitted_recaps")
+        intro = (f"{js_string(a.get('note'))} {RECAPS_CONTEXT} "
+                 + (f"{js_string(omitted)} recaps omitted by the 200-recap session limit." if _truthy(omitted) else ""))
+        none = RECAPS_NONE_OMITTED if _truthy(omitted) else RECAPS_NONE
+
+    def hit(x):
+        if not _truthy(x):
+            return "Unavailable"
+        x = _dict(x)
+        return {"hit": x.get("source"), "words": f" · {js_string(_first(x.get('skill'), x.get('skill_id'), 'Unknown ability'))} · "
+                                                 f"{number(x.get('amount'))} at {fixed(x.get('t'), 3)}s"}
+    rows = [[{"recap": x["key"], "actor": x.get("player"), "at": f"{fixed(x.get('t'), 3)}s"}, f"{fixed(x.get('t'), 3)}s",
+             f"{fixed(x.get('window_seconds'), 1)}s" + (" (short / split boundary)" if _truthy(x.get("short_window")) else ""),
+             number(x.get("incoming_damage")), number(x.get("received_healing")),
+             recap_hp(x.get("last_hp")) + (f" at {fixed(_dict(x['last_hp']).get('t'), 3)}s" if _truthy(x.get("last_hp")) else ""),
+             hit(x.get("last_incoming_hit"))] for x in shown]
+    chosen = state.get("recap")
+    selected = next((x for x in shown if x["key"] == chosen), shown[0] if shown else None)
+    out = {"intro": intro, "rows": rows, "none": none, "selected": None}
+    if selected is not None:
+        t = _num(selected.get("t"))
+
+        def relative(x) -> str:
+            value = _num(_dict(x).get("t"))
+            return f"{fixed(None if value is None or t is None else value - t, 3)}s"
+        events = [_dict(e) for e in _list(selected.get("events"))]
+        out["selected"] = {
+            "key": selected["key"],
+            "title": f"{actor_label(d['r'].get(selected.get('player')))} · death marker at {fixed(selected.get('t'), 3)}s",
+            "note": RECAP_NOTE.format(events=js_string(selected.get("omitted_events")),
+                                      health=js_string(selected.get("omitted_health"))),
+            "events": [[relative(e), js_string(e.get("kind")), _cell_actor(e.get("source")),
+                        js_string(_first(e.get("skill"), e.get("skill_id"), "Unknown")), number(e.get("amount"))] for e in events],
+            "health": [[relative(s), recap_hp(s)] for s in _list(selected.get("health"))]}
+    return out
