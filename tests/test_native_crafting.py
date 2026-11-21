@@ -428,4 +428,4 @@ def test_a_catalog_the_page_cannot_open(qapp):
 def test_the_window_draws_crafting_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("crafting"), CraftingPage) and not isinstance(window.page("crafting"), WebPage)
-    assert isinstance(window.page("maps"), WebPage)                                        # not moved over yet
+    assert isinstance(window.page("raid"), WebPage)                                        # not moved over yet

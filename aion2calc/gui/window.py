@@ -24,6 +24,7 @@ from .news import NewsPage
 from .crafting_page import CraftingPage
 from .database_page import DatabasePage
 from .gathering_page import GatheringPage
+from .maps_page import MapsPage
 from .pets_page import PetsPage
 from .timers_page import TimersPage
 from .overlay import START_SCOPE, counter_lines
@@ -236,6 +237,8 @@ class MainWindow(QMainWindow):
                     widget = PetsPage(api)
                 elif key == "crafting":
                     widget = CraftingPage(api)
+                elif key == "maps":
+                    widget = MapsPage(api)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)

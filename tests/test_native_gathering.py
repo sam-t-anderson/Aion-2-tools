@@ -222,6 +222,6 @@ def test_without_your_records_the_page_says_so(qapp):
 def test_the_window_draws_the_gathering_page_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("gathering"), GatheringPage)
-    assert isinstance(window.page("maps"), WebPage)                               # not moved over yet
+    assert isinstance(window.page("raid"), WebPage)                               # not moved over yet
     window.page("gathering").show_page("settings")
     assert window.pages.currentWidget() is window.page("settings")
