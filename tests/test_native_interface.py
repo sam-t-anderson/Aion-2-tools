@@ -73,11 +73,12 @@ def test_the_overlay_draws_the_meters_reading(qapp):
     window.apply_meter(_meter())
     rows = [row for row in window.rows if not row.isHidden()]
     assert [row.name for row in rows] == ["Seraphel", "Nyxara", "Velmira"]          # by DPS, highest first
-    assert [(row.rate, row.share) for row in rows] == [("23.40K/s", "51%"), ("15.60K/s", "34%"), ("6.70K/s", "15%")]
+    # The compact layout's numbers: the rate in whole digits, the share of the total to a tenth.
+    assert [(row.rate, row.share) for row in rows] == [("23,400/s", "51.2%"), ("15,600/s", "34.1%"), ("6,700/s", "14.7%")]
     assert rows[0].fill == 1.0 and 0 < rows[2].fill < rows[1].fill < 1
     assert [row.mine for row in rows] == [False, True, False]                         # you, by the local name
     assert window.status.text() == "Atiel · 75s · 45.70K raid DPS"
-    assert window.target_text == "Atiel  ·  47%  ·  TTK 1:06" and window.hp.fraction == pytest.approx(0.47)
+    assert window.target_text == "Atiel  ·  47.0%  ·  TTK 1m06s" and window.hp.fraction == pytest.approx(0.47)
     assert window.width() == 340
     window.grab()                                                                     # paints without error
 
@@ -109,8 +110,8 @@ def test_the_metric_switches_the_rows_and_the_settings_shape_the_window(qapp):
         player["hps"], player["healing"] = hps, hps * 75
     window.apply_meter(meter)
     assert [row.name for row in window.rows if not row.isHidden()] == ["Seraphel", "Nyxara"]     # two rows
-    assert all(row.height() == 30 for row in window.rows) and window.width() == 300
-    assert window.target.isHidden() and window.hp.isHidden()
+    assert all(row.height() == 36 for row in window.rows) and window.width() == 300   # the row height and 6
+    assert window.target_card.isHidden()
     window.metric_buttons["hps"].click()
     assert window.rate_metric == "hps" and window.metric_buttons["hps"].isChecked()
     assert [row.name for row in window.rows if not row.isHidden()][0] == "Velmira"

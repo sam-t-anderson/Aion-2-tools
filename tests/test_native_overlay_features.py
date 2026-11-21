@@ -58,10 +58,10 @@ def test_the_rows_name_display_rank_numbers_and_compact_rows(qapp):
                       overlay_show_combat_power=False)
     rows = _rows(window)
     assert [row.label() for row in rows] == ["1. Sorcerer 1", "2. Ranger 2", "3. Cleric 3"]
-    assert rows[0].right() == "23.40K/s"                                   # compact: the rate alone
+    assert rows[0].right() == "23,400/s"                                   # compact: the rate alone
     window.apply_ui({"overlay_width": 340, "overlay_name_mode": "number", "overlay_show_combat_power": False})
     assert [row.label() for row in _rows(window)] == ["P1", "P2", "P3"]
-    assert _rows(window)[0].right() == "23.40K/s  51%"
+    assert _rows(window)[0].right() == "23,400/s  51.2%"
 
 
 def test_your_unnamed_row_reads_you_and_your_combat_power_rides_beside_it(qapp):
@@ -82,7 +82,7 @@ def test_the_dead_and_the_row_look_settings(qapp):
     window = _overlay(meter, overlay_highlight_me=True, overlay_row_stripes=True, overlay_class_swatch=True,
                       overlay_class_color_names=True, overlay_bar_style="gradient", overlay_bar_rounded=True)
     rows = _rows(window)
-    assert rows[2].dead and rows[2].right().startswith("DEAD")
+    assert rows[2].dead and rows[2].label() == "Velmira  DEAD"             # by the name, as the web overlay's
     assert rows[1].mine and rows[1].look.highlight_me
     look = window.look
     assert (look.stripes, look.class_swatch, look.class_names, look.gradient, look.rounded) == (True,) * 5
@@ -101,12 +101,12 @@ def test_the_target_hp_ttk_enrage_and_break_gauge(qapp):
     assert window.hp.isHidden() and window.gauge.isHidden()
     window.apply_ui({"overlay_width": 340, "overlay_show_enemy_hp": True, "overlay_show_ttk": True,
                      "overlay_show_break_gauge": True})
-    assert window.target_text == "Atiel  ·  47%  ·  TTK 1:06  ·  Enrage 1:35  ·  Break 62%"
+    assert window.target_text == "Atiel  ·  47.0%  ·  TTK 1m06s  ·  Enrage 1m35s  ·  Break 62%"
     assert not window.gauge.isHidden() and window.gauge.fraction == pytest.approx(0.624)
     target["enrage"]["enraged"], target["break_gauge"]["pct"] = True, 3
     window.apply_meter(meter)
     assert window.target_text.endswith("ENRAGED  ·  BROKEN")
-    assert window.gauge.color.name() == "#e66a5a"                          # red once broken
+    assert window.gauge.broken and window.gauge.shown() == 1.0             # broken: the whole bar in stripes
 
 
 def test_your_contribution_or_the_dummy_parse(qapp):
@@ -158,7 +158,7 @@ def test_only_in_combat_auto_expand_and_the_status(qapp):
     meter["snapshot"].update(battle_over=True)
     window.apply_ui({"overlay_width": 340, "overlay_only_in_combat": True})
     assert window.status.text() == "Idle · waiting for combat" and _rows(window) == []
-    assert window.target.isHidden() and window.lines.isHidden()
+    assert window.target_card.isHidden() and window.lines.isHidden()
 
 
 def test_the_background_modes(qapp):

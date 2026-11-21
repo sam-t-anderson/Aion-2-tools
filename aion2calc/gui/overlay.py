@@ -30,9 +30,9 @@ import sys
 import time
 from urllib.parse import quote
 
-from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSettings, QSize, Qt, QTimer
-from PySide6.QtGui import (QColor, QFont, QFontMetricsF, QGuiApplication, QImage, QLinearGradient, QPainter,
-                           QPainterPath, QPen, QPixmap)
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSettings, QSize, Qt, QTimer
+from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QFont, QFontMetricsF, QGuiApplication, QImage,
+                           QLinearGradient, QPainter, QPainterPath, QPen, QPixmap)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QPushButton,
                                QScrollArea, QSizePolicy, QSlider, QVBoxLayout, QWidget)
 
@@ -42,6 +42,7 @@ from .api import AppApi, Poller, Requests
 from .host import WindowHost
 from .look import (ANIMATION_MS, TextEffect, TextLook, background_rect, contrast_colour, cycled, draw_text,
                    forget_pictures, hex_colour, reduced_motion, sheen_brush)
+from .pictures import Pictures
 
 METRICS = (("dps", "DPS"), ("hps", "HPS"), ("dtps", "Taken"))
 DEFAULT_OPACITY = 0.72                    # the overlay page's own starting opacity (overlay.js ``op``)
@@ -216,13 +217,31 @@ def panel_reading(snap: dict, player: dict | None, buffs, extra, name: str, mine
             "skills": skill_lines, "buffs": buff_lines, "buffs_note": note}
 
 
-def _clock(seconds) -> str:
-    """A time as the overlay writes its TTK and enrage timer: m:ss."""
-    try:
-        seconds = max(0, int(float(seconds)))
-    except (TypeError, ValueError):
-        return "—"
-    return f"{seconds // 60}:{seconds % 60:02d}"
+def fmt_ttk(seconds) -> str:
+    """overlay.js ``fmtTtk``, as the target card writes its time to kill and enrage timer: 45s, 1m06s, 1h2m."""
+    total = theme.js_round(_num(seconds))
+    if total >= 3600:
+        return f"{total // 3600}h{total % 3600 // 60}m"
+    if total >= 60:
+        return f"{total // 60}m{total % 60:02d}s"
+    return f"{total}s"
+
+
+def hp_tip(target: dict) -> str:
+    """The target's HP readouts' tooltip (overlay.js ``hpTip``): its HP in damage units where the community has
+    measured it, else what has been dealt to it and the game's own HP, on its larger scale."""
+    kfmt = theme.kfmt
+    if target.get("effective_max_hp") is not None:
+        samples = target.get("effective_hp_samples") or 0
+        return (f"HP ≈ {kfmt(target.get('effective_current_hp'))} / {kfmt(target.get('effective_max_hp'))} in damage "
+                f"units — calibrated from {samples} community kill{'' if samples == 1 else 's'} on this game build. "
+                f"Effective HP dealt so far ≈ {kfmt(target.get('damage'))}.")
+    tip = f"Effective HP so far ≈ {kfmt(target.get('damage'))} (total recorded damage dealt to it)."
+    if target.get("current_hp") is not None:
+        tip += (f" Game internal HP {kfmt(target.get('current_hp'))}"
+                f"{' / ' + kfmt(target.get('max_hp')) if target.get('max_hp') else ''} is on a larger, different "
+                f"scale than damage, so it is shown here as a percentage.")
+    return tip
 
 
 def _rate(player: dict, metric: str) -> float:
@@ -430,8 +449,16 @@ class _Card(QWidget):
         return self._layer
 
 
+def _mix(colour, other, share: float) -> QColor:
+    """CSS ``color-mix(in srgb, colour share, other)``."""
+    one, two = QColor(colour), QColor(other)
+    return QColor.fromRgbF(one.redF() * share + two.redF() * (1 - share),
+                           one.greenF() * share + two.greenF() * (1 - share),
+                           one.blueF() * share + two.blueF() * (1 - share))
+
+
 class HpBar(QWidget):
-    """The target's HP, a filled bar."""
+    """A filled bar, its colour over a faint track: the player panel's skill and buff bars."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -457,27 +484,97 @@ class HpBar(QWidget):
             painter.drawRoundedRect(QRectF(rect.x(), rect.y(), rect.width() * self.fraction, rect.height()), 3, 3)
 
 
-class GaugeBar(HpBar):
-    """The target's break gauge: amber, red once broken (5% or less, as the web overlay has it)."""
+class CardBar(HpBar):
+    """A bar inside the target card (overlay.css ``#ov.ov-nm .ovtbar``): a faint track with a fine edge, filled from
+    the left. The HP's (``glow``) runs from its colour's darker end to the colour and glows past its end."""
+
+    def __init__(self, parent=None, height: int = 6, glow: bool = False):
+        super().__init__(parent)
+        self.glow = glow
+        self.setFixedHeight(height)
+
+    def shown(self) -> float:
+        return self.fraction
+
+    def paint_fill(self, painter: QPainter, fill: QRectF) -> None:
+        if not self.glow:
+            painter.fillRect(fill, self.color)
+            return
+        gradient = QLinearGradient(fill.topLeft(), fill.topRight())
+        gradient.setColorAt(0, _mix(self.color, "#0c0e11", 0.38))
+        gradient.setColorAt(1, self.color)
+        painter.fillRect(fill, gradient)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = QRectF(self.rect())
+        radius = rect.height() / 2
+        track = QPainterPath()
+        track.addRoundedRect(rect, radius, radius)
+        painter.fillPath(track, QColor(255, 255, 255, 15))
+        shown = self.shown()
+        if shown > 0:
+            painter.save()
+            painter.setClipPath(track)            # ``overflow: hidden``: the fill's glow stays in the track
+            fill = QRectF(rect.x(), rect.y(), rect.width() * shown, rect.height())
+            if self.glow:                         # ``box-shadow: 0 0 6px`` the colour at 40%, past the fill's end
+                halo = QColor(self.color)
+                halo.setAlphaF(0.4)
+                fade = QLinearGradient(fill.right(), 0, fill.right() + 6, 0)
+                fade.setColorAt(0, halo)
+                fade.setColorAt(1, QColor(halo.red(), halo.green(), halo.blue(), 0))
+                painter.fillRect(QRectF(fill.right(), rect.y(), 6, rect.height()), fade)
+            shape = QPainterPath()
+            r = min(radius, fill.width() / 2)
+            shape.addRoundedRect(fill, r, r)
+            painter.setClipPath(shape, Qt.IntersectClip)
+            self.paint_fill(painter, fill)
+            painter.restore()
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(QPen(QColor(255, 255, 255, 13), 1))
+        painter.drawRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), max(0.0, radius - 0.5), max(0.0, radius - 0.5))
+
+
+class GaugeBar(CardBar):
+    """The target's break gauge (``.ovtbar-gauge``): amber, 4 px; once broken (5% or less left, as the web overlay
+    has it) the whole bar in stripes."""
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.color = QColor("#e9a43a")
-        self.setFixedHeight(4)
+        super().__init__(parent, 4)
+        self.color = QColor("#e3b35a")
+
+    @property
+    def broken(self) -> bool:
+        return self.fraction <= 0.05
 
     def set_fraction(self, fraction: float) -> None:
+        was = self.broken
         super().set_fraction(fraction)
-        self.color = QColor("#e66a5a" if self.fraction <= 0.05 else "#e9a43a")
+        if self.broken != was:
+            self.update()
+
+    def shown(self) -> float:
+        return 1.0 if self.broken else self.fraction
+
+    def paint_fill(self, painter: QPainter, fill: QRectF) -> None:
+        if not self.broken:
+            painter.fillRect(fill, self.color)
+            return
+        x = fill.left()                           # ``repeating-linear-gradient(90deg, #f0c36a 0 6px, #b5832e 6px 12px)``
+        while x < fill.right():
+            painter.fillRect(QRectF(x, fill.top(), 6, fill.height()), QColor("#f0c36a"))
+            painter.fillRect(QRectF(x + 6, fill.top(), 6, fill.height()), QColor("#b5832e"))
+            x += 12
 
 
-class TtkBar(HpBar):
+class TtkBar(CardBar):
     """The target's time-to-kill bar (overlay.css ``.ovtbar-ttk``): how much of the whole kill has gone by, by time,
     3 px high, in the time-to-kill colour (``overlay_ttk_color``)."""
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(parent, 3)
         self.color = QColor("#8fb3d0")
-        self.setFixedHeight(3)
         self.setToolTip("Estimated kill progress by time — how much of the whole kill has elapsed (engaged time so "
                         "far vs the time-to-kill still remaining). Packet-sourced; it can run ahead of or behind the "
                         "HP bar when the fight starts slow or finishes fast.")
@@ -490,6 +587,46 @@ class MiniBar(HpBar):
         super().__init__(parent)
         self.color = QColor(theme.COLORS["gold"])
         self.setFixedSize(54, 5)
+
+
+class Portrait(QWidget):
+    """The target's portrait (overlay.css ``#ov.ov-nm .ovtarget .ovtport``): the boss's bundled art filling its 34 px
+    rounded square, or the target mark where the app has none."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.picture: QPixmap | None = None
+        self.setFixedSize(34, 34)
+
+    def set_picture(self, picture: QPixmap | None) -> None:
+        if (picture.cacheKey() if picture is not None else None) != \
+                (self.picture.cacheKey() if self.picture is not None else None):
+            self.picture = picture
+            self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
+        rect = QRectF(self.rect())
+        square = QPainterPath()
+        square.addRoundedRect(rect, 8, 8)
+        painter.fillPath(square, QColor(255, 255, 255, 13))
+        picture = self.picture
+        if picture is not None and not picture.isNull():   # ``object-fit: cover``
+            painter.setClipPath(square)
+            scale = max(rect.width() / picture.width(), rect.height() / picture.height())
+            width, height = picture.width() * scale, picture.height() * scale
+            painter.drawPixmap(QRectF(rect.center().x() - width / 2, rect.center().y() - height / 2, width, height),
+                               picture, QRectF(picture.rect()))
+            return
+        painter.translate(rect.center().x() - 11, rect.center().y() - 11)   # ``--nm-ic-target``, 22 px
+        painter.scale(22 / 24, 22 / 24)
+        painter.setPen(QPen(QColor("#8b95a3"), 2, Qt.SolidLine, Qt.RoundCap))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawEllipse(QPointF(12, 12), 7.5, 7.5)
+        painter.drawEllipse(QPointF(12, 12), 2.5, 2.5)
+        for x1, y1, x2, y2 in ((12, 2, 12, 6), (12, 18, 12, 22), (2, 12, 6, 12), (18, 12, 22, 12)):
+            painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
 
 class SkillLine(QWidget):
@@ -801,6 +938,35 @@ class CooldownStrip(QWidget):
             chip.show()
 
 
+COSMETICS = ("gold", "rainbow", "ember", "frost", "aether", "starlight")   # overlay.js ``COSMETICS``, all but none
+RANK_COLOURS = ("#f2c84b", "#cfd4dc", "#d08a52")   # overlay.css ``.ovrank-1`` to ``-3``: gold, silver, bronze
+#: The combat-power chip's crossed swords (``--nm-ic-cp``), its strokes in a 24-unit square.
+SWORDS = ((4, 4, 15, 15), (13, 17, 17, 13), (15, 15, 19, 19), (20, 4, 9, 15), (7, 13, 11, 17), (9, 15, 5, 19))
+RAINBOW = ("#ff5e5e", "#ffb75e", "#f6ff5e", "#5eff8a", "#5ed8ff", "#a35eff", "#ff5ee1", "#ff5e5e")
+GOLD_RING = ("#f6e27a", "#b8860b", "#fff6c2", "#d4af37", "#f6e27a")
+STAR_LOOK = TextLook({"overlay_glow": True, "overlay_glow_color": "#ffe9a6"})   # ``.ov-cos-starlight``'s glow
+
+
+def rate_text(value) -> str:
+    """overlay.js ``rateText`` in the compact layout: a rate in whole digits below ten million, else ``kfmt``."""
+    value = _num(value)
+    return theme.digits(value) if abs(value) < 1e7 else theme.kfmt(value)
+
+
+def _eased(phase: float) -> float:
+    """CSS ``ease-in-out`` near enough: a smooth step from 0 to 1."""
+    phase = max(0.0, min(1.0, phase))
+    return phase * phase * (3 - 2 * phase)
+
+
+def _twinkle(seconds: float | None, period: float, delay: float = 0.0) -> float:
+    """``ovtwinkle``: an opacity from 0.45 up to 1 and back each ``period``; 1 held still."""
+    if seconds is None:
+        return 1.0
+    phase = ((seconds - delay) % period) / period
+    return 0.45 + 0.55 * _eased(1 - abs(1 - 2 * phase))
+
+
 class RowLook:
     """How the rows look, from the overlay's settings (the web overlay's ``nameMode``, ``rankNumbers`` ...)."""
 
@@ -818,6 +984,11 @@ class RowLook:
         self.show_deaths = ui.get("overlay_show_deaths") is not False
         self.show_cp = ui.get("overlay_show_combat_power") is not False
         self.auto_expand = ui.get("overlay_auto_expand") is True
+        # The rows' effects (``overlay_me_cosmetic`` for your row, ``overlay_top_cosmetic`` for the top one) and
+        # long names scrolling under the pointer (``overlay_long_names_scroll``).
+        self.me_cosmetic = ui.get("overlay_me_cosmetic") if ui.get("overlay_me_cosmetic") in COSMETICS else None
+        self.top_cosmetic = ui.get("overlay_top_cosmetic") if ui.get("overlay_top_cosmetic") in COSMETICS else None
+        self.scroll_names = ui.get("overlay_long_names_scroll") is True
 
     def display_name(self, player: dict, mine: bool, unnamed_self: bool) -> str:
         """The web overlay's ``displayName``: the name, "Sorcerer 2" or "P2"; your unnamed row reads "You"."""
@@ -828,9 +999,16 @@ class RowLook:
             return f"{str(player.get('class') or 'Player').title()} {number}"
         return "You" if unnamed_self else str(player.get("name") or "?")
 
+    def cosmetic(self, mine: bool, index: int) -> str | None:
+        """A row's effect: yours on your row, the top one's on the top row (yours wins when both are yours)."""
+        return self.me_cosmetic if mine and self.me_cosmetic else self.top_cosmetic if index == 0 else None
+
 
 class PlayerRow(QWidget):
-    """One player: the bar in the class's colour, the name, the rate and the share, as the row's look has it."""
+    """One player as the compact layout draws them (overlay.css ``#ov.ov-nm .ovrow``): a pill with the bar in the
+    class's colour filling it to the player's share of the top rate; the rank, the class's emblem (yours with a green
+    dot), the name and what goes beside it; the rate in whole digits and the share of the total to a tenth. Your row
+    or the top row can carry an effect (``cosmetic``), and a name cut short can scroll under the pointer."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -840,24 +1018,37 @@ class PlayerRow(QWidget):
         self.actor, self.crank = "", ""           # "#id" beside a name two players share; the community standing
         self.target, self.amount = 0.0, 0.0       # the reading's rate and amount, for the live tick
         self.text_look = TextLook({})             # the overlay's fonts, colours and effects
-        self.seconds: float | None = None         # how far the colour cycle and the sheen are; None held still
+        self.seconds: float | None = None         # how far the colour cycle, the sheen and the effects are; None still
         self.color = QColor(theme.FALLBACK_CLASS_COLOR)
-        self.setFixedHeight(22)
+        self.emblem: QPixmap | None = None        # the class's emblem, where the app has one
+        self.cosmetic: str | None = None          # your row's or the top row's effect
+        self.whole = True                         # on the whole card (the background mode), else a pill of its own
+        self.moving = True                        # effects may move: not in performance mode or with less motion asked
+        self._shade: tuple | None = None          # the emblem's shadow, made once for each emblem
+        self._scroll_from: float | None = None    # when a long name began to scroll under the pointer
+        self._cut = False                         # the name is cut short
+        self._scroll = QTimer(self)
+        self._scroll.setInterval(40)
+        self._scroll.timeout.connect(self.update)
+        self.setFixedHeight(28)
+        self.setAttribute(Qt.WA_Hover)
         self.setCursor(Qt.PointingHandCursor)     # a click opens the player's panel
 
     def set_player(self, name: str, cls: str, rate: str, share: str, fill: float, mine: bool,
                    index: int = 0, dead: bool = False, cp: str = "", look: RowLook | None = None,
-                   key: str = "", open_: bool = False, actor: str = "", crank: str = "") -> None:
+                   key: str = "", open_: bool = False, actor: str = "", crank: str = "",
+                   emblem: QPixmap | None = None, whole: bool = True) -> None:
         look = look or self.look
         self.key = key
+        cosmetic = look.cosmetic(mine, index)
         state = (name, cls, rate, share, round(fill, 4), mine, index, dead, cp, open_, actor, crank,
-                 tuple(sorted(vars(look).items())))
+                 tuple(sorted(vars(look).items())), emblem.cacheKey() if emblem is not None else None, whole)
         if state == getattr(self, "_state", None):
             return
         self._state = state
         self.name, self.rate, self.share, self.fill, self.mine = name, rate, share, max(0.0, min(1.0, fill)), mine
         self.index, self.dead, self.cp, self.look, self.open = index, dead, cp, look, open_
-        self.actor, self.crank = actor, crank
+        self.actor, self.crank, self.emblem, self.whole, self.cosmetic = actor, crank, emblem, whole, cosmetic
         self.color = QColor(theme.class_color(cls))
         self.update()
 
@@ -875,102 +1066,332 @@ class PlayerRow(QWidget):
         self.update()
 
     def segments(self) -> list[tuple[str, str]]:
-        """The row's left-hand text in its parts, each with what it is: the rank and the name, the actor id beside a
-        name two players share, the community standing and the combat power."""
-        parts = [((f"{self.index + 1}. " if self.look.rank_numbers else "") + self.name, "name")]
-        parts += [(text, kind) for text, kind in ((self.actor, "actor"), (self.crank, "crank"), (self.cp, "cp")) if text]
+        """The row's left-hand text in its parts, each with what it is: the rank, the name, the actor id beside a name
+        two players share, DEAD, the community standing, the combat power, and ME on your highlighted row."""
+        parts = [(f"{self.index + 1}.", "rank")] if self.look.rank_numbers else []
+        parts.append((self.name, "name"))
+        parts += [(text, kind) for text, kind in (
+            (self.actor, "actor"), ("DEAD" if self.dead else "", "dead"), (self.crank, "crank"), (self.cp, "cp"),
+            ("ME" if self.mine and self.look.highlight_me else "", "me")) if text]
         return parts
 
     def label(self) -> str:
-        """The row's left-hand text: the rank, the name, the actor id, the community standing and the combat power."""
-        return "  ".join(text for text, _kind in self.segments())
+        """The row's left-hand text: the rank, the name, and what goes beside it."""
+        parts = self.segments()
+        rank = parts[0][0] + " " if parts[0][1] == "rank" else ""
+        return rank + "  ".join(text for text, kind in parts if kind != "rank")
 
     def right(self) -> str:
-        """The row's right-hand text: DEAD for the dead, the rate, and the share unless the rows are compact."""
-        dead = "DEAD  " if self.dead else ""
-        return f"{dead}{self.rate}" if self.look.compact else f"{dead}{self.rate}  {self.share}"
+        """The row's right-hand text: the rate, and the share unless the rows are compact."""
+        return self.rate if self.look.compact else f"{self.rate}  {self.share}"
+
+    # ------------------------------------------------------------------ the pointer: long names scroll
+    def event(self, event):
+        if event.type() == QEvent.HoverEnter and self.look.scroll_names and self.moving:
+            self._scroll_from = time.monotonic()
+            self._scroll.start()
+        elif event.type() == QEvent.HoverLeave:
+            self._scroll_from = None
+            self._scroll.stop()
+            self.update()
+        return super().event(event)
+
+    def _scrolled(self, width: float) -> float:
+        """``ovnamescroll``: a name ``width`` wide held 15% of 4 s, then moved left until its end lies 60 px in, and
+        back the same way."""
+        elapsed = time.monotonic() - self._scroll_from
+        turn, phase = divmod(elapsed / 4.0, 1.0)
+        phase = 1 - phase if int(turn) % 2 else phase
+        return 0.0 if phase <= 0.15 else (60 - width) * (phase - 0.15) / 0.85
+
+    # ------------------------------------------------------------------ drawing
+    def _fonts(self):
+        tl = self.text_look
+        px = self.font().pixelSize() if self.font().pixelSize() > 0 else 12
+        name = tl.font("name", px * 1.12, 700)    # ``.ovname``: 1.12em, 700
+        rate = tl.font("rate", px * 1.12, 800)    # ``.ovbar > span``: 1.12em, 800
+        share = QFont(rate)                       # ``.ovpct``: .84em of the rate's, 800
+        share.setPixelSize(max(6, round(rate.pixelSize() * 0.84)))
+        share.setWeight(QFont.ExtraBold)
+        chip = QFont(name)                        # ``.ovcp``: .78em of the name's, 700
+        chip.setPixelSize(max(6, round(name.pixelSize() * 0.78)))
+        chip.setWeight(QFont.Bold)
+        return px, name, rate, share, chip
+
+    def _small(self, name: QFont, weight, spacing: float = 0.0) -> QFont:
+        """``.ovactor``, ``.ovdead``, ``.ovcrank`` and the ME badge: 9 px."""
+        font = QFont(name)
+        font.setPixelSize(9)
+        font.setWeight(weight)
+        if spacing:
+            font.setLetterSpacing(QFont.AbsoluteSpacing, spacing)
+        return font
+
+    def _emblem_shade(self) -> QPixmap:
+        """The emblem's ``drop-shadow``: its shape in black at 60%."""
+        key = self.emblem.cacheKey()
+        if self._shade is None or self._shade[0] != key:
+            shade = QPixmap(self.emblem.size())
+            shade.fill(Qt.transparent)
+            painter = QPainter(shade)
+            painter.drawPixmap(0, 0, self.emblem)
+            painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+            painter.fillRect(shade.rect(), QColor(0, 0, 0, 153))
+            painter.end()
+            self._shade = (key, shade)
+        return self._shade[1]
 
     def paintEvent(self, event):
-        look = self.look
+        look, tl = self.look, self.text_look
+        seconds = self.seconds if self.moving else None
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
         if self.dead:
-            painter.setOpacity(0.45)
-        rect = QRectF(self.rect()).adjusted(0, 1, 0, -1)
-        radius = 4 if look.rounded else 1.5
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(255, 255, 255, 26 if look.stripes and self.index % 2 else 14))
-        painter.drawRoundedRect(rect, radius, radius)
-        if self.fill > 0:
-            bar_rect = QRectF(rect.x(), rect.y(), rect.width() * self.fill, rect.height())
-            bar = QColor(self.color)
-            bar.setAlpha(200)
+            painter.setOpacity(0.55)              # ``.ovrow-dead``
+        rect = QRectF(self.rect())
+        height = rect.height()
+        radius = height / 2 if look.rounded else 7.0
+        pill = QPainterPath()
+        pill.addRoundedRect(rect, radius, radius)
+        if look.stripes and self.index % 2:      # zebra rows (``:nth-child(even)``)
+            ground = QColor(28, 32, 38, 179)
+        elif self.whole:                          # on the whole card a faint light (``--nm-row``)
+            ground = QColor(255, 255, 255, 11)
+        else:                                     # over the game, a dark pill of its own
+            ground = QColor(10, 12, 15, 140)
+        painter.fillPath(pill, ground)
+        if self.fill > 0:                         # the bar (``.ovbar i``), darker toward the card
+            bar = QRectF(0, 0, rect.width() * self.fill, height)
+            corner = min(radius, bar.width() / 2)
+            shape = QPainterPath()
+            shape.addRoundedRect(bar, corner, corner)
+            gradient = QLinearGradient(bar.topLeft(), bar.topRight())
             if look.gradient:
-                gradient = QLinearGradient(bar_rect.topLeft(), bar_rect.topRight())
-                gradient.setColorAt(0, bar)
-                fade = QColor(bar)
-                fade.setAlpha(70)
-                gradient.setColorAt(1, fade)
-                painter.setBrush(gradient)
+                gradient.setColorAt(0, self.color)
+                gradient.setColorAt(1, _mix(self.color, "#000000", 0.4))
             else:
-                painter.setBrush(bar)
-            painter.drawRoundedRect(bar_rect, radius, radius)
+                gradient.setColorAt(0, _mix(self.color, "#0c0e11", 0.7))
+                gradient.setColorAt(1, _mix(self.color, "#0c0e11", 0.86))
+            painter.fillPath(shape, gradient)
+        edge = QColor(255, 255, 255, 20)          # ``--nm-line``, or your row edged in the glow colour (``.ovrow-me``)
         if self.mine and look.highlight_me:
-            painter.setBrush(QColor(theme.COLORS["gold"]))
-            painter.drawRect(QRectF(rect.x(), rect.y(), 3, rect.height()))
-        tl, seconds = self.text_look, self.seconds
+            edge = QColor(tl.glow_colour)
+            edge.setAlphaF(0.6)
+        self._edge(painter, rect, radius, edge, 1.0)
+        self._paint_text(painter, rect, seconds)
+        if self.cosmetic:
+            self._paint_cosmetic(painter, rect, pill, radius, seconds)
+
+    @staticmethod
+    def _edge(painter: QPainter, rect: QRectF, radius: float, colour, width: float, inset: float = 0.0) -> None:
+        """A ring ``width`` thick ``inset`` within the pill (``box-shadow: inset 0 0 0 1px``)."""
+        painter.save()
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(QPen(colour, width))
+        half = inset + width / 2
+        painter.drawRoundedRect(rect.adjusted(half, half, -half, -half), max(0.0, radius - half),
+                                max(0.0, radius - half))
+        painter.restore()
+
+    def _paint_text(self, painter: QPainter, rect: QRectF, seconds: float | None) -> None:
+        look, tl = self.look, self.text_look
+        px, name_font, rate_font, share_font, chip_font = self._fonts()
+        height = rect.height()
         cycle = tl.cycle and seconds is not None  # ``hue-rotate`` over the whole of the names' part (``.ovname``)
-        left = rect.x() + 7
-        if look.class_swatch:
-            painter.setBrush(cycled(self.color, seconds) if cycle else self.color)
-            side = min(10.0, rect.height() - 6)
-            painter.drawRoundedRect(QRectF(left, rect.center().y() - side / 2, side, side), 2, 2)
-            left += side + 5
-        px = self.font().pixelSize() if self.font().pixelSize() > 0 else 12
-        own = 700 if self.mine else 400           # the rows' own weights: yours in bold
-        text = theme.COLORS["text"]
-        x = rect.right() - 7
-        if not look.compact:                      # the share, in the total's font and colour
-            share_font = tl.font("total", px, own)
-            x -= draw_text(painter, QRectF(left, rect.y(), x - left, rect.height()), self.share, share_font,
-                           QColor(tl.colour("total", text)), Qt.AlignRight, tl)
-            x -= QFontMetricsF(share_font).horizontalAdvance("  ")
-        rate_font, rate_colour = tl.font("rate", px, own), QColor(tl.colour("rate", text))
-        x -= draw_text(painter, QRectF(left, rect.y(), x - left, rect.height()), self.rate, rate_font, rate_colour,
-                       Qt.AlignRight, tl)
-        if self.dead:
-            x -= QFontMetricsF(rate_font).horizontalAdvance("  ")
-            x -= draw_text(painter, QRectF(left, rect.y(), x - left, rect.height()), "DEAD", rate_font, rate_colour,
-                           Qt.AlignRight, tl)
-        end = x - 8                               # the name stops short of the rate
-        name_font = tl.font("name", px, own)
-        small = QFont(name_font)
-        small.setPixelSize(max(8, round(name_font.pixelSize() * 0.78)))
-        small.setWeight(QFont.Normal)
-        names = QColor(tl.colour("name", text))
-        colours = {"name": self.color.lighter(150) if look.class_names else names, "actor": QColor("#aab3c5"),
-                   "crank": QColor(theme.COLORS["gold"]), "cp": QColor("#63d3e6")}
-        if tl.retro:                              # the sheen fills every part in the names' own colour
-            colours = dict.fromkeys(colours, names)
-        if cycle:
-            colours = {kind: cycled(colour, seconds) for kind, colour in colours.items()}
-        shift = (lambda colour: cycled(colour, seconds)) if cycle else None   # their effects turn with them
+        # The right: the share to a tenth (from 20em of room) and the rate, 9 px in (``.ovbar > span``).
+        x = rect.width() - 9
+        if not look.compact and rect.width() > 20 * px:
+            room = max(QFontMetricsF(share_font).horizontalAdvance(self.share), 3.5 * share_font.pixelSize())
+            draw_text(painter, QRectF(x - room, 0, room, height), self.share, share_font,
+                      QColor(tl.colour("total", "#f1d27c")), Qt.AlignRight, tl, shadow=True)
+            x -= room + 9
+        x -= draw_text(painter, QRectF(7, 0, max(0.0, x - 7), height), self.rate, rate_font,
+                       QColor(tl.colour("rate", "#ffffff")), Qt.AlignRight, tl, shadow=True)
+        end = x - 6                               # the names' part ends where the rate's padding begins
+        painter.save()
+        painter.setClipRect(QRectF(0, 0, max(0.0, end), height))   # ``.ovname { overflow: hidden }``
+        names = QColor(tl.colour("name", "#e9f7ff"))
+        name_colour = _mix(self.color, "#ffffff", 0.55) if look.class_names else names
+        shift = (lambda colour: cycled(colour, seconds)) if cycle else None   # the effects turn with them
         brush = None
-        if tl.retro and seconds is not None:      # one band across the names' whole room, as over ``.ovname``
-            brush = sheen_brush(QRectF(rect.x(), rect.y(), max(1.0, end - rect.x()), rect.height()), colours["name"],
+        if tl.retro and seconds is not None:      # one band across the names' room (``.ovname``)
+            brush = sheen_brush(QRectF(0, 0, max(1.0, end), height), cycled(names, seconds) if cycle else names,
                                 seconds)
-        for part_text, kind in self.segments():
-            if left >= end:
-                break
-            part = QFont(name_font if kind == "name" else small)
-            if kind == "crank":
-                part.setBold(True)
-            part.setUnderline(kind == "name" and self.open)   # the row whose panel is open (``.ovrow-detail``)
-            metrics = QFontMetricsF(part)
-            part_text = metrics.elidedText(part_text, Qt.ElideRight, end - left)
-            draw_text(painter, QRectF(left, rect.y(), end - left, rect.height()), part_text, part, colours[kind],
-                      Qt.AlignLeft, tl, brush, shift)
-            left += metrics.horizontalAdvance(part_text) + 5
+
+        def colour(value) -> QColor:
+            value = names if tl.retro else QColor(value)   # the sheen fills every part in the names' colour
+            return cycled(value, seconds) if cycle else value
+
+        def text(left: float, part: str, font: QFont, shade, room: float | None = None, opacity: float = 1.0,
+                 fill=None) -> float:
+            if room is not None:
+                part = QFontMetricsF(font).elidedText(part, Qt.ElideRight, max(0.0, room))
+            if opacity != 1.0:
+                painter.setOpacity(painter.opacity() * opacity)
+            width = draw_text(painter, QRectF(left, 0, max(1.0, end - left), height), part, font, colour(shade),
+                              Qt.AlignLeft, tl, fill if fill is not None else brush, shift, shadow=True)
+            if opacity != 1.0:
+                painter.setOpacity(painter.opacity() / opacity)
+            return width
+
+        left = 7.0                                # ``.ovname``: 7 px in
+        if self.cosmetic == "gold":               # ``.ov-cos-gold .ovname::before``: a twinkling diamond
+            diamond = QFont(name_font)
+            diamond.setPixelSize(max(6, round(name_font.pixelSize() * 0.8)))
+            left += text(left, "◆", diamond, "#f6e27a", opacity=_twinkle(seconds, 1.6)) + 5
+        parts = self.segments()
+        if parts[0][1] == "rank":                 # ``.ovrank``: the top three in gold, silver and bronze
+            rank = QFont(name_font)
+            top = self.index < 3
+            if top:
+                rank.setWeight(QFont.Bold)
+            left += text(left, parts[0][0], rank, RANK_COLOURS[self.index] if top else tl.colour("total", "#9aa3b5"),
+                         opacity=1.0 if top else 0.7) + 4
+        if self.emblem is not None and not self.emblem.isNull():   # ``.ovcicon``: 24 px, 8 px before the name
+            size = min(24.0, height - 2)
+            box = QRectF(left, (height - size) / 2, size, size)
+            painter.drawPixmap(box.translated(0, 1), self._emblem_shade(), QRectF(self.emblem.rect()))
+            painter.drawPixmap(box, self.emblem, QRectF(self.emblem.rect()))
+            if self.mine:                         # ``.ovrow-self .ovcicon::after``: a green dot, ringed
+                dot = QRectF(box.right() + 3 - 8, box.bottom() + 2 - 8, 8, 8)
+                painter.save()
+                painter.setPen(Qt.NoPen)
+                painter.setBrush(QColor("#0c0e11"))
+                painter.drawEllipse(dot.adjusted(-1.5, -1.5, 1.5, 1.5))
+                painter.setBrush(QColor("#3ddc84"))
+                painter.drawEllipse(dot)
+                painter.restore()
+            left += size + 8
+        if look.class_swatch:                     # ``.ovclass``: 8 px, 5 px before the name
+            swatch = QRectF(left, height / 2 - 4, 8, 8)
+            painter.save()
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(cycled(self.color, seconds) if cycle else self.color)
+            painter.drawRoundedRect(swatch, 2, 2)
+            painter.restore()
+            left += 8 + 5
+        # What follows the name keeps its width; the name gives way first (``text-overflow: ellipsis``).
+        after = []
+        for part, kind in parts:
+            if kind == "actor":
+                after.append((part, self._small(name_font, QFont.Normal), "#aab3c5", 4, 1.0))
+            elif kind == "dead":
+                after.append((part, self._small(name_font, QFont.Bold, 0.5), "#e5706e", 4, 1.0))
+            elif kind == "crank":
+                after.append((part, self._small(name_font, QFont.Bold, 0.3), "#e8cf8e", 5, 0.9))
+            elif kind == "cp" and rect.width() > 26.5 * px:   # ``@container (max-width: 26.5em)``: the chip steps aside
+                after.append((part, chip_font, "#63d3e6", 9, 1.0))
+            elif kind == "me":
+                after.append((part, self._small(name_font, QFont.ExtraBold, 0.6), "#e9a0dd", 6, 1.0))
+        reserved = sum(margin + QFontMetricsF(font).horizontalAdvance(part)
+                       + (1.3 * font.pixelSize() + 3 if font is chip_font else 0)
+                       for part, font, _shade, margin, _opacity in after)
+        room = max(0.0, end - left - reserved)
+        name_font = QFont(name_font)
+        name_font.setUnderline(self.open)        # the row whose panel is open (``.ovrow-detail``)
+        full = QFontMetricsF(name_font).horizontalAdvance(self.name)
+        self._cut = full > room + 0.5
+        rainbow = None
+        if self.cosmetic == "rainbow":            # ``.ov-cos-rainbow .ovnametext``: the colours moving left in 3 s
+            span = max(1.0, min(full, room)) * 2
+            start = left - ((seconds or 0.0) % 3.0) / 3.0 * span
+            rainbow = QLinearGradient(start, 0, start + span, 0)
+            rainbow.setSpread(QLinearGradient.RepeatSpread)
+            for at, shade in enumerate(RAINBOW):
+                rainbow.setColorAt(at / (len(RAINBOW) - 1), QColor(shade))
+        if self._scroll_from is not None and self._cut:
+            painter.save()
+            painter.setClipRect(QRectF(left, 0, room, height), Qt.IntersectClip)
+            text(left + self._scrolled(full), self.name, name_font, name_colour, fill=rainbow)
+            painter.restore()
+            left += room
+        else:
+            if self._scroll_from is not None:
+                self._scroll.stop()               # nothing to scroll: the name fits
+            left += text(left, self.name, name_font, name_colour, room, fill=rainbow)
+        for part, font, shade, margin, opacity in after:
+            left += margin
+            if font is chip_font:                 # ``.ovcp::before``: the crossed swords, 1.3em, 3 px before
+                side = 1.3 * font.pixelSize()
+                painter.save()
+                painter.translate(left, (height - side) / 2)
+                painter.scale(side / 24, side / 24)
+                painter.setPen(QPen(colour(shade), 2.2, Qt.SolidLine, Qt.RoundCap))
+                for x1, y1, x2, y2 in SWORDS:
+                    painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+                painter.restore()
+                left += side + 3
+            left += text(left, part, font, shade, opacity=opacity)
+        painter.restore()
+
+    def _paint_cosmetic(self, painter: QPainter, rect: QRectF, pill: QPainterPath, radius: float,
+                        seconds: float | None) -> None:
+        """Your row's or the top row's effect, over it (overlay.css ``.ov-cos-*``). A glow the web overlay spreads
+        round the row is drawn within it here, where the row's own window ends."""
+        kind = self.cosmetic
+        painter.save()
+        painter.setClipPath(pill)
+        if kind == "gold":                        # a gold ring turning once in 3 s (``ovspin``)
+            angle = ((seconds or 0.0) % 3.0) / 3.0 * 360
+            ring = QConicalGradient(rect.center(), 90 - angle)   # CSS turns clockwise from the top; Qt the other way
+            for at, shade in enumerate(GOLD_RING):
+                ring.setColorAt(1 - at / (len(GOLD_RING) - 1), QColor(shade))
+            self._edge(painter, rect, radius, QBrush(ring), 1.5)
+        elif kind == "ember" and seconds is not None:   # an orange edge breathing in 1.4 s, there and back
+            turn, phase = divmod(seconds / 1.4, 1.0)
+            glow = _eased(1 - phase if int(turn) % 2 else phase)
+            edge = QColor.fromRgbF(1.0, (120 + 50 * glow) / 255, (40 + 20 * glow) / 255, 0.55 + 0.4 * glow)
+            self._edge(painter, rect, radius, edge, 1.0)
+            for inset, share in ((1, 0.5), (2, 0.3), (3, 0.15)):
+                halo = QColor.fromRgbF(1.0, (90 + 30 * glow) / 255, (10 + 10 * glow) / 255, (0.4 + 0.45 * glow) * share)
+                self._edge(painter, rect, radius, halo, 1.0, inset)
+        elif kind == "frost":                     # a cold edge and glow, and a sheen across in 2.6 s
+            self._edge(painter, rect, radius, QColor(160, 220, 255, 179), 1.0)
+            for inset, alpha in ((1, 64), (2, 38), (3, 19)):
+                self._edge(painter, rect, radius, QColor(120, 200, 255, alpha), 1.0, inset)
+            if seconds is not None:
+                self._sheen(painter, rect, 2.2, 2.6, seconds, 110,
+                            ((0.4, QColor(220, 245, 255, 0)), (0.5, QColor(220, 245, 255, 97)),
+                             (0.6, QColor(220, 245, 255, 0))))
+        elif kind == "aether":                    # violet to teal sweeping across in 4 s, lightening what is under it
+            painter.setCompositionMode(QPainter.CompositionMode_Screen)
+            self._sheen(painter, rect, 3.0, 4.0, seconds, 100,
+                        ((0.0, QColor(120, 80, 255, 0)), (1 / 3, QColor(120, 80, 255, 97)),
+                         (2 / 3, QColor(60, 220, 200, 97)), (1.0, QColor(120, 80, 255, 0))))
+        elif kind == "starlight":                 # two stars twinkling in turn at the corners
+            star = QFont(self.font())
+            star.setPixelSize(max(6, round((self.font().pixelSize() or 12) * 0.9)))
+            for left, top, delay in ((3, 1, 0.0), (None, None, 0.6)):
+                metrics = QFontMetricsF(star)
+                width = metrics.horizontalAdvance("✦")
+                x = left if left is not None else rect.width() - 5 - width
+                y = top if top is not None else rect.height() - 1 - metrics.height()
+                painter.setOpacity(_twinkle(seconds, 1.2, delay))
+                draw_text(painter, QRectF(x, y, width + 1, metrics.height()), "✦", star, QColor("#fff8d6"),
+                          Qt.AlignLeft, STAR_LOOK)
+        painter.restore()
+
+    @staticmethod
+    def _sheen(painter: QPainter, rect: QRectF, size: float, period: float, seconds: float | None, angle: float,
+               stops) -> None:
+        """A gradient ``size`` times the row's width moved across it from ``background-position: 120%`` to
+        ``-120%`` in ``period`` (``ovsheen``), repeated as a background repeats; at 0% held still."""
+        width = rect.width()
+        tile = size * width
+        position = 0.0 if seconds is None else 1.2 - 2.4 * ((seconds % period) / period)
+        offset = (width - tile) * position
+        step = QPointF(math.sin(math.radians(angle)), -math.cos(math.radians(angle)))
+        length = tile * abs(step.x()) + rect.height() * abs(step.y())
+        first = offset - math.ceil((offset + tile) / tile) * tile
+        x = first
+        while x < width:
+            if x + tile > 0:
+                centre = QPointF(x + tile / 2, rect.center().y())
+                gradient = QLinearGradient(centre - step * (length / 2), centre + step * (length / 2))
+                for at, shade in stops:
+                    gradient.setColorAt(at, shade)
+                painter.fillRect(QRectF(max(0.0, x), 0, min(width, x + tile) - max(0.0, x), rect.height()), gradient)
+            x += tile
 
 
 class Grip(QWidget):
@@ -1084,7 +1505,7 @@ class MeterOverlay(QWidget):
         self.card = _Card(self)
         outer.addWidget(self.card)
         box = QVBoxLayout(self.card)
-        box.setContentsMargins(10, 8, 10, 9)
+        box.setContentsMargins(9, 8, 9, 9)        # the sides as the web card's: 8 px and its 1 px edge
         box.setSpacing(4)
         head = QHBoxLayout()
         self.mark = QFrame()                      # green while the fight runs, amber while the DPS clock is paused
@@ -1106,18 +1527,51 @@ class MeterOverlay(QWidget):
             head.addWidget(button)
             self.metric_buttons[key] = button
         box.addLayout(head)
-        self.target = QLabel("")
+        # The target card (overlay.js ``targetCard``): the portrait, then the name with the others struck and the HP
+        # on one line, the HP, time-to-kill and break bars under them, and the time to kill and the break below.
+        self.target_card = QWidget(self.card)
+        card_row = QHBoxLayout(self.target_card)
+        card_row.setContentsMargins(0, 2, 0, 2)
+        card_row.setSpacing(8)
+        self.portrait = Portrait(self.target_card)
+        card_row.addWidget(self.portrait, 0, Qt.AlignVCenter)
+        column = QVBoxLayout()
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+        head_line = QHBoxLayout()
+        head_line.setSpacing(8)
+        self.target = QLabel("", self.target_card)   # the name, and the others struck in the same instant
         self.target.setObjectName("ovtarget")
-        self.target.setTextFormat(Qt.RichText)   # its HP and time to kill in their own colours and fonts
-        self.target.setWordWrap(True)             # on to a second line between its parts, in a large font
-        box.addWidget(self.target)
-        self.hp = HpBar(self)
-        box.addWidget(self.hp)
-        self.ttk_bar = TtkBar(self)
-        self.ttk_bar.hide()
-        box.addWidget(self.ttk_bar)
-        self.gauge = GaugeBar(self)
-        box.addWidget(self.gauge)
+        self.target.setTextFormat(Qt.RichText)
+        self.target.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.target_nums = QLabel("", self.target_card)   # its HP in damage units (``.ovhpnum``)
+        self.target_nums.setObjectName("ovtnums")
+        self.target_hp = QLabel("", self.target_card)     # its HP's share, to a tenth (``.ovhp``)
+        self.target_hp.setObjectName("ovthp")
+        head_line.addWidget(self.target, 1, Qt.AlignBottom)
+        head_line.addWidget(self.target_nums, 0, Qt.AlignBottom)
+        head_line.addWidget(self.target_hp, 0, Qt.AlignBottom)
+        column.addLayout(head_line)
+        self.target_bars = QWidget(self.target_card)      # ``.ovtbars``: 4 px under the name, 3 px apart
+        bars = QVBoxLayout(self.target_bars)
+        bars.setContentsMargins(0, 4, 0, 0)
+        bars.setSpacing(3)
+        self.hp = CardBar(self.target_bars, 6, glow=True)
+        self.ttk_bar = TtkBar(self.target_bars)
+        self.gauge = GaugeBar(self.target_bars)
+        for bar in (self.hp, self.ttk_bar, self.gauge):
+            bar.hide()
+            bars.addWidget(bar)
+        column.addWidget(self.target_bars)
+        self.target_line = QLabel("", self.target_card)   # the time to kill, the enrage timer, the break (``.ovtline``)
+        self.target_line.setObjectName("ovtline")
+        self.target_line.setTextFormat(Qt.RichText)
+        self.target_line.setWordWrap(True)        # on to a second line between its parts, in a narrow card
+        self.target_line.setContentsMargins(0, 4, 0, 0)
+        column.addWidget(self.target_line)
+        card_row.addLayout(column, 1)
+        self.target_card.hide()
+        box.addWidget(self.target_card)
         self.lines = QLabel("")
         self.lines.setObjectName("ovlines")
         self.lines.setWordWrap(True)
@@ -1136,7 +1590,7 @@ class MeterOverlay(QWidget):
         self.empty.setWordWrap(True)
         box.addWidget(self.empty)
         self.rows_box = QVBoxLayout()
-        self.rows_box.setSpacing(2)
+        self.rows_box.setSpacing(4)               # ``#ov.ov-nm .ovrow { margin: 0 0 4px }``
         box.addLayout(self.rows_box)
         self.panel = PlayerPanel()
         self.panel.close_button.clicked.connect(self.close_detail)
@@ -1256,6 +1710,9 @@ class MeterOverlay(QWidget):
         self._events_timer.setInterval(1000)
         self._events_timer.timeout.connect(self.render_events)
         self._events_timer.start()
+        self.pictures = Pictures(api, self)        # the classes' emblems and the bosses' portraits
+        self.pictures.changed.connect(lambda: self.apply_meter(self.answer))
+        self._still = False                       # effects held still: performance mode, or less motion asked
         self.requests = Requests(api, self) if api is not None else None
         if self.requests is not None:
             self.requests.replied.connect(self._replied)
@@ -1304,11 +1761,16 @@ class MeterOverlay(QWidget):
             poller.stop()
         if self.requests is not None:
             self.requests.stop()
+        self.pictures.stop()
         self._anim_timer.stop()
         forget_pictures()
         super().closeEvent(event)
 
     # ------------------------------------------------------------------ look
+    def _row_height(self) -> int:
+        """A row's height: ``--nm-row-h``, the rows' height setting (14 to 48 px) and 6."""
+        return theme.clamp_int(self.ui.get("overlay_row_height"), 14, 48, 22) + 6
+
     def _px(self) -> int:
         """The overlay's text size: 12 px at its font size (``overlay_font_scale``, 80% to 160%)."""
         return max(8, round(12 * self.text_look.scale))
@@ -1321,11 +1783,18 @@ class MeterOverlay(QWidget):
         families = ", ".join(f'"{family}"' for family in tl.families())
         c = theme.COLORS
         header = tl.colour("header", c["gold"])
+        target_px, target_weight = tl.size("target", px), tl.weight_of("target", 400)
+        target_family = tl.family_css("target")
         sheet = (
             f"QWidget {{ font-family: {families}; font-size: {px}px; font-weight: {weight}; }}"
             f"QLabel {{ color: {c['text']}; background: transparent; }}"
             f"QLabel#ovstatus {{ {tl.css('header', px, 700, c['gold'])} }}"
-            f"QLabel#ovtarget {{ {tl.css('target', px, weight, c['text'])} }}"
+            f"QLabel#ovtarget {{ {tl.css('target', px, 400, '#f4f6f8')} }}"
+            f"QLabel#ovtnums {{ color: #a3abb5; {target_family} font-size: {round(target_px * 0.85)}px;"
+            f" font-weight: {target_weight}; }}"
+            f"QLabel#ovthp {{ {tl.css('hp', target_px * 1.22, 700, '#e7ecea')} }}"
+            f"QLabel#ovtline {{ color: #aab3bd; {target_family} font-size: {round(target_px * 0.86)}px;"
+            f" font-weight: {target_weight}; }}"
             f"QLabel#ovlines {{ {tl.css('ping', px, weight, '#e9edf1')} }}"
             f"QLabel#ovextra, QLabel#ovnote {{ color: {c['muted']}; }}"
             f"QLabel#ovidentity {{ {tl.css('identity', round(px * 0.85), weight, c['gold'])} }}"
@@ -1378,7 +1847,10 @@ class MeterOverlay(QWidget):
                 row.set_text_look(tl)
         # The cycle and the sheen move while either is on, held still in performance mode and when the system asks
         # for less motion (the web overlay's ``ov-perf`` and ``prefers-reduced-motion``).
-        moving = (tl.cycle or tl.retro) and not self._perf and not reduced_motion()
+        self._still = self._perf or reduced_motion()
+        for row in self.rows:
+            row.moving = not self._still
+        moving = (tl.cycle or tl.retro or bool(self.look.me_cosmetic or self.look.top_cosmetic)) and not self._still
         if moving and not self._anim_timer.isActive():
             self._anim_start = time.monotonic()
             self._anim_timer.start()
@@ -1388,8 +1860,8 @@ class MeterOverlay(QWidget):
         self._paint_moment(time.monotonic() - self._anim_start if moving else None)
 
     def _text_labels(self) -> list[QLabel]:
-        return [self.status, self.target, self.lines, self.extra, self.warning, self.empty, self.events,
-                self.identity, self.ping]
+        return [self.status, self.target, self.target_nums, self.target_hp, self.target_line, self.lines, self.extra,
+                self.warning, self.empty, self.events, self.identity, self.ping]
 
     def _sync_effects(self, changed: bool = True) -> None:
         """Each text label's effect (``TextEffect``): with the outline, glow or halo, the blend, or for the header
@@ -1415,10 +1887,11 @@ class MeterOverlay(QWidget):
     def _paint_moment(self, seconds: float | None) -> None:
         """The colour cycle and the sheen ``seconds`` in (None: held still): the rows' names, and the header's
         colour through its effect."""
+        tl = self.text_look
         for row in self.rows:
             if row.seconds != seconds:
                 row.seconds = seconds
-                if not row.isHidden():
+                if not row.isHidden() and (tl.cycle or tl.retro or row.cosmetic):
                     row.update()
         effect = self._effects.get(self.status)
         if effect is not None:
@@ -1537,7 +2010,7 @@ class MeterOverlay(QWidget):
         self.card.setMinimumHeight(theme.clamp_int(ui.get("overlay_height"), 0, 800, 0) if height is None else height)
         for grip in self.grips.values():          # the edges drag the size (``overlay_resizable``)
             grip.setVisible(ui.get("overlay_resizable") is True)
-        row_height = max(16, min(48, int(ui.get("overlay_row_height") or 22)))
+        row_height = self._row_height()
         for row in self.rows:
             row.setFixedHeight(row_height)
         self.hp.color = QColor(hex_colour(ui.get("overlay_hp_color")) or "#e05a5a")
@@ -1742,8 +2215,9 @@ class MeterOverlay(QWidget):
         ranks = ui.get("overlay_show_community_rank") is True
         while len(self.rows) < len(shown):
             row = PlayerRow(self.card)
-            row.setFixedHeight(max(16, min(48, int(ui.get("overlay_row_height") or 22))))
+            row.setFixedHeight(self._row_height())
             row.set_text_look(self.text_look)
+            row.moving = not self._still
             self.rows_box.addWidget(row)
             self.rows.append(row)
         for index, row in enumerate(self.rows):
@@ -1761,12 +2235,14 @@ class MeterOverlay(QWidget):
             showing = self._shown_rates.get(key, rate) if ticking else rate
             shared = names.get(str(player.get("name") or "").casefold(), 0) > 1
             rank = player.get("community_rank") if isinstance(player.get("community_rank"), dict) else {}
-            row.set_player(name, str(player.get("class") or ""), f"{theme.kfmt(showing)}/s",
-                           f"{_round(100 * _amount(player, metric) / total_amount)}%", showing / top,
+            cls = str(player.get("class") or "")
+            row.set_player(name, cls, f"{rate_text(showing)}/s",
+                           f"{theme.fixed(100 * _amount(player, metric) / total_amount, 1)}%", showing / top,
                            mine, index, look.show_deaths and player.get("dead") is True,
                            theme.sfmt(cp) if cp > 0 else "", look, key, key == self.detail_key,
                            f"#{player.get('id')}" if look.name_mode == "name" and shared else "",
-                           str(rank.get("text") or "") if ranks else "")
+                           str(rank.get("text") or "") if ranks else "", self.pictures.emblem(cls),
+                           self.card.mode == "card")
             row.setToolTip(f"{player.get('name')} · Actor {player.get('key') or player.get('id')}"
                            f"{' · Includes linked pets' if player.get('includes_pets') else ''}"
                            f" · Click for this player's details")
@@ -1828,56 +2304,109 @@ class MeterOverlay(QWidget):
             step = current + (live - current) * 0.4
             shown = live if abs(step - live) < 0.5 else step
             self._shown_rates[row.key] = shown
-            row.set_live(f"{theme.kfmt(shown)}/s", shown / self._cur_max)
+            row.set_live(f"{rate_text(shown)}/s", shown / self._cur_max)
         for key in [key for key in self._shown_rates if key not in seen]:
             del self._shown_rates[key]
 
     def _show_target(self, target) -> None:
-        """The target line: its name with the others struck, its HP when that is on, the time to kill with the enrage
-        timer, and the break gauge, each in its own colour and font where the look sets one, with their bars."""
-        ui, tl, px = self.ui, self.text_look, self._px()
+        """The target card (overlay.js ``targetCard``): the boss's portrait (or the target mark), its name with the
+        others struck in the same instant, its HP in damage units and its share to a tenth when the HP is on, the HP,
+        time-to-kill and break bars, and under them the time to kill with the enrage timer and the break gauge, each
+        in its own look."""
+        ui, tl = self.ui, self.text_look
         if ui.get("overlay_show_target", True) is False or not isinstance(target, dict) or not target.get("name"):
-            for widget in (self.target, self.hp, self.ttk_bar, self.gauge):
-                widget.hide()
+            self.target_card.hide()
             self.target_text = ""
             return
+        size = tl.size("target", self._px())     # the card's own size: 12 px, the overlay's and the target's own
+        weight = tl.weight_of("target", 400)
+        self.portrait.set_picture(self.pictures.portrait(target.get("mob_code")))
         also = [str(name) for name in (target.get("also_targets") or [])]
-        name = str(target["name"])                # the others struck in the same instant
-        plain = [name + (f" +{len(also)}" if also else "")]
-        rich = [html.escape(name) + ("&nbsp;" + tl.inline("also", f"+{len(also)}", px) if also else "")]
-
-        def add(key, text):                       # a part is kept whole when the line wraps
-            plain.append(text)
-            whole = html.escape(text).replace(" ", "&nbsp;")
-            rich.append(tl.inline(key, whole, px) if key else whole)
-
-        self.target.setToolTip("Most-hit enemy this encounter"
-                               + (f" (and {len(also)} more struck in the same instant: {', '.join(also)})" if also else "")
-                               + ", its remaining HP and time-to-kill from its observed HP-decline rate, and each "
-                                 "contributor's DPS to it")
+        tip = hp_tip(target)
         hp = target.get("hp_pct")
-        show_hp = ui.get("overlay_show_enemy_hp") is True and isinstance(hp, (int, float))
-        if show_hp:
-            add("hp", f"{hp * 100:.0f}%")
+        known = ui.get("overlay_show_enemy_hp") is True and isinstance(hp, (int, float)) and not isinstance(hp, bool)
+        pct = max(0.0, min(100.0, hp * 100)) if known else 0.0
+        nums = ""
+        if known and target.get("effective_max_hp") is not None and target.get("effective_current_hp") is not None:
+            nums = f"{theme.sfmt(target['effective_current_hp'])} / {theme.sfmt(target['effective_max_hp'])}"
+        # ``@container (max-width: 24em)`` on the card's content (the overlay's less 2 × 11 px): they step aside.
+        shown_nums = bool(nums) and self.width() - 22 > 24 * size
+        self.target_nums.setText(nums)
+        self.target_nums.setToolTip(tip)
+        self.target_nums.setVisible(shown_nums)
+        self.target_hp.setText(f"{theme.fixed(pct, 1)}%")
+        self.target_hp.setToolTip(tip)
+        self.target_hp.setVisible(known)
+        # The name and the others struck: the others' names give way first, then the name; the count is never cut.
+        name_font = tl.font("target", size * 1.12, 700)
+        also_font = tl.font("also", size * 0.92, 600)
+        name, count = str(target["name"]), f"+{len(also)}" if also else ""
+        others = f"({', '.join(also)})" if also else ""
+        right = sum(QFontMetricsF(label.font()).horizontalAdvance(label.text()) + 8
+                    for label in (self.target_nums, self.target_hp) if not label.isHidden())
+        room = self.width() - 18 - 34 - 8 - right
+        named, alsoed = QFontMetricsF(name_font), QFontMetricsF(also_font)
+        counted = alsoed.horizontalAdvance(count) + 5 if count else 0.0
+        if others and named.horizontalAdvance(name) + counted + 5 + alsoed.horizontalAdvance(others) > room:
+            others = alsoed.elidedText(others, Qt.ElideRight, room - named.horizontalAdvance(name) - counted - 5)
+        if not others and named.horizontalAdvance(name) + counted > room:
+            name = named.elidedText(name, Qt.ElideRight, max(0.0, room - counted))
+        rich = tl.span("target", html.escape(name), "#f4f6f8", size * 1.12, 700)
+        for part in (count, others):
+            if part:
+                rich += "&nbsp;" + tl.span("also", html.escape(part), "#c9a86a", size * 0.92, 600)
+        self.target.setText(rich)
+        self.target.setToolTip(
+            "Most-hit enemy this encounter" + (f" (and {len(also)} more struck in the same instant)" if also else "")
+            + ", its remaining HP and time-to-kill from its observed HP-decline rate (all damage sources, so it "
+              "reflects how fast it is really dying — not just your party's DPS), and each contributor's DPS to it"
+            + (f"\nAlso being hit right now: {', '.join(also)}" if also else ""))   # the count's own title
+        # The time to kill, the enrage timer and the break, each as the web overlay's spans have them.
+        line, plain, tips = [], [], []
         show_ttk = ui.get("overlay_show_ttk") is True
+        small = size * 0.86
         if show_ttk:
             ttk = target.get("ttk")
-            if isinstance(ttk, (int, float)) and ttk > 0:
-                add("ttk", f"TTK {_clock(ttk)}")
+            if isinstance(ttk, (int, float)) and not isinstance(ttk, bool) and math.isfinite(ttk):
+                text = f"TTK {fmt_ttk(ttk)}"
+                line.append(tl.span("ttk", text.replace(" ", "&nbsp;"), "#e3ad7f", small, 600))
+                plain.append(text)
             enrage = target.get("enrage")
             if isinstance(enrage, dict):
-                add("ttk", "ENRAGED" if enrage.get("enraged") else f"Enrage {_clock(enrage.get('enrage_in'))}")
+                late = enrage.get("enraged") or enrage.get("before_kill")
+                text = "ENRAGED" if enrage.get("enraged") else f"Enrage {fmt_ttk(enrage.get('enrage_in'))}"
+                shade = QColor("#ff6b6b" if late else tl.colour("ttk", "#e3ad7f"))
+                if not late:
+                    shade.setAlphaF(0.85)
+                line.append(f'<span style="color:rgba({shade.red()},{shade.green()},{shade.blue()},{shade.alphaF():.2f});'
+                            f' font-weight:{700 if late else weight}">{text.replace(" ", "&nbsp;")}</span>')
+                plain.append(text)
+                tips.append(f"Past this boss's {fmt_ttk(enrage.get('enrage_s'))} enrage timer: it now attacks faster "
+                            f"and harder" if enrage.get("enraged") else
+                            f"This boss enrages {fmt_ttk(enrage.get('enrage_s'))} after the pull"
+                            f"{' (seen in recorded fights)' if enrage.get('measured') else ''}"
+                            f"{'; at this pace the kill takes longer than that' if enrage.get('before_kill') else ''}")
         gauge = target.get("break_gauge") if ui.get("overlay_show_break_gauge") is True else None
-        pct = None
+        gauge_pct = None
         if isinstance(gauge, dict):
-            pct = max(0.0, min(100.0, float(gauge.get("pct") or 0)))
-            add(None, "BROKEN" if pct <= 5 else f"Break {pct:.0f}%")
-        self.target_text = "  ·  ".join(plain)
-        self.target.setText("&nbsp;&nbsp;·&nbsp; ".join(rich))   # the line may break after a dot
-        self.target.show()
-        self.hp.setVisible(show_hp)
-        if show_hp:
-            self.hp.set_fraction(hp)
+            gauge_pct = max(0.0, min(100.0, _num(gauge.get("pct"))))
+            broken = gauge_pct <= 5
+            text = "BROKEN" if broken else f"Break {theme.js_round(gauge_pct)}%"
+            line.append(f'<span style="color:{"#f0c36a" if broken else "#e3b35a"}; font-weight:700'
+                        f'{"; letter-spacing:0.4px" if broken else ""}">{text.replace(" ", "&nbsp;")}</span>')
+            plain.append(text)
+            tips.append("The break gauge is empty: the enemy is broken (staggered) and takes more damage until it "
+                        "refills" if broken else "Break gauge left before this enemy breaks (staggers); skills that "
+                        "deal Stagger Gauge Damage drain it")
+        self.target_line.setText("&nbsp;&nbsp; ".join(line))
+        self.target_line.setToolTip("\n".join(tips))
+        self.target_line.setVisible(bool(line))
+        self.target_text = "  ·  ".join(
+            [str(target["name"]) + (f" {count} {'(' + ', '.join(also) + ')'}" if also else "")]
+            + ([nums] if shown_nums else []) + ([f"{theme.fixed(pct, 1)}%"] if known else []) + plain)
+        self.hp.setVisible(known)
+        if known:
+            self.hp.set_fraction(pct / 100)
         # How far through the whole kill the fight is by time (``ttk_fraction``), with the time to kill on.
         fraction = target.get("ttk_fraction")
         timed = (show_ttk and isinstance(fraction, (int, float)) and not isinstance(fraction, bool)
@@ -1885,9 +2414,11 @@ class MeterOverlay(QWidget):
         self.ttk_bar.setVisible(timed)
         if timed:
             self.ttk_bar.set_fraction(fraction)
-        self.gauge.setVisible(pct is not None)
-        if pct is not None:
-            self.gauge.set_fraction(pct / 100)
+        self.gauge.setVisible(gauge_pct is not None)
+        if gauge_pct is not None:
+            self.gauge.set_fraction(gauge_pct / 100)
+        self.target_bars.setVisible(known or timed or gauge_pct is not None)
+        self.target_card.show()
 
     def _show_extra(self, snap: dict, hidden: bool, metric: str) -> None:
         """Your contribution to the fight, or the training-dummy parse, under the target (DPS view only)."""
@@ -2022,14 +2553,14 @@ class MeterOverlay(QWidget):
         if player is not None and time.monotonic() - self.detail_at > 3 and not self.detail_busy:
             self._fetch_detail()                  # the buffs follow the fight every few seconds
         name, mine, _unnamed = self._names(player) if player is not None else ("Player", False, False)
-        columns = max(1, (self.width() - 20 - 20 + 4) // 96)   # the card's and the panel's margins; 92 px tiles
+        columns = max(1, (self.width() - 18 - 20 + 4) // 96)   # the card's and the panel's margins; 92 px tiles
         self.panel.set_reading(panel_reading(snap, player, self.detail_buffs, self.detail_extra, name, mine), columns)
         graphed = self.ui.get("overlay_dps_graph") is True and player is not None
         self.panel.set_spark(self._player_hist.get(self.detail_key, []) if graphed else [],
                              theme.class_color(player.get("class")) if player is not None else None)
         self.panel_scroll.show()
         self.panel.layout().activate()            # its tiles and lines as they now stand (see _relayout)
-        width = self.width() - 20
+        width = self.width() - 18
         content = (self.panel.heightForWidth(width) if self.panel.hasHeightForWidth()
                    else self.panel.sizeHint().height())
         self.panel_scroll.setFixedHeight(content)

@@ -147,30 +147,36 @@ def test_the_live_graph_follows_the_fight(qapp):
     assert window.graph.isHidden() and window.panel.spark.isHidden()
 
 
+def _value(row) -> float:
+    """A row's rate as a number (its text is whole digits, grouped)."""
+    return float(row.rate.removesuffix("/s").replace(",", ""))
+
+
 def test_live_ticking_rates_head_for_the_fights_elapsing_time(qapp):
     window = _overlay(overlay_dps_interpolate=True, overlay_interpolate_ms=100)
     assert window._tick_timer.isActive() and window._tick_timer.interval() == 100
     first = _rows(window)[0]
-    assert first.rate == "23.40K/s"                                             # the reading's own rate at first
+    assert first.rate == "23,400/s"                                             # the reading's own rate at first
     window._render_at = time.monotonic() - 5                                    # five seconds without a reading
     window._live_tick()
-    # Seraphel: 1,755,000 damage at 23,400/s, five seconds on: 1,755,000 / (75 + 5) s
-    assert first.rate == "21.94K/s" and first.fill == pytest.approx(21937.5 / 23400)
+    # Seraphel: 1,755,000 damage at 23,400/s, five seconds on: 1,755,000 / (75 + 5) s. In whole digits the rate
+    # moves with the milliseconds the test takes, so it is read within two.
+    assert _value(first) == pytest.approx(21937.5, abs=2) and first.fill == pytest.approx(21937.5 / 23400, abs=1e-4)
     window._render_at = time.monotonic() - 10
     window._live_tick()
-    assert first.rate == "21.42K/s"                                             # 40% of the way to 20.65K
+    assert _value(first) == pytest.approx(21421.3, abs=2)                        # 40% of the way to 20,647
     window.apply_meter(fight())                                                 # a reading: it eases from there
-    assert first.rate == "21.42K/s"
+    assert _value(first) == pytest.approx(21421.3, abs=2)
     window._live_tick()
-    assert first.rate == "22.21K/s"
+    assert _value(first) == pytest.approx(22212.8, abs=2)                        # 40% of the way back to 23,400
     window.apply_meter(_reading(75.0, paused=True))                             # paused: the time stops
     for _ in range(30):
         window._live_tick()
-    assert first.rate == "23.40K/s"
+    assert first.rate == "23,400/s"
     window.toggle_lock()
     window._shown_rates[first.key] = 1.0
     window._live_tick()
-    assert first.rate == "23.40K/s"                                             # locked: it holds
+    assert first.rate == "23,400/s"                                             # locked: it holds
     window.toggle_lock()
     window.apply_ui({"overlay_width": 340, "overlay_dps_interpolate": True, "performance_mode": True})
     assert not window._tick_timer.isActive() and window._shown_rates == {}      # performance mode holds still
@@ -197,8 +203,9 @@ def test_the_target_names_the_others_struck_in_the_same_instant(qapp):
     meter = fight()
     meter["snapshot"]["current_target"]["also_targets"] = ["Lesser Atiel", "Spawn"]
     window = _overlay(meter)
-    assert window.target_text == "Atiel +2"
-    assert "(and 2 more struck in the same instant: Lesser Atiel, Spawn)" in window.target.toolTip()
+    assert window.target_text == "Atiel +2 (Lesser Atiel, Spawn)"
+    assert "(and 2 more struck in the same instant)" in window.target.toolTip()
+    assert window.target.toolTip().endswith("\nAlso being hit right now: Lesser Atiel, Spawn")
 
 
 def test_the_meter_is_read_less_often_out_of_a_fight_and_in_performance_mode(qapp):

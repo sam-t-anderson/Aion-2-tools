@@ -160,7 +160,7 @@ def test_the_fonts_and_colours_reach_each_element(qapp):
     status, target, ping, lines = (window.status.font(), window.target.font(), window.ping.font(),
                                    window.lines.font())
     assert status.families()[0] == "Fira Mono" and status.pixelSize() == px and int(status.weight()) == 700
-    assert target.families()[0] == "Fira Sans" and target.pixelSize() == px and int(target.weight()) == 700
+    assert target.families()[0] == "Fira Sans" and target.pixelSize() == px and int(target.weight()) == 400
     assert ping.pixelSize() == round(round(px * 0.9) * 1.2) and int(ping.weight()) == 400
     assert lines.pixelSize() == round(px * 1.2) and int(lines.weight()) == 400   # the counter lines: the ping's font
     assert window.extra.font().families()[0] == "Fira Sans" and window.extra.font().pixelSize() == px
@@ -197,18 +197,23 @@ def test_the_target_lines_parts_in_their_own_look_and_its_time_to_kill_bar(qapp)
                   enrage={"enraged": False, "enrage_in": 95, "enrage_s": 300})
     shown = {"overlay_show_enemy_hp": True, "overlay_show_ttk": True, "overlay_show_break_gauge": True}
     window = _overlay(meter, **shown)
-    assert window.target_text == "Atiel +2  ·  47%  ·  TTK 1:06  ·  Enrage 1:35  ·  Break 62%"
-    assert "<span" not in window.target.text()                                   # no look set: the line's own
+    assert window.target_text == "Atiel +2 (Lesser Atiel, Spawn)  ·  47.0%  ·  TTK 1m06s  ·  Enrage 1m35s  ·  Break 62%"
+    # The card's own look (overlay.css ``#ov.ov-nm .ovtarget``): the others struck at .92em in their gold, the
+    # time to kill at .86em in its tan, the enrage timer the same at 85%, the break in amber.
+    assert '<span style="color:#c9a86a; font-size:11px; font-weight:600">+2</span>' in window.target.text()
+    assert '<span style="color:#e3ad7f; font-size:10px; font-weight:600">TTK&nbsp;1m06s</span>' in window.target_line.text()
+    assert 'color:rgba(227,173,127,0.85); font-weight:400">Enrage&nbsp;1m35s' in window.target_line.text()
+    assert _text_colour(window.target_hp) == "#e7ecea" and window.target_hp.font().pixelSize() == 15   # 1.22em
     assert not window.ttk_bar.isHidden() and window.ttk_bar.fraction == pytest.approx(0.4)
     assert window.ttk_bar.color.name() == "#8fb3d0" and window.ttk_bar.height() == 3
     window.apply_ui({"overlay_width": 340, **shown, "overlay_ttk_color": "#ff40c0",
                      "overlay_text_colors": {"hp": "#ff6060", "ttk": "#ffa040", "also": "#ff60ff"},
                      "overlay_text_fonts": {"hp": {"scale": 150}}})
-    text = window.target.text()
-    assert '<span style="color:#ff6060; font-size:18px">47%</span>' in text
-    assert '<span style="color:#ffa040">TTK&nbsp;1:06</span>' in text
-    assert '<span style="color:#ffa040">Enrage&nbsp;1:35</span>' in text
-    assert '<span style="color:#ff60ff">+2</span>' in text and "Break&nbsp;62%" in text
+    assert _text_colour(window.target_hp) == "#ff6060" and window.target_hp.font().pixelSize() == 22   # at 150%
+    assert '<span style="color:#ffa040; font-size:10px; font-weight:600">TTK&nbsp;1m06s</span>' in window.target_line.text()
+    assert 'color:rgba(255,160,64,0.85); font-weight:400">Enrage&nbsp;1m35s' in window.target_line.text()
+    assert '<span style="color:#ff60ff; font-size:11px; font-weight:600">+2</span>' in window.target.text()
+    assert "Break&nbsp;62%" in window.target_line.text()
     assert window.ttk_bar.color.name() == "#ff40c0"
     for fraction in (None, float("nan"), True):                                  # no estimate: no bar
         target["ttk_fraction"] = fraction
@@ -507,5 +512,6 @@ def test_a_large_font_wraps_the_toolbar_and_the_target_line(qapp):
     assert len({place.top() for place in places}) > 1                             # on more than one line
     assert all(button.width() >= button.sizeHint().width() for button in buttons)
     assert max(place.right() for place in places) == window.toolbar.width() - 4  # each line to the right
-    assert window.target.height() > 1.5 * window.target.fontMetrics().height()   # the target line wraps too
+    line = window.target_line                                                   # the time to kill wraps too
+    assert line.height() > 1.5 * line.fontMetrics().height()
     laid_out_apart(window)

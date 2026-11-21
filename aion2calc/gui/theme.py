@@ -6,6 +6,7 @@ The colours are ``app.css``'s dark theme and the overlay's class colours (``OVER
 from __future__ import annotations
 
 from decimal import ROUND_HALF_UP, Decimal
+import functools
 import math
 
 #: app.css's dark theme (``:root``).
@@ -50,6 +51,19 @@ def fixed(value: float, digits: int) -> str:
 def js_round(value: float) -> int:
     """JavaScript's ``Math.round``: a half goes up (Python's ``round`` goes to the even number)."""
     return math.floor(float(value) + 0.5)
+
+
+@functools.lru_cache(maxsize=1)
+def _digit_locale():
+    from PySide6.QtCore import QLocale
+    languages = [name for name in QLocale().uiLanguages() if name not in ("C", "POSIX")]
+    return QLocale(languages[0]) if languages else QLocale(QLocale.English, QLocale.UnitedStates)
+
+
+def digits(value) -> str:
+    """``Math.round(value).toLocaleString()``: whole digits grouped as the system's language groups them, as the web
+    pages write them in the browser's language (the system's); in English where the system names no language."""
+    return _digit_locale().toString(js_round(value))
 
 
 def kfmt(x) -> str:
