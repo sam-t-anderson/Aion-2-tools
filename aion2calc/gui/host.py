@@ -198,8 +198,8 @@ class WindowHost(QObject):
             return False
         if window.card.mode == "card":
             return True
-        child = window.childAt(point)
-        return child is not None and child is not window.card
+        child = window.childAt(point)              # the gaps between the footer's chips are the game's
+        return child is not None and child is not window.card and not child.property("ovgap")
 
     def hit_tick(self) -> None:
         """One turn of the host's click-through loop: clicks pass through but over a control, or once resting on

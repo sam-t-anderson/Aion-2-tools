@@ -123,15 +123,19 @@ def test_lock_holds_the_reading_and_the_place_and_the_screenshot_hotkey_toggles_
     window.show()
     window.toggle_lock()
     assert window.locked and window.tools["lock"].text() == "Unlock" and window.card.toolTip().startswith("Locked")
+    assert window.tools["lock"].tone == "#6fe3a3" and window.card.locked      # the camera green, the card's edge dashed
     later = fight()
     later["snapshot"]["boss"] = "Ereshkigal"
     window._meter_answered(later)
-    assert "Atiel" in window.status.text()                                    # the reading it holds
+    assert "Atiel" in window.status_text                                       # the reading it holds
+    window._meter_failed("timed out")
+    assert window.connection.isHidden()                                        # and no word of the app meanwhile
     QTest.mousePress(window, Qt.LeftButton, Qt.NoModifier, QPoint(5, 5))
     assert window._drag is None                                                # and it does not move
     QTest.mouseRelease(window, Qt.LeftButton, Qt.NoModifier, QPoint(5, 5))
     window.toggle_lock()
     assert not window.locked and window.tools["lock"].text() == "Lock"
+    assert window.tools["lock"].tone is None and not window.card.locked
     settle(lambda: ("GET", "/api/meter?view=latest", None) in api.calls)       # it reads the meter again at once
     window._commands({"lock_seq": 3, "reload_seq": 0})                         # the first reading: the baseline
     assert not window.locked
@@ -150,7 +154,8 @@ def test_new_shows_the_meter_empty_until_the_next_fight_begins(qapp):
     settle(lambda: window.cleared_fight is not None)
     assert ("POST", "/api/meter", {"action": "split"}) in api.calls
     assert window.cleared_fight == "5" and window.tools["split"].text() == "New ✓"
-    assert window.status.text() == "New fight · waiting for combat"
+    assert window.tools["split"].state == "ok"                                 # green for a moment
+    assert window.status_text == "New fight · waiting for combat" and window.clock.isHidden()
     assert _rows(window) == [] and window.empty.text() == "New fight — waiting for the first hit."
     assert window.target_card.isHidden() and window.copy_text == "DPS · Atiel · 75s\n— Aion 2 Calc"
     following = fight()
@@ -165,21 +170,22 @@ def test_start_and_stop_capture_and_say_why_a_start_was_refused(qapp):
     api = FakeApp(stopped)
     window = _overlay(stopped, api)
     button = window.tools["capture"]
-    assert button.text() == "Start" and button.property("state") == "start"
+    assert button.text() == "Start" and (button.icon_name, button.tone) == ("play", "#6fe3a3")   # a green play
     window.toggle_capture()
     assert button.text() == "Starting…" and not button.isEnabled()
     settle(lambda: not window._capture_busy)
     assert ("POST", "/api/meter", {"action": "start", "source": "a2tools", "auto_port": True,
                                    "scope": "party"}) in api.calls
     window.apply_meter(fight())
-    assert button.text() == "Stop" and button.property("state") == "stop"
+    assert button.text() == "Stop" and (button.icon_name, button.tone) == ("stop", "#ff8585")   # a red square
     window.toggle_capture()
     settle(lambda: not window._capture_busy)
     assert ("POST", "/api/meter", {"action": "stop", "from_overlay": True}) in api.calls
     api.refuse["/api/meter"] = "Npcap is not installed"
     window.toggle_capture()
     settle(lambda: button.text() == "Error")
-    assert button.toolTip() == "Npcap is not installed" and button.property("state") == "err"
+    assert button.toolTip() == "Npcap is not installed" and button.state == "err"
+    assert button.shown_colour().name() == button.tone   # its own colour over the state's, as the web overlay's
     finishing = fight()
     finishing["finalizing"] = True
     window._capture_busy = False
@@ -208,6 +214,7 @@ def test_the_options_hold_the_pet_grouping_and_the_damage_filters(qapp):
     assert window.options.isHidden()
     window.toggle_options()
     assert not window.options.isHidden() and window.tools["options"].isChecked()
+    assert window.tools["options"].tone == "#63d3e6"                           # teal while open
     assert window.combine.isChecked()                                          # the meter's answer combines pets
     window.combine.click()
     settle(lambda: window.combine.isEnabled())
@@ -223,9 +230,10 @@ def test_the_options_hold_the_pet_grouping_and_the_damage_filters(qapp):
     meter["targets"] = ["player"]                                              # the filters the app applies
     window.apply_meter(meter)
     assert window.pvp_only.isChecked() and not window.boss_only.isChecked()
-    assert window.status.text().endswith("· Player damage only")
+    assert window.status_text.endswith("· Player damage only")
+    assert window.clock.text() == "01:15 PvP only Party DPS 45.70K"           # the filter, named short
     window.toggle_options()
-    assert window.options.isHidden()
+    assert window.options.isHidden() and window.tools["options"].tone is None
 
 
 def test_the_opacity_and_the_metric_are_kept_for_the_next_time(qapp, tmp_path):
@@ -248,7 +256,7 @@ def test_what_the_rows_place_says_without_rows(qapp):
     assert _rows(window) == [] and window.empty.text() == "Ready — waiting for the next fight."
     assert window.target_card.isHidden()
     window.apply_meter({"running": False, "snapshot": {}})
-    assert window.empty.text() == "No fight yet. Start the meter in the app." and window.status.text() == "Idle"
+    assert window.empty.text() == "No fight yet. Start the meter in the app."
     window.apply_meter({"running": True, "snapshot": {}})
     assert window.empty.text() == "Waiting for combat data…"
     window.set_metric("hps")
@@ -265,7 +273,8 @@ def test_what_the_rows_place_says_without_rows(qapp):
     broken["error"] = "the capture driver stopped"
     broken["snapshot"]["warning"] = "Your name comes with the next zone load"
     window.apply_meter(broken)
-    assert window.status.text() == "Capture stopped: the capture driver stopped"
+    assert window.status_text == "Capture stopped: the capture driver stopped"
+    assert window.clock.text() == "01:15 Capture stopped Party DPS 45.70K"
     assert window.warning.text() == "Your name comes with the next zone load" and len(_rows(window)) == 3
 
 

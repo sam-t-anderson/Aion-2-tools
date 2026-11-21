@@ -61,21 +61,22 @@ def _reading(duration, paused=False, **snapshot):
     return meter
 
 
-def test_the_ping_pill_and_its_whole_reading():
-    assert ping_texts(None) == ("Ping —", "Ping: no recorded samples")
+def test_the_ping_chip_and_its_whole_reading():
+    assert ping_texts(None) == ("—", "Ping: no recorded samples")
     assert ping_texts({"current": 45.4, "avg": 52.5, "min": 31, "max": 120}) == (
-        "Ping 45 ms", "Ping 45 ms · Avg 53 ms · Min 31 / Max 120 ms")              # halves up, as toFixed
+        "45", "Ping 45 ms · Avg 53 ms · Min 31 / Max 120 ms")                      # halves up, as toFixed
 
 
 def test_the_ping_and_the_identity_line_on_the_overlay(qapp):
     window = _overlay()
-    assert window.ping.text() == "Ping —" and window.ping.toolTip().startswith("Ping: no recorded samples — Passive")
+    assert window.ping.text() == "—ms" and window.ping.toolTip().startswith("Ping: no recorded samples — Passive")
     assert window.identity.isHidden()                                          # you are named: all is well
     meter = fight()
     meter["snapshot"]["ping"] = {"current": 45, "avg": 52, "min": 31, "max": 120}
     meter["snapshot"]["identity_status"].update(unnamed_actors=2, linked_pets=1)
     window.apply_meter(meter)
-    assert window.ping.text() == "Ping 45 ms"
+    assert window.ping.text() == "45ms"                                        # the signal mark, then the time
+    assert window.ping.parts[0].mark.key == ("icon", "signal", "#4ea8ef")
     assert window.identity.text() == ("Self identified · 2 unnamed actors · 1 linked pets. Grouping needs recorded "
                                       "owner links.") and not window.identity.isHidden()
     window.apply_ui({"overlay_width": 340, "overlay_only_in_combat": True})
@@ -103,18 +104,19 @@ def test_the_identity_line_reads_as_the_web_overlays():
     assert identity_line({}, [], [], [], False, True) == ("", False)
 
 
-def test_the_fights_mark_says_whether_it_runs(qapp):
+def test_the_clocks_mark_says_whether_the_fight_runs(qapp):
     window = _overlay()
-    assert not window.mark.isHidden() and "#5ee04a" in window.mark.styleSheet()   # green while it runs
+    mark = lambda: window.clock.parts[0].mark.key   # noqa: E731
+    assert not window.clock.isHidden() and mark() == ("clock", "#5ee04a", True)   # green and glowing while it runs
     window.apply_meter(_reading(75.0, paused=True))
-    assert "#e3b35a" in window.mark.styleSheet()                                 # amber while the clock is paused
+    assert mark() == ("clock", "#e3b35a", False)                                 # amber while the clock is paused
     stopped = fight()
     stopped["running"] = False
     window.apply_meter(stopped)
-    assert "#6b7380" in window.mark.styleSheet()
+    assert mark() == ("clock", "#6b7380", False)
     stopped["snapshot"]["battle_over"] = True
     window.apply_meter(stopped)
-    assert window.mark.isHidden()
+    assert window.clock.isHidden()
 
 
 def test_the_live_graph_follows_the_fight(qapp):

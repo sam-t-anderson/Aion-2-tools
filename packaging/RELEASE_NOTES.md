@@ -1,3 +1,26 @@
+## The native overlay's clock, ping and toolbar (0.2.422)
+
+**Native overlay, ninth part.** The native interface's overlay (Settings → Native interface, a preview) now lays out the rest of its card as the web overlay's compact layout does:
+- **The header line is gone.** The fight's status moves into the clock's tooltip, and the metric buttons become one chip at the head of the toolbar, as on the web overlay.
+- **Under the rows, as chips:**
+  - the fight's clock: a mark (green while the fight runs, amber while the DPS clock is paused), the time, and the party's total for the metric shown; with the notes the web overlay gives it: *Paused*, the damage filter in short (*Boss only*, *PvP only*, *Bosses + PvP*), *catching up* and *Capture stopped*;
+  - your contribution, now beside the training-dummy parse rather than in its place;
+  - the identity line when an actor is in doubt;
+  - the events strip.
+- **On a line of their own:** the ping with its signal mark; the overlay's frame rate with *Show the overlay's own render FPS* on; and, to the right, the toolbar.
+- **The toolbar:**
+  - the metric chip (DPS, HPS, D.Taken; a click moves to the next);
+  - the icons for the screenshot lock, a new fight, copy, options, start or stop, and hide, their words in the tooltips;
+  - a green camera while locked, teal options while open, the play in green or the stop in red;
+  - green or red for a moment to say how a press went;
+  - with the colour cycle on, the toolbar turns through the hues.
+- **The options** fold away under the toolbar: the pet grouping and the damage filters side by side, the opacity under them.
+- **The card** takes the compact layout's darker colour and its padding in each background. With the top portion only or none, the rows run the card's width, as on the web overlay.
+- **The lock** draws the card's edge dashed in green.
+- **When the app does not answer**, the overlay says why and since when over the last reading, with a Retry button.
+
+The chips float over the game with a shadow under their text (the glow and the halo take its place) and under the toolbar's icons, so they read over a bright game. The web overlay's Windows window has to put each chip on a dark ground of its own; the native window draws them as the web overlay does in a browser. With the sheen on, the colour cycle no longer turns the player names, as on the web overlay.
+
 ## The native overlay's rows and target card (0.2.421)
 
 **Native overlay, eighth part.** The native interface's overlay (Settings → Native interface, a preview) now draws its player rows and its target card as the web overlay's compact layout does:

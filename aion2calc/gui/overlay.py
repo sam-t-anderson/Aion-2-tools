@@ -18,6 +18,11 @@ leaderboard on the clipboard as text; Options holds the pet grouping, the damage
 Stop runs the capture; Hide closes the overlay windows. A click on a player opens their panel under the rows: their
 totals and special hits as tiles, their top skills and the buffs on them with their uptime. A fight that is over
 gives way to "Ready — waiting for the next fight." as on the web overlay.
+
+Since the ninth part (0.2.422) the window is laid out as the web overlay's compact layout: the counters, the target
+card and the rows on top, then the fight's clock (its status in the tooltip), your contribution, the identity line
+and the events strip as chips, and the ping, the frame rate and the toolbar of icons on a line of their own
+(chrome.py). The header line with its status and its metric buttons is gone, as it is on the web overlay.
 """
 from __future__ import annotations
 
@@ -30,35 +35,39 @@ import sys
 import time
 from urllib.parse import quote
 
-from PySide6.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, QSettings, QSize, Qt, QTimer
+from PySide6.QtCore import QEvent, QPoint, QPointF, QRectF, QSettings, QSizeF, Qt, QTimer
 from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QFont, QFontMetricsF, QGuiApplication, QImage,
                            QLinearGradient, QPainter, QPainterPath, QPen, QPixmap)
-from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QPushButton,
+from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton,
                                QScrollArea, QSizePolicy, QSlider, QVBoxLayout, QWidget)
 
 from . import events as schedule
 from . import theme
 from .api import AppApi, Poller, Requests
+from .chrome import (GREEN, MONOSPACE, RED, TEAL, Chip, FlowLayout, FpsChip, IconButton, MetricChip, Part, clock_mark,
+                     forget_icons, icon_mark)
+from .chrome import font as sized_font
 from .host import WindowHost
-from .look import (ANIMATION_MS, TextEffect, TextLook, background_rect, contrast_colour, cycled, draw_text,
-                   forget_pictures, hex_colour, reduced_motion, sheen_brush)
+from .look import (ANIMATION_MS, CHIP_SHADOW, ROW_SHADOW, TextEffect, TextLook, background_rect, contrast_colour, cycled,
+                   draw_text, forget_pictures, hex_colour, reduced_motion, sheen_brush)
 from .pictures import Pictures
 
-METRICS = (("dps", "DPS"), ("hps", "HPS"), ("dtps", "Taken"))
+#: The metrics, in the order the metric chip steps through them, with the chip's words (overlay.html ``#ovmetrics``).
+METRICS = (("dps", "DPS"), ("hps", "HPS"), ("dtps", "D.Taken"))
 DEFAULT_OPACITY = 0.72                    # the overlay page's own starting opacity (overlay.js ``op``)
 MAX_OVERLAY_HEIGHT = 800                  # the tallest the overlay window grows (overlay.js ``MAX_OVERLAY_H``)
 BACKGROUND_LIMIT = 3200                   # the background image's longest side as kept: an 800-px card at 200% on 2×
 GRAPH_LIMIT = 300                         # the readings the live graph keeps (overlay.js ``recordGraph``)
 #: The Players scope Start captures with: the web overlay's own when the app's Live Meter page saved none.
 START_SCOPE = "party"
-#: The toolbar (overlay.html), in the order the web overlay's compact layout gives it: key, text, tooltip.
-TOOLS = (("lock", "Lock", "Freeze the overlay in place for a screenshot"),
-         ("split", "New", "Start a new fight — the next combat event begins a fresh encounter (same as Split now in "
-                          "the app)"),
-         ("copy", "Copy", "Copy the current meter as text, to paste in chat or Discord"),
-         ("options", "Options", "Overlay options: opacity, pet grouping and damage filters"),
-         ("capture", "Start", "Start or stop capturing combat (same as Start/Stop in the app)"),
-         ("hide", "Hide", "Hide overlay"))
+#: The toolbar (overlay.html), in the order the web overlay's compact layout gives it: key, icon, words, tooltip.
+TOOLS = (("lock", "camera", "Lock", "Freeze the overlay in place for a screenshot"),
+         ("split", "new", "New", "Start a new fight — the next combat event begins a fresh encounter (same as Split "
+                                 "now in the app)"),
+         ("copy", "copy", "Copy", "Copy the current meter as text, to paste in chat or Discord"),
+         ("options", "options", "Options", "Overlay options: opacity, pet grouping and damage filters"),
+         ("capture", "play", "Start", "Start or stop capturing combat (same as Start/Stop in the app)"),
+         ("hide", "close", "Hide", "Hide overlay"))
 #: The player panel's tooltips (overlay.js ``renderDetail``'s ``titles``).
 TILE_TITLES = {"Parry": "Share of this player's hits the enemy parried",
                "Front": "Share of hits landed from the front", "Back": "Share of hits landed from behind",
@@ -286,12 +295,12 @@ def counter_lines(snapshot: dict) -> list[tuple[str, str, str]]:
 
 
 def ping_texts(ping) -> tuple[str, str]:
-    """The ping pill (overlay.js, the compact layout): the current round trip, and the whole of it for the tooltip."""
+    """The ping chip (overlay.js, the compact layout): the current round trip in whole milliseconds ("—" with no
+    samples), and the whole of it for the tooltip."""
     if not isinstance(ping, dict):
-        return "Ping —", "Ping: no recorded samples"
+        return "—", "Ping: no recorded samples"
     ms = {k: theme.fixed(_num(ping.get(k)), 0) for k in ("current", "avg", "min", "max")}
-    return (f"Ping {ms['current']} ms",
-            f"Ping {ms['current']} ms · Avg {ms['avg']} ms · Min {ms['min']} / Max {ms['max']} ms")
+    return ms["current"], f"Ping {ms['current']} ms · Avg {ms['avg']} ms · Min {ms['min']} / Max {ms['max']} ms"
 
 
 def identity_line(snap: dict, everyone: list, visible: list, ranked: list, repeated: bool, show_cp: bool) -> tuple[str, bool]:
@@ -342,9 +351,11 @@ class SparkGraph(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        rect = QRectF(self.rect())
+        whole = QRectF(self.contentsRect())       # the live graph's margins lie round it (``margin: 2px 0 4px``)
+        painter.translate(whole.topLeft())
+        rect = QRectF(0, 0, whole.width(), whole.height())
         path = QPainterPath()
-        path.addRoundedRect(rect, 8 if self.height() > 20 else 3, 8 if self.height() > 20 else 3)
+        path.addRoundedRect(rect, 8 if rect.height() > 20 else 3, 8 if rect.height() > 20 else 3)
         painter.fillPath(path, QColor(255, 255, 255, 13))
         painter.setClipPath(path)
         if len(self.series) >= 2:
@@ -387,7 +398,8 @@ class _Card(QWidget):
         super().__init__(parent)
         self.opacity = DEFAULT_OPACITY
         self.mode = "card"
-        self.rows_top = None                      # where the first player row starts, for the top-only mode
+        self.rows_part: QWidget | None = None     # the rows' part: the top portion ends where it begins (``--ov-top-h``)
+        self.locked = False                       # Lock: a dashed green edge (``#ov.ov-locked .ovcard``)
         self.hover = "off"                        # hover to interact: "arming" while it counts, "open" once open
         self.background: QPixmap | None = None    # the background image, with its opacity, zoom and darkening
         self.bg_opacity, self.bg_zoom, self.bg_darken = 1.0, 1.0, 0.2
@@ -396,23 +408,25 @@ class _Card(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
 
     def paintEvent(self, event):
-        if self.mode == "none" and self.hover == "off":
+        if self.mode == "none" and self.hover == "off" and not self.locked:
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        top = self.mode == "top" and self.rows_top is not None
-        if top and self.hover == "off":
-            rect.setHeight(max(0.0, min(rect.height(), self.rows_top - 2.0)))
+        top = self.mode == "top" and self.rows_part is not None
+        end = self.rows_part.geometry().top() if top else 0   # where the top portion ends, as laid out now
+        if top and self.hover == "off":           # the panel behind the top portion, down to the rows' part
+            rect.setHeight(max(0.0, min(rect.height(), end - 1.0)))
+        radius = 10 if top and self.hover == "off" else 12
         path = QPainterPath()
-        path.addRoundedRect(rect, 12, 12)
+        path.addRoundedRect(rect, radius, radius)
         if self.mode != "none":
             r, g, b = theme.OVERLAY_CARD
             painter.fillPath(path, QColor(r, g, b, int(255 * self.opacity)))
             if self.background is not None and not self.background.isNull():
                 box = QRectF(self.rect())         # the top portion's alone in the top-only mode (``--ov-top-h``)
                 if top:
-                    box.setHeight(max(0.0, min(box.height(), self.rows_top - 2.0)))
+                    box.setHeight(max(0.0, min(box.height(), float(end))))
                 if box.height() >= 1:
                     painter.save()
                     painter.setOpacity(self.bg_opacity)
@@ -420,9 +434,16 @@ class _Card(QWidget):
                     painter.restore()
         if self.hover != "off":                   # the edge says the overlay is opening to clicks, or open
             painter.setPen(QPen(QColor(theme.COLORS["accent"] if self.hover == "arming" else theme.COLORS["gold"]), 2))
-        else:
-            painter.setPen(QColor(255, 255, 255, 20))
-        painter.drawPath(path)
+            painter.drawPath(path)
+        elif self.mode != "none":
+            painter.setPen(QColor(255, 255, 255, 20))   # ``--nm-line``
+            painter.drawPath(path)
+        if self.locked:                           # ``outline: 1px dashed rgba(143, 208, 160, .7); outline-offset: -1px``
+            pen = QPen(QColor(143, 208, 160, 179), 1)
+            pen.setDashPattern([3, 3])
+            painter.setPen(pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 11.5, 11.5)
 
     def _background_layer(self, box: QRectF) -> QPixmap:
         """The image and its darkening as one layer, as ``#ovbg``'s two backgrounds are one element: its opacity
@@ -792,97 +813,6 @@ class PlayerPanel(QFrame):
         painter.drawPath(path)
 
 
-class FlowLayout(QLayout):
-    """Widgets in a row that goes on to another line where the row is too narrow, each line to the right: the web
-    overlay's toolbar (``flex-wrap: wrap; justify-content: flex-end``), which keeps its buttons whole in a narrow
-    overlay or a large font."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._items: list = []
-
-    def addItem(self, item):
-        self._items.append(item)
-
-    def count(self):
-        return len(self._items)
-
-    def itemAt(self, index):
-        return self._items[index] if 0 <= index < len(self._items) else None
-
-    def takeAt(self, index):
-        return self._items.pop(index) if 0 <= index < len(self._items) else None
-
-    def expandingDirections(self):
-        return Qt.Orientation(0)
-
-    def hasHeightForWidth(self):
-        return True
-
-    def heightForWidth(self, width):
-        return self._arrange(QRect(0, 0, width, 0), False)
-
-    def setGeometry(self, rect):
-        super().setGeometry(rect)
-        self._arrange(rect, True)
-
-    def sizeHint(self):
-        return self.minimumSize()
-
-    def minimumSize(self):
-        size = QSize()
-        for item in self._items:
-            size = size.expandedTo(item.minimumSize())
-        margins = self.contentsMargins()
-        return size + QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
-
-    def _arrange(self, rect: QRect, place: bool) -> int:
-        """Lay the items out in lines within ``rect`` (when ``place``) and answer the height they take."""
-        margins, gap = self.contentsMargins(), self.spacing()
-        area = rect.adjusted(margins.left(), margins.top(), -margins.right(), -margins.bottom())
-        lines, line, used = [], [], 0
-        for item in self._items:
-            if item.isEmpty():
-                continue
-            hint = item.sizeHint()
-            if line and used + gap + hint.width() > area.width():
-                lines.append((line, used))
-                line, used = [], 0
-            used += (gap if line else 0) + hint.width()
-            line.append((item, hint))
-        if line:
-            lines.append((line, used))
-        y = area.y()
-        for line, used in lines:
-            tall = max(hint.height() for _item, hint in line)
-            x = area.x() + max(0, area.width() - used)
-            for item, hint in line:
-                if place:
-                    item.setGeometry(QRect(QPoint(x, y + (tall - hint.height()) // 2), hint))
-                x += hint.width() + gap
-            y += tall + gap
-        bottom = y - gap if lines else area.y()
-        return bottom - rect.y() + margins.bottom()
-
-
-class _Pill(QWidget):
-    """The toolbar's and the options' own backing, a dark rounded pill, where the card does not paint behind them
-    (the top-portion and none background modes), as the web overlay's ``--nm-float``."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.filled = False
-
-    def paintEvent(self, event):
-        if not self.filled:
-            return
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        path = QPainterPath()
-        path.addRoundedRect(QRectF(self.rect()), 7, 7)
-        painter.fillPath(path, QColor(14, 16, 20, 230))
-
-
 class CooldownStrip(QWidget):
     """Your skills on cooldown (the meter's ``cooldowns``, with the chain windows open), each counting down between
     readings as the web overlay's strip does, and lit for 3 s once ready."""
@@ -890,7 +820,7 @@ class CooldownStrip(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.box = QHBoxLayout(self)
-        self.box.setContentsMargins(0, 0, 0, 0)
+        self.box.setContentsMargins(0, 2, 0, 4)   # ``#ovcooldowns { margin: 2px 0 4px }``
         self.box.setSpacing(4)
         self.chips: list[QLabel] = []
         self.rows: list = []
@@ -1197,16 +1127,18 @@ class PlayerRow(QWidget):
         look, tl = self.look, self.text_look
         px, name_font, rate_font, share_font, chip_font = self._fonts()
         height = rect.height()
-        cycle = tl.cycle and seconds is not None  # ``hue-rotate`` over the whole of the names' part (``.ovname``)
+        # ``hue-rotate`` over the whole of the names' part (``.ovname``); with the sheen on, its animation takes the
+        # cycle's place on the names, as the web overlay's stylesheet has it.
+        cycle = tl.cycle and not tl.retro and seconds is not None
         # The right: the share to a tenth (from 20em of room) and the rate, 9 px in (``.ovbar > span``).
         x = rect.width() - 9
         if not look.compact and rect.width() > 20 * px:
             room = max(QFontMetricsF(share_font).horizontalAdvance(self.share), 3.5 * share_font.pixelSize())
             draw_text(painter, QRectF(x - room, 0, room, height), self.share, share_font,
-                      QColor(tl.colour("total", "#f1d27c")), Qt.AlignRight, tl, shadow=True)
+                      QColor(tl.colour("total", "#f1d27c")), Qt.AlignRight, tl, shadow=ROW_SHADOW)
             x -= room + 9
         x -= draw_text(painter, QRectF(7, 0, max(0.0, x - 7), height), self.rate, rate_font,
-                       QColor(tl.colour("rate", "#ffffff")), Qt.AlignRight, tl, shadow=True)
+                       QColor(tl.colour("rate", "#ffffff")), Qt.AlignRight, tl, shadow=ROW_SHADOW)
         end = x - 6                               # the names' part ends where the rate's padding begins
         painter.save()
         painter.setClipRect(QRectF(0, 0, max(0.0, end), height))   # ``.ovname { overflow: hidden }``
@@ -1229,7 +1161,7 @@ class PlayerRow(QWidget):
             if opacity != 1.0:
                 painter.setOpacity(painter.opacity() * opacity)
             width = draw_text(painter, QRectF(left, 0, max(1.0, end - left), height), part, font, colour(shade),
-                              Qt.AlignLeft, tl, fill if fill is not None else brush, shift, shadow=True)
+                              Qt.AlignLeft, tl, fill if fill is not None else brush, shift, shadow=ROW_SHADOW)
             if opacity != 1.0:
                 painter.setOpacity(painter.opacity() / opacity)
             return width
@@ -1499,40 +1431,56 @@ class MeterOverlay(QWidget):
         self._bg_pixmap: QPixmap | None = None
         self._bg_wanted = self._bg_asking = self._bg_failed = False
         self._contrast_key, self._contrast = None, None
-        self.target_text = self.extra_text = ""   # the target line and the extra line as plain text
+        self.target_text = self.dummy_text = self.contribution_text = ""   # their lines as plain text
+        self.status_text = ""                     # the fight's status, the clock's tooltip (``#ovstatus``, folded away)
+        self.unavailable = False                  # the app did not answer the last reading (``meterUnavailable``)
+        self.refresh_error = ""
+        self.last_success: float | None = None
+        # The card's parts in the compact layout's order (overlay.css ``#ov.ov-nm``): what the app could not answer,
+        # the counter lines, the target card, the training-dummy parse, the rows' part, the player panel, the graph
+        # and the cooldowns; under them the clock, your contribution, the identity line and the events strip as
+        # chips; on a line of their own the ping, the frame rate and the toolbar; the options when open. Each part
+        # keeps its margins as the web card's flex items do, none shared.
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         self.card = _Card(self)
         outer.addWidget(self.card)
         box = QVBoxLayout(self.card)
-        box.setContentsMargins(9, 8, 9, 9)        # the sides as the web card's: 8 px and its 1 px edge
-        box.setSpacing(4)
-        head = QHBoxLayout()
-        self.mark = QFrame()                      # green while the fight runs, amber while the DPS clock is paused
-        self.mark.setFixedSize(3, 14)
-        self.mark.hide()
-        self._mark_colour = ""
-        head.addWidget(self.mark)
-        self.status = QLabel("Waiting for the meter")
-        self.status.setObjectName("ovstatus")
-        head.addWidget(self.status, 1)
-        self.metric_buttons = {}
-        for key, label in METRICS:
-            button = QPushButton(label)
-            button.setObjectName("ovmetric")
-            button.setCheckable(True)
-            button.setFlat(True)
-            button.setCursor(Qt.PointingHandCursor)
-            button.clicked.connect(lambda _checked=False, k=key: self.set_metric(k))
-            head.addWidget(button)
-            self.metric_buttons[key] = button
-        box.addLayout(head)
+        box.setContentsMargins(9, 5, 9, 9)        # the whole card's padding (4 8 8) and its 1 px edge
+        box.setSpacing(0)
+        self.box = box
+        self.connection = QWidget(self.card)      # ``#ovconnection``: why, how long since the last reading, Retry
+        connection = FlowLayout(self.connection, Qt.AlignLeft, (4, 2))
+        connection.setContentsMargins(10, 6, 10, 6)
+        self.reason = QLabel("", self.connection)
+        self.reason.setObjectName("ovreason")
+        self.reason.setWordWrap(True)
+        self.retry = QPushButton("Retry", self.connection)
+        self.retry.setObjectName("ovretry")
+        self.retry.setCursor(Qt.PointingHandCursor)
+        self.retry.clicked.connect(self._poll_meter)
+        connection.addWidget(self.reason)
+        connection.addWidget(self.retry)
+        self.connection.hide()
+        box.addWidget(self.connection)
+        # The counters across the top (``#ovlines``). Its box stays when no counter is shown, as the web overlay's
+        # does, its padding above the target card all the same.
+        self.lines_part = QWidget(self.card)
+        lines = QVBoxLayout(self.lines_part)
+        lines.setSpacing(0)
+        self.lines = QLabel("", self.lines_part)
+        self.lines.setObjectName("ovlines")
+        self.lines.setWordWrap(True)
+        self.lines.hide()
+        lines.addWidget(self.lines)
+        box.addWidget(self.lines_part)
         # The target card (overlay.js ``targetCard``): the portrait, then the name with the others struck and the HP
         # on one line, the HP, time-to-kill and break bars under them, and the time to kill and the break below.
         self.target_card = QWidget(self.card)
         card_row = QHBoxLayout(self.target_card)
-        card_row.setContentsMargins(0, 2, 0, 2)
+        card_row.setContentsMargins(2, 6, 2, 4)        # ``padding: 6px 2px 4px`` on the whole card
         card_row.setSpacing(8)
+        self.target_row = card_row
         self.portrait = Portrait(self.target_card)
         card_row.addWidget(self.portrait, 0, Qt.AlignVCenter)
         column = QVBoxLayout()
@@ -1572,26 +1520,30 @@ class MeterOverlay(QWidget):
         card_row.addLayout(column, 1)
         self.target_card.hide()
         box.addWidget(self.target_card)
-        self.lines = QLabel("")
-        self.lines.setObjectName("ovlines")
-        self.lines.setWordWrap(True)
-        box.addWidget(self.lines)
-        self.extra = QLabel("")                   # your contribution, or the training-dummy parse
-        self.extra.setObjectName("ovextra")
-        self.extra.setTextFormat(Qt.RichText)
-        box.addWidget(self.extra)
-        self.box = box
-        self.warning = QLabel("")                 # the meter's warning over the rows
-        self.warning.setObjectName("ovnote")
-        self.warning.setWordWrap(True)
-        box.addWidget(self.warning)
-        self.empty = QLabel("")                   # the rows' place when there are none to show
-        self.empty.setObjectName("ovnote")
-        self.empty.setWordWrap(True)
-        box.addWidget(self.empty)
+        self.dummy = QLabel("")                   # the training-dummy parse (``#ovdummy``)
+        self.dummy.setObjectName("ovdummy")
+        self.dummy.setTextFormat(Qt.RichText)
+        box.addWidget(self.dummy)
+        # The rows' part (``#ovcontent``), 6 px under what is above it: the meter's warning or why there are no rows
+        # (each a chip, ``.muted``), then the rows, 4 px apart.
+        self.content = QWidget(self.card)
+        content = QVBoxLayout(self.content)
+        content.setContentsMargins(0, 6, 0, 0)
+        content.setSpacing(4)
+        self.content_box = content
+        self.warning = QLabel("", self.content)   # the meter's warning over the rows
+        self.empty = QLabel("", self.content)     # the rows' place when there are none to show
+        for note in (self.warning, self.empty):
+            note.setObjectName("ovnote")
+            note.setWordWrap(True)
+            note.setContentsMargins(9, 4, 9, 4)
+            note.hide()
+            content.addWidget(note, 0, Qt.AlignLeft)
         self.rows_box = QVBoxLayout()
         self.rows_box.setSpacing(4)               # ``#ov.ov-nm .ovrow { margin: 0 0 4px }``
-        box.addLayout(self.rows_box)
+        content.addLayout(self.rows_box)
+        box.addWidget(self.content)
+        self.card.rows_part = self.content
         self.panel = PlayerPanel()
         self.panel.close_button.clicked.connect(self.close_detail)
         self.panel_scroll = QScrollArea(self.card)  # the panel scrolls within the room the screen leaves it
@@ -1600,80 +1552,107 @@ class MeterOverlay(QWidget):
         self.panel_scroll.setFrameShape(QFrame.NoFrame)
         self.panel_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.panel_scroll.viewport().setAutoFillBackground(False)
+        self.panel_scroll.setContentsMargins(0, 2, 0, 4)   # ``#ovdetail { margin: 2px 0 4px }``
         self.panel_scroll.hide()
         box.addWidget(self.panel_scroll)
-        self.graph = SparkGraph(self.card)        # the party's total over the fight (overlay_dps_graph)
+        self.graph = SparkGraph(self.card, 40)    # the party's total over the fight (overlay_dps_graph)
+        self.graph.setContentsMargins(0, 2, 0, 4)   # 34 px, ``margin: 2px 0 4px``
         self.graph.setToolTip("The party's total over the fight, one point per reading")
         self.graph.hide()
         box.addWidget(self.graph)
         self.cooldowns = CooldownStrip(self.card)  # below the meter, the web overlay's default; the setting moves it
         box.addWidget(self.cooldowns)
-        self.events = QLabel("")                  # the next events and observed field bosses (overlay.js ``#ovevents``)
-        self.events.setObjectName("ovevents")
-        self.events.setTextFormat(Qt.RichText)
-        self.events.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)   # one line, cut at the card's edge
-        self.events.hide()
-        box.addWidget(self.events)
-        foot = QHBoxLayout()                      # the identity line and the ping, over the toolbar
-        foot.setSpacing(8)
-        self.identity = QLabel("")                # who you are, and the actors in doubt (overlay.js ``#ovidentity``)
+        # Under the rows (``order: 65`` to ``71``): the fight's clock, your contribution, the identity line and the
+        # events strip, chips side by side and on to another line where there is no room.
+        self.chips = QWidget(self.card)
+        self.chips.setProperty("ovgap", True)     # between the chips is the game, not the overlay
+        chips = FlowLayout(self.chips, Qt.AlignLeft, (6, 4), lead=4, centre=False)
+        self.clock = Chip(self.chips, padding=(6, 3, 9, 3), gap=(8.0, 2.0))   # ``#ovclock``
+        self.contribution = Chip(self.chips, padding=(9, 3, 9, 3))            # ``#ovcontribution``
+        self.identity = QLabel("", self.chips)    # who you are, and the actors in doubt (``#ovidentity``)
         self.identity.setObjectName("ovidentity")
         self.identity.setWordWrap(True)
-        self.identity.hide()
-        foot.addWidget(self.identity, 1)
-        self.ping = QLabel("")                    # the capture's round trip (overlay.js ``#ovping``)
-        self.ping.setObjectName("ovping")
-        foot.addWidget(self.ping, 0, Qt.AlignRight | Qt.AlignTop)
-        box.addLayout(foot)
-        self.toolbar = _Pill(self.card)
-        tools = FlowLayout(self.toolbar)           # on to a second line when the buttons do not fit on one
+        self.events = QLabel("", self.chips)      # the next events and observed field bosses (``#ovevents``)
+        self.events.setObjectName("ovevents")
+        self.events.setTextFormat(Qt.RichText)
+        for chip in (self.identity, self.events):
+            chip.setContentsMargins(9, 3, 9, 3)
+        for chip in (self.clock, self.contribution, self.identity, self.events):
+            chip.hide()
+            chips.addWidget(chip)
+        box.addWidget(self.chips)
+        # On a line of their own (``order: 80`` to ``83``): the ping, the frame rate and, to the right, the toolbar.
+        self.foot = QWidget(self.card)
+        self.foot.setProperty("ovgap", True)
+        foot = FlowLayout(self.foot, Qt.AlignLeft, (4, 6), lead=6, centre=False)
+        self.ping = Chip(self.foot, padding=(8, 3, 8, 3), gap=(4.0, 2.0))   # the capture's round trip (``#ovping``)
+        self.ping.hide()
+        self.fps = FpsChip(self.foot)             # the overlay's own frame rate (``#ovfps``)
+        self.fps.on_count = self._show_fps
+        self.fps.hide()
+        self.toolbar = QWidget(self.foot)         # ``.ovhd``: the metric chip and the buttons, on to another line too
+        tools = FlowLayout(self.toolbar, Qt.AlignRight, (0, 0))
         tools.setContentsMargins(3, 1, 3, 1)
-        tools.setSpacing(2)
-        self.tools: dict[str, QPushButton] = {}
+        self.metric_chip = MetricChip(self.toolbar)
+        self.metric_chip.clicked.connect(self.next_metric)
+        tools.addWidget(self.metric_chip)
+        self.tools: dict[str, IconButton] = {}
         actions = {"lock": self.toggle_lock, "split": self.new_fight, "copy": self.copy,
                    "options": self.toggle_options, "capture": self.toggle_capture, "hide": self.hide_overlay}
-        for key, text, tip in TOOLS:
-            button = QPushButton(text, self.toolbar)
-            button.setObjectName("ovtool")
-            button.setToolTip(tip)
-            button.setCursor(Qt.PointingHandCursor)
-            button.setProperty("state", "")
+        for key, name, text, tip in TOOLS:
+            button = IconButton(name, text, tip, self.toolbar)
             button.clicked.connect(actions[key])
             tools.addWidget(button)
             self.tools[key] = button
         self.tools["options"].setCheckable(True)
-        box.addWidget(self.toolbar)
-        self.options = _Pill(self.card)            # Options: the pet grouping, the damage filters and the opacity
-        options = QVBoxLayout(self.options)
-        options.setContentsMargins(10, 5, 10, 5)
-        options.setSpacing(2)
-        self.combine = QCheckBox("Combine pets with owner", self.options)
+        for piece in (self.ping, self.fps, self.toolbar):
+            foot.addWidget(piece)
+        foot.push(self.toolbar)
+        box.addWidget(self.foot)
+        # The options (``order: 90``, ``91``), folded away until the toolbar's Options opens them: the pet grouping
+        # and the damage filters side by side, then the opacity.
+        self.options = QWidget(self.card)
+        stack = QVBoxLayout(self.options)
+        stack.setContentsMargins(0, 0, 0, 0)
+        stack.setSpacing(0)
+        choices = QWidget(self.options)
+        flow = FlowLayout(choices, Qt.AlignLeft, (10, 0))
+        flow.setContentsMargins(10, 11, 10, 5)    # ``margin-top: 6px; padding: 5px 10px``
+        self.combine = QCheckBox("Combine pets with owner", choices)
         self.combine.setToolTip("Group recorded pet damage and healing into the linked owner")
         self.combine.setChecked(True)
         self.combine.clicked.connect(self._combine_clicked)
-        self.boss_only = QCheckBox("Boss damage only", self.options)
+        self.boss_only = QCheckBox("Boss damage only", choices)
         self.boss_only.setToolTip("Count only the damage dealt to bosses: dungeon bosses, mini-bosses, field and "
                                   "world bosses. Damage to trash mobs and, in the open world (the Abyss), to other "
                                   "players is left out")
         self.boss_only.clicked.connect(lambda checked: self._filter_clicked("overlay_boss_only", checked))
-        self.pvp_only = QCheckBox("Player (PvP) damage only", self.options)
+        self.pvp_only = QCheckBox("Player (PvP) damage only", choices)
         self.pvp_only.setToolTip("Count only the damage dealt to other players (PvP), leaving out damage to monsters. "
                                  "With Boss damage only also on, damage to bosses counts too")
         self.pvp_only.clicked.connect(lambda checked: self._filter_clicked("overlay_pvp_only", checked))
-        for check in (self.combine, self.boss_only, self.pvp_only):
-            options.addWidget(check)
-        fade = QHBoxLayout()
-        fade.addWidget(QLabel("Opacity", self.options))
-        self.slider = QSlider(Qt.Horizontal, self.options)
+        self.message = QLabel("", choices)        # why an option could not be changed (``#ovpetstatus``)
+        self.message.setObjectName("ovoption")
+        self.message.hide()
+        for piece in (self.combine, self.boss_only, self.pvp_only, self.message):
+            flow.addWidget(piece)
+        stack.addWidget(choices)
+        fade = QWidget(self.options)              # ``.ovfoot``: the opacity, and the app's name
+        row = QHBoxLayout(fade)
+        row.setContentsMargins(10, 8, 10, 5)      # ``margin-top: 3px; padding: 5px 10px``
+        row.setSpacing(8)
+        opacity = QLabel("Opacity", fade)
+        opacity.setObjectName("ovoption")
+        self.slider = QSlider(Qt.Horizontal, fade)
         self.slider.setRange(20, 100)
         self.slider.setToolTip("The card's opacity behind the readings")
-        fade.addWidget(self.slider, 1)
-        options.addLayout(fade)
-        self.message = QLabel("", self.options)   # why an option could not be changed
-        self.message.setObjectName("ovnote")
-        self.message.setWordWrap(True)
-        self.message.hide()
-        options.addWidget(self.message)
+        brand = QLabel("Aion 2 Calc", fade)
+        brand.setObjectName("ovbrand")
+        row.addWidget(opacity)
+        row.addWidget(self.slider, 1)
+        row.addWidget(brand)
+        stack.addWidget(fade)
+        self.option_labels = [self.combine, self.boss_only, self.pvp_only, self.message, opacity, brand]
         self.options.hide()
         box.addWidget(self.options)
         box.addStretch(1)                         # a card taller than its readings (``overlay_height``) ends empty
@@ -1763,7 +1742,9 @@ class MeterOverlay(QWidget):
             self.requests.stop()
         self.pictures.stop()
         self._anim_timer.stop()
+        self.fps.run(False)
         forget_pictures()
+        forget_icons()
         super().closeEvent(event)
 
     # ------------------------------------------------------------------ look
@@ -1777,7 +1758,9 @@ class MeterOverlay(QWidget):
 
     def _style(self) -> None:
         """The overlay's style sheet, from its look. Its font is the sheet's too: a font set on the window after a
-        sheet does not reach the widgets inside it, which keep the family they were first styled with."""
+        sheet does not reach the widgets inside it, which keep the family they were first styled with. The footer's
+        texts keep the web overlay's own sizes (the contribution 10.5 px, the identity line, the events and the
+        options 10 px), which the overlay's text size does not change there either."""
         tl, px = self.text_look, self._px()
         weight = tl.weight
         families = ", ".join(f'"{family}"' for family in tl.families())
@@ -1788,7 +1771,6 @@ class MeterOverlay(QWidget):
         sheet = (
             f"QWidget {{ font-family: {families}; font-size: {px}px; font-weight: {weight}; }}"
             f"QLabel {{ color: {c['text']}; background: transparent; }}"
-            f"QLabel#ovstatus {{ {tl.css('header', px, 700, c['gold'])} }}"
             f"QLabel#ovtarget {{ {tl.css('target', px, 400, '#f4f6f8')} }}"
             f"QLabel#ovtnums {{ color: #a3abb5; {target_family} font-size: {round(target_px * 0.85)}px;"
             f" font-weight: {target_weight}; }}"
@@ -1796,23 +1778,19 @@ class MeterOverlay(QWidget):
             f"QLabel#ovtline {{ color: #aab3bd; {target_family} font-size: {round(target_px * 0.86)}px;"
             f" font-weight: {target_weight}; }}"
             f"QLabel#ovlines {{ {tl.css('ping', px, weight, '#e9edf1')} }}"
-            f"QLabel#ovextra, QLabel#ovnote {{ color: {c['muted']}; }}"
-            f"QLabel#ovidentity {{ {tl.css('identity', round(px * 0.85), weight, c['gold'])} }}"
-            f"QLabel#ovping {{ {tl.css('ping', round(px * 0.9), 600, '#c9d1db')} }}"
+            f"QLabel#ovdummy {{ color: #cdd6e6; font-size: 11px; font-weight: 400; }}"
+            f"QLabel#ovdummy[ok=\"true\"] {{ color: #8fd0a0; }}"
+            f"QLabel#ovnote {{ color: #9aa3b5; font-weight: 400; }}"
+            f"QLabel#ovidentity {{ {tl.css('identity', 10, 400, '#e8cf8e')} }}"
+            f"QLabel#ovevents {{ color: #9aa3b5; font-size: 10px; font-weight: 400; }}"
+            f"QLabel#ovreason {{ color: #e8cf8e; font-size: 11px; font-weight: 400; }}"
             f"QPushButton {{ color: {c['muted']}; background: transparent; border: none; padding: 0 3px; }}"
-            f"QPushButton:checked {{ color: {c['gold']}; text-decoration: underline; }}"
-            f"QPushButton#ovmetric {{ {tl.css('header', px, weight)} }}"
-            f"QPushButton#ovmetric:checked {{ color: {header}; }}"
-            f"QPushButton#ovtool {{ {tl.css('header', px, weight, '#c9d1db')} background: rgba(255, 255, 255, 14);"
-            f" border-radius: 6px; padding: 2px 7px; }}"
-            f"QPushButton#ovtool:hover {{ background: rgba(255, 255, 255, 30); color: #ffffff; }}"
-            f"QPushButton#ovtool:checked {{ color: #39c2e0; text-decoration: none; }}"
-            f"QPushButton#ovtool:disabled {{ color: #6b7385; }}"
-            f"QPushButton#ovtool[state=\"on\"], QPushButton#ovtool[state=\"ok\"],"
-            f" QPushButton#ovtool[state=\"start\"] {{ color: #6fe3a3; }}"
-            f"QPushButton#ovtool[state=\"err\"], QPushButton#ovtool[state=\"stop\"] {{ color: #ff8585; }}"
-            f"QCheckBox {{ color: #9aa8bb; background: transparent; spacing: 5px; }}"
-            f"QCheckBox::indicator {{ width: 12px; height: 12px; border: 1px solid {c['line2']}; border-radius: 3px;"
+            f"QPushButton#ovretry {{ margin: 2px; padding: 1px 6px; border: 1px solid rgba(185, 152, 79, 102);"
+            f" border-radius: 4px; background: #1c2438; color: #e9e6df; font-size: 11px; font-weight: 400; }}"
+            f"QCheckBox, QLabel#ovoption {{ color: #7f8aa3; background: transparent; font-size: 10px;"
+            f" font-weight: 400; spacing: 3px; }}"
+            f"QLabel#ovbrand {{ color: rgba(185, 152, 79, 217); font-size: 10px; font-weight: 700; }}"
+            f"QCheckBox::indicator {{ width: 11px; height: 11px; border: 1px solid {c['line2']}; border-radius: 3px;"
             f" background: {c['bg2']}; }}"
             f"QCheckBox::indicator:checked {{ background: {c['gold']}; border-color: {c['gold']}; }}"
             f"QScrollArea {{ background: transparent; }}"
@@ -1832,7 +1810,7 @@ class MeterOverlay(QWidget):
 
     def _apply_look(self) -> None:
         """Hand the look to all that draws text: the style sheet, the rows, the panel's tiles, the time-to-kill bar,
-        the labels' effects, and the colour cycle and the sheen."""
+        the toolbar, the labels' effects, and the colour cycle and the sheen."""
         tl = self.text_look
         changed = vars(tl) != self._shown_look    # the settings come every 3 s, mostly the same: nothing to redraw
         self._shown_look = dict(vars(tl))
@@ -1845,6 +1823,14 @@ class MeterOverlay(QWidget):
         if changed:
             for row in self.rows:
                 row.set_text_look(tl)
+            # The toolbar: its buttons at the text's size and the header's own (``--ov-header-fs``), in the header's
+            # colour; the metric chip at the text's size alone.
+            header_scale = tl.fonts.get("header", (None, None, None))[1] or 1.0
+            for button in self.tools.values():
+                button.scale, button.colour = tl.scale * header_scale, tl.colour("header", "#c9d1db")
+                button.updateGeometry()
+                button.update()
+            self.metric_chip.set_look(tl, tl.scale, tl.families("header"))
         # The cycle and the sheen move while either is on, held still in performance mode and when the system asks
         # for less motion (the web overlay's ``ov-perf`` and ``prefers-reduced-motion``).
         self._still = self._perf or reduced_motion()
@@ -1859,24 +1845,34 @@ class MeterOverlay(QWidget):
         self._sync_effects(changed)
         self._paint_moment(time.monotonic() - self._anim_start if moving else None)
 
-    def _text_labels(self) -> list[QLabel]:
-        return [self.status, self.target, self.target_nums, self.target_hp, self.target_line, self.lines, self.extra,
-                self.warning, self.empty, self.events, self.identity, self.ping]
+    def _text_labels(self) -> list[QWidget]:
+        """What shows text through a label's effect: the parts at the top and the chips under the rows."""
+        return [self.target, self.target_nums, self.target_hp, self.target_line, self.lines, self.dummy,
+                self.reason, *self._chip_labels()]
+
+    def _chip_labels(self) -> list[QWidget]:
+        """The labels that float as chips, their text over the chips' shadow in every background (``--nm-shadow``):
+        the rows' notes, the identity line, the events strip and the options."""
+        return [self.warning, self.empty, self.identity, self.events, *self.option_labels]
 
     def _sync_effects(self, changed: bool = True) -> None:
-        """Each text label's effect (``TextEffect``): with the outline, glow or halo, the blend, or for the header
-        the colour cycle; none otherwise, since drawn through one a label's text loses its sub-pixel smoothing."""
-        tl, moving = self.text_look, self._anim_timer.isActive()
+        """Each text label's effect (``TextEffect``): the chips' shadow under the floating ones (and under the top
+        parts too with no background at all), with the outline, glow or halo, or the blend; none otherwise, since
+        drawn through one a label's text loses its sub-pixel smoothing."""
+        tl = self.text_look
+        floating = set(self._chip_labels())
+        bare = self.card.mode == "none"           # ``#ov.ov-nm.ov-bg-none``: the lines, the target, the dummy too
         for label in self._text_labels():
-            wanted = tl.painted or (label is self.status and tl.cycle and moving)
+            shadow = CHIP_SHADOW if label in floating or bare else None
+            wanted = tl.painted or shadow is not None
             effect = self._effects.get(label)
             if wanted and effect is None:
-                effect = TextEffect(tl, label)
+                effect = TextEffect(tl, label, shadow)
                 label.setGraphicsEffect(effect)
                 self._effects[label] = effect
             elif wanted:
-                if changed:
-                    effect.set_look(tl)
+                if changed or effect.shadow != shadow:
+                    effect.set_look(tl, shadow)
             elif effect is not None:
                 label.setGraphicsEffect(None)    # Qt deletes it
                 del self._effects[label]
@@ -1885,22 +1881,20 @@ class MeterOverlay(QWidget):
         self._paint_moment(time.monotonic() - self._anim_start)
 
     def _paint_moment(self, seconds: float | None) -> None:
-        """The colour cycle and the sheen ``seconds`` in (None: held still): the rows' names, and the header's
-        colour through its effect."""
+        """The colour cycle and the sheen ``seconds`` in (None: held still): the rows' names, and the toolbar turning
+        through the hues (``#ov.ov-cycle .ovhd``), unless the sheen's animation takes the cycle's place there, as it
+        does on the web overlay (where the sheen itself does not show on the toolbar)."""
         tl = self.text_look
         for row in self.rows:
             if row.seconds != seconds:
                 row.seconds = seconds
                 if not row.isHidden() and (tl.cycle or tl.retro or row.cosmetic):
                     row.update()
-        effect = self._effects.get(self.status)
-        if effect is not None:
-            tl = self.text_look
-            turning = tl.cycle and seconds is not None
-            if turning or effect.tint is not None:
-                effect.shift = (lambda colour: cycled(colour, seconds)) if turning else None   # its effects too
-                effect.tint = effect.shift(QColor(tl.colour("header", theme.COLORS["gold"]))) if turning else None
-                effect.update()
+        turning = seconds if tl.cycle and not tl.retro else None
+        for button in (self.metric_chip, *self.tools.values()):
+            if button.seconds != turning:
+                button.seconds = turning
+                button.update()
 
     # ------------------------------------------------------------------ the background image
     def _want_background(self, ui: dict) -> None:
@@ -2017,15 +2011,13 @@ class MeterOverlay(QWidget):
         self.look = RowLook(ui)
         mode = ui.get("overlay_bg_mode")
         self.card.mode = mode if mode in ("card", "top", "none") else "card"
+        self._place_parts(self.card.mode)
         self._want_background(ui)
-        for pill in (self.toolbar, self.options):
-            pill.filled = self.card.mode != "card"
-            pill.update()
         top = ui.get("overlay_cooldowns_position") == "top"
         if top != self._cooldowns_top:            # the strip above the player rows, or below them
             self._cooldowns_top = top
             self.box.removeWidget(self.cooldowns)
-            self.box.insertWidget(self.box.indexOf(self.extra) + 1 if top else self.box.indexOf(self.graph) + 1,
+            self.box.insertWidget(self.box.indexOf(self.dummy) + 1 if top else self.box.indexOf(self.graph) + 1,
                                   self.cooldowns)
         for check, key in ((self.boss_only, "overlay_boss_only"), (self.pvp_only, "overlay_pvp_only")):
             if check.isEnabled():                 # the saved filters; the meter's answer names them too
@@ -2040,6 +2032,13 @@ class MeterOverlay(QWidget):
             self._tick_timer.stop()
             self._shown_rates.clear()
         self._cooldown_timer.setInterval(500 if self._perf else 250)
+        # The overlay's frame rate (``overlay_show_fps``): its frames counted while it is on, never in performance
+        # mode, where nothing drives a frame each turn of the screen.
+        counting = ui.get("overlay_show_fps") is True and not self._perf
+        if counting != self.fps.running():
+            self.fps.run(counting)
+            self.fps.set_parts([], self.text_look)   # nothing until its first second is counted
+            self.fps.setVisible(counting)
         if ui.get("overlay_dps_graph") is not True:
             self._graph, self._player_hist = [], {}
         if ui.get("overlay_show_events") is not False and self._catalog is None and not self._catalog_asked \
@@ -2052,6 +2051,24 @@ class MeterOverlay(QWidget):
         if first:                                 # where it was last put, if that is still on a monitor
             self.host.restore(ui)
         self.apply_meter(self.answer)
+
+    def _place_parts(self, mode: str) -> None:
+        """The card's padding and its parts' margins for its background (overlay.css ``#ov.ov-nm``): on the whole
+        card 4 px above, 8 px at the sides and below within its edge, the top parts 2 px further in; with the top
+        portion only or nothing behind, the card has no padding and the top parts their own 10 px (9 px for a chip
+        of its own over the game), so the rows run a pixel from the overlay's edge."""
+        whole, bare = mode == "card", mode == "none"
+        self.box.setContentsMargins(*((9, 5, 9, 9) if whole else (1, 1, 1, 1)))
+        self.connection.layout().setContentsMargins(*((9, 3, 9, 7) if bare else (10, 6, 10, 6)))
+        self.lines_part.layout().setContentsMargins(*((2, 5, 2, 0) if whole else (9, 4, 9, 8) if bare else
+                                                      (10, 7, 10, 0)))
+        self.target_row.setContentsMargins(*((2, 6, 2, 4) if whole else (10, 7, 10, 9)))
+        self.dummy.setContentsMargins(*((2, 0, 2, 4) if whole else (9, 3, 9, 7) if bare else (10, 0, 10, 7)))
+
+    def _content_width(self) -> int:
+        """The room inside the card's padding, as wide as the rows."""
+        margins = self.box.contentsMargins()
+        return self.width() - margins.left() - margins.right()
 
     def set_click_through(self, on: bool) -> None:
         """Let clicks pass through to the game (the overlay's own setting): by the control on Windows, its buttons
@@ -2069,12 +2086,20 @@ class MeterOverlay(QWidget):
 
     def set_metric(self, metric: str) -> None:
         self.rate_metric = metric if metric in dict(METRICS) else "dps"
-        for key, button in self.metric_buttons.items():
-            button.setChecked(key == self.rate_metric)
+        words = dict(METRICS)[self.rate_metric]
+        self.metric_chip.setText(words)
+        self.metric_chip.setAccessibleName(words)
+        self.metric_chip.setToolTip(f"{words} — click for the next: DPS, HPS, damage taken")
+        self.metric_chip.updateGeometry()
         if self.store is not None:
             self.store.setValue("metric", self.rate_metric)
         self._shown_rates.clear()                 # the rows tick from the new metric's rates, not the old one's
         self.apply_meter(self.answer)
+
+    def next_metric(self) -> None:
+        """A click on the metric chip: the next metric, DPS, HPS, damage taken and round again."""
+        keys = [key for key, _words in METRICS]
+        self.set_metric(keys[(keys.index(self.rate_metric) + 1) % len(keys)])
 
     def set_opacity(self, value: float) -> None:
         """The card's opacity, 20% to 100% (the web overlay's slider), kept for the next time."""
@@ -2091,11 +2116,14 @@ class MeterOverlay(QWidget):
     # ------------------------------------------------------------------ reading
     def _meter_answered(self, answer) -> None:
         if not self.locked:                       # locked, the overlay holds the reading it shows
+            self.unavailable, self.refresh_error, self.last_success = False, "", time.time()
             self.apply_meter(answer)
 
     def _meter_failed(self, why: str) -> None:
+        """The app did not answer: the last reading stays, with why and since when over it (``#ovconnection``)."""
         if not self.locked:
-            self.status.setText("The app does not answer")
+            self.unavailable, self.refresh_error = True, str(why or "No answer")[:512]
+            self.apply_meter(self.answer)
 
     def _names(self, player: dict) -> tuple[str, bool, bool]:
         """A player's name as the rows show it, whether it is you, and whether you are still unnamed."""
@@ -2131,63 +2159,43 @@ class MeterOverlay(QWidget):
         limit = max(1, min(24, int(ui.get("overlay_max_players") or 8)))
         if look.auto_expand:
             limit = min(24, max(limit, len(players)))
-        total_rate = sum(_rate(p, metric) for p in players)
         total_amount = sum(_amount(p, metric) for p in players) or 1.0
-        label = dict(METRICS)[metric]
         filtered = filter_label(answer)
-        # Only in combat (the web overlay's ``collapse``): between fights the overlay keeps its header alone.
+        # Only in combat (the web overlay's ``collapse``): between fights the overlay keeps its toolbar alone.
         idle = ui.get("overlay_only_in_combat") is True and (
             not running or over or (paused and snap.get("boss_alive") is not True))
         shown = [] if idle or over else players[:limit]   # a fight that is over says it is ready for the next
         top = max([_rate(p, metric) for p in everyone] + [1.0])   # the rate a whole bar stands for
-        if idle:
-            status = "Idle · waiting for combat" if running else "Idle"
-        elif answer.get("error"):
-            status = f"Capture stopped: {answer['error']}"
-        elif cleared:
-            status = "New fight · waiting for combat"
-        elif not running and not players:
-            status = "Idle"
-        elif not players:
-            status = "Idle · waiting for combat"
-        else:
-            boss = snap.get("boss") or "Combat"
-            pause = "Paused DPS · " if paused and metric == "dps" else ""
-            status = f"{pause}{boss} · {_round(snap.get('duration'))}s · {theme.kfmt(total_rate)} raid {label}"
-            if filtered and metric == "dps":
-                status += f" · {filtered}"
-            backlog = snap.get("decode_backlog") or {}
-            if isinstance(backlog, dict) and backlog.get("catching_up"):
-                status += f" · catching up ({backlog.get('queue_depth')})"
-        self.status.setText(status)
-        # The fight's mark (the compact layout's clock): green while it runs, amber while the DPS clock is paused.
-        colour = "#5ee04a" if running and not paused else "#e3b35a" if paused else "#6b7380"
-        if colour != self._mark_colour:
-            self._mark_colour = colour
-            self.mark.setStyleSheet(f"background: {colour}; border-radius: 1px;")
-        self.mark.setVisible(not idle and not over and not cleared and bool(players))
+        duration = snap.get("duration") if metric == "dps" else snap.get("recorded_duration")
+        self.status_text = self._status(answer, snap, everyone, metric, filtered, duration, cleared, idle)
         self.copy_text = leaderboard_text(snap, players, metric, filtered, lambda p: self._names(p)[0])
-        target = snap.get("current_target")
-        if (idle or over or cleared or not isinstance(target, dict) or target.get("is_player")
-                or not target.get("contributors")):
-            target = None                         # the web overlay's target panel needs damage dealt to it
-        self._show_target(target)
+        self._show_connection()
         lines = counter_lines(snap)
+        if self.card.mode == "top":               # 4 px under the counters when there are any (``:has(...)``)
+            self.lines_part.layout().setContentsMargins(10, 7, 10, 4 if lines and not idle else 0)
         if lines and not idle:
             full = "    ".join(text for _key, text, _short in lines)
-            fits = self.lines.fontMetrics().horizontalAdvance(full) <= self.width() - 24
+            margins = self.lines_part.layout().contentsMargins()
+            room = self._content_width() - margins.left() - margins.right()
+            fits = self.lines.fontMetrics().horizontalAdvance(full) <= room
             self.lines.setText(full if fits else "  ·  ".join(short for _key, _text, short in lines))
             self.lines.setToolTip("\n".join(text for _key, text, _short in lines))
             self.lines.show()
         else:
             self.lines.hide()
-        self._show_extra(snap, idle or over or cleared, metric)
+        target = snap.get("current_target")
+        if (idle or over or cleared or not isinstance(target, dict) or target.get("is_player")
+                or not target.get("contributors")):
+            target = None                         # the web overlay's target panel needs damage dealt to it
+        self._show_target(target)
+        self._show_dummy(snap, idle or over or cleared, metric)
         warning = snap.get("warning") if not idle and not over and everyone else None
         self.warning.setText(str(warning or ""))
         self.warning.setVisible(bool(warning))
         empty = "" if idle or shown else empty_text(answer, everyone, metric, cleared, filtered)
         self.empty.setText(empty)
         self.empty.setVisible(bool(empty))
+        self.content_box.setContentsMargins(0, 6, 0, 4 if shown else 0)   # the last row's own 4 px under it
         cooling = (ui.get("overlay_show_cooldowns") is True and running and not idle
                    and (snap.get("cooldowns") or snap.get("chain_windows")))
         if cooling:
@@ -2198,15 +2206,15 @@ class MeterOverlay(QWidget):
             self._graphed = answer
             self._record_graph(answer, snap, everyone)
         self._draw_graph(idle)
+        self._show_clock(answer, snap, everyone, players, metric, filtered, duration,
+                         idle or over or cleared or not players)
+        self._show_contribution(snap, idle or over or cleared, metric)
         text, fine = identity_line(snap, everyone, players, players, repeated,
                                    ui.get("overlay_show_combat_power") is not False)
         self.identity.setText(text)
         self.identity.setVisible(bool(text) and not fine and not idle)
-        ping, whole = ping_texts(snap.get("ping"))
-        self.ping.setText(ping)
-        self.ping.setVisible(not idle)
-        self.ping.setToolTip(f"{whole} — Passive TCP RTT for this recording connection; average/minimum/maximum "
-                             f"across the capture")
+        self._show_ping(snap.get("ping"), idle)
+        self.metric_chip.setVisible(not idle)     # ``#ovmetrics`` goes with the rest between fights
         identity = snap.get("identity_status") or {}
         local_cp = identity.get("local_combat_power")
         # Live-ticking DPS between readings (overlay_dps_interpolate): the rows ease from the rates they show.
@@ -2252,8 +2260,6 @@ class MeterOverlay(QWidget):
         if self._meter_poller is not None:        # twice a second in a fight, once a second out of one
             self._meter_poller.set_interval((500 if running else 1000) * (2 if self._perf else 1))
         self._relayout()
-        first = next((row for row in self.rows if not row.isHidden()), None)
-        self.card.rows_top = first.geometry().top() if first is not None else None
         self.card.update()
 
     def _record_graph(self, answer: dict, snap: dict, everyone: list) -> None:
@@ -2420,31 +2426,149 @@ class MeterOverlay(QWidget):
         self.target_bars.setVisible(known or timed or gauge_pct is not None)
         self.target_card.show()
 
-    def _show_extra(self, snap: dict, hidden: bool, metric: str) -> None:
-        """Your contribution to the fight, or the training-dummy parse, under the target (DPS view only)."""
-        text = rich = ""
-        contribution, dummy = snap.get("contribution"), snap.get("dummy_parse")
-        if not hidden and metric == "dps":
-            if isinstance(dummy, dict) and self.ui.get("meter_show_dummy_parse", True) is not False:
-                you = f" · You {theme.kfmt(dummy['your_dps'])}/s" if dummy.get("your_dps") is not None else ""
-                body = (f" {round(float(dummy.get('duration') or 0))}s / "
-                        f"{round(float(dummy.get('window_seconds') or 0))}s{' ✓' if dummy.get('window_reached') else ''}"
-                        f"{you} · Total {theme.kfmt(dummy.get('target_dps'))}/s")
-                text = "Dummy parse" + body
-                rich = self.text_look.inline("label", "Dummy parse", self._px()) + html.escape(body)
-            elif (isinstance(contribution, dict) and float(contribution.get("damage") or 0) > 0
-                  and self.ui.get("overlay_show_contribution") is not False):
-                text = (f"Your contribution: {round(float(contribution.get('share') or 0) * 100)}% · "
-                        f"{theme.kfmt(contribution.get('damage'))} ({theme.kfmt(contribution.get('dps'))}/s)")
-                rich = html.escape(text)
-        self.extra_text = text
-        self.extra.setText(rich)
-        self.extra.setVisible(bool(text))
+    def _status(self, answer: dict, snap: dict, everyone: list, metric: str, filtered: str, duration, cleared: bool,
+                idle: bool) -> str:
+        """The fight's status as the web overlay words it (``#ovstatus``), which the compact layout folds away into
+        the clock's tooltip."""
+        noun = {"hps": "HPS", "dtps": "Damage taken/s"}.get(metric, "DPS")
+        running = answer.get("running") is True
+        if cleared:
+            status = "New fight · waiting for combat"
+        else:
+            pause = "Paused DPS · " if snap.get("paused") is True and metric == "dps" else ""
+            what = snap.get("boss") or ("recording" if running else "idle")
+            status = (f"Latest combat · {pause}{what} · {theme.fixed(_num(duration), 0)}s · "
+                      f"{theme.kfmt(sum(_rate(p, metric) for p in everyone))} {noun}")
+            if filtered and metric == "dps":
+                status += f" · {filtered}"
+        backlog = snap.get("decode_backlog")
+        if isinstance(backlog, dict) and backlog.get("catching_up"):
+            status += f" · ⏳ catching up ({_text(backlog.get('queue_depth'))})"
+        if answer.get("error"):
+            status = f"Capture stopped: {answer['error']}"
+        if self.unavailable:
+            status = "Refresh failed · retrying"
+        if idle:
+            status = "Idle · waiting for combat" if running else "Idle"
+        return status
+
+    def _show_connection(self) -> None:
+        """While the app does not answer (``#ovconnection``): why, how long since the last reading, and Retry."""
+        if self.unavailable:
+            since = (f"{int(time.time() - self.last_success)}s since last refresh. "
+                     if self.last_success is not None else "")
+            self.reason.setText(f"{self.refresh_error} · {since}Last readings retained; capture status unknown.")
+        self.connection.setVisible(self.unavailable)
+
+    def _show_dummy(self, snap: dict, hidden: bool, metric: str) -> None:
+        """The training-dummy parse under the target (``#ovdummy``, the DPS view only), green once its window is
+        reached."""
+        dummy, text, rich = snap.get("dummy_parse"), "", ""
+        if (not hidden and metric == "dps" and isinstance(dummy, dict)
+                and self.ui.get("meter_show_dummy_parse", True) is not False):
+            you = f" · You {theme.kfmt(dummy['your_dps'])}/s" if dummy.get("your_dps") is not None else ""
+            body = (f" {_round(dummy.get('duration'))}s / {_round(dummy.get('window_seconds'))}s"
+                    f"{' ✓' if dummy.get('window_reached') else ''}{you} · Total {theme.kfmt(dummy.get('target_dps'))}/s")
+            text = "Dummy parse" + body
+            rich = self.text_look.inline("label", "Dummy parse", 11, "#e8cf8e", 600) + html.escape(body)
+            ok = dummy.get("window_reached") is True
+            if self.dummy.property("ok") != ok:
+                self.dummy.setProperty("ok", ok)
+                self.dummy.style().unpolish(self.dummy)
+                self.dummy.style().polish(self.dummy)
+        self.dummy_text = text
+        self.dummy.setText(rich)
+        self.dummy.setVisible(bool(text))
+
+    def _show_clock(self, answer: dict, snap: dict, everyone: list, players: list, metric: str, filtered: str,
+                    duration, hidden: bool) -> None:
+        """The fight's clock (``#ovclock``): a mark green while the fight runs and amber while the DPS clock is
+        paused, the fight's time, notes (paused, the damage filter, catching up, the capture stopped) and the
+        party's total for the metric shown. Its tooltip is the fight's status."""
+        if hidden:
+            self.clock.hide()
+            return
+        tl, scale = self.text_look, self.text_look.scale
+        running, paused = answer.get("running") is True, snap.get("paused") is True
+        live = running and not paused
+        families = tl.families()
+        note, line = sized_font(families, 11 * scale, 600), 11 * scale * 1.35
+        seconds = max(0, math.floor(_num(duration)))
+        parts = [Part(mark=clock_mark("#5ee04a" if live else "#e3b35a" if paused else "#6b7380", live),
+                      size=QSizeF(3, 15)),
+                 Part([(f"{seconds // 60:02d}:{seconds % 60:02d}", sized_font(MONOSPACE, 13 * scale, 700, 0.5),
+                        "#e9edf1")], 13 * scale * 1.3)]
+        if paused and metric == "dps":
+            parts.append(Part([("Paused", note, "#e3b35a")], line))
+        if metric == "dps" and filtered:
+            short = {"Boss damage only": "Boss only", "Player damage only": "PvP only"}.get(filtered, "Bosses + PvP")
+            parts.append(Part([(short, note, "#8fd0a0")], line, tip=filtered))
+        backlog = snap.get("decode_backlog")
+        if isinstance(backlog, dict) and backlog.get("catching_up"):
+            parts.append(Part([(f"catching up ({_text(backlog.get('queue_depth'))})", note, "#e3b35a")], line))
+        if answer.get("error"):
+            parts.append(Part([("Capture stopped", note, "#ff8585")], line, tip=str(answer["error"])))
+        short = {"hps": "HPS", "dtps": "DTPS"}.get(metric, "DPS")
+        parts.append(Part([(f"Party {short} ", note, "#9aa3b5"),
+                           (theme.kfmt(sum(_rate(p, metric) for p in everyone)), sized_font(families, 11 * scale, 800),
+                            TEAL)], line))
+        self.clock.set_parts(parts, tl)
+        self.clock.setToolTip(self.status_text)
+        self.clock.setAccessibleName("Fight time")
+        self.clock.show()
+
+    def _show_contribution(self, snap: dict, hidden: bool, metric: str) -> None:
+        """Your share of the fight's damage (``#ovcontribution``), a chip of its own after the clock (DPS only)."""
+        contribution = snap.get("contribution")
+        show = (not hidden and metric == "dps" and isinstance(contribution, dict)
+                and _num(contribution.get("damage")) > 0 and self.ui.get("overlay_show_contribution") is not False)
+        self.contribution_text = (f"Your contribution: {_round(_num(contribution.get('share')) * 100)}% · "
+                                  f"{theme.kfmt(contribution.get('damage'))} ({theme.kfmt(contribution.get('dps'))}/s)"
+                                  if show else "")
+        if show:
+            self.contribution.set_parts([Part([(self.contribution_text, sized_font(self.text_look.families(), 10.5, 400),
+                                                "#88d1d2")], 10.5 * 1.35)], self.text_look)
+        self.contribution.setVisible(show)
+
+    def _show_ping(self, ping, hidden: bool) -> None:
+        """The capture's round trip (``#ovping``): a signal mark and the current one in milliseconds, the average
+        and the range in its tooltip, in the ping's own look."""
+        tl = self.text_look
+        current, whole = ping_texts(ping)
+        size = tl.size("ping", 12 * tl.scale)
+        families = tl.families("ping")
+        colour = tl.colour("ping", "#eef1f4")
+        self.ping.set_parts([Part(mark=icon_mark("signal", "#4ea8ef"), size=QSizeF(1.15 * size, size)),
+                             Part([(current, sized_font(families, size, 800), colour),
+                                   ("ms", sized_font(families, size, 600), colour)], size * 1.35)], tl)
+        self.ping.setToolTip(f"{whole} — Passive TCP RTT for this recording connection; average/minimum/maximum "
+                             f"across the capture")
+        self.ping.setVisible(not hidden)
+
+    def _show_fps(self) -> None:
+        """The frame rate counted over the last second (``#ovfps``): its number, then "FPS"."""
+        rate = self.fps.rate
+        if rate is None:
+            return
+        tl, scale = self.text_look, self.text_look.scale
+        families = tl.families()
+        width = self.fps.sizeHint().width()
+        self.fps.set_parts([Part([(str(rate), sized_font(families, 12 * scale, 700), "#eef1f4"),
+                                  (" FPS", sized_font(families, 11 * scale, 700), "#4ea8ef")], 12 * scale * 1.5)], tl)
+        self.fps.setToolTip("The overlay's own frames each second (the game's can't be read from the capture)")
+        if self.fps.sizeHint().width() != width:  # its first count, or a number of another length
+            self._relayout()
 
     def _relayout(self) -> None:
         """Lay the card out for what it now holds, then size the window to it. A row, a line or the panel that came
-        or went asks for a layout only at the next turn of the event loop: sized before it, the window kept its old
-        height until then, and its rows lay on top of each other."""
+        or went asks for a layout only at the next turn of the event loop, and a part with its own layout (the rows'
+        part, the chips, the toolbar) tells the card its new size only then: sized before it, the window kept its old
+        height until then, and its rows lay on top of each other. So each part's own layout is laid out first, the
+        innermost first, then the card's."""
+        for widget in reversed(self.card.findChildren(QWidget)):
+            layout = widget.layout()
+            if layout is not None and not widget.isHidden():
+                layout.activate()
         self.box.activate()
         self.layout().activate()
         self.resize(self.width(), self._content_height())
@@ -2490,7 +2614,7 @@ class MeterOverlay(QWidget):
         tl, px = self.text_look, self._px()
         bold = QFont(self.events.font())
         bold.setBold(True)                        # measured bold throughout, so a fit is never too tight
-        room, metrics = max(40, self.width() - 24), QFontMetricsF(bold)
+        room, metrics = max(40, self._content_width() - 18), QFontMetricsF(bold)   # a chip's whole line
         lead = QFontMetricsF(tl.font("label", px, 700)).horizontalAdvance("Events ")
         count = len(shown)
         while count > 1 and lead + metrics.horizontalAdvance(
@@ -2553,16 +2677,16 @@ class MeterOverlay(QWidget):
         if player is not None and time.monotonic() - self.detail_at > 3 and not self.detail_busy:
             self._fetch_detail()                  # the buffs follow the fight every few seconds
         name, mine, _unnamed = self._names(player) if player is not None else ("Player", False, False)
-        columns = max(1, (self.width() - 18 - 20 + 4) // 96)   # the card's and the panel's margins; 92 px tiles
+        columns = max(1, (self._content_width() - 20 + 4) // 96)   # the panel's margins; 92 px tiles
         self.panel.set_reading(panel_reading(snap, player, self.detail_buffs, self.detail_extra, name, mine), columns)
         graphed = self.ui.get("overlay_dps_graph") is True and player is not None
         self.panel.set_spark(self._player_hist.get(self.detail_key, []) if graphed else [],
                              theme.class_color(player.get("class")) if player is not None else None)
         self.panel_scroll.show()
         self.panel.layout().activate()            # its tiles and lines as they now stand (see _relayout)
-        width = self.width() - 18
+        width = self._content_width()
         content = (self.panel.heightForWidth(width) if self.panel.hasHeightForWidth()
-                   else self.panel.sizeHint().height())
+                   else self.panel.sizeHint().height()) + 6   # and its margins, 2 px above and 4 below
         self.panel_scroll.setFixedHeight(content)
         screen = self.screen()
         room = min(MAX_OVERLAY_HEIGHT, (screen.availableGeometry().height() - 16) if screen is not None
@@ -2574,15 +2698,17 @@ class MeterOverlay(QWidget):
 
     # ------------------------------------------------------------------ the toolbar
     @staticmethod
-    def _state(button: QPushButton, state: str) -> None:
-        button.setProperty("state", state)
-        button.style().unpolish(button)
-        button.style().polish(button)
+    def _state(button: IconButton, state: str) -> None:
+        """How a press went (``data-state``): "ok" green, "err" red, "" its own colour again."""
+        button.state = state
+        button.update()
 
     def _flash(self, key: str, text: str, state: str, ms: int, then) -> None:
-        """A button says how its press went for a moment (``Copied``, ``New ✓``, ``Error``), then ``then`` runs."""
+        """A button says how its press went for a moment, in its colour (and in its words, ``Copied``, ``New ✓``,
+        ``Error``, for a screen reader), then ``then`` runs."""
         button = self.tools[key]
         button.setText(text)
+        button.setAccessibleName(text)
         self._state(button, state)
         QTimer.singleShot(ms, button, then)
 
@@ -2601,11 +2727,15 @@ class MeterOverlay(QWidget):
             return
         running, finalizing = self.answer.get("running") is True, self.answer.get("finalizing") is True
         button = self.tools["capture"]
-        button.setText("Stopping…" if finalizing else "Stop" if running else "Start")
+        words = "Stopping…" if finalizing else "Stop" if running else "Start"
+        button.setText(words)
+        button.setAccessibleName(words)
         button.setEnabled(not finalizing)
         button.setToolTip("Stop capturing combat (same as Stop in the app)" if running else
                           "Start capturing combat (same as Start in the app)")
-        self._state(button, "stop" if running or finalizing else "start")
+        on = running or finalizing                # ``#ovcapture.on``: the stop square in red, else the play in green
+        button.icon_name, button.tone = ("stop", RED) if on else ("play", GREEN)
+        self._state(button, "")
 
     def _poll_meter(self) -> None:
         if self._meter_poller is not None:
@@ -2616,7 +2746,11 @@ class MeterOverlay(QWidget):
         self.locked = not self.locked
         button = self.tools["lock"]
         button.setText("Unlock" if self.locked else "Lock")
-        self._state(button, "on" if self.locked else "")
+        button.setAccessibleName(button.text())
+        button.tone = GREEN if self.locked else None   # ``#ovlock.on``
+        button.update()
+        self.card.locked = self.locked            # and the card's dashed green edge
+        self.card.update()
         self.card.setToolTip("Locked for a screenshot: it stays in place and frozen until Unlock (or the screenshot "
                              "hotkey) unlocks it" if self.locked else "")
         if not self.locked:
@@ -2639,11 +2773,15 @@ class MeterOverlay(QWidget):
 
     def _copy_back(self) -> None:
         self.tools["copy"].setText("Copy")
+        self.tools["copy"].setAccessibleName("Copy")
         self._state(self.tools["copy"], "")
 
     def toggle_options(self) -> None:
         self.options.setVisible(self.options.isHidden())   # isHidden, not isVisible: the window may be hidden
-        self.tools["options"].setChecked(not self.options.isHidden())
+        button, open_ = self.tools["options"], not self.options.isHidden()
+        button.setChecked(open_)
+        button.tone = TEAL if open_ else None     # ``#ovsettings[aria-expanded="true"]``
+        button.update()
         self._relayout()
 
     def toggle_capture(self) -> None:
@@ -2658,6 +2796,7 @@ class MeterOverlay(QWidget):
         button = self.tools["capture"]
         button.setEnabled(False)
         button.setText("Stopping…" if running else "Starting…")
+        button.setAccessibleName(button.text())
         self.requests.post("capture", "/api/meter", payload)
 
     def _capture_done(self) -> None:
@@ -2763,6 +2902,7 @@ class MeterOverlay(QWidget):
     def _split_back(self) -> None:
         button = self.tools["split"]
         button.setText("New")
+        button.setAccessibleName("New")
         button.setEnabled(True)
         self._state(button, "")
 

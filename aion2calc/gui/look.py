@@ -36,9 +36,12 @@ GLOW_BLURS = (8, 4)                       # ``0 0 4px, 0 0 8px``
 #: The outline: a ring a pixel round the glyphs, at the strength of the web overlay's 0.6 px stroke (measured
 #: against Chromium's drawing of the same text: a whole pixel at full strength put four times its colour round it).
 OUTLINE_OPACITY = 0.25
-#: The compact layout's shadow under the rows' text (``--nm-row-shadow: 0 1px 2px rgba(0, 0, 0, .55)``), which the
-#: glow and the halo replace when either is on.
-ROW_SHADOW = (QColor(0, 0, 0, 140), 1, 2)
+#: The compact layout's text shadows, each layer its colour, its drop and its blur, which the glow and the halo
+#: replace when either is on: under the rows' text (``--nm-row-shadow: 0 1px 2px rgba(0, 0, 0, .55)``), and under
+#: the chips' that float over the game, the clock, the ping and the toolbar among them (``--nm-shadow: 0 1px 2px
+#: rgba(0, 0, 0, .9), 0 0 4px rgba(0, 0, 0, .6)``).
+ROW_SHADOW = ((QColor(0, 0, 0, 140), 1, 2),)
+CHIP_SHADOW = ((QColor(0, 0, 0, 230), 1, 2), (QColor(0, 0, 0, 153), 0, 4))
 _RING = ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1))
 _HEX = re.compile(r"#[0-9a-fA-F]{6}")
 _UNSAFE = re.compile(r"[\"'\\;:{}<>]")         # what would end a family's quotes in a style sheet or rich text
@@ -210,9 +213,10 @@ def sheen_brush(rect: QRectF, colour: QColor, seconds: float) -> QLinearGradient
     return gradient
 
 
-def _pad(look: TextLook) -> int:
-    """The room the effects take round the text."""
-    return 16 if look.halo else 10 if look.glow else 2 if look.outline else 0
+def _pad(look: TextLook, shadow=None) -> int:
+    """The room the effects take round the text, a shadow's (``shadow``, its layers) among them."""
+    spread = max((dy + 1.5 * blur for _colour, dy, blur in shadow), default=0) if shadow else 0
+    return max(16 if look.halo else 10 if look.glow else 2 if look.outline else 0, math.ceil(spread))
 
 
 def _tinted(pixmap: QPixmap, paint) -> QPixmap:
@@ -239,15 +243,15 @@ def _blurred(pixmap: QPixmap, radius: float) -> QPixmap:
     return out
 
 
-def _masks(source: QPixmap, look: TextLook, shadow: bool = False) -> tuple:
+def _masks(source: QPixmap, look: TextLook, shadow=None) -> tuple:
     """The effects of a text's picture, white, to be tinted: the halo's or the glow's spread (the compact layout
-    shows the halo alone when both are on), or with neither the rows' shadow (``shadow``); and the outline's ring a
-    pixel round the glyphs."""
+    shows the halo alone when both are on), or with neither the shadow's layers (``shadow``: each its colour, its
+    drop and its spread); and the outline's ring a pixel round the glyphs."""
     behind = ring = None
-    shadow = shadow and not (look.halo or look.glow)
+    shadow = shadow if shadow and not (look.halo or look.glow) else None
     white = _tinted(source, "#ffffff") if look.effects or shadow else None
     if shadow:
-        behind = _blurred(white, ROW_SHADOW[2])
+        behind = tuple((colour, dy, _blurred(white, blur)) for colour, dy, blur in shadow)
     elif look.halo or look.glow:
         behind = _clear(source)
         painter = QPainter(behind)
@@ -278,8 +282,9 @@ def _layer(source: QPixmap, look: TextLook, masks, fill=None, shift=None) -> QPi
     turn = shift or (lambda colour: colour)
     layer = _clear(source)
     painter = QPainter(layer)
-    if behind is not None and not (look.halo or look.glow):   # the rows' shadow, a pixel down
-        painter.drawPixmap(0, ROW_SHADOW[1], _tinted(behind, ROW_SHADOW[0]))
+    if isinstance(behind, tuple):             # a shadow: its layers, each dropped and in its colour
+        for colour, dy, spread in behind:
+            painter.drawPixmap(0, dy, _tinted(spread, colour))
     elif behind is not None:
         painter.drawPixmap(0, 0, _tinted(behind, turn(QColor(look.halo_colour if look.halo else look.glow_colour))))
     if ring is not None:
@@ -292,7 +297,11 @@ def _layer(source: QPixmap, look: TextLook, masks, fill=None, shift=None) -> QPi
 
 
 _GLYPHS: OrderedDict = OrderedDict()      # the rows' texts as pictures with their effects' masks, the latest kept
-_GLYPHS_KEPT = 64
+_GLYPHS_KEPT = 96
+
+
+def _shadow_key(shadow) -> tuple | None:
+    return tuple((colour.rgba(), dy, blur) for colour, dy, blur in shadow) if shadow else None
 
 
 def forget_pictures() -> None:
@@ -301,12 +310,13 @@ def forget_pictures() -> None:
 
 
 def draw_text(painter: QPainter, rect: QRectF, text: str, font: QFont, colour: QColor, align, look: TextLook,
-              brush=None, shift=None, shadow: bool = False) -> float:
+              brush=None, shift=None, shadow=None) -> float:
     """Draw ``text`` in ``rect`` (left or right aligned, centred upright) in ``colour`` or ``brush`` (the sheen),
     with the look's effects as the labels have them (``TextEffect``), their colours turned by ``shift`` (the colour
-    cycle), with the rows' shadow under it (``shadow``) where no glow or halo takes its place, and blended with what
-    lies behind it in the blend mode; answers its width. The text's picture and its effects' masks are kept for the
-    next drawing of the same text, so a frame of the cycle or the sheen only tints them."""
+    cycle), with a shadow under it (``shadow``: ``ROW_SHADOW`` or ``CHIP_SHADOW``) where no glow or halo takes its
+    place, and blended with what lies behind it in the blend mode; answers its width. The text's picture and its
+    effects' masks are kept for the next drawing of the same text, so a frame of the cycle or the sheen only tints
+    them."""
     metrics = QFontMetricsF(font)
     width = metrics.horizontalAdvance(text)
     if not text:
@@ -317,11 +327,11 @@ def draw_text(painter: QPainter, rect: QRectF, text: str, font: QFont, colour: Q
         painter.drawText(rect, align | Qt.AlignVCenter, text)
         return width
     x = rect.right() - width if align & Qt.AlignRight else rect.left()
-    pad = max(_pad(look), 4 if shadow else 0)
+    pad = _pad(look, shadow)
     box = QRectF(round(x) - pad, round(rect.top()) - pad, math.ceil(width) + 2 * pad + 1, rect.height() + 2 * pad)
     ratio = painter.device().devicePixelRatioF()
     key = (text, font.key(), ratio, box.width(), box.height(), round(x - box.left(), 3),
-           round(rect.top() - box.top(), 3), look.halo, look.glow, look.outline, shadow)
+           round(rect.top() - box.top(), 3), look.halo, look.glow, look.outline, _shadow_key(shadow))
     kept = _GLYPHS.pop(key, None)
     if kept is None:
         glyphs = QPixmap(max(1, math.ceil(box.width() * ratio)), max(1, math.ceil(box.height() * ratio)))
@@ -357,32 +367,33 @@ class TextEffect(QGraphicsEffect):
     the outline, then the text over them, the whole drawn at once. Keep a reference to it: the label alone does not,
     and an effect without one is not asked to draw."""
 
-    def __init__(self, look: TextLook, parent=None):
+    def __init__(self, look: TextLook, parent=None, shadow=None):
         super().__init__(parent)
         self.look = look
+        self.shadow = shadow                      # a chip's shadow under the text (``CHIP_SHADOW``), or None
         self.tint: QColor | None = None
         self.shift = None
         self._kept = (None, (None, None))         # the label's picture as last drawn, and its effects' masks
 
-    def set_look(self, look: TextLook) -> None:
-        self.look = look
+    def set_look(self, look: TextLook, shadow=None) -> None:
+        self.look, self.shadow = look, shadow
         self.updateBoundingRect()
         self.update()
 
     def boundingRectFor(self, rect):
-        pad = _pad(self.look)
+        pad = _pad(self.look, self.shadow)
         return rect.adjusted(-pad, -pad, pad, pad)
 
     def draw(self, painter):
         look = self.look
-        if not look.painted and self.tint is None:
+        if not look.painted and self.tint is None and not self.shadow:
             self.drawSource(painter)
             return
         source = self.sourcePixmap(Qt.LogicalCoordinates)   # padded to boundingRectFor (PySide gives no offset)
         at = self.boundingRectFor(self.sourceBoundingRect(Qt.LogicalCoordinates)).toAlignedRect().topLeft()
-        key = (source.cacheKey(), look.halo, look.glow, look.outline)
+        key = (source.cacheKey(), look.halo, look.glow, look.outline, _shadow_key(self.shadow))
         if key != self._kept[0]:                  # Qt keeps the picture while the label is unchanged
-            self._kept = (key, _masks(source, look))
+            self._kept = (key, _masks(source, look, self.shadow))
         painter.save()
         if look.blend:
             painter.setCompositionMode(QPainter.CompositionMode_Difference)
