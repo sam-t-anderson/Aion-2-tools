@@ -3800,6 +3800,105 @@ def test_a_recordings_metadata_and_upload(qapp):
     assert len(uploads) == 1
 
 
+def _other_run():
+    """Another log to compare: an a2log with a sorcerer and a cleric, its first encounter the same boss as the review's
+    (another version), its second another boss."""
+    return {"format": "a2log", "meta": {"title": "Frost Spire again", "encounter_type": "pve_raid", "game_patch": "version:product:2.2"},
+            "players": [{"id": "o1", "name": "OtherSorc", "class": "sorcerer", "server": 2102},
+                        {"id": "o2", "name": "OtherCleric", "class": "cleric"}, {"id": "o3", "name": "Nobody"}],
+            "segments": [{"boss": "Ice Queen", "difficulty": "Hard", "duration": 60,
+                          "hits": [{"player": "o1", "damage": 6000}, {"player": "o2", "damage": 300}]},
+                         {"label": "Frost Hound", "duration": 30, "hits": [{"player": "o1", "damage": 900}]}]}
+
+
+def test_the_review_comparisons_words():
+    # what was pasted: an ID, a link to the log (with its encounter), or nothing usable
+    assert cw.log_id_of(" log0001 ") == "log0001"
+    assert cw.log_id_of("https://logs.example/log.html?id=abc123XYZ&segment=2") == "abc123XYZ"
+    assert cw.log_id_of("https://logs.example/l/abcdef1") == "abcdef1" and cw.log_id_of("/api/v1/logs/abcdef12/raw") == "abcdef12"
+    assert cw.log_id_of("abc") == "" and cw.log_id_of("https://logs.example/") == ""
+    assert cw.segment_of("https://logs.example/log.html?id=abc123XYZ&segment=2") == 2 and cw.segment_of("abc123XYZ") == 0
+    with pytest.raises(ValueError, match="Choose an a2log document"):
+        cw.comparison_of({"format": "a2log", "segments": []})
+    assert cw.comparison_of(_other_run(), 5)["segment"] == 1
+    # each player against the same-class player chosen; none chosen yet
+    fight = json.loads(json.dumps(REVIEW_LOG))
+    state = cw.fresh_state()
+    d = cw.data(fight, state)
+    compared = [cw.comparison_of(_other_run())]
+    c = cw.comparisons(fight, d, compared)[0]
+    assert c["title"] == "Comparison 1 — Frost Spire again" and c["segment"] == 0
+    assert c["encounters"] == [(0, "Ice Queen · pve_raid · Product version 2.2 · Hard"),
+                               (1, "Frost Hound · pve_raid · Product version 2.2 · Unknown")]
+    assert c["note"] == f"Current: Ice Queen · pve_raid · Product version 2.1 · Hard. Encounter metadata differs. {cw.COMPARE_NOTE}"
+    sorc = next(r for r in c["rows"] if r["player"]["id"] == "p1")
+    assert (sorc["class"], sorc["own"], sorc["choices"], sorc["chosen"], sorc["theirs"], sorc["difference"]) == (
+        "sorcerer", "25", [("o1", "OtherSorc · Zikel")], "", "Unavailable", "—")
+    # chosen: their DPS and the difference; another encounter of theirs
+    compared[0]["players"]["p1"] = "o1"
+    sorc = next(r for r in cw.comparisons(fight, d, compared)[0]["rows"] if r["player"]["id"] == "p1")
+    assert (sorc["chosen"], sorc["theirs"], sorc["difference"]) == ("o1", "100", "-75.0%")
+    compared[0]["segment"] = 1
+    c = cw.comparisons(fight, d, compared)[0]
+    sorc = next(r for r in c["rows"] if r["player"]["id"] == "p1")
+    assert (sorc["theirs"], sorc["difference"]) == ("30", "-16.7%")
+    # a chosen player without hits there: no difference
+    compared[0]["players"]["p2"] = "o2"
+    cleric = next(r for r in cw.comparisons(fight, d, compared)[0]["rows"] if r["player"]["id"] == "p2")
+    assert (cleric["theirs"], cleric["difference"]) == ("0", "—")
+    # the same metadata: not said to differ
+    same = json.loads(json.dumps(_other_run()))
+    same["meta"]["game_patch"] = "version:product:2.1"
+    assert "differs" not in cw.comparisons(fight, d, [cw.comparison_of(same)])[0]["note"]
+
+
+def test_the_review_comparisons(qapp, tmp_path):
+    app = FakeApp()
+    app.log_server.review_log = {**json.loads(json.dumps(REVIEW_LOG)), "format": "a2log"}
+    page = _page(app)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: view.summary is not None and view.ranks is not None and view.names is not None and not view.awaiting)
+    field = _find(view, QLineEdit, lambda e: e.accessibleName() == "Link or ID of the log to compare")
+    # nothing usable pasted
+    field.setText("not a log")
+    _click(view, cw.COMPARE_GO)
+    assert cw.COMPARE_ID in _labels(view)
+    # a log by its link, at the encounter it names
+    field = _find(view, QLineEdit, lambda e: e.accessibleName() == "Link or ID of the log to compare")
+    field.setText("https://logs.example/log.html?id=log0001&segment=1")
+    _click(view, cw.COMPARE_GO)
+    settle(lambda: any(t.startswith("Comparison 1 — Frost Spire night") for t in _labels(view)))
+    assert view.compared[0]["segment"] == 1 and "/api/v1/logs/log0001/raw" in app.log_server.asked
+    pick = _find(view, QComboBox, lambda c: c.accessibleName() == "Same-class player to compare with")
+    assert [pick.itemText(i) for i in range(pick.count())][0] == cw.PICK_PLAYER
+    # a log that is not there
+    field = _find(view, QLineEdit, lambda e: e.accessibleName() == "Link or ID of the log to compare")
+    field.setText("zzzzzz9")
+    _click(view, cw.COMPARE_GO)
+    settle(lambda: any("no such log" in t for t in _labels(view)))
+    # an a2log file on this computer; a file that is not one
+    other = tmp_path / "other.json"
+    other.write_text(json.dumps(_other_run()))
+    view._ask_a2log = lambda: str(other)
+    _click(view, cw.COMPARE_FILE)
+    assert any(t.startswith("Comparison 2 — Frost Spire again") for t in _labels(view))
+    picks = [c for c in view.findChildren(QComboBox) if c.accessibleName() == "Same-class player to compare with" and c.isVisibleTo(view)]
+    second = picks[len(picks) // 2]                                  # the second comparison's first player
+    second.setCurrentIndex(second.findData("o1"))
+    second.activated.emit(second.currentIndex())
+    assert view.compared[1]["players"]["p1"] == "o1" and "-75.0%" in _cells(view)
+    wrong = tmp_path / "wrong.json"
+    wrong.write_text(json.dumps({"format": "csv"}))
+    view._ask_a2log = lambda: str(wrong)
+    _click(view, cw.COMPARE_FILE)
+    assert cw.NOT_A2LOG_FILE in _labels(view)
+    # one let go
+    _find(view, QPushButton, lambda b: b.text() == "Remove").click()
+    assert len(view.compared) == 1 and not any(t.startswith("Comparison 2") for t in _labels(view))
+    assert any(t.startswith("Comparison 1 — Frost Spire again") for t in _labels(view))
+
+
 def _buttons(widget):
     """The buttons shown, once what was drawn last has shown."""
     _shown()

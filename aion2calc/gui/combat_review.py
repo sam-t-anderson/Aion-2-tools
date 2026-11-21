@@ -21,6 +21,7 @@ These are the review's model and the frame's words:
   the mapping coverage (``catalogHTML``) with its report.
 - Since 0.2.464 the matched public comparisons (``ranksHTML``), the encounter's metadata and its corrections
   (``metadataHTML``), a shared log's report (``reportHTML``) and a recording's upload (``Publish this log``).
+- Since 0.2.465 the comparisons with other logs (``comparisonHTML``, ``logIdOf``, ``addComparison``).
 """
 from __future__ import annotations
 
@@ -58,7 +59,7 @@ OPPONENT_NOTE = ("The review below reads the fight from their side: the summary,
                  "their deaths, and the buffs, debuffs and crowd control on and from them. Only what the recording holds of "
                  "them is shown.")
 REFRESH = "Refresh rankings"
-ELSEWHERE = ("The comparisons with other logs and the movement replay of this log open in the web interface for now.")
+ELSEWHERE = "The movement replay of this log opens in the web interface for now."
 OPEN_WEB = "Open the full review in the web interface"
 SUMMARY_COLUMNS = ["Player / server", "Class", "Damage done", "DPS", "Damage taken", "Healing", "HPS", "Deaths"]
 
@@ -2548,3 +2549,91 @@ def corrected(doc: dict, segment: int, values: dict, whole_run: bool) -> dict:
             if key == "game_patch":
                 s["game_patch_basis"] = "manual"
     return log
+
+
+# ------------------------------------------------------------------ comparisons with other logs (0.2.465)
+COMPARE_PLACEHOLDER = "Another log's link or ID"
+COMPARE_GO = "Compare log"
+COMPARE_FILE = "Compare a local a2log file"
+COMPARE_ID = "Paste another log's link, or its ID (6 to 16 letters and digits)."
+COMPARE_LOADING = "Loading…"
+NOT_A2LOG = "Choose an a2log document"
+NOT_A2LOG_FILE = "Choose an a2log JSON file"
+COMPARE_NOTE = ("Recorded DPS is not adjusted for gear or missing packets. Select each player explicitly; multiple players of one "
+                "class are never paired automatically.")
+COMPARE_COLUMNS = ["Current player", "Class", "Current DPS", "Comparison player", "Comparison DPS", "Difference"]
+PICK_PLAYER = "Select same-class player"
+
+
+def log_id_of(text) -> str:
+    """What was pasted to compare as a log's ID (``logIdOf``): the ID itself, or a link to the log (the website's
+    ``log.html?id=…``, the log server's ``/l/<id>``, or an API path)."""
+    s = js_text(text).strip()
+    if re.fullmatch(r"[A-Za-z0-9]{6,16}", s):
+        return s
+    m = (re.search(r"[?&]id=([A-Za-z0-9]{6,16})(?=[&#]|$)", s)
+         or re.search(r"/(?:l|logs)/([A-Za-z0-9]{6,16})(?=[/?#]|$)", s))
+    return m.group(1) if m else ""
+
+
+def segment_of(text) -> int:
+    """The encounter a pasted link names (``segmentOf``), else the first."""
+    m = re.search(r"[?&]segment=(\d{1,6})(?=[&#]|$)", js_text(text))
+    return int(m.group(1)) if m else 0
+
+
+def comparison_of(other, segment: int = 0) -> dict:
+    """A log to compare (``addComparison``): its document, the encounter compared and the players chosen. Raises
+    ValueError for anything but an a2log document."""
+    if (not isinstance(other, dict) or other.get("format") != "a2log" or not isinstance(other.get("players"), list)
+            or not isinstance(other.get("segments"), list)):
+        raise ValueError(NOT_A2LOG)
+    return {"doc": other, "segment": min(segment, len(other["segments"]) - 1), "players": {}}
+
+
+def _context_list(doc: dict, segment: dict) -> list:
+    meta = _dict(doc.get("meta"))
+    return [_first(segment.get("boss"), segment.get("label"), "Unknown")] + \
+        [_first(segment.get(key), meta.get(key), "Unknown") for key in ("encounter_type", "game_patch", "difficulty")]
+
+
+def comparisons(doc: dict, d: dict, compared: list) -> list[dict]:
+    """The logs compared (``comparisonHTML``), each: its title, its encounters to choose from, the note (the encounter's
+    metadata differing said), and each player's recorded DPS against the same-class player chosen in the other log."""
+    out = []
+    for index, c in enumerate(compared):
+        other_doc = c["doc"]
+        all_segments = segments(other_doc)
+        c["segment"] = min(c["segment"], len(all_segments) - 1)
+        if not (0 <= c["segment"] < len(all_segments)):
+            continue
+        other = all_segments[c["segment"]]
+        sums: dict = {}
+        for h in _list(other.get("hits")):
+            h = _dict(h)
+            sums[h.get("player")] = sums.get(h.get("player"), 0.0) + (_num(h.get("damage")) or 0.0)
+        mismatch = [js_string(x) for x in _context_list(doc, d["segment"])] != [js_string(x) for x in _context_list(other_doc, other)]
+        duration = _num(other.get("duration"))
+        rows = []
+        for p in d["rows"]:
+            candidates = [o for o in (_dict(x) for x in _list(other_doc.get("players")))
+                          if _truthy(o.get("class")) and o.get("class") == p.get("class")]
+            chosen = next((o for o in candidates if o.get("id") == c["players"].get(p.get("id"))), None)
+            theirs = None
+            if chosen is not None:
+                theirs = sums.get(chosen.get("id"), 0.0) / max(0.001, duration) if duration is not None else math.nan
+            own = (_num(p.get("damage")) or 0.0) / max(0.001, _num(d["segment"].get("duration")) or 0.0)
+            rows.append({"player": p, "class": js_string(p.get("class")), "own": number(own),
+                         "choices": [(js_string(o.get("id")), actor_label(o)) for o in candidates],
+                         "chosen": js_string(chosen.get("id")) if chosen is not None else "",
+                         "theirs": "Unavailable" if theirs is None else number(0 if math.isnan(theirs) else theirs),
+                         "difference": (f"{theme.fixed((own / theirs - 1) * 100, 1)}%"
+                                        if theirs is not None and not math.isnan(theirs) and theirs else "—")})
+        out.append({"index": index, "title": f"Comparison {index + 1} — {js_string(_first(_dict(other_doc.get('meta')).get('title'), 'Other run'))}",
+                    "encounters": [(i, build_label(" · ".join(js_string(x) for x in _context_list(other_doc, s))))
+                                   for i, s in enumerate(all_segments)],
+                    "segment": c["segment"],
+                    "note": (f"Current: {build_label(' · '.join(js_string(x) for x in _context_list(doc, d['segment'])))}. "
+                             + ("Encounter metadata differs. " if mismatch else "") + COMPARE_NOTE),
+                    "rows": rows})
+    return out
