@@ -2553,7 +2553,7 @@ def test_the_review_graph_and_enemies(qapp):
 
 def _buttons(widget):
     """The buttons shown, once what was drawn last has shown."""
-    QCoreApplication.processEvents()
+    _shown()
     return [b.text() for b in widget.findChildren(QPushButton) if b.isVisibleTo(widget)]
 
 
