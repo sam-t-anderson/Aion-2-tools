@@ -1,7 +1,8 @@
 """A build's result windows' words (0.2.434), as pages/results.js writes them for the Build Planner, My Character and
 Saved Results: the windows' list, and the Overview, Skills and Stigma windows' figures, lines and notes; since
 0.2.435 the Daevanion window's boards, nodes and points and the Equipment window's paper doll, rolls and enchant
-priority. The native windows (``result_windows.py``) draw them; the notes are rich text in the subset Qt's text engine
+priority; since 0.2.436 the Arcana window's cards, variants and skill rolls with the deity totals, and the titles,
+wings and pet. The native windows (``result_windows.py``) draw them; the notes are rich text in the subset Qt's text engine
 draws, the ``<details>`` of the web page opened in place.
 """
 from __future__ import annotations
@@ -17,7 +18,7 @@ WINDOWS = (("overview", "Overview", "◆"), ("skills", "Skills", "✦"), ("stigm
            ("daevanion", "Daevanion", "✧"), ("genus", "Pet Genus", "◈"), ("equipment", "Equipment", "⚔"),
            ("arcana", "Arcana", "❖"), ("titles", "Titles & wings", "♛"), ("hotbar", "Skills hotbar", "▦"),
            ("macro", "Macro & rotation", "⌨"))
-NATIVE = ("overview", "skills", "stigma", "daevanion", "equipment")   # the windows the native interface draws so far
+NATIVE = ("overview", "skills", "stigma", "daevanion", "equipment", "arcana", "titles")   # the native windows so far
 COMPARISON = ("Generate a separate {mode} example with common gear and the server’s published point budgets (highest "
               "reported totals when available; explicitly labeled example fallback otherwise). Your personal build, "
               "Genus and HP/skill reserves stay saved separately. Seed searches and weighted refinement can take several "
@@ -485,6 +486,11 @@ def _list(value) -> list:
     return value if isinstance(value, list) else []
 
 
+def _truthy(value) -> bool:
+    """JavaScript's reading of a value as a condition: an object or array is true even when empty."""
+    return isinstance(value, (dict, list)) or (bool(value) and not (isinstance(value, float) and math.isnan(value)))
+
+
 def daevanion_board(v: dict, index: int) -> dict | None:
     """The board shown (``d.boards[boardIdx] || d.boards[0]``), or None when the build has none."""
     boards = _list(_dict(v.get("daevanion")).get("boards"))
@@ -617,10 +623,10 @@ def slot_item(s: dict) -> str:
     return js_text(s.get("item") or s.get("name") or "")
 
 
-def slot_stats(s: dict) -> str:
-    """A slot's first four stats (rich text): each figure bold, then its stat."""
+def slot_stats(s: dict, most: int | None = 4) -> str:
+    """A slot's stats (rich text), its first four unless ``most`` says otherwise: each figure bold, then its stat."""
     return " · ".join(f"<b style='color: {TEXT};'>{e(x.get('text'))}</b> {e(x.get('label'))}"
-                      for x in _list(s.get("stats"))[:4] if isinstance(x, dict))
+                      for x in _list(s.get("stats"))[:most] if isinstance(x, dict))
 
 
 def _pairs(rows) -> list[tuple]:
@@ -674,6 +680,115 @@ def equipment_copy(v: dict) -> str:
 def equipment_grid(v: dict) -> list[tuple[str, str]]:
     return [(js_text(r.get("label")), js_text(r.get("text"))) for r in _list(_dict(v.get("equipment")).get("total"))
             if isinstance(r, dict)]
+
+
+# ------------------------------------------------------------------ Arcana
+ARCANA_SUB = "Chalice, Parchment, Compass roll active skills · Bell, Mirror roll passives"
+NO_ARCANA = "No arcana data"
+PICKS_HEAD = "RECOMMENDED VARIANT PER SLOT"
+ROLLS_TABLE_HEAD = "SKILL ROLLS — value of each arcana slot (Unique: 4 rolls at +0, 9 at +5)"
+ROLLS_COLUMNS = ["Slot", "Unique +0", "Unique +5", "Best rolls (+1 / +2)"]
+
+
+def arcana_deity(d) -> str:
+    """An arcana card's deity stat as the game shows it (``arcanaDeityText``): "Time [Siel] +20"."""
+    d = _dict(d)
+    if not d.get("label"):
+        return ""
+    return f"{js_text(d.get('label'))} +{js_text(float(theme.fixed(_number(d.get('points')) or 0.0, 1)))}"
+
+
+def arcana_cards(v: dict) -> list[dict]:
+    """A character's arcana cards (``.card``): each one's picture and enchant level, its name and grade, its deity stat,
+    its skill levels and its stats."""
+    return [{"icon": a.get("icon") or "", "enchant": f"+{js_text(a.get('enchant') or 0)}", "grade": slot_grade(a),
+             "name": js_text(a.get("name")), "deity": arcana_deity(a.get("deity")) if _truthy(a.get("deity")) else "",
+             "skills": [f"{js_text(k)} +{js_text(lv)}" for k, lv in _pairs(a.get("skills"))],
+             "stats": ", ".join(f"{js_text(s.get('label'))} {js_text(s.get('text'))}" for s in _list(a.get("stats"))
+                                if isinstance(s, dict))}
+            for a in _list(v.get("arcana_items")) if isinstance(a, dict)]
+
+
+def arcana_picks(v: dict) -> list[tuple[str, str, list[str]]]:
+    """The recommended variant for each arcana slot: the slot, the variant (or either), and each variant's stat."""
+    return [(js_text(a.get("slot")), "Either variant" if a.get("tie") else js_text(a.get("pick")),
+             [f"{js_text(k)}: {js_text(s)}" for k, s in _dict(a.get("variants")).items()])
+            for a in _list(_dict(v.get("extras")).get("arcana")) if isinstance(a, dict)]
+
+
+def _signed(x: float) -> str:
+    return ("+" if x >= 0 else "") + theme.fixed(x, 1)
+
+
+def arcana_roll_rows(v: dict) -> list[list[str]]:
+    """The value of each arcana slot's skill rolls (``table.t``), the best at +5 first: the slot, its expected gain with
+    a Unique card at +0 and at +5, and its four best skills with their gains at +1 and +2."""
+    rolls = _dict(_dict(v.get("extras")).get("arcana_rolls"))
+    rows = []
+    for slot, a in sorted(rolls.items(), key=lambda item: -(_number(_dict(item[1]).get("expected_unique_5")) or 0.0)):
+        a = _dict(a)
+        skills = [(k, g) for k, g in _dict(a.get("skills")).items() if isinstance(g, list) and len(g) > 1]
+        skills = sorted(skills, key=lambda item: -(_number(item[1][1]) or 0.0))[:4]
+        rows.append([cap(slot), f"+{theme.fixed(_number(a.get('expected_unique_0')) or 0.0, 1)}%",
+                     f"+{theme.fixed(_number(a.get('expected_unique_5')) or 0.0, 1)}%",
+                     " · ".join(f"{js_text(k)} {_signed(_number(g[0]) or 0.0)}% / {_signed(_number(g[1]) or 0.0)}%"
+                                for k, g in skills)])
+    return rows
+
+
+def arcana_copy(v: dict) -> str:
+    """The Arcana window's text: each card with its enchant level, deity stat and skill levels, then each slot's pick."""
+    lines = []
+    for a in _list(v.get("arcana_items")):
+        if isinstance(a, dict):
+            skills = _pairs(a.get("skills"))
+            lines.append(f"{js_text(a.get('slot'))}: {js_text(a.get('name'))} +{js_text(a.get('enchant') or 0)}"
+                         + (f", {arcana_deity(a.get('deity'))}" if _truthy(a.get("deity")) else "")
+                         + (" — " + ", ".join(f"{js_text(k)} +{js_text(lv)}" for k, lv in skills) if skills else ""))
+    lines += [f"{js_text(a.get('slot'))}: {'either' if a.get('tie') else js_text(a.get('pick'))}"
+              for a in _list(_dict(v.get("extras")).get("arcana")) if isinstance(a, dict)]
+    return "\n".join(lines)
+
+
+def deity_grid(v: dict) -> list[tuple[str, str]]:
+    """The deity and primary stats' totals (a window of their own under Arcana)."""
+    return [(js_text(s.get("label")), js_text(s.get("text"))) for s in _list(_dict(v.get("extras")).get("deity"))
+            if isinstance(s, dict)]
+
+
+# ------------------------------------------------------------------ Titles, wings & pet
+TITLES_TITLE = "Titles, wings & pet"
+TITLES_HEAD = "BEST TITLES FOR THIS BUILD"
+TITLE_COLUMNS = ["Title", "Equip bonus", "Owned bonus"]
+TITLES_GRID = "Stats from equipped titles"
+PET_NOTE = "Pet bonuses are mostly against one monster genus."
+
+
+def title_tiles(v: dict) -> list[dict]:
+    """The titles, wings and pet the build wears (``.slot``): each one's slot, name, grade, stats (rich text), picture
+    and, for the pet, its level."""
+    ex = _dict(v.get("extras"))
+    tiles = [{"slot": js_text(t.get("slot")), "item": js_text(t.get("item")), "grade": "", "stats": slot_stats(t, None),
+              "icon": "", "level": ""} for t in _list(ex.get("titles")) if isinstance(t, dict)]
+    wing = _dict(ex.get("wing")).get("icon") or ""
+    tiles += [{"slot": "Wings", "item": js_text(w.get("item")), "grade": "Unique", "stats": slot_stats(w, None),
+               "icon": wing, "level": ""} for w in _list(ex.get("wings")) if isinstance(w, dict)]
+    if _truthy(ex.get("pet")):
+        pet = _dict(ex.get("pet"))
+        tiles.append({"slot": "Pet", "item": js_text(pet.get("name")), "grade": "", "stats": e(PET_NOTE),
+                      "icon": pet.get("icon") or "", "level": f"Lv {js_text(pet.get('level'))}"})
+    return tiles
+
+
+def title_rows(v: dict) -> list[tuple[str, str, str, str]]:
+    """The best titles for the build (``table.t``): each one's name, grade, equip bonus and owned bonus."""
+    return [(js_text(t.get("name")), slot_grade(t), js_text(t.get("equip")), js_text(t.get("owned")))
+            for t in _list(_dict(v.get("extras")).get("title_ranking")) if isinstance(t, dict)]
+
+
+def titles_grid(v: dict) -> list[tuple[str, str]]:
+    return [(js_text(s.get("label")), js_text(s.get("text"))) for s in _list(_dict(v.get("extras")).get("titles_total"))
+            if isinstance(s, dict)]
 
 
 # ------------------------------------------------------------------ Saved Results
