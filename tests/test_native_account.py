@@ -1,7 +1,8 @@
 """The native Account page (0.2.447): the account offered when signed out and its ways in (a new account, a link code,
 recovery, Discord), the signed-in page's name and tabs, Sign-in & security (rename, a website sign-in approved or
-denied, the website opened, the places signed in, the recent activity, closing the account), and since 0.2.448 My logs
-and Top parses, as pages/account.js and account-view.js show them, off screen over a fake app answering as the app does.
+denied, the website opened, the places signed in, the recent activity, closing the account), since 0.2.448 My logs and
+Top parses, and since 0.2.449 Legions, as pages/account.js and account-view.js show them, off screen over a fake app
+answering as the app does.
 """
 import json
 import os
@@ -306,10 +307,6 @@ def test_signed_in_and_security(qapp):
     page = _page(app, open_web=opened.append, ask=lambda question, text: (asked.append((question, text)), answers[question])[1],
                  confirm=lambda question: (asked.append(question), True)[1], alert=said.append)
     assert "Daeva" in _texts(page)
-    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Legions").click()
-    settle(lambda: ac.ON_THE_WEB["legions"] in _texts(page))                         # Legions: on the web page for now
-    _button(page, "Open them on the web page").click()
-    assert opened == ["account/legions"]
     tab = next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Sign-in & security")
     tab.click()
     settle(lambda: any(t == "Recent activity" for t in _texts(page)))
@@ -437,7 +434,7 @@ def test_my_logs(qapp):
     settle(lambda: any(t == "60 logs" for t in _texts(page)))                      # My logs, the tab shown first
     texts = _texts(page)
     assert "Page 1 of 2" in texts and ac.LOGS_NOTE in texts and any("Best pull" in t and "Black Smoke Murute" in t for t in texts)
-    assert any("Ice Queen" in t and "under review" in t for t in texts)
+    assert "under review" in texts and any(t.startswith("<a href='web:combat-log/shared/lg2'") and "Ice Queen" in t for t in texts)
     link = next(label for label in page.findChildren(QLabel) if "web:combat-log/shared/lg1?segment=2" in label.text())
     link.linkActivated.emit("web:combat-log/shared/lg1?segment=2")
     assert opened == ["combat-log/shared/lg1?segment=2"]
@@ -476,7 +473,8 @@ def test_top_parses(qapp):
         settle(lambda: any(t == "Page 1 of 1 · 3 parses" for t in _texts(page)))
         texts = _texts(page)
         assert ac.PARSES_NOTE in texts and any("TestSorc" in t and "Zikel" in t for t in texts)
-        assert any(t.startswith("<span style='color: #e5cc80") and ">100<" in t for t in texts)   # the bracket's best, gold
+        best = next(label for label in page.findChildren(QLabel) if label.text() == "100" and label.isVisibleTo(page))
+        assert "color: #e5cc80" in best.styleSheet() and best.graphicsEffect() is not None    # gold, paler: provisional
         heads = [b.text() for b in page.findChildren(QPushButton) if b.objectName() in ("sortHead", "sortHeadOn")]
         assert heads == ["Boss", "Difficulty", "Character", "Class", "DPS", "Parse ▼", "Date", "Log"]
         next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Sort by DPS").click()
@@ -505,3 +503,199 @@ def test_top_parses(qapp):
     settle(lambda: page.body is not None)
     next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Top parses").click()
     settle(lambda: ac.NOT_LISTED in _texts(page))
+
+
+LEGION = "lg_00000000000a"
+TOKEN = "a2inv_" + "x" * 24
+
+
+class LegionApp(FakeApp):
+    """The app with legions: one you lead (its members, a request, an invite link and shared logs), one found."""
+
+    def __init__(self, **kwargs):
+        super().__init__(signed_in=True, **kwargs)
+        self.role = "leader"
+        self.mine = [{"id": LEGION, "name": "Dawn", "faction": "Asmodian", "server": 2102, "character": "TestSorc",
+                      "role": "leader", "members": 3}]
+
+    def status(self):
+        s = super().status()
+        if s.get("account"):
+            s["account"]["characters"] = [{"id": 1, "name": "TestSorc", "server": 2102, "status": "active"},
+                                          {"id": 2, "name": "Gone", "server": 2102, "status": "lapsed"}]
+        return s
+
+    def legion(self):
+        return {"id": LEGION, "name": "Dawn", "server": 2102, "faction": "Asmodian", "members": 3, "leader": "TestSorc",
+                "description": "Weekend raids", "role": self.role, "show_progress": False, "requested": False,
+                "roster": [{"member": 1, "character": "TestSorc", "role": "leader", "you": True, "claim": "active", "joined_at": 1700000000},
+                           {"member": 2, "character": "Officer1", "role": "officer", "claim": "active", "joined_at": 1700000100},
+                           {"member": 3, "character": "Member1", "role": "member", "claim": "lapsed", "joined_at": 1700000200}],
+                "requests": [{"id": "rq1", "character": "Asker", "message": "Hi!", "created_at": 1700000300}],
+                "invites": [{"id": "iv1", "created_at": 1700000000, "expires_at": 1700600000, "uses": 2, "max_uses": 25}]}
+
+    def request(self, method, path, body):
+        if path == "/api/v1/legions/mine":
+            return {"legions": json.loads(json.dumps(self.mine))}
+        if path == "/api/v1/legions/invite/preview":
+            if body["invite"] != TOKEN:
+                raise ValueError("That invite has expired")
+            return {"legion": {"name": "Dusk", "server": 2102, "members": 7, "leader": "Lead"}}
+        if path == "/api/v1/legions/join":
+            return {"id": LEGION}
+        if method == "GET" and path.startswith("/api/v1/legions?"):
+            return {"legions": [{"id": LEGION, "name": "Dawn", "server": 2102, "faction": "Asmodian", "leader": "TestSorc",
+                                 "members": 3}] if "q=Dawn" in path else []}
+        if path == "/api/v1/legions":
+            return {"id": LEGION}
+        if path == f"/api/v1/legions/{LEGION}":
+            return self.legion()
+        if path.startswith(f"/api/v1/legions/{LEGION}/logs?"):
+            return {"logs": [{"id": "lg9", "title": "", "boss": "Ice Queen", "member": "Officer1", "created_at": 1700000000,
+                              "duration": 90, "visibility": "legion"}], "total": 1, "limit": 50}
+        if path.startswith(f"/api/v1/legions/{LEGION}/"):
+            what = path[len(f"/api/v1/legions/{LEGION}/"):]
+            if what == "invites":
+                return {"invite": TOKEN}
+            return {}
+        return super().request(method, path, body)
+
+
+def _legions_tab(page):
+    next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Legions").click()
+
+
+def test_the_legions_words():
+    me = {"characters": [{"id": 1, "name": "TestSorc", "server": 2102, "status": "active"}, {"id": 2, "status": "lapsed"}]}
+    assert ac.characters(me) == me["characters"][:1] and ac.character_choices(me) == [("1", "TestSorc (Zikel)")]
+    assert ac.character_choices(me, 2101) == [("", "No claimed character on " + ac.world(2101))]
+    assert ac.character_choices({}) == [("", "No claimed character yet")] and ac.legion_servers(me) == [("2102", "Zikel")]
+    row = ac.my_legions({"legions": [{"id": LEGION, "name": "Dawn", "faction": "Asmodian", "server": 2102, "role": "officer",
+                                      "members": 3}]})[0]
+    assert (row["world"], row["character"], row["role"], row["members"]) == ("Zikel", "—", "Officer", "3")
+    assert ac.invite_token(f"https://x.example/account.html#a2invite={TOKEN}") == TOKEN and ac.invite_token("nothing") == ""
+    assert ac.invite_link(TOKEN) == ac.SITE + "account.html#a2invite=" + TOKEN
+    assert ac.preview_line({"legion": {"name": "Dusk", "server": 2102, "members": 1}}) == "Dusk · Zikel · 1 member"
+    assert ac.legion_line({"server": 2102, "faction": "Elyos", "members": 2, "leader": "L"}) == "Zikel · Elyos · 2 members · led by L"
+    assert ac.find_query("2102", " Dawn ") == "server=2102&q=Dawn" and ac.find_query("", "") == ""
+    leader, officer, member = ac.roster(LegionApp().legion())
+    assert (leader["you"], leader["tools"], leader["remove"]) == (True, [], False)
+    assert officer["tools"] == [("member", "Make member"), ("leader", "Hand over")] and officer["remove"]
+    assert member["tools"] == [("officer", "Make officer"), ("leader", "Hand over")] and member["lapsed"] and member["remove"]
+    as_officer = {**LegionApp().legion(), "role": "officer"}
+    assert [(m["tools"], m["remove"]) for m in ac.roster(as_officer)] == [([], False), ([], False), ([], True)]   # members only
+    assert ac.join_requests(as_officer)[0] == {"id": "rq1", "character": "Asker", "message": "Hi!", "when": moment(1700000300000)}
+    assert ac.invites(as_officer)[0]["used"] == "2 of 25 used"
+    shared = ac.legion_log_rows({"logs": [{"id": "lg9", "boss": "Ice Queen", "uploader": "U", "duration": 90, "visibility": "legion"}]})
+    assert (shared[0]["title"], shared[0]["member"], shared[0]["visibility"]) == ("Ice Queen", "U", "Legion only")
+    assert ac.disband_ask("Dawn") == "This ends Dawn for every member. Type its name to disband it."
+
+
+def test_the_legions(qapp):
+    opened = []
+    app = LegionApp()
+    page = _page(app, open_web=opened.append)
+    _legions_tab(page)
+    settle(lambda: "Your legions" in _texts(page))
+    texts = _texts(page)
+    assert ac.LEGIONS_NOTE in texts and "Zikel" in texts and "Leader" in texts and not any(ac.CLAIM_NOTE in t for t in texts)
+    # an invite looked at: refused, nothing like one, then the legion with the characters on its server, and joined
+    for fold in page.findChildren(Fold):
+        fold.button.setChecked(True)
+    page.invite_field.setText("no link here")
+    _button(page, "Look").click()
+    assert ac.NOT_INVITE in _texts(page)
+    page.invite_field.setText("a2inv_" + "y" * 24)
+    _button(page, "Look").click()
+    settle(lambda: "That invite has expired" in _texts(page))
+    page.invite_field.setText(f"https://x.example/account.html#a2invite={TOKEN}")
+    _button(page, "Look").click()
+    settle(lambda: "Dusk · Zikel · 7 members · led by Lead" in _texts(page))
+    _button(page, "Join").click()
+    settle(lambda: "Welcome to Dusk" in _texts(page) and page.legion == LEGION)
+    assert _sent(app, "/api/v1/legions/join")["body"] == {"invite": TOKEN, "character": 1}
+    _button(page, "← Legions").click()
+    settle(lambda: "Your legions" in _texts(page))
+    # found by name, or none; then founded
+    for fold in page.findChildren(Fold):
+        fold.button.setChecked(True)
+    page.find_name.setText("Nobody")
+    _button(page, "Search").click()
+    settle(lambda: ac.NO_LEGION_FOUND in _texts(page))
+    page.find_name.setText("Dawn")
+    _button(page, "Search").click()
+    settle(lambda: "led by TestSorc" in _texts(page))
+    page.new_name.setText("Twilight")
+    page.new_faction.setCurrentIndex(page.new_faction.findData("Elyos"))
+    _button(page, "Found").click()
+    settle(lambda: page.legion == LEGION and any("Twilight is founded" in t for t in _texts(page)))
+    assert _sent(app, "/api/v1/legions")["body"] == {"name": "Twilight", "character": 1, "faction": "Elyos", "description": ""}
+
+
+def test_a_legion_you_lead(qapp):
+    opened, asked = [], []
+    copied = []
+    app = LegionApp()
+    page = _page(app, open_web=opened.append, ask=lambda question, text: (asked.append(question), "Dawn")[1],
+                 confirm=lambda question: (asked.append(question), True)[1])
+    page.copy = copied.append
+    _legions_tab(page)
+    settle(lambda: "Your legions" in _texts(page))
+    link = next(label for label in page.findChildren(QLabel) if f"legion:{LEGION}" in label.text())
+    link.linkActivated.emit(f"legion:{LEGION}")
+    settle(lambda: "Weekend raids" in _texts(page) and any("Ice Queen" in t for t in _texts(page)))
+    texts = _texts(page)
+    for words in ("Zikel · Asmodian · 3 members · led by TestSorc", "Members", "Asking to join", "Hi!", "Invite links",
+                  "2 of 25 used", "Featured encounters", ac.FEATURED_NOTE, "The legion's logs", "1 log", "Legion only"):
+        assert any(words in t for t in texts), words
+    assert "you" in texts and "claim lapsed" in texts and "Member1" in texts
+    _button(page, "Make member").click()
+    settle(lambda: "Roles updated" in _texts(page))
+    assert _sent(app, f"/api/v1/legions/{LEGION}/role")["body"] == {"member": 2, "role": "member"}
+    _button(page, "Hand over").click()
+    settle(lambda: ac.HAND_OVER_ASK in asked and "Roles updated" in _texts(page) and len(app.posts) > 0
+           and _sent(app, f"/api/v1/legions/{LEGION}/role")["body"] == {"member": 2, "role": "leader"})
+    settle(lambda: any("Ice Queen" in t for t in _texts(page)))                 # drawn again, its logs read
+    _button(page, "Remove").click()
+    settle(lambda: "Member removed" in _texts(page))
+    assert "Remove Officer1 from the legion?" in asked
+    _button(page, "Approve").click()
+    settle(lambda: "Approved" in _texts(page))
+    assert _sent(app, f"/api/v1/legions/{LEGION}/requests/decide")["body"] == {"id": "rq1", "approve": True}
+    _button(page, "Revoke").click()
+    settle(lambda: "Invite link revoked" in _texts(page))
+    settle(lambda: page.legion_answer and any("Ice Queen" in t for t in _texts(page)))
+    page.featured.setChecked(True)
+    settle(lambda: "Shown on the featured encounters' pages" in _texts(page))
+    assert _sent(app, f"/api/v1/legions/{LEGION}/progress")["body"] == {"show": True}
+    _button(page, "New invite link").click()
+    settle(lambda: ac.INVITE_ONCE in _texts(page))
+    assert _sent(app, f"/api/v1/legions/{LEGION}/invites")["body"] == {"days": 7, "uses": 25}
+    _button(page, "Copy").click()
+    assert copied == [ac.invite_link(TOKEN)]
+    log = next(label for label in page.findChildren(QLabel) if "web:combat-log/shared/lg9" in label.text())
+    log.linkActivated.emit("web:combat-log/shared/lg9")
+    assert opened == ["combat-log/shared/lg9"]
+    _button(page, "Disband").click()
+    settle(lambda: "Dawn is disbanded" in _texts(page) and page.legion is None)
+    assert ac.disband_ask("Dawn") in asked and _sent(app, f"/api/v1/legions/{LEGION}/disband")["body"] == {"confirm": "Dawn"}
+
+
+def test_a_legion_you_are_not_in(qapp):
+    app = LegionApp()
+    app.role = None
+    page = _page(app)
+    page.legion = LEGION
+    _legions_tab(page)
+    page.legion = LEGION                                  # the tab opened on the legion's page
+    page.render()
+    settle(lambda: any(b.text() == "Ask to join" for b in page.findChildren(QPushButton)))
+    page.ask_message.setText("Let me in")
+    _button(page, "Ask to join").click()
+    settle(lambda: "Request sent" in _texts(page))
+    assert _sent(app, f"/api/v1/legions/{LEGION}/request")["body"] == {"character": 1, "message": "Let me in"}
+    unclaimed = LegionApp()
+    unclaimed.status = lambda: FakeApp.status(unclaimed)                       # no claimed character
+    page = _page(unclaimed)
+    _legions_tab(page)
+    settle(lambda: any(ac.CLAIM_NOTE in t for t in _texts(page)))
