@@ -6,8 +6,9 @@ and passive, each skill's level and supporting effects) and Stigma windows, and 
 (each board's nodes, the points used, and the skill levels and stats the boards give) and the Equipment window (the
 paper doll's slots, the rolls to keep and where an enchant level is worth most), and since 0.2.436 the Arcana window
 (a character's cards, the variant for each slot and the value of each slot's skill rolls, with the deity totals) and
-the Titles, wings & pet window. Each of the others says it is drawn in the web interface for now, with the web page's
-button. The words are ``results.py``'s.
+the Titles, wings & pet window, and since 0.2.437 the Skills hotbar (its rows of keys) and the Macro & rotation window
+(the macro's lines, the manual skills and the priority list). The Pet Genus window says it is drawn in the web
+interface for now, with the web page's button. The words are ``results.py``'s.
 """
 from __future__ import annotations
 
@@ -16,8 +17,9 @@ import math
 import urllib.parse
 
 from PySide6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, QUrl
-from PySide6.QtGui import (QColor, QDesktopServices, QFont, QFontMetricsF, QGuiApplication, QLinearGradient, QPainter,
-                           QPainterPath, QPen, QPixmap, QPolygonF, QRadialGradient)
+from PySide6.QtGui import (QColor, QDesktopServices, QFont, QFontMetrics, QFontMetricsF, QGuiApplication, QLinearGradient,
+                           QPainter, QPainterPath, QPalette, QPen, QPixmap, QPolygonF, QRadialGradient, QTextLayout,
+                           QTextOption)
 from PySide6.QtWidgets import (QFrame, QGraphicsOpacityEffect, QGridLayout, QHBoxLayout, QLabel, QPushButton,
                                QScrollArea, QSizePolicy, QToolTip, QVBoxLayout, QWidget)
 
@@ -34,6 +36,7 @@ COMPARISON_NOTE = "Generating a comparison is on the web page for now."
 #: A window's two- and three-column parts take one column at this width or less (app.css's 1100 px breakpoint, where
 #: ``.daev``, ``.paperdoll`` and ``.grid2`` stack, less the page's margins and the windows' menu).
 NARROW = 780
+MACRO_NARROW = 730                                       # .macro-layout stacks under 1050 px
 ICON_BG = "#0b0f18"                                      # --icon-bg: a node's words, a picture's ground
 BOARD_LIGHT, BOARD_DARK = "#18233a", "#0a0f19"           # --board-a, --board-b
 INSET = QColor(6, 9, 15, 166)                            # --inset
@@ -455,13 +458,15 @@ def _legend() -> QWidget:
 
 class Split(QWidget):
     """A window's parts side by side, one under another when the window is narrow (``.daev``, ``.paperdoll`` and
-    ``.grid2``, which app.css stacks under its 1100 px breakpoint). ``widths`` holds each part's width side by side, 0
-    for an equal share of the rest."""
+    ``.grid2``, which app.css stacks under its 1100 px breakpoint; ``.macro-layout`` under 1050 px). ``widths`` holds
+    each part's width side by side: a width, 0 for an equal share of the rest, or the least and most it takes before
+    the others share the rest (``minmax``). ``top`` keeps the parts at their own heights (``align-items: start``)."""
 
-    def __init__(self, parts: list[QWidget], widths: list[int], gap: int, parent: QWidget | None = None):
+    def __init__(self, parts: list[QWidget], widths: list, gap: int, parent: QWidget | None = None,
+                 narrow_at: int = NARROW, top: bool = False):
         super().__init__(parent)
         self.setObjectName("plain")
-        self.parts, self.widths = parts, widths
+        self.parts, self.widths, self.narrow_at, self.top = parts, widths, narrow_at, top
         self.grid = QGridLayout(self)
         self.grid.setContentsMargins(0, 0, 0, 0)
         self.grid.setSpacing(gap)
@@ -476,22 +481,30 @@ class Split(QWidget):
             self.grid.removeWidget(part)
         for index in range(len(self.parts)):
             self.grid.setColumnStretch(index, 0)
+        align = Qt.AlignTop if self.top else Qt.Alignment()
         for index, (part, width) in enumerate(zip(self.parts, self.widths)):
             if narrow:
                 part.setMinimumWidth(0)
                 part.setMaximumWidth(16777215)
-                self.grid.addWidget(part, index, 0)
+                self.grid.addWidget(part, index, 0, align)
             else:
-                if width:
+                if isinstance(width, tuple):                 # its least and most, before the others share the rest
+                    part.setMinimumWidth(width[0])
+                    part.setMaximumWidth(width[1])
+                    stretch = 100
+                elif width:
                     part.setFixedWidth(width)
-                self.grid.addWidget(part, 0, index)
-                self.grid.setColumnStretch(index, 0 if width else 1)
+                    stretch = 0
+                else:
+                    stretch = 1
+                self.grid.addWidget(part, 0, index, align)
+                self.grid.setColumnStretch(index, stretch)
         if narrow:
             self.grid.setColumnStretch(0, 1)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        self.place(event.size().width() <= NARROW)
+        self.place(event.size().width() <= self.narrow_at)
 
 
 class SlotTile(QFrame):
@@ -667,6 +680,181 @@ def _pick_card(slot: str, pick: str, variants: list[str]) -> QFrame:
     return card
 
 
+class HotbarIcon(QWidget):
+    """A skill's picture as the hotbar shows it (``.hotbar-icon``, ``rotationIcon``): its key at the top left, its level
+    at the bottom right."""
+
+    def __init__(self, size: int, key: str = "", level: str = "", parent: QWidget | None = None):
+        super().__init__(parent)
+        self.key, self.level, self.pixmap, self.path = key, level, None, ""
+        self.setFixedSize(size, size)
+
+    def set_pixmap(self, pixmap: QPixmap | None) -> None:
+        self.pixmap = pixmap
+        self.update()
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        frame = QPainterPath()
+        frame.addRoundedRect(QRectF(0.5, 0.5, self.width() - 1, self.height() - 1), 3, 3)
+        painter.fillPath(frame, QColor(ICON_BG))
+        if self.pixmap is not None and not self.pixmap.isNull():
+            painter.save()
+            painter.setClipPath(frame)
+            _cover(painter, QRectF(1, 1, self.width() - 2, self.height() - 2), self.pixmap)
+            painter.restore()
+        painter.setPen(QColor(theme.COLORS["line"]))
+        painter.drawPath(frame)
+        font = QFont(self.font())
+        font.setPixelSize(13)
+        painter.setFont(font)
+        if self.key:                                       # .hotbar-key: on black, 3 px either side
+            box = QRectF(1, 1, painter.fontMetrics().horizontalAdvance(self.key) + 6, painter.fontMetrics().height())
+            painter.fillRect(box, QColor(0, 0, 0, 199))
+            painter.setPen(QColor("#ffffff"))
+            painter.drawText(box, int(Qt.AlignCenter), self.key)
+        if self.level:                                     # .hotbar-level: bold, its shadow under it
+            font.setBold(True)
+            painter.setFont(font)
+            place = QRectF(0, 0, self.width() - 3, self.height() - 1)
+            painter.setPen(QColor(0, 0, 0, 230))
+            for dx, dy in ((0, 1), (1, 1), (-1, 1)):
+                painter.drawText(place.translated(dx, dy), int(Qt.AlignRight | Qt.AlignBottom), self.level)
+            painter.setPen(QColor("#ffffff"))
+            painter.drawText(place, int(Qt.AlignRight | Qt.AlignBottom), self.level)
+        painter.end()
+
+
+class AnywhereText(QWidget):
+    """Words in the middle of their line that break inside a word wider than the line (``overflow-wrap: anywhere``),
+    as a hotbar slot's skill name does."""
+
+    def __init__(self, text: str, least: int = 0, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.text, self.least = text, least
+        policy = QSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        policy.setHeightForWidth(True)
+        self.setSizePolicy(policy)
+
+    def _laid(self, width: float) -> tuple[QTextLayout, float]:
+        option = QTextOption(Qt.AlignHCenter)
+        option.setWrapMode(QTextOption.WrapAtWordBoundaryOrAnywhere)
+        layout = QTextLayout(self.text, self.font())
+        layout.setTextOption(option)
+        layout.beginLayout()
+        height = 0.0
+        while True:
+            line = layout.createLine()
+            if not line.isValid():
+                break
+            line.setLineWidth(max(1.0, width))
+            line.setPosition(QPointF(0, height))
+            height += line.height()
+        layout.endLayout()
+        return layout, height
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return max(self.least, math.ceil(self._laid(width)[1]))
+
+    def sizeHint(self) -> QSize:
+        width = min(QFontMetrics(self.font()).horizontalAdvance(self.text), 120)
+        return QSize(width, self.heightForWidth(width))
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(1, max(self.least, QFontMetrics(self.font()).height()))
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setPen(self.palette().color(QPalette.WindowText))
+        layout, _height = self._laid(self.width())
+        layout.draw(painter, QPointF(0, 0))
+        painter.end()
+
+
+class HotbarSlot(QFrame):
+    """A hotbar slot (``.hotbar-slot``): the skill's picture with its key and level, its name, and how it is used;
+    edged in gold when it is pressed by hand. ``s`` None is an empty slot."""
+
+    def __init__(self, s: dict | None, icon: QWidget | None = None, parent: QWidget | None = None):
+        super().__init__(parent)
+        manual = bool(s and s.get("manual"))
+        self.setObjectName("hotbarEmpty" if s is None else "hotbarManual" if manual else "hotbarSlot")
+        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)        # the row's twelve columns alike
+        self.setMinimumWidth(70)
+        column = QVBoxLayout(self)
+        column.setContentsMargins(6, 6, 6, 6)
+        column.setSpacing(0)
+        if s is None:
+            plus = _label("+", "hotbarPlus", wrap=False)
+            plus.setAlignment(Qt.AlignCenter)
+            column.addWidget(plus)
+            return
+        self.setToolTip(r.hotbar_tip(s))
+        column.addWidget(icon, 0, Qt.AlignHCenter)
+        column.addSpacing(5)
+        column.addWidget(AnywhereText(r.js_text(s.get("name")), 30))
+        note = _label(r.hotbar_note(s), "hotbarNoteGold" if manual else "hotbarNote")
+        note.setAlignment(Qt.AlignHCenter)
+        note.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        column.addWidget(note)
+        column.addStretch(1)
+
+
+class Across(QScrollArea):
+    """A part that can be wider than the window (``overflow-x: auto``): scrolled across, as tall as what it holds."""
+
+    def __init__(self, content: QWidget, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("across")
+        self.setFrameShape(QFrame.NoFrame)
+        self.setWidgetResizable(True)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setWidget(content)
+        content.setAutoFillBackground(False)
+        self.viewport().setObjectName("acrossView")
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+
+    def _fit(self) -> None:
+        content = self.widget()
+        least = content.minimumSizeHint().width()
+        width = max(self.width(), least)
+        height = content.heightForWidth(width) if content.hasHeightForWidth() else -1
+        height = (height if height > 0 else content.sizeHint().height()) + (
+            self.horizontalScrollBar().sizeHint().height() if least > self.width() else 0)
+        if self.minimumHeight() != height or self.maximumHeight() != height:
+            self.setFixedHeight(height)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._fit()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._fit()
+
+
+def _delay() -> QWidget:
+    """The pause between two macro lines (``.macro-delay``): Delay 10 ms between two rules."""
+    box = _plain()
+    line = QHBoxLayout(box)
+    line.setContentsMargins(0, 4, 0, 4)
+    line.setSpacing(10)
+    for part in ("rule", "Delay", "10", "ms", "rule"):
+        if part == "rule":
+            rule = QFrame()
+            rule.setObjectName("macroRule")
+            rule.setFixedHeight(1)
+            line.addWidget(rule, 1, Qt.AlignVCenter)
+        else:
+            line.addWidget(_label(part, "macroDelay" if part == "10" else "muted", wrap=False))
+    return box
+
+
 class ResultWindows(QWidget):
     """A result's windows: the side menu and the chosen window (``renderWindows``). ``open_web`` opens a page of the
     web interface (the windows not drawn here yet); ``state`` keeps the chosen window and tabs, as the web page's
@@ -754,6 +942,10 @@ class ResultWindows(QWidget):
                 self.body.addWidget(window)
         elif key == "titles":
             self.body.addWidget(self._titles())
+        elif key == "hotbar":
+            self.body.addWidget(self._hotbar())
+        elif key == "macro":
+            self.body.addWidget(self._macro())
         elif key == "overview":
             self.body.addWidget(self._overview())
             self.body.addWidget(self._comparison())
@@ -802,7 +994,10 @@ class ResultWindows(QWidget):
         window.body.addWidget(box)
 
     def _icon_widget(self, url, size: int, level: str, placeholder: str = "", badge: int = 12) -> SkillIcon:
-        widget = SkillIcon(size, level, placeholder=placeholder, badge=badge)
+        return self._picture(SkillIcon(size, level, placeholder=placeholder, badge=badge), url)
+
+    def _picture(self, widget, url):
+        """A picture widget (with ``path`` and ``set_pixmap``) given its picture through the app's icon cache, once."""
         path = icon_path(url)
         widget.path = path
         if path in self.pixmaps:
@@ -1238,6 +1433,154 @@ class ResultWindows(QWidget):
         self._stat_grid(window, r.titles_grid(v), r.TITLES_GRID)
         return window
 
+    # ------------------------------------------------------------------ Skills hotbar
+    def _hotbar(self) -> Window:
+        """The Skills hotbar window: where to put each skill and its key, the last row of twelve first; then how to use
+        the manual skills and which key to keep for the macro."""
+        v = self.view
+        if not r._truthy(v.get("hotbar")):
+            window = self._window("Skills hotbar")
+            empty = _label(r.NO_HOTBAR, "empty")
+            empty.setAlignment(Qt.AlignCenter)
+            window.body.addWidget(empty)
+            return window
+        window = self._window("Skills hotbar", copy=r.hotbar_copy(v), subtitle=r.HOTBAR_SUB)
+        window.body.addWidget(_label(r.HOTBAR_INTRO))
+        rows = _plain()
+        grid = QGridLayout(rows)
+        grid.setContentsMargins(0, 12, 0, 12)
+        grid.setHorizontalSpacing(5)
+        grid.setVerticalSpacing(14)
+        for index, (number, slots) in enumerate(r.hotbar_rows(v)):
+            label = _label(number, "hotbarRow", wrap=False)
+            grid.addWidget(label, index, 0, Qt.AlignVCenter)
+            for place, s in enumerate(slots, start=1):
+                icon = self._picture(HotbarIcon(58, r.hotbar_key(s), r.hotbar_level(s)), s.get("icon")) if s else None
+                grid.addWidget(HotbarSlot(s, icon), index, place)
+        grid.setColumnMinimumWidth(0, 24)
+        for place in range(1, 13):
+            grid.setColumnStretch(place, 1)
+        window.body.addWidget(Across(rows))
+        window.body.addWidget(_label(r.HOTBAR_MANUAL, rich=True))
+        window.body.addWidget(_label(r.hotbar_reserve(v), rich=True))
+        return window
+
+    # ------------------------------------------------------------------ Macro & rotation
+    def _macro(self) -> Window:
+        """The Macro & rotation window: how to set the macro up; the macro's lines, each hotbar key with the skills it
+        holds, the delays and the key to save it to; the manual skills, the macro's estimate and the optimizer's
+        priority."""
+        v = self.view
+        if not r.has_macro(v):
+            window = self._window("Skill Macro")
+            empty = _label(r.NO_MACRO, "empty")
+            empty.setAlignment(Qt.AlignCenter)
+            window.body.addWidget(empty)
+            return window
+        window = self._window(r.MACRO_TITLE, copy=r.macro_copy(v))
+        steps = "".join(f"<li style='margin-bottom: 5px;'>{step}</li>" for step in r.macro_instructions(v))
+        window.body.addWidget(_label(f"<ol style='margin-left: 0px; -qt-list-indent: 1;'>{steps}</ol>", rich=True))
+        window.body.addWidget(Split([self._macro_editor(v), self._macro_side(v)], [(300, 480), 0], 24,
+                                    narrow_at=MACRO_NARROW, top=True))
+        return window
+
+    def _macro_editor(self, v: dict) -> QFrame:
+        """The macro as the game's editor lists it (``.macro-editor``): its numbered lines, the delays between them, and
+        the key to save it to."""
+        editor = QFrame()
+        editor.setObjectName("macroEditor")
+        column = QVBoxLayout(editor)
+        column.setContentsMargins(17, 17, 17, 17)
+        column.setSpacing(0)
+        title = _label("Macro", "macroTitle")
+        title.setAlignment(Qt.AlignHCenter)
+        column.addWidget(title)
+        column.addSpacing(10)
+        lines = r.macro_lines(v)
+        for index, s in enumerate(lines):
+            column.addWidget(self._macro_step(index, s))
+            if index < len(lines) - 1:
+                column.addWidget(_delay())
+        if not lines:
+            column.addWidget(_label(r.ONLY_MANUAL, "muted"))
+        column.addSpacing(18)
+        save = _label(f"Save to {r.macro_binding(v)} in game", "macroSave")
+        save.setAlignment(Qt.AlignCenter)
+        column.addWidget(save)
+        return editor
+
+    def _macro_step(self, index: int, s: dict) -> QWidget:
+        """A macro line (``.macro-step``): its number, the skills its hotbar key holds in the order they are cast, and
+        the key."""
+        step = _plain()
+        grid = QGridLayout(step)
+        grid.setContentsMargins(0, 10, 0, 10)
+        grid.setHorizontalSpacing(10)
+        number = _label(str(index + 1), "macroNumber", wrap=False)
+        number.setAlignment(Qt.AlignCenter)
+        number.setFixedWidth(28)
+        grid.addWidget(number, 0, 0)
+        stack = _plain()
+        column = QVBoxLayout(stack)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(2)
+        held = r.held(s)
+        for place, h in enumerate(held):
+            if place:
+                column.addSpacing(6)
+            column.addWidget(self._picture(HotbarIcon(72, r.hotbar_key(h), r.hotbar_level(h)), h.get("icon")), 0,
+                             Qt.AlignHCenter)
+            for words, kind in ((r.js_text(h.get("name")), "strong"), (r.chain_note(h), "muted"),
+                                (r.cast_note(place, len(held)), "muted")):
+                if words:
+                    label = _label(words, kind)
+                    label.setAlignment(Qt.AlignHCenter)
+                    column.addWidget(label)
+        grid.addWidget(stack, 0, 1)
+        key = _label(f"Hotbar key {r.kbd(s.get('binding'))}", "muted", rich=True)
+        key.setAlignment(Qt.AlignCenter)
+        key.setFixedWidth(100)
+        grid.addWidget(key, 0, 2)
+        grid.setColumnStretch(1, 1)
+        return step
+
+    def _macro_side(self, v: dict) -> QWidget:
+        """The macro's side: the manual skills, the macro's estimate, and the optimizer's priority."""
+        side = _plain()
+        column = QVBoxLayout(side)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(8)
+        column.addWidget(_label(r.MANUAL_HEAD, "goldHead"))
+        manual = r.manual_skills(v)
+        for s in manual:
+            row = _plain()
+            line = QHBoxLayout(row)
+            line.setContentsMargins(0, 4, 0, 4)
+            line.setSpacing(12)
+            line.addWidget(self._picture(HotbarIcon(58, r.hotbar_key(s), r.hotbar_level(s)), s.get("icon")), 0,
+                           Qt.AlignVCenter)
+            words = QVBoxLayout()
+            words.setSpacing(2)
+            words.addWidget(_label(r.js_text(s.get("name")), "strong"))
+            for note in (r.chain_note(s), r.manual_words(s)):
+                if note:
+                    words.addWidget(_label(note, "muted"))
+            line.addLayout(words, 1)
+            column.addWidget(row)
+        if not manual:
+            column.addWidget(_label(r.NO_MANUAL, "muted"))
+        column.addWidget(_label(r.macro_estimate(v), "muted"))
+        column.addSpacing(6)
+        column.addWidget(_label(r.READY_HEAD, "goldHead"))
+        column.addWidget(_label(r.READY_NOTE, "muted"))
+        muted = theme.COLORS["muted"]
+        items = "".join(f"<li>{html.escape(name)}" + "".join(f" <span style='color: {muted};'>({html.escape(part)})</span>"
+                                                            for part in parts) + "</li>"
+                        for name, parts in r.priority_items(v))
+        column.addWidget(_label(f"<ol style='margin-left: 0px; -qt-list-indent: 1;'>{items}</ol>", rich=True))
+        column.addStretch(1)
+        return side
+
     def stop(self) -> None:
         self.icons.stop()
 
@@ -1301,5 +1644,19 @@ QFrame#arcanaCard {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 
 QFrame#win QLabel#gold {{ color: {theme.COLORS['gold']}; }}
 QFrame#win QLabel#cardSlot {{ color: {theme.COLORS['gold']}; font-weight: 700; }}
 QFrame#win QLabel#cardPick {{ font-weight: 700; }}
+QFrame#hotbarSlot, QFrame#hotbarManual, QFrame#hotbarEmpty {{ background: rgba(6, 9, 15, 0.65);
+    border: 1px solid {theme.COLORS['line']}; }}
+QFrame#hotbarManual {{ border-color: {theme.COLORS['gold']}; }}
+QFrame#win QLabel#hotbarNote {{ color: {theme.COLORS['muted']}; }}
+QFrame#win QLabel#hotbarNoteGold {{ color: {theme.COLORS['gold']}; }}
+QFrame#win QLabel#hotbarPlus {{ color: rgba(132, 139, 154, 0.45); font-size: 16px; }}
+QFrame#win QLabel#hotbarRow {{ color: {theme.COLORS['muted']}; font-size: 19px; }}
+QScrollArea#across, QWidget#acrossView {{ background: transparent; border: none; }}
+QFrame#macroEditor {{ background: rgba(6, 9, 15, 0.65); border: 1px solid {theme.COLORS['line']}; }}
+QFrame#win QLabel#macroTitle {{ color: {theme.COLORS['gold']}; font-size: 15px; font-weight: 700; }}
+QFrame#win QLabel#macroNumber {{ color: {theme.COLORS['gold']}; font-size: 22px; }}
+QFrame#win QLabel#macroDelay {{ background: {theme.COLORS['panel2']}; padding: 3px 14px; font-weight: 700; }}
+QFrame#macroRule {{ background: {theme.COLORS['line']}; border: none; }}
+QFrame#win QLabel#macroSave {{ border: 1px solid {theme.COLORS['gold']}; padding: 10px; color: {theme.COLORS['gold']}; }}
 """ + "".join(
     f"QFrame#win QLabel#gname{grade} {{ color: {colour}; font-weight: 600; }}\n" for grade, colour in r.GRADES.items())
