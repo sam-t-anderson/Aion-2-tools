@@ -157,10 +157,9 @@ def test_the_fonts_and_colours_reach_each_element(qapp):
                                            "rate": "#ffd36b"},
                       overlay_text_fonts={"ping": {"scale": 120, "weight": 400}, "header": {"family": "Fira Mono"}})
     px = 18                                                                       # 12 px at 150%
-    target, lines = window.target.font(), window.lines.font()
+    target = window.target.font()
     assert target.families()[0] == "Fira Sans" and target.pixelSize() == px and int(target.weight()) == 400
-    assert lines.pixelSize() == round(px * 1.2) and int(lines.weight()) == 400   # the counter lines: the ping's font
-    assert _text_colour(window.target) == "#c0c8ff" and _text_colour(window.lines) == "#60ffff"
+    assert _text_colour(window.target) == "#c0c8ff"
     # The ping chip: its own size (120%) and colour, its weights the compact layout's (800 for the time, 600 after).
     (time_, time_font, time_colour), (unit, unit_font, _colour) = window.ping.parts[1].runs
     assert (unit, time_colour) == ("ms", "#60ffff") and time_font.families()[0] == "Fira Sans"
@@ -281,7 +280,7 @@ def test_the_effects_are_drawn_round_each_text(qapp):
     window.apply_ui({"overlay_width": 340})
     assert all(label.graphicsEffect() is None for label in plain)
     window.apply_ui({"overlay_width": 340, "overlay_bg_mode": "none"})           # nothing behind: the top parts too
-    assert window.target.graphicsEffect().shadow == CHIP_SHADOW and window.lines.graphicsEffect() is not None
+    assert window.target.graphicsEffect().shadow == CHIP_SHADOW
     window.apply_ui({"overlay_width": 340})
     assert window.target.graphicsEffect() is None
     # Drawn: the outline in its colour round a label's text and a row's, a quarter of its strength as the web

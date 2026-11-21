@@ -93,8 +93,9 @@ def test_the_counter_lines_full_or_short(qapp):
     window = MeterOverlay()
     window.apply_ui({"overlay_width": 340})
     window.apply_meter(_meter())
-    assert window.lines.text() == "Odyle 1,200(+300)  ·  Keys 12(+4)  ·  Tickets 9(+2)  ·  Runs 3(+1)"   # narrow
-    assert "Vakron Sky Island · hard" in window.lines.toolTip()
+    assert window.lines.text() == "1,200(+300) 12(+4) 9(+2) 3(+1)"            # no room for the words: the counts
+    assert [part.tip.split("\n")[0] for part in window.lines.parts][3] == (
+        "Vakron Sky Island · hard: 4 runs left this week (3 + 1 bonus)")             # in full in its tooltip
     one = _meter()
     for key in ("shugo_keys", "nightmare_tickets", "weekly_runs"):
         one["snapshot"].pop(key)

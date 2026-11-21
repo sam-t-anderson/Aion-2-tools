@@ -21,6 +21,9 @@ from .api import AppApi, Requests
 #: Where the web pages find a class's emblem (overlay.js ``classArt``); the asset map gives its bundled file.
 CLASS_ART = "https://metabot.gg/web/aion2/classes/{}.webp"
 RETRY_S = 30.0                            # a map or a picture the app could not give is asked for again after this
+#: The game's Odyle Energy recharge item, beside your Odyle Energy (overlay.js ``ODYLE_ICON``).
+ODYLE_ICON = "https://metabot.gg/web/aion2/items/icon_item_odenergy_a_001a.webp"
+ITEMS = (ODYLE_ICON,)
 
 
 def decoded(data: bytes) -> QImage:
@@ -56,6 +59,7 @@ class Pictures(QObject):
             self.requests.failed.connect(self._failed)
         self.classes: dict[str, str] = {}         # a class's name: its emblem's bundled file
         self.npcs: dict[str, str] = {}            # a boss's code: its portrait's bundled file
+        self.items: dict[str, str] = {}           # an item's picture's address: its bundled file (the counters')
         self._map_state = "unread"                # "asking", "read", or the monotonic time it failed at
         self._kept: dict[str, QPixmap | None] = {}
         self._failed_at: dict[str, float] = {}
@@ -72,6 +76,7 @@ class Pictures(QObject):
                         if _bundled(file := files.get(CLASS_ART.format(cls)))}
         self.npcs = {str(code): file for code, url in portraits.items()
                      if isinstance(url, str) and _bundled(file := files.get(url))}
+        self.items = {url: file for url in ITEMS if _bundled(file := files.get(url))}
         self._map_state = "read"
         self.changed.emit()
 
@@ -84,6 +89,11 @@ class Pictures(QObject):
         """A class's emblem, or None: none bundled for it, or not read yet (``changed`` says when it is)."""
         self._ask_map()
         return self._picture(self.classes.get(str(cls or "").lower()))
+
+    def item(self, url: str) -> QPixmap | None:
+        """An item's picture by the address the web pages know it by (``ITEMS``), or None."""
+        self._ask_map()
+        return self._picture(self.items.get(url))
 
     def portrait(self, code) -> QPixmap | None:
         """A boss's portrait by its code (``mob_code``), or None."""

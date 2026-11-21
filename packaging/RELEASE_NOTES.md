@@ -1,3 +1,14 @@
+## The native overlay's counters with their icons (0.2.425)
+
+**Native overlay, twelfth part.** The native interface's overlay (Settings → Native interface, a preview) now shows the counters across the top of its card as the web overlay does:
+- **One row, each counter after its icon:**
+  - your Odyle Energy beside the game's recharge item;
+  - the Shugo Keys beside a key;
+  - the Nightmare tickets beside a ticket;
+  - the dungeon's weekly runs beside a calendar.
+- **In full words where they all fit on one line.** Otherwise their counts, larger: the regular count, then the bonus in teal.
+- Each counter's tooltip says it in full and what it counts. Over the game with no background, they lie over the chips' shadow.
+
 ## The native overlay's raid plan view (0.2.424)
 
 **Native overlay, eleventh part.** The native interface's overlay (Settings → Native interface, a preview) now has the web overlay's raid plan view:
