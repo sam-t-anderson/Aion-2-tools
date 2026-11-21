@@ -97,15 +97,15 @@ def test_the_target_hp_ttk_enrage_and_break_gauge(qapp):
     target["enrage"] = {"enraged": False, "enrage_in": 95, "enrage_s": 300}
     target["break_gauge"] = {"pct": 62.4}
     window = _overlay(meter)
-    assert window.target.text() == "Atiel"                                 # each part has its setting
+    assert window.target_text == "Atiel"                                 # each part has its setting
     assert window.hp.isHidden() and window.gauge.isHidden()
     window.apply_ui({"overlay_width": 340, "overlay_show_enemy_hp": True, "overlay_show_ttk": True,
                      "overlay_show_break_gauge": True})
-    assert window.target.text() == "Atiel  ·  47%  ·  TTK 1:06  ·  Enrage 1:35  ·  Break 62%"
+    assert window.target_text == "Atiel  ·  47%  ·  TTK 1:06  ·  Enrage 1:35  ·  Break 62%"
     assert not window.gauge.isHidden() and window.gauge.fraction == pytest.approx(0.624)
     target["enrage"]["enraged"], target["break_gauge"]["pct"] = True, 3
     window.apply_meter(meter)
-    assert window.target.text().endswith("ENRAGED  ·  BROKEN")
+    assert window.target_text.endswith("ENRAGED  ·  BROKEN")
     assert window.gauge.color.name() == "#e66a5a"                          # red once broken
 
 
@@ -113,14 +113,14 @@ def test_your_contribution_or_the_dummy_parse(qapp):
     meter = fight()
     meter["snapshot"]["contribution"] = {"damage": 1_170_000, "share": 0.34, "dps": 15_600}
     window = _overlay(meter)
-    assert window.extra.text() == "Your contribution: 34% · 1.17M (15.60K/s)"
+    assert window.extra_text == "Your contribution: 34% · 1.17M (15.60K/s)"
     window.set_metric("hps")
     assert window.extra.isHidden()                                         # the DPS view only
     window.set_metric("dps")
     meter["snapshot"]["dummy_parse"] = {"duration": 45.4, "window_seconds": 60, "window_reached": False,
                                         "your_dps": 15_600, "target_dps": 45_700}
     window.apply_meter(meter)
-    assert window.extra.text() == "Dummy parse 45s / 60s · You 15.60K/s · Total 45.70K/s"
+    assert window.extra_text == "Dummy parse 45s / 60s · You 15.60K/s · Total 45.70K/s"
     window.apply_ui({"overlay_width": 340, "meter_show_dummy_parse": False, "overlay_show_contribution": False})
     assert window.extra.isHidden()
 

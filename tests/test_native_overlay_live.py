@@ -197,7 +197,7 @@ def test_the_target_names_the_others_struck_in_the_same_instant(qapp):
     meter = fight()
     meter["snapshot"]["current_target"]["also_targets"] = ["Lesser Atiel", "Spawn"]
     window = _overlay(meter)
-    assert window.target.text() == "Atiel +2"
+    assert window.target_text == "Atiel +2"
     assert "(and 2 more struck in the same instant: Lesser Atiel, Spawn)" in window.target.toolTip()
 
 

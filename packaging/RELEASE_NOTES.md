@@ -1,3 +1,30 @@
+## The native overlay's look (0.2.420)
+
+**Native overlay, seventh part.** The native interface's overlay (Settings → Native interface, a preview) now takes the look you give the overlay in Settings, as the web overlay does:
+- **Fonts and colours** (*Overlay colors & fonts*, *Overlay text effects & per-element fonts*): the overlay's font, size and weight, and each element's own font and colour:
+  - the rate, the total and share, and the player names;
+  - the header: the status line, the metric buttons and the toolbar;
+  - the target line, its HP, its time to kill and the others struck (+N);
+  - the labels, the ping line (with the Odyle, Shugo and Nightmare lines) and the identity line.
+
+  An element left blank keeps the overlay's own look.
+- **Text effects:**
+  - *Text outline*, *Text glow* and *Halo*, in their colours. With both the glow and the halo on, the halo shows, as on the web overlay.
+  - *Colour-cycle* turns the header's and the player names' colours through the hues every 12 seconds.
+  - *Retroreflection* sweeps a sheen across the names.
+
+  The cycle and the sheen hold still in performance mode and, on Windows, when *Show animations in Windows* is off. The toolbar's buttons and the player panel keep plain text, without the outline, glow or halo.
+- **The time-to-kill bar** under the HP bar, in the *TTK bar color*, while the time to kill is shown.
+- **The background image** (*Overlay background*) under the readings, at its visibility, zoom and darkening: behind the whole card, behind the top portion alone with the background mode at *Top portion only*, and not at all with *None*.
+- **Auto-contrast text to image:**
+  - *By brightness* paints the text dark over a light image and light over a dark one.
+  - *Dynamic* paints it white and inverts it against what lies behind each letter.
+- **Resizing** (*Resize the overlay by dragging its edges/corners*): grips on the right edge, the bottom edge and the corner drag the overlay's width (260 to 800 px) and height (70 to 800 px), kept for the next time. They stay live with click-through on. A height set in the settings makes the card at least that tall.
+
+**Also in the native interface:**
+- The toolbar's buttons go on to a second line when they do not fit on one, in a narrow overlay or a large font, as the web overlay's do. The target line wraps between its parts. Both used to be cut short.
+- A font size changed while the overlay is open now reaches all of its text. The status, target and counter lines used to lose the overlay's text size until it was opened again.
+
 ## The native overlay's events strip (0.2.419)
 
 **Native overlay, sixth part.** The native interface's overlay (Settings → Native interface, a preview) now shows the events strip the web overlay shows, on by default:

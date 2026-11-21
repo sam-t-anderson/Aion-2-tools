@@ -189,9 +189,10 @@ def strip(catalog: dict | None, region: str, group, field_bosses, now: float, sh
     return shown
 
 
-def strip_html(shown: list[dict]) -> str:
+def strip_html(shown: list[dict], label: str | None = None) -> str:
     """The strip as the overlay draws it (overlay.css ``.ovevents``): a forecast's time grey, green while it runs;
-    an observed kill's amber, gold once the boss is due."""
+    an observed kill's amber, gold once the boss is due. ``label`` is the "Events" label as rich text, in the
+    overlay's label look."""
     parts = []
     for event in shown:
         if event.get("observed"):
@@ -200,4 +201,4 @@ def strip_html(shown: list[dict]) -> str:
             name, when = "#9aa3b5", "#8fd0a0" if event["active"] else "#cdd6e6"
         parts.append(f"<span style='color:{name}'>{html.escape(str(event['name']))} "
                      f"<b style='color:{when}'>{html.escape(event['when'])}</b></span>")
-    return "<span style='color:#e8cf8e; font-weight:600'>Events</span> " + " · ".join(parts)
+    return (label or '<span style="color:#e8cf8e; font-weight:600">Events</span>') + " " + " · ".join(parts)
