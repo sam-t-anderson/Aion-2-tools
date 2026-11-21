@@ -1,3 +1,18 @@
+## The Pet Genus window in the native interface (0.2.438)
+
+**Every result window is native now.** A saved build's **Pet Genus Insight** window opens in the app's window, as the web page draws it:
+- whether Genus Insight lines were saved and scored, with links to My Character and Gear & Advice, where you enter them;
+- the five genera, each with its recorded level: choose one to see it;
+- its **Insight ring**: the nine analysis slots round the genus's sigil, name and level, a saved line's slot in gold, an unrecorded one gray, a locked one dim. Point at a slot for its line;
+- its nine slots' analysis: the effect saved, its value, its DPS contribution and the model's word on it;
+- **Roll for**: the best candidates to roll for, and each slot's aim, its next two, its saved line, its next step and its options;
+- **Genus coverage**: the levels and lines recorded for each genus and its next milestone, with the catalog's basis;
+- **Genus roll targets**: each genus's damage-line target with its catalog range;
+- the model's assumptions and the enemy mix, folded as on the web page.
+- On a narrow window the analysis goes under the ring.
+
+An advice's full view and contributing a community comparison are on the web Saved Results page for now.
+
 ## The Skills hotbar and Macro windows in the native interface (0.2.437)
 
 **Two more result windows are native now.** A saved build's **Skills hotbar** and **Macro & rotation** windows open in the app's window, as the web page draws them:

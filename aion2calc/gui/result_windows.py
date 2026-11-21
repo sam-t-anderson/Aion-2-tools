@@ -6,9 +6,10 @@ and passive, each skill's level and supporting effects) and Stigma windows, and 
 (each board's nodes, the points used, and the skill levels and stats the boards give) and the Equipment window (the
 paper doll's slots, the rolls to keep and where an enchant level is worth most), and since 0.2.436 the Arcana window
 (a character's cards, the variant for each slot and the value of each slot's skill rolls, with the deity totals) and
-the Titles, wings & pet window, and since 0.2.437 the Skills hotbar (its rows of keys) and the Macro & rotation window
-(the macro's lines, the manual skills and the priority list). The Pet Genus window says it is drawn in the web
-interface for now, with the web page's button. The words are ``results.py``'s.
+the Titles, wings & pet window, since 0.2.437 the Skills hotbar (its rows of keys) and the Macro & rotation window
+(the macro's lines, the manual skills and the priority list), and since 0.2.438 the Pet Genus window (each genus's
+Insight ring and lines, what to roll for, the coverage and the roll targets): every window of a result. The words are
+``results.py``'s.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from PySide6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, QUrl
 from PySide6.QtGui import (QColor, QDesktopServices, QFont, QFontMetrics, QFontMetricsF, QGuiApplication, QLinearGradient,
                            QPainter, QPainterPath, QPalette, QPen, QPixmap, QPolygonF, QRadialGradient, QTextLayout,
                            QTextOption)
-from PySide6.QtWidgets import (QFrame, QGraphicsOpacityEffect, QGridLayout, QHBoxLayout, QLabel, QPushButton,
+from PySide6.QtWidgets import (QFrame, QGraphicsOpacityEffect, QGridLayout, QHBoxLayout, QLabel, QLayout, QPushButton,
                                QScrollArea, QSizePolicy, QToolTip, QVBoxLayout, QWidget)
 
 from . import pictures
@@ -31,7 +32,6 @@ from .database_page import Icons, Kpi, Window, pairs_grid
 from .gathering_page import table
 from .timers_page import Fold
 
-WEB_NOTE = "This window is drawn in the web interface for now."
 COMPARISON_NOTE = "Generating a comparison is on the web page for now."
 #: A window's two- and three-column parts take one column at this width or less (app.css's 1100 px breakpoint, where
 #: ``.daev``, ``.paperdoll`` and ``.grid2`` stack, less the page's margins and the windows' menu).
@@ -577,6 +577,15 @@ def _table(headers: list[str], rows: list[list[str]], right: tuple[int, ...] = (
     return widget
 
 
+def _faint(text: str) -> str:
+    return f"<span style='color: {theme.COLORS['faint']};'>{html.escape(text)}</span>"
+
+
+def _gain(text: str) -> str:
+    """A gain (``.gain.up``): bold, in the gain's green."""
+    return f"<b style='color: #8fe08f;'>{html.escape(text)}</b>"
+
+
 def _css_colour(text: str) -> QColor:
     """A colour as app.css writes it: ``#rrggbb``, or ``rgba(r, g, b, a)`` with ``a`` from 0 to 1."""
     if text.startswith("rgba("):
@@ -855,6 +864,214 @@ def _delay() -> QWidget:
     return box
 
 
+class GenusRing(QWidget):
+    """A genus's Insight ring (genus-editor.js ``ringHTML``): its nine analysis slots round the genus's sigil, name and
+    level, a saved line's slot in gold, an unrecorded one gray, a locked one dim; a slot's words as its tooltip. Drawn
+    to its width, at most 340 px, as the web page's SVG is."""
+
+    def __init__(self, genus: str, group, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.genus, self.nodes, self.level = genus, r.ring_nodes(group), r.genus_level(group)
+        policy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        policy.setHeightForWidth(True)
+        self.setSizePolicy(policy)
+        self.setMinimumWidth(200)
+        self.setMaximumWidth(340)
+        self.setAccessibleName(f"{genus} Insight: nine analysis slots")
+
+    def hasHeightForWidth(self) -> bool:
+        return True
+
+    def heightForWidth(self, width: int) -> int:
+        return min(width, 340)
+
+    def sizeHint(self) -> QSize:
+        return QSize(320, 320)
+
+    def _spot(self, index: int) -> QPointF:
+        angle = math.radians(-90 + index * 40)
+        return QPointF(160 + 124 * math.cos(angle), 160 + 124 * math.sin(angle))
+
+    def node_at(self, point: QPointF) -> int | None:
+        scale = min(self.width(), self.height()) / 320
+        for index in range(9):
+            spot = self._spot(index) * scale
+            if math.hypot(point.x() - spot.x(), point.y() - spot.y()) <= 18 * scale:
+                return index
+        return None
+
+    def event(self, event) -> bool:
+        if event.type() == QEvent.ToolTip:
+            index = self.node_at(QPointF(event.pos()))
+            if index is None:
+                QToolTip.hideText()
+                event.ignore()
+            else:
+                QToolTip.showText(event.globalPos(), self.nodes[index][1], self)
+            return True
+        return super().event(event)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        scale = min(self.width(), self.height()) / 320
+        painter.scale(scale, scale)
+        gold, muted = QColor(theme.COLORS["gold"]), QColor(theme.COLORS["muted"])
+        middle = QPointF(160, 160)
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(QPen(QColor(206, 182, 122, 71), 8))                     # the track, in the frame's colour
+        painter.drawEllipse(middle, 124, 124)
+        painter.setBrush(INSET)
+        painter.setPen(QPen(gold, 2))
+        painter.drawEllipse(middle, 87, 87)
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(QPen(QColor(theme.COLORS["line"]), 1))
+        painter.drawEllipse(middle, 78, 78)
+
+        def words(text: str, y: float, size: int, colour: QColor, bold: bool = False, family: str = "",
+                  x: float = 160) -> None:
+            font = QFont(self.font())
+            if family:
+                font.setFamily(family)
+            font.setPixelSize(size)
+            font.setBold(bold)
+            painter.setFont(font)
+            painter.setPen(colour)
+            ascent = painter.fontMetrics().ascent()                            # y is the line's baseline, as in SVG
+            painter.drawText(QRectF(x - 160, y - ascent, 320, painter.fontMetrics().height()),
+                             int(Qt.AlignHCenter | Qt.AlignTop), text)
+        words("✦" if self.genus == "Special" else self.genus[:1], 145, 48, gold, family="serif")
+        words(f"{self.genus} Insight", 178, 16, gold, bold=True)
+        words(self.level, 202, 16, muted)
+        for index, (state, _words) in enumerate(self.nodes):
+            spot = self._spot(index)
+            painter.setOpacity(0.4 if state == "locked" else 1.0)
+            filled = state == "filled"
+            painter.setBrush(gold if filled else QColor(theme.COLORS["panel2"]))
+            painter.setPen(QPen(QColor(233, 203, 128, 166) if filled else muted, 2))
+            painter.drawEllipse(spot, 18, 18)
+            words(str(index + 1), spot.y() + 5, 16, QColor(6, 9, 15) if filled else QColor(theme.COLORS["text"]), bold=True,
+                  x=spot.x())
+            painter.setOpacity(1.0)
+        painter.end()
+
+
+class GenusButton(QPushButton):
+    """A genus's button (``.genus-selectors .btn``): its name over its recorded level; the chosen one's ``primary``."""
+
+    def __init__(self, name: str, level: str, chosen: bool, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("genusOn" if chosen else "genus")
+        self.setAccessibleName(f"{name} {level}")
+        self.setCheckable(True)
+        self.setChecked(chosen)                                                 # aria-pressed
+        self.setCursor(Qt.PointingHandCursor)
+        column = QVBoxLayout(self)
+        column.setContentsMargins(11, 10, 11, 10)
+        column.setSpacing(4)
+        for words, kind in ((name, "genusName"), (level, "genusLevel")):
+            label = _label(words, kind, wrap=False)
+            label.setAttribute(Qt.WA_TransparentForMouseEvents)
+            column.addWidget(label)
+
+    def sizeHint(self) -> QSize:
+        return self.layout().sizeHint()
+
+    def minimumSizeHint(self) -> QSize:
+        return self.layout().sizeHint()
+
+
+class GenusLayout(QWidget):
+    """The genus buttons, the ring and the analysis side by side (``.genus-report-layout``: 120 px, 230 to 340 px, and
+    the rest); on a narrow window, or one too narrow for the three, the buttons beside the ring and the analysis under
+    both. It asks its window for no more room than the narrow arrangement needs, so the window can always choose it."""
+
+    def __init__(self, buttons: QWidget, ring: QWidget, analysis: QWidget, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("plain")
+        self.buttons, self.ring, self.analysis = buttons, ring, analysis
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(0, 12, 0, 12)
+        self.grid.setSpacing(14)
+        self.grid.setSizeConstraint(QLayout.SetNoConstraint)
+        self.narrow: bool | None = None
+        self.place(False)
+
+    def _wide_least(self) -> int:
+        return 120 + 14 + self.ring.minimumSizeHint().width() + 14 + self.analysis.minimumSizeHint().width()
+
+    def minimumSizeHint(self) -> QSize:
+        least = max(110 + 14 + self.ring.minimumSizeHint().width(), self.analysis.minimumSizeHint().width())
+        return QSize(least, self.grid.minimumSize().height())
+
+    def place(self, narrow: bool) -> None:
+        if narrow == self.narrow:
+            return
+        self.narrow = narrow
+        for part in (self.buttons, self.ring, self.analysis):
+            self.grid.removeWidget(part)
+        for column in range(3):
+            self.grid.setColumnStretch(column, 0)
+        self.buttons.setFixedWidth(110 if narrow else 120)
+        self.grid.addWidget(self.buttons, 0, 0, Qt.AlignVCenter)
+        self.grid.addWidget(self.ring, 0, 1, Qt.AlignVCenter)
+        if narrow:
+            self.grid.addWidget(self.analysis, 1, 0, 1, 2)
+            self.grid.setColumnStretch(1, 1)
+        else:
+            self.grid.addWidget(self.analysis, 0, 2, Qt.AlignVCenter)
+            self.grid.setColumnStretch(2, 1)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        width = event.size().width()
+        self.place(width <= NARROW or width < self._wide_least())
+
+
+def _section(title: str) -> tuple[QFrame, QVBoxLayout]:
+    """A note of the window (``section.note``): its heading, then what it holds."""
+    box = QFrame()
+    box.setObjectName("note")
+    column = QVBoxLayout(box)
+    column.setContentsMargins(0, 0, 0, 0)
+    column.setSpacing(6)
+    column.addWidget(_label(title, "noteHead"))
+    return box, column
+
+
+def _cell(rich: str) -> QLabel:
+    """A table's cell of rich text (bold, faint and gain words)."""
+    return _label(rich, rich=True)
+
+
+class GridTable(QWidget):
+    """A table as the web page draws ``table.t``: its heads gold and upper-case over a line, each row over a faint
+    line, the words wrapping in their columns. A cell is text, or a label of rich text; ``stretch`` gives columns
+    their share of the room to spare."""
+
+    def __init__(self, headers: list[str], rows: list[list], stretch: dict[int, int] | None = None,
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("plain")
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setSpacing(0)
+        for column, words in enumerate(headers):
+            self.grid.addWidget(_label(words.upper(), "thead"), 0, column)
+        for index, row in enumerate(rows, start=1):
+            for column, cell in enumerate(row):
+                label = cell if isinstance(cell, QLabel) else _label(str(cell))
+                label.setObjectName("tcell")
+                label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                self.grid.addWidget(label, index, column)
+        for column, factor in (stretch or {}).items():
+            self.grid.setColumnStretch(column, factor)
+
+    def cell(self, row: int, column: int) -> QLabel:
+        """The label in a row (0 is the heads) and column."""
+        return self.grid.itemAtPosition(row, column).widget()
+
+
 class ResultWindows(QWidget):
     """A result's windows: the side menu and the chosen window (``renderWindows``). ``open_web`` opens a page of the
     web interface (the windows not drawn here yet); ``state`` keeps the chosen window and tabs, as the web page's
@@ -869,7 +1086,7 @@ class ResultWindows(QWidget):
         self.clipboard = clipboard or (lambda text: QGuiApplication.clipboard().setText(text))
         self.when = when or (lambda ms: str(ms))
         self.view: dict = {}
-        self.state = {"win": "overview", "skilltab": "active", "board": 0}
+        self.state = {"win": "overview", "skilltab": "active", "board": 0, "genusTab": "Cogni"}
         self.icons = Icons(api, self)
         self.icons.loaded.connect(self._icon)
         self.pixmaps: dict[str, QPixmap] = {}
@@ -946,11 +1163,12 @@ class ResultWindows(QWidget):
             self.body.addWidget(self._hotbar())
         elif key == "macro":
             self.body.addWidget(self._macro())
-        elif key == "overview":
+        elif key == "genus":
+            self.body.addWidget(self._genus())
+        else:                                                    # results.js's default: the Overview
             self.body.addWidget(self._overview())
-            self.body.addWidget(self._comparison())
-        else:
-            self.body.addWidget(self._web_window(dict((k, t) for k, t, _m in r.WINDOWS)[key]))
+            if key == "overview":
+                self.body.addWidget(self._comparison())
 
     # ------------------------------------------------------------------ parts
     def _window(self, title: str, counter: tuple[str, str] | None = None, copy: str = "", subtitle: str = "") -> Window:
@@ -966,12 +1184,6 @@ class ResultWindows(QWidget):
             button.setObjectName("small")
             button.clicked.connect(lambda: self.clipboard(copy))
             window.tool(button)
-        return window
-
-    def _web_window(self, title: str) -> Window:
-        window = self._window(title)
-        window.body.addWidget(_label(WEB_NOTE, "muted"))
-        window.body.addWidget(self._web_button(), 0, Qt.AlignLeft)
         return window
 
     def _web_button(self) -> QPushButton:
@@ -1581,6 +1793,97 @@ class ResultWindows(QWidget):
         column.addStretch(1)
         return side
 
+    # ------------------------------------------------------------------ Pet Genus
+    def _genus(self) -> Window:
+        """The Pet Genus window: whether lines were saved and where to enter them; the genera, the chosen one's ring and
+        its nine slots' analysis; what to roll for, the coverage and the roll targets; the model's assumptions."""
+        v = self.view
+        genus = r.genus_choice(self.state.get("genusTab"))
+        group = r.genus_group(v, genus)
+        window = self._window(r.GENUS_TITLE, subtitle=r.genus_subtitle(v))
+        note = QFrame()
+        note.setObjectName("note")
+        holder = QVBoxLayout(note)
+        holder.setContentsMargins(0, 0, 0, 0)
+        words = _label(r.genus_note(v), rich=True)
+        words.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        words.setOpenExternalLinks(False)
+        words.linkActivated.connect(lambda page: self.open_web(page) if self.open_web else None)
+        holder.addWidget(words)
+        window.body.addWidget(note)
+        buttons = _plain()
+        column = QVBoxLayout(buttons)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(6)
+        for name, level in r.genus_buttons(v):
+            button = GenusButton(name, level, name == genus)
+            button.clicked.connect(lambda _checked=False, name=name: self._genus_tab(name))
+            column.addWidget(button)
+        ring = _plain()
+        stack = QVBoxLayout(ring)
+        stack.setContentsMargins(0, 0, 0, 0)
+        stack.addWidget(GenusRing(genus, group), 0, Qt.AlignHCenter)
+        stack.addWidget(_label(r.RING_KEY, "muted"))
+        analysis = _plain()
+        stack = QVBoxLayout(analysis)
+        stack.setContentsMargins(0, 0, 0, 0)
+        stack.setSpacing(8)
+        stack.addWidget(_label(f"{genus} Insight · {r.genus_level(group)}", "genusHead"))
+        stack.addWidget(GridTable(r.ANALYSIS_COLUMNS, r.genus_rows(v, genus), {1: 3, 4: 3}))
+        window.body.addWidget(GenusLayout(buttons, ring, analysis))
+        rolls = r.genus_rolls(v, genus)
+        if rolls is not None:
+            box, column = _section(f"Roll for · {genus}")
+            if rolls["best"]:
+                items = "".join(f"<li>Slot {html.escape(slot)}: <b>{html.escape(stat)}</b> {_faint(grade)} {_gain(gain)}</li>"
+                                for slot, stat, grade, gain in rolls["best"])
+                column.addWidget(_label(f"<ol style='margin-left: 0px; -qt-list-indent: 1;'>{items}</ol>", rich=True))
+            else:
+                column.addWidget(_label(r.NO_CANDIDATE, "faint"))
+            table_rows = []
+            for row in rolls["rows"]:
+                aim = (f"<b>{html.escape(row['aim'][0])}</b> {_faint(row['aim'][1])} {_gain(row['aim'][2])}" if row["aim"]
+                       else _faint("No modeled line"))
+                then = "<br>".join(f"{html.escape(stat)} {_faint(gain)}" for stat, gain in row["then"])
+                table_rows.append([row["slot"], _cell(aim), _cell(then), row["saved"], row["status"], row["options"]])
+            column.addWidget(GridTable(r.ROLL_COLUMNS, table_rows, {1: 3, 2: 3, 3: 2, 4: 2, 5: 1}))
+            column.addWidget(_label(rolls["basis"], "muted"))
+            window.body.addWidget(box)
+        coverage = r.genus_coverage(v)
+        if coverage is not None:
+            box, column = _section("Genus coverage")
+            column.addWidget(_label(coverage["line"]))
+            column.addWidget(GridTable(r.COVERAGE_COLUMNS, coverage["rows"], {2: 2, 3: 2}))
+            column.addWidget(_label(coverage["note"], "muted"))
+            fold = Fold("Catalog basis")
+            fold.add(_label(coverage["basis"], "muted"))
+            column.addWidget(fold)
+            window.body.addWidget(box)
+        targets = r.genus_targets(v)
+        if targets is not None:
+            box, column = _section("Genus roll targets")
+            if targets["rows"]:
+                rows = [[a, b, c, d, _cell(f"<b>{html.escape(e)}</b><br><small>{html.escape(f)}</small>"), g]
+                        for a, b, c, d, e, f, g in targets["rows"]]
+                column.addWidget(GridTable(r.TARGET_COLUMNS, rows, {0: 2, 2: 2, 3: 2, 4: 2, 5: 3}))
+            column.addWidget(_label(targets["note"], "muted"))
+            if targets["source"]:
+                column.addWidget(_label(targets["source"], "muted"))
+            window.body.addWidget(box)
+        assumptions = r.genus_assumptions(v)
+        if assumptions is not None:
+            fold = Fold(r.ASSUMPTIONS)
+            fold.add(_label(assumptions["note"], "muted"))
+            if assumptions["mix"]:
+                fold.add(_label(assumptions["mix"]))
+            fold.add(_label(r.ASSUMPTIONS_NOTE, "muted"))
+            window.body.addWidget(fold)
+        return window
+
+    def _genus_tab(self, name: str) -> None:
+        self.state["genusTab"] = name
+        self.draw()
+
     def stop(self) -> None:
         self.icons.stop()
 
@@ -1658,5 +1961,18 @@ QFrame#win QLabel#macroNumber {{ color: {theme.COLORS['gold']}; font-size: 22px;
 QFrame#win QLabel#macroDelay {{ background: {theme.COLORS['panel2']}; padding: 3px 14px; font-weight: 700; }}
 QFrame#macroRule {{ background: {theme.COLORS['line']}; border: none; }}
 QFrame#win QLabel#macroSave {{ border: 1px solid {theme.COLORS['gold']}; padding: 10px; color: {theme.COLORS['gold']}; }}
+QPushButton#genus, QPushButton#genusOn {{ text-align: left; border-radius: 4px; padding: 0;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2b3550, stop:1 #1c2438); border: 1px solid rgba(206, 182, 122, 0.28); }}
+QPushButton#genusOn {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
+    border-color: rgba(233, 203, 128, 0.65); }}
+QPushButton#genus QLabel, QPushButton#genusOn QLabel {{ background: transparent; }}
+QPushButton#genus QLabel#genusName {{ font-weight: 700; }}
+QPushButton#genusOn QLabel#genusName, QPushButton#genusOn QLabel#genusLevel {{ color: #fff3cf; }}
+QPushButton#genusOn QLabel#genusName {{ font-weight: 700; }}
+QFrame#win QLabel#genusHead {{ font-size: 15px; font-weight: 700; }}
+QFrame#note QLabel#noteHead {{ font-weight: 700; }}
+QFrame#win QLabel#thead {{ color: {theme.COLORS['gold_dim']}; font-weight: 600; padding: 6px 8px;
+    border: none; border-bottom: 1px solid rgba(206, 182, 122, 0.28); }}
+QFrame#win QLabel#tcell {{ padding: 5px 8px; border: none; border-bottom: 1px solid #1d2539; }}
 """ + "".join(
     f"QFrame#win QLabel#gname{grade} {{ color: {colour}; font-weight: 600; }}\n" for grade, colour in r.GRADES.items())

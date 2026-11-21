@@ -269,10 +269,16 @@ def test_the_saved_runs_and_a_build_opened(qapp, view):
     assert r.stigma_effect(view["stigmas"][0]["specs"][0]) in texts
     _button(windows, "Copy as text").click()
     assert copied[-1] == r.stigmas_copy(view)
-    # a window not drawn here yet: its web page
-    windows.choose("genus")
+    # a window it does not know: the Overview without the comparison (results.js's default)
+    windows.choose("nothing")
     QCoreApplication.processEvents()
-    assert w.WEB_NOTE in _texts(windows)
+    assert "STAT PRIORITY (DPS PER UPGRADE)" in _texts(windows)
+    assert not [b for b in windows.findChildren(QToolButton) if b.text() == comparison.text() and b.isVisibleTo(windows)]
+    # contributing a comparison is on the web page for now: its button opens it
+    windows.choose("overview")
+    QCoreApplication.processEvents()
+    next(b for b in windows.findChildren(QToolButton) if b.text() == "Contribute a community comparison").click()
+    assert w.COMPARISON_NOTE in _texts(windows)
     _button(windows, "Open the web Saved Results page").click()
     assert opened == ["history"]
 
