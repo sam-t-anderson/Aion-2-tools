@@ -123,9 +123,10 @@ def _alive(widget) -> bool:
 
 
 class Section(QWidget):
-    """A kind's encounters (``details.sl-sec``): its title and count over its table, opened and closed."""
+    """A part that opens and closes under its title (``details``): a kind's encounters with their count
+    (``.sl-sec``), or a list's note."""
 
-    def __init__(self, title: str, count: int, opened: bool, parent: QWidget | None = None):
+    def __init__(self, title: str, count: int | None, opened: bool, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("plain")
         layout = QVBoxLayout(self)
@@ -138,7 +139,8 @@ class Section(QWidget):
         self.button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.button.setAutoRaise(True)
         self.button.toggled.connect(self.set_open)
-        layout.addWidget(_row(self.button, _label(f"({count})", "small", wrap=False), spacing=4))
+        heads = [self.button] + ([_label(f"({count})", "small", wrap=False)] if count is not None else [])
+        layout.addWidget(_row(*heads, spacing=4))
         self.body = QWidget()
         self.body.setObjectName("plain")
         self.body_layout = QVBoxLayout(self.body)

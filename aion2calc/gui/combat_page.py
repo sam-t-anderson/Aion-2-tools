@@ -10,7 +10,9 @@
 - Since 0.2.451 its **recorded encounters by type** and its **upload queue** too (combat_saved.py). The Saved Logs
   list stays as it is while the page lives, its upload going on while another list or view is shown, and its
   recordings, folder, log server and encounters are read again when the page is shown again.
-- The other views and lists, and an encounter's analysis, open in the web interface for now.
+- Since 0.2.452 **My Uploads** and **My Character Identities** too (combat_owned.py), each drawn when first chosen and
+  kept like Saved Logs, and read again after an upload, as the web page reads them.
+- The other views, the community's logs, and an encounter's analysis open in the web interface for now.
 """
 from __future__ import annotations
 
@@ -25,6 +27,7 @@ from PySide6.QtWidgets import (QComboBox, QFileDialog, QFrame, QHBoxLayout, QLin
 from . import combat as cb
 from . import theme
 from .api import AppApi, Job, Requests
+from .combat_owned import Identities, OwnedUploads
 from .combat_saved import RecordedEncounters, UploadQueue, _button, _clear, _head, _label, _row
 from .database_page import Window
 from .gathering_page import GatheringPage
@@ -33,16 +36,19 @@ from .result_windows import STYLE as RESULT_STYLE, GridTable
 
 
 class CombatPage(QWidget):
-    """Combat Logs. ``open_web`` opens a page of the web interface; ``choose_file``, ``choose_recovery`` and
-    ``save_file`` stand in for the file dialogs (a log to analyze, a recovery file to import, where an export goes) and
-    ``open_link`` for the browser; ``store`` keeps the choices the web page keeps in its browser."""
+    """Combat Logs. ``open_web`` opens a page of the web interface; ``choose_file``, ``choose_recovery``,
+    ``choose_backup`` and ``save_file`` stand in for the file dialogs (a log to analyze, a recovery file or a private
+    backup to import, where an export goes), ``confirm`` for the questions and ``open_link`` for the browser; ``store``
+    keeps the choices the web page keeps in its browser; ``identity_call`` sends a request to the share server's
+    identity routes."""
 
     def __init__(self, api: AppApi | None, open_web=None, choose_file=None, open_link=None, parent: QWidget | None = None,
-                 store=None, choose_recovery=None, save_file=None):
+                 store=None, choose_recovery=None, save_file=None, choose_backup=None, confirm=None, identity_call=None):
         super().__init__(parent)
         self.api, self.open_web, self.store = api, open_web, store
         self.choose_file = choose_file or self._ask_file
-        self.choose_recovery, self.save_file = choose_recovery, save_file
+        self.choose_recovery, self.save_file, self.choose_backup = choose_recovery, save_file, choose_backup
+        self.confirm, self.identity_call = confirm, identity_call
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.view, self.list = "community", "community"              # ``st.logsTab``, ``st.listTab``
         self.requests = Requests(api, self) if api is not None else None
@@ -74,6 +80,9 @@ class CombatPage(QWidget):
             QFrame#note QLabel, QFrame#note QCheckBox {{ background: transparent; color: #f1d4a3; }}
             QFrame#note QWidget#plain {{ background: transparent; }}
             QFrame#note QLabel#queueHead {{ color: #f1d4a3; font-size: 15px; font-weight: 700; }}
+            QFrame#rowNote {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
+                border-radius: 5px; padding: 6px 9px; }}
+            QFrame#note QToolButton#fold {{ color: #f1d4a3; }}
             """ + Toast.STYLE)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -113,6 +122,8 @@ class CombatPage(QWidget):
         self.saved_panel: QWidget | None = None          # Saved Logs, drawn once and kept
         self.recorded: RecordedEncounters | None = None
         self.queue: UploadQueue | None = None
+        self.owned: OwnedUploads | None = None           # My Uploads, drawn when first chosen and kept
+        self.identities: Identities | None = None        # My Character Identities, likewise
         self.message = None
         self.seen = False
         self.toast = Toast(self)
@@ -136,22 +147,42 @@ class CombatPage(QWidget):
         self._tabs(self.views, cb.VIEWS, self.view, self.show_view, underlined=True)
         _clear(self.elsewhere)
         community = self.view == "community"
-        saved = community and self.list == "saved"
+        native = community and self.list in ("saved", "owned", "identities")
         self.lists_box.setVisible(community)
         if community:
             self._tabs(self.lists, cb.LISTS, self.list, self.show_list)
         if not community:
             self.elsewhere.addWidget(_label(cb.ON_THE_WEB_VIEW, "muted"))
             self.elsewhere.addWidget(_row(_button("Open it on the web page", lambda: self._web("combat"))))
-        elif not saved:
+        elif not native:
             self.elsewhere.addWidget(_label(cb.ON_THE_WEB_LIST, "muted"))
             self.elsewhere.addWidget(_row(_button("Open it on the web page", lambda: self._web(cb.list_page(self.list)))))
-        if saved and self.saved_panel is None:
-            self.saved_panel = self._saved()
-            self.body.addWidget(self.saved_panel)
-        if self.saved_panel is not None:
-            self.saved_panel.setVisible(saved)
-        self.elsewhere_box.setVisible(not saved)
+        for key, name, draw in (("saved", "saved_panel", self._saved), ("owned", "owned", self._owned),
+                                ("identities", "identities", self._identities)):
+            shown = community and self.list == key
+            panel = getattr(self, name)
+            if shown and panel is None:
+                panel = draw()
+                setattr(self, name, panel)
+                self.body.addWidget(panel)
+            if panel is not None:
+                panel.setVisible(shown)
+        self.elsewhere_box.setVisible(not native)
+
+    def _owned(self) -> OwnedUploads:
+        """My Uploads."""
+        return OwnedUploads(self.api, self.open_web, open_link=self.open_link, confirm=self.confirm,
+                            choose_file=self.choose_backup, save_file=self.save_file)
+
+    def _identities(self) -> Identities:
+        """My Character Identities."""
+        return Identities(self.api, call=self.identity_call, confirm=self.confirm)
+
+    def _uploaded(self) -> None:
+        """A report uploaded: My Uploads and the characters it may let you claim read again (``a2log-uploaded``)."""
+        for panel in (self.owned, self.identities):
+            if panel is not None:
+                panel.load()
 
     def show_view(self, key: str) -> None:
         self.view = key
@@ -199,6 +230,7 @@ class CombatPage(QWidget):
         layout.addWidget(_head("Upload recordings"))
         self.queue = UploadQueue(self.api, self.open_web, open_link=self.open_link, choose_file=self.choose_recovery,
                                  save_file=self.save_file)
+        self.queue.uploaded.connect(self._uploaded)
         layout.addWidget(self.queue)
         layout.addWidget(_head("Analyzed encounters"))
         self.encounters_box = QWidget()
@@ -225,6 +257,8 @@ class CombatPage(QWidget):
                 self.recorded.load(True)
             if self.queue is not None and not self.queue.busy:
                 self.queue.load(self.queue.offset)
+        if self.seen:
+            self._uploaded()
         self.seen = True
 
     def _replied(self, name: str, answer) -> None:
@@ -353,7 +387,7 @@ class CombatPage(QWidget):
             self.toast.place()
 
     def closeEvent(self, event) -> None:
-        for worker in (self.requests, self.job, self.recorded, self.queue):
+        for worker in (self.requests, self.job, self.recorded, self.queue, self.owned, self.identities):
             if worker is not None:
                 worker.stop()
         super().closeEvent(event)
