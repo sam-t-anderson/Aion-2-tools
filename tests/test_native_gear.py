@@ -211,7 +211,7 @@ def test_the_gear_page_with_its_kept_advice(qapp):
     assert any("Test Earrings +5" in t and "warehouse" in t for t in texts)
     edits = [b for b in page.findChildren(QPushButton) if b.text() == "Edit"]
     assert len(edits) == 1 and len([b for b in page.findChildren(QPushButton) if b.text() == "Remove"]) == 1   # added ones only
-    _button(page, "Open the advice").click()
+    _button(page, "Open them on the web page").click()                         # the advice's parts not drawn yet
     _button(page, "Saved advice").click()
     assert opened == ["gear"] and pages == ["history"]
     assert page.titles.toPlainText() == "Hero"

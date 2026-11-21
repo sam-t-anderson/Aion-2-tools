@@ -1,4 +1,5 @@
-"""The native Gear & Advice page, part 1 (0.2.443): Character → Gear & Advice as pages/gear.js shows it.
+"""The native Gear & Advice page (0.2.443; its advice since 0.2.444): Character → Gear & Advice as pages/gear.js
+shows it.
 
 - **The character** to advise, chosen among those imported on My Character, and **Run advice** (its job): its progress
   as it runs, and the advice kept from the last run (when it was calculated, what has changed since). Opening the page,
@@ -11,8 +12,8 @@
 - **Titles you own:** the Title window's pages read from the game, the titles they say the character owns, and the
   list kept with **Save titles**.
 
-The advice's full view (the paper doll, upgrade path, arcana, pantheon, genus and fights) is not drawn here yet: it
-opens in the web interface, which shows the advice kept.
+The advice is drawn under them (``advice_view.AdviceView``): its top changes, skill specialties, paper doll, upgrade path,
+fights and calibration. Its arcana, titles, pantheon and genus recommendations open in the web interface for now.
 """
 from __future__ import annotations
 
@@ -31,6 +32,7 @@ from . import result_windows
 from . import results as r
 from . import theme
 from .api import AppApi, Job, Requests
+from .advice_view import STYLE as ADVICE_STYLE, AdviceView
 from .character_options import style as options_style
 from .database_page import Window
 from .gathering_page import GatheringPage
@@ -132,7 +134,7 @@ class GearPage(QWidget):
             QLabel#gearHead {{ color: {theme.COLORS['gold']}; font-weight: 700; letter-spacing: 0.6px; }}
             QFrame#screenRead {{ border: 1px dashed {theme.COLORS['line2']}; border-radius: 6px; background: transparent; }}
             QFrame#screenRead QLabel {{ background: transparent; }}
-            """ + options_style() + editor_style() + Toast.STYLE)
+            """ + options_style() + editor_style() + ADVICE_STYLE + Toast.STYLE)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.NoFrame)
@@ -223,14 +225,10 @@ class GearPage(QWidget):
         self.kept_line.setText(g.kept_text(kept) if kept else "")
 
     def show_advice(self, advice, kept) -> None:
-        """The advice on the page (``showAdvice``): its full view opens in the web interface for now."""
+        """The advice on the page (``showAdvice``): its windows (``renderAdvice``), under the line about the advice
+        kept."""
         _clear(self.out)
-        window = Window("Advice", "your recommendations")
-        window.body.addWidget(_label("The advice is ready: its recommendations (the paper doll, upgrade path, arcana, "
-                                     "pantheon, genus, titles and fights) open in the web interface for now.", "muted"))
-        window.body.addWidget(_row(_button("Open the advice", lambda: self.open_web("gear") if self.open_web else None,
-                                           "primary")))
-        self.out.addWidget(window)
+        self.out.addWidget(AdviceView(self.api, advice if isinstance(advice, dict) else {}, self.open_web))
         self.advice, self.kept = advice, kept
         self._kept(kept)
 
