@@ -10,6 +10,7 @@ import base64
 import html
 import os
 import time
+import urllib.parse
 from typing import Callable
 
 from PySide6.QtCore import QBuffer, QByteArray, QIODevice, Qt, QTimer
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import QFileDialog, QFrame, QHBoxLayout, QLabel, QPushBut
 
 from . import character as c
 from .api import Requests
+from .news import when
 from .timers_page import Fold
 
 #: The newest read each kind of panel has taken in this run of the app: a hotkey read made while the app was in the
@@ -263,3 +265,116 @@ class ScreenRead(QFrame):
             self.countdown.stop()
             self.button.setEnabled(self.available)
             self.say(html.escape("Not read: " + why))
+
+
+class TitleReads(QWidget):
+    """Gear & Advice → Titles you own (``titleReadSummary``): the Title window pages read so far, whether each was read
+    with "Show unacquired titles only" ticked (correctable), and the titles they say the character owns, which go into
+    the list only when the player puts them there. ``fill(text, said)`` puts them in."""
+
+    def __init__(self, api, character: str, fill: Callable[[bool], None], toast: Callable[[str], None],
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("plain")
+        self.character, self.fill, self.toast = character, fill, toast
+        self.requests = Requests(api, self, timeout=WAIT_S) if api is not None else None
+        if self.requests is not None:
+            self.requests.replied.connect(self._replied)
+            self.requests.failed.connect(self._failed)
+        self.box = QVBoxLayout(self)
+        self.box.setContentsMargins(0, 0, 0, 0)
+        self.box.setSpacing(6)
+        self.summary: dict = {}
+        self.refresh()
+
+    def refresh(self) -> None:
+        if self.requests is not None:
+            self.requests.get("titles", "/api/screen-read/titles?character=" + urllib.parse.quote(self.character, safe=""))
+
+    def change(self, body: dict) -> None:
+        if self.requests is not None:
+            self.requests.post("change", "/api/screen-read", {**body, "character": self.character})
+
+    def _replied(self, name: str, answer) -> None:
+        self.draw(answer if isinstance(answer, dict) else {})
+
+    def _failed(self, name: str, why: str) -> None:
+        if name == "titles":
+            self.draw({"error": "The pages read could not be shown: " + why})
+        else:
+            self.toast("Not changed: " + why)
+
+    def draw(self, t: dict) -> None:
+        from . import gear as g
+        from .result_windows import GridTable
+        from PySide6.QtWidgets import QComboBox
+        while self.box.count():
+            child = self.box.takeAt(0)
+            if child.widget() is not None:
+                child.widget().hide()
+                child.widget().deleteLater()
+        shown = self.summary = g.title_summary(t)
+        if "error" in shown:
+            self.box.addWidget(_small(shown["error"]))
+            return
+        if not shown["pages"]:
+            for words in shown["notes"]:
+                self.box.addWidget(_small(words, "muted"))
+            return
+        rows = []
+        for index, page in enumerate(shown["pages"]):
+            choice = QComboBox()
+            choice.setAccessibleName(f"Page {index + 1}: was Show unacquired titles only ticked?")
+            for value, words in (("true", "ticked"), ("false", "not ticked"), ("", "not seen: choose")):
+                choice.addItem(words, value)
+            choice.setCurrentIndex(choice.findData(g.page_choice(page)))
+            choice.activated.connect(lambda _i, page=page, choice=choice: self.change(
+                {"action": "page", "page": page.get("id"),
+                 "unacquired_only": None if choice.currentData() == "" else choice.currentData() == "true"}))
+            forget = QPushButton("Forget")
+            forget.setObjectName("small")
+            forget.clicked.connect(lambda _checked=False, page=page: self.change({"action": "forget-page", "page": page.get("id")}))
+            count = QLabel(str(len(page.get("titles") or [])))
+            count.setToolTip(", ".join(c.esc_text(x) for x in page.get("titles") or []))
+            at = page.get("at")
+            moment = when(at * 1000 if isinstance(at, (int, float)) and not isinstance(at, bool) else None)
+            rows.append([str(index + 1), moment[11:] if len(moment) > 11 else moment, count, choice, forget])
+        self.box.addWidget(GridTable(["Page", "Read at", "Titles", "“Show unacquired titles only”", ""], rows, {3: 1}, left=True))
+        line = QLabel(shown["line"])
+        line.setTextFormat(Qt.RichText)
+        line.setWordWrap(True)
+        self.box.addWidget(line)
+        for words in shown["notes"]:
+            self.box.addWidget(_small(words, "muted"))
+        for title, names in ((f"The titles you own ({len(shown['owned'])})", shown["owned"]),
+                             (f"Not acquired yet ({len(shown['unacquired'])})", shown["unacquired"])):
+            if names:
+                fold = Fold(title)
+                fold.add(_small(" · ".join(names)))
+                self.box.addWidget(fold)
+        row = QWidget()
+        row.setObjectName("plain")
+        line = QHBoxLayout(row)
+        line.setContentsMargins(0, 0, 0, 0)
+        line.setSpacing(8)
+        if shown["owned"]:
+            for words, add in (("Put these in the list", False), ("Add them to the list", True)):
+                button = QPushButton(words)
+                button.setObjectName("small")
+                button.clicked.connect(lambda _checked=False, add=add: self.fill(add))
+                line.addWidget(button)
+        again = QPushButton("Start over")
+        again.setObjectName("small")
+        again.clicked.connect(lambda _checked=False: self.change({"action": "clear-titles"}))
+        line.addWidget(again)
+        line.addStretch(1)
+        self.box.addWidget(row)
+
+
+def _small(words: str, name: str = "") -> QLabel:
+    label = QLabel(words)
+    label.setTextFormat(Qt.PlainText)
+    label.setWordWrap(True)
+    if name:
+        label.setObjectName(name)
+    return label
