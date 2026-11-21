@@ -1,3 +1,14 @@
+## The advice in the native interface (0.2.444)
+
+**Gear & Advice draws its advice in the app's window now**, as the web page does, under the line saying when it was calculated:
+- **Top changes:** each change's area, words and simulated DPS gain, biggest first, with **Copy as text**;
+- **Skill specialties:** each skill's effective level and selection slots, the effects recommended for your equipped build (an effect the model cannot tell from the skill's other open effects marked *either*), all its effects and what unlocks them, folded, and its next unlock;
+- **Equipment:** the paper doll, armor down the left, accessories down the right and the arcana under the character, each slot in its grade's colour with ▲ for a better item in your inventory, ◆ for the next goal's gain and # for its upgrade path step. Click a slot to see *Wearing → From your inventory → Next goal → Best in slot* as item cards, with their rolls, skill options, the rolls to chase and links to the items' pages;
+- **Upgrade path:** one change at a time, biggest gain first, each with its rolls to chase, its gain and the gain so far, scrolled sideways when it is longer than the window;
+- **Your fights** (how many were saved and from where, the rotation compared with the optimal one, the recent fights with a link to each one's analysis on Combat Logs) and **Model calibration**.
+
+The arcana, titles, pantheon and genus recommendations still open in the web interface: **Open them on the web page**.
+
 ## Gear & Advice in the native interface (0.2.443)
 
 **Gear & Advice is native now**, but for the advice's full view. The app's window draws Character → Gear & Advice itself, as the web page shows it:
