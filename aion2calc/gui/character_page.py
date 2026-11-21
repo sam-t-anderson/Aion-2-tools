@@ -5,15 +5,15 @@
   one opened last, from its last snapshot or refreshed (once each time the app runs).
 - **The character:** its counts (DPS in each scenario, the points spent of each budget), where its budgets come from,
   its warnings, and the totals to optimize with: what the profile shows spent, or what you type above it (kept for
-  that character); the class's highest reported totals for reference; the game version; the damage objective; and
-  whether the saved Genus Insight lines count, with the PvE enemy mix.
+  that character); the class's highest reported totals for reference; the game version; the damage objective; the
+  survival options and trained-skill reserves (0.2.441, ``character_options.py``); and whether the saved Genus
+  Insight lines count, with the PvE enemy mix.
 - **Optimize** a PvE, PvP damage or World PvP build: the job's progress, then its score and gain, the model's note, the
   community preset's word and what changes, and the optimized build in the result windows. A run goes on while you look
   at another character, and is shown on its own character's page.
 
-The survival options (HP reserve, opponents, action windows) and trained-skill reserves are not drawn here yet: an
-optimization from this page sends what a browser that never opened them sends. The Genus lines themselves are edited
-on Gear & Advice for now. What the web page keeps in its browser this page keeps in the native interface's settings.
+The Genus lines themselves are edited on Gear & Advice for now. What the web page keeps in its browser this page keeps
+in the native interface's settings. Its requests wait as long as a browser would (a search asks the official site).
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ import urllib.parse
 
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
                                QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
 from . import character as c
@@ -30,15 +30,18 @@ from . import result_windows
 from . import results as r
 from . import theme
 from .api import AppApi, Job, Requests
+from .character_options import AutoGrid, SkillReserves, SurvivalOptions, style as options_style
 from .chrome import FlowLayout
 from .database_page import Kpi, Window
 from .gathering_page import GatheringPage
+from .pets_page import Toast
 from .planner import budgets, progression_path
 from .planner_page import interface_store
 from .result_windows import GridTable, ResultWindows
 from .timers_page import Fold
 
 LONG_AGO = 10 * 365 * 86400                          # a snapshot of any age: the last character's, at launch
+WAIT_S = 120                                         # how long a request may take (the official site, a large recording)
 
 
 def _label(text: str = "", name: str = "", rich: bool = False, wrap: bool = True) -> QLabel:
@@ -71,7 +74,10 @@ class CharacterPage(QWidget):
         self.meta: dict = {}
         self.opt: dict | None = None
         self.auto_opened, self.points_turn = False, 0
-        self.requests = Requests(api, self) if api is not None else None
+        self.survival: SurvivalOptions | None = None
+        self.reserves: SkillReserves | None = None
+        self.panels = 0                                  # the survival panels drawn, each answered under its own number
+        self.requests = Requests(api, self, timeout=WAIT_S) if api is not None else None
         if self.requests is not None:
             self.requests.replied.connect(self._replied)
             self.requests.failed.connect(self._failed)
@@ -91,7 +97,7 @@ class CharacterPage(QWidget):
             QPlainTextEdit#diff {{ background: rgba(6, 9, 15, 0.65); border: none; border-radius: 6px; padding: 10px; }}
             QLabel#good {{ color: {theme.COLORS['good']}; }}
             QFrame#win QLabel#kpiGood {{ color: {theme.COLORS['good']}; font-size: 19px; font-weight: 700; }}
-            """)
+            """ + options_style() + Toast.STYLE)
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.NoFrame)
@@ -117,6 +123,11 @@ class CharacterPage(QWidget):
         self.opt_box: QVBoxLayout | None = None
         self.drawn = None                             # what the optimization's place shows, to update a run in place
         self.buttons: list[QPushButton] = []
+        self.toast = Toast(self)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self.toast.place()
 
     # ------------------------------------------------------------------ the search
     def _search(self) -> Window:
@@ -196,6 +207,10 @@ class CharacterPage(QWidget):
             self.hits = [x for x in answer if isinstance(x, dict)] if isinstance(answer, list) else []
             self.message.setText(f"{len(self.hits)} found")
             self._draw_hits()
+        elif kind == "survival":
+            panel, _, what = rest.partition(":")
+            if self.survival is not None and panel == str(self.panels):
+                self.survival.replied(what, answer)
         elif kind == "points" and rest == str(self.points_turn) and self.character is not None and self.view is not None:
             try:
                 found = budgets(answer, str(self.view.get("class") or ""), {"region": (self.hit or {}).get("region") or ""})
@@ -207,8 +222,13 @@ class CharacterPage(QWidget):
                 self.community.show()
 
     def _failed(self, name: str, why: str) -> None:
+        kind, _, rest = name.partition(":")
         if name == "search":
             self.message.setText(why)
+        elif kind == "survival":
+            panel, _, what = rest.partition(":")
+            if self.survival is not None and panel == str(self.panels):
+                self.survival.failed(what, why)
 
     def _draw_known(self) -> None:
         self._clear(self.known_box)
@@ -240,7 +260,7 @@ class CharacterPage(QWidget):
     # ------------------------------------------------------------------ the character
     def _show_note(self, text: str, kind: str) -> None:
         self._clear(self.cview)
-        self.character, self.opt_box, self.drawn = None, None, None
+        self.character, self.opt_box, self.drawn, self.survival, self.reserves = None, None, None, None, None
         self.windows.hide()
         note = _label(text, kind)
         note.setAlignment(Qt.AlignCenter)
@@ -271,17 +291,14 @@ class CharacterPage(QWidget):
             button.clicked.connect(lambda _checked=False, mode=mode: self.optimize(mode))
             window.tool(button)
             self.buttons.append(button)
-        counts = _plain()
-        grid = QGridLayout(counts)
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setSpacing(10)
-        for index, (name, value) in enumerate(c.kpis(v)):
+        tiles = []
+        for name, value in c.kpis(v):
             tile = Kpi(name)
+            tile.findChild(QLabel, "kpiName").setWordWrap(True)
             tile.value.setText(value)
-            grid.addWidget(tile, index // 4, index % 4)
-        for column in range(4):
-            grid.setColumnStretch(column, 1)
-        window.body.addWidget(counts)
+            tile.layout().addStretch(1)                       # at the tile's top, as tall as its row
+            tiles.append(tile)
+        window.body.addWidget(AutoGrid(tiles, least=150, gap=10, fill=True, top=False))   # .kpis, 0.2.441
         if v.get("progression"):
             fold = Fold("Point budget provenance")
             fold.add(_label(r.progression(v["progression"]), rich=True))
@@ -340,9 +357,12 @@ class CharacterPage(QWidget):
         line.addStretch(1)
         window.body.addWidget(objective)
         window.body.addWidget(_label(c.BALANCED_NOTE, "muted"))
-        window.body.addWidget(_label("The HP reserve, opponents, action windows and trained-skill reserves are not set "
-                                     "from this window yet: an optimization from it keeps the build's HP and reserves no "
-                                     "skills.", "faint"))
+        self.panels += 1
+        self.survival = SurvivalOptions(self.store, c.options_key(c.SURVIVAL_PREFIX, self.hit, v), v, self._send,
+                                        self.toast.say)
+        window.body.addWidget(self.survival)
+        self.reserves = SkillReserves(self.store, c.options_key(c.RESERVES_PREFIX, self.hit, v), v, self.toast.say)
+        window.body.addWidget(self.reserves)
         window.body.addWidget(self._genus())
         holder = _plain()
         self.opt_box = QVBoxLayout(holder)
@@ -395,6 +415,11 @@ class CharacterPage(QWidget):
         fold.add(link)
         return fold
 
+    def _send(self, name: str, path: str, body: dict) -> None:
+        """The survival panel's import requests, answered to the panel shown (one drawn since is not answered)."""
+        if self.requests is not None:
+            self.requests.post(f"survival:{self.panels}:{name}", path, body)
+
     def _genus_key(self) -> str:
         return "character-genus-options:" + str((self.view or {}).get("key"))
 
@@ -408,9 +433,15 @@ class CharacterPage(QWidget):
 
     # ------------------------------------------------------------------ optimizing
     def optimize(self, mode: str) -> None:
-        if self.opt is not None and self.opt.get("status") == "running" or self.view is None or self.optimizing is None:
+        """An optimization: its request read as the web page reads it (the totals, the survival options, the reserves,
+        then the Genus choice, each kept as it is read), or why it cannot start."""
+        if (self.opt is not None and self.opt.get("status") == "running" or self.view is None or self.optimizing is None
+                or self.survival is None or self.reserves is None):
             return
         try:
+            totals = self._remember()
+            survival = self.survival.save()
+            reserves = self.reserves.read()
             genus = c.genus_choice(self.use_genus.isChecked(), {g: f.text() for g, f in self.mix.items()}, mode)
         except ValueError as problem:
             self.opt = {"status": "error", "error": str(problem)}
@@ -421,7 +452,7 @@ class CharacterPage(QWidget):
         self.opt = {"status": "running", "mode": mode, "log": [], "key": self.view.get("key"), "name": self.view.get("name")}
         self._draw_opt()
         self.optimizing.start("/api/character/optimize", c.optimize_body(
-            self.hit or {}, mode, self.objective.currentData(), self._remember(), genus, self.patch.text()))
+            self.hit or {}, mode, self.objective.currentData(), totals, survival, reserves, genus, self.patch.text()))
 
     def _opt_logged(self, log: list) -> None:
         if self.opt is not None and self.opt.get("status") == "running":

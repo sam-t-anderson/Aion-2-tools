@@ -1047,10 +1047,11 @@ def _cell(rich: str) -> QLabel:
 class GridTable(QWidget):
     """A table as the web page draws ``table.t``: its heads gold and upper-case over a line, each row over a faint
     line, the words wrapping in their columns. A cell is text, a label of rich text, or another widget (a row's
-    button, at the cell's end); ``stretch`` gives columns their share of the room to spare."""
+    button, at the cell's end; a form's field at its start, with ``left``); ``stretch`` gives columns their share of
+    the room to spare."""
 
     def __init__(self, headers: list[str], rows: list[list], stretch: dict[int, int] | None = None,
-                 parent: QWidget | None = None):
+                 parent: QWidget | None = None, left: bool = False):
         super().__init__(parent)
         self.setObjectName("plain")
         self.grid = QGridLayout(self)
@@ -1065,8 +1066,11 @@ class GridTable(QWidget):
                     box.setObjectName("tcellBox")
                     line = QHBoxLayout(box)
                     line.setContentsMargins(8, 3, 8, 3)
-                    line.addStretch(1)
+                    if not left:
+                        line.addStretch(1)
                     line.addWidget(cell)
+                    if left:
+                        line.addStretch(1)
                     self.grid.addWidget(box, index, column)
                     continue
                 label = cell if isinstance(cell, QLabel) else _label(str(cell))

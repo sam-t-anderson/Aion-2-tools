@@ -39,19 +39,19 @@ class AppApi:
     def url(self, path: str) -> str:
         return self.base + path.lstrip("/")
 
-    def get(self, path: str) -> dict:
-        with urllib.request.urlopen(self.url(path), timeout=self.timeout) as response:
+    def get(self, path: str, timeout: float | None = None) -> dict:
+        with urllib.request.urlopen(self.url(path), timeout=timeout or self.timeout) as response:
             return json.loads(response.read().decode("utf-8") or "{}")
 
-    def get_bytes(self, path: str) -> bytes:
+    def get_bytes(self, path: str, timeout: float | None = None) -> bytes:
         """``path``'s body as it comes (an image), not its JSON."""
-        with urllib.request.urlopen(self.url(path), timeout=self.timeout) as response:
+        with urllib.request.urlopen(self.url(path), timeout=timeout or self.timeout) as response:
             return response.read()
 
-    def post(self, path: str, payload: dict) -> dict:
+    def post(self, path: str, payload: dict, timeout: float | None = None) -> dict:
         request = urllib.request.Request(self.url(path), json.dumps(payload).encode("utf-8"),
                                          {"Content-Type": "application/json"})
-        with urllib.request.urlopen(request, timeout=self.timeout) as response:
+        with urllib.request.urlopen(request, timeout=timeout or self.timeout) as response:
             return json.loads(response.read().decode("utf-8") or "{}")
 
 
@@ -106,14 +106,16 @@ class Poller(QObject):
 class Requests(QObject):
     """A window's one-off requests (a button's action), sent off the interface's thread in the order asked. Each
     is answered as ``replied(name, answer)`` or ``failed(name, why)``, ``name`` being what the window called it.
-    Connect them to a window's own methods: those run on the interface's thread."""
+    Connect them to a window's own methods: those run on the interface's thread. ``timeout`` is how long each may
+    take to answer when not the API's own few seconds: a page whose requests can take a while (My Character's search on
+    the official site, a large recording read, 0.2.441) waits as a browser would."""
 
     replied = Signal(str, object)
     failed = Signal(str, str)
 
-    def __init__(self, api: AppApi, parent: QObject | None = None):
+    def __init__(self, api: AppApi, parent: QObject | None = None, timeout: float | None = None):
         super().__init__(parent)
-        self.api = api
+        self.api, self.timeout = api, timeout
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gui-call")
 
     def get(self, name: str, path: str) -> None:
@@ -136,11 +138,12 @@ class Requests(QObject):
         self._pool.shutdown(wait=False, cancel_futures=True)
 
     def _send(self, name: str, path: str, payload: dict | None, raw: bool = False) -> None:
+        wait = {} if self.timeout is None else {"timeout": self.timeout}
         try:
             if raw:
-                answer = self.api.get_bytes(path)
+                answer = self.api.get_bytes(path, **wait)
             else:
-                answer = self.api.get(path) if payload is None else self.api.post(path, payload)
+                answer = self.api.get(path, **wait) if payload is None else self.api.post(path, payload, **wait)
         except (OSError, ValueError, urllib.error.URLError) as exc:
             self.failed.emit(name, why(exc))
             return
