@@ -586,6 +586,11 @@ class FakeApp:
             assert body["action"] == "replace"
             self.claims = json.loads(json.dumps(body["claims"]))
             return self.claims
+        if path == "/api/character/profile":                      # a character's current official profile
+            return {**json.loads(json.dumps(CURRENT_PROFILE)), "identity": {"name": body["player"]["name"],
+                                                                             "region": body["region"], "server": body["player"]["server"]}}
+        if path == "/api/ui":
+            return {"combat_colors": json.loads(json.dumps(body["combat_colors"]))}
         if path == "/api/sessions":                               # a recording's metadata saved: the log as kept
             return json.loads(json.dumps(body["log"]))
         if path == "/api/sessions/share":
@@ -3897,6 +3902,192 @@ def test_the_review_comparisons(qapp, tmp_path):
     _find(view, QPushButton, lambda b: b.text() == "Remove").click()
     assert len(view.compared) == 1 and not any(t.startswith("Comparison 2") for t in _labels(view))
     assert any(t.startswith("Comparison 1 — Frost Spire again") for t in _labels(view))
+
+
+#: A character's official profile as the log server saves it with an upload (``profile_snapshot``): its portrait and
+#: gear's pictures on the official hosts (one on plain http, which is not shown), its stats with the gear score under
+#: its Korean name, skills in each equip state, a pet with its genus, wings, and two Daevanion boards.
+CHARACTER_DATA = {
+    "region": "eu",
+    "profile": {"characterName": "TestSorc", "characterLevel": 50, "className": "Sorcerer", "raceName": "Elyos",
+                "serverId": 2102, "regionName": "Europe", "combatPower": 12345,
+                "profileImage": "https://profileimg.plaync.com/game_profile_images/aion2/x.png"},
+    "stat": {"statList": [{"name": "아이템 레벨", "value": 2500},
+                          {"name": "Attack", "value": 900, "statSecondList": [{"name": "Crit", "value": 12}, " PvE +3% ",
+                                                                              {"name": "", "value": 1}]}]},
+    "equipment": {"equipmentList": [{"slotPosName": "Main hand", "name": "Staff of Frost", "grade": "Epic", "enchantLevel": 7,
+                                     "level": 50, "icon": "https://assets.playnccdn.com/x/staff.png"},
+                                    {"slotPos": 3, "itemName": "Plain Ring", "icon": "http://assets.playnccdn.com/x/ring.png"}]},
+    "skill": {"skillList": [{"name": "Flame Burst", "category": "Active", "skillLevel": 10, "equip": 1},
+                            {"skillName": "Mana Shield", "level": 3, "equip": False}, {"id": 999}]},
+    "petwing": {"pet": {"name": "Wolf Cub", "grade": "Rare", "genusName": "Beast"}, "wing": {"name": "Frost Wings", "level": 5},
+                "note": "not a slot"},
+    "daevanion": {"boardList": [{"name": "Board of Fire", "open": True, "openNodeCount": 12, "totalNodeCount": 30}, {"id": 7}]}}
+CURRENT_PROFILE = {"status": "ok", "reason": "current", "fetched_at": T0 + DAY, "source": "Official profile (current)",
+                   "data": {"profile": {"characterName": "TestSorc", "characterLevel": 51}}}
+
+
+def _built():
+    """The review log with the sorcerer's profile saved at upload."""
+    fight = json.loads(json.dumps(REVIEW_LOG))
+    fight["players"][0]["profile_snapshot"] = {
+        "status": "ok", "reason": "", "uploaded_at": T0, "fetched_at": T0, "source": "Official profile",
+        "identity": {"name": "TestSorc", "region": "eu", "server": 2102}, "data": json.loads(json.dumps(CHARACTER_DATA))}
+    return fight
+
+
+def test_the_character_build_words():
+    from aion2calc.gui.combat_records import _when
+    # the pictures shown: https on the official and community hosts, no credentials
+    assert cw.profile_image("https://assets.playnccdn.com/a.png") == "https://assets.playnccdn.com/a.png"
+    assert cw.profile_image("http://assets.playnccdn.com/a.png") == cw.profile_image("https://evil.example/a.png") == ""
+    assert cw.profile_image("https://user:pw@metabot.gg/a.png") == "" and cw.profile_image(None) == ""
+    # a recorded character's details
+    v = cw.character_details(CHARACTER_DATA, "eu")
+    assert v["hero"] == {"image": "https://profileimg.plaync.com/game_profile_images/aion2/x.png", "alt": "TestSorc", "name": "TestSorc",
+                         "lines": ["Lv 50 · Sorcerer · Elyos", "Zikel · Europe", "Gear score: 2500", "Combat power: 12345"]}
+    assert v["stats"] == [("Gear score (item level)", "2500", []), ("Attack", "900", ["Crit: 12", "PvE +3%"])]
+    assert [(c["small"], c["title"], c["line"], c["image"]) for c in v["gear"]] == [
+        ("Main hand", "Staff of Frost", "+7 · Epic · Lv 50", "https://assets.playnccdn.com/x/staff.png"),
+        ("Slot 3", "Plain Ring", "", "")]
+    assert [(c["small"], c["title"], c["line"]) for c in v["skills"]] == [
+        ("Active", "Flame Burst", "Lv 10 · Equipped"), ("Skill", "Mana Shield", "Lv 3 · Not equipped"),
+        ("Skill", "999", "Lv Unavailable · Equip state unavailable")]
+    assert [(c["small"], c["title"], c["line"]) for c in v["petwing"]] == [("pet", "Wolf Cub", "Rare"), ("wing", "Frost Wings", " · Lv 5")]
+    assert v["genus"] == "Pet genus is shown only when recorded: Beast."
+    assert [(c["title"], c["line"]) for c in v["boards"]] == [("Board of Fire", "Open · 12 / 30 nodes"), ("7", "Locked · ? / ? nodes")]
+    bare = cw.character_details({}, "")
+    assert bare["hero"]["lines"] == ["Lv Unavailable · Unknown class · ", "Unknown server · Unknown region", "Gear score: Unavailable",
+                                     "Combat power: Unavailable"]
+    assert bare["stats"] == bare["gear"] == bare["skills"] == bare["petwing"] == bare["boards"] == []
+    assert bare["genus"] == "Pet genus is shown only when recorded: not included in the official profile snapshot."
+    assert cw.character_details([], "") == {"empty": cw.NO_DETAILS}
+    # the servers to look a character up on, and the region a server is in
+    assert cw.region_of(2102) == "nae" and cw.region_of("nope") == ""                # Zikel is a North American server
+    choices = cw.server_choices("nae", "2102")
+    assert choices[0] == ("", "Choose a server") and [name for name, _ in choices[1:]] == ["Elyos", "Asmodian"]
+    assert ("2102", "Zikel") in choices[2][1]
+    everywhere = cw.server_choices("", "9999")
+    assert everywhere[1] == ("9999", "9999") and everywhere[2][0] == "North America · Elyos"
+    # the build shown: saved at upload; a current one looked up; none saved
+    fight = _built()
+    r = cw.refs(fight, cw.fresh_state())
+    b = cw.character_build(fight, r, "p1", None)
+    assert b["title"] == "Character build · TestSorc ✓ · Zikel" and b["note"] == cw.SAVED_NOTE and not b["preview"]
+    assert b["status"] == "Status: ok · " and b["stamps"] == f"Upload received: {_when(T0)} · Official fetch completed: {_when(T0)}"
+    assert b["source"] == "Official profile · TestSorc · eu · Server Zikel" and b["region"] == "nae" and b["server"] == "2102"
+    assert [key for key, _ in b["fields"]] == ["region", "profile", "stat", "equipment", "skill", "petwing", "daevanion"]
+    assert json.loads(b["fields"][1][1]) == CHARACTER_DATA["profile"] and b["details"]["hero"]["name"] == "TestSorc"
+    b = cw.character_build(fight, r, "p1", CURRENT_PROFILE)
+    assert b["note"] == cw.PREVIEW_NOTE and b["preview"] and b["status"] == "Status: ok · current"
+    assert b["stamps"] == f"Upload received: {_when(T0)} · Official fetch completed: {_when(T0 + DAY)}"
+    b = cw.character_build(fight, r, "p2", None)
+    assert b["note"] == cw.NO_PROFILE and b["status"] == "Status: unavailable · " and "source" not in b
+    assert b["stamps"] == "Upload received: Not recorded · Official fetch completed: Not recorded" and b["server"] == ""
+    pending = json.loads(json.dumps(fight))
+    pending["players"][1]["profile_snapshot"] = {"status": "pending"}
+    assert cw.character_build(pending, cw.refs(pending, cw.fresh_state()), "p2", None)["pending"]
+    assert cw.character_build(fight, r, "nobody", None) is None and cw.character_build(fight, r, "", None) is None
+    assert [e["id"] for e in cw.characters(r, fight)] == ["p1", "p2"]
+
+
+def test_the_class_colours_panel(qapp):
+    from aion2calc.gui.class_colours import ClassColours
+    from PySide6.QtGui import QColor
+    chosen = []
+    panel = ClassColours({"enabled": True, "colors": {"sorcerer": "#123456"}}, ask_colour=lambda start, words: QColor("#abcdef"))
+    panel.saved.connect(chosen.append)
+    assert panel.enabled.isChecked() and panel.colours["sorcerer"] == "#123456" and panel.colours["cleric"] == "#ffffff"
+    assert "#123456" in panel.swatches["sorcerer"].styleSheet()
+    # a colour chosen, then saved; class colours turned off saves too; the palette only once applied
+    panel.swatches["ranger"].click()
+    assert chosen[-1] == {"enabled": True, "colors": {**panel.colours}} and chosen[-1]["colors"]["ranger"] == "#abcdef"
+    panel.enabled.setChecked(False)
+    assert chosen[-1]["enabled"] is False
+    saves = len(chosen)
+    panel.palette.setCurrentIndex(panel.palette.findData("Pastel"))
+    assert len(chosen) == saves
+    panel.apply()
+    assert chosen[-1]["enabled"] is True and chosen[-1]["colors"] == cw.PALETTES["Pastel"] and panel.enabled.isChecked()
+    # a cancelled choice saves nothing; Reset keeps nothing
+    panel.ask_colour = lambda start, words: QColor()
+    panel.swatches["templar"].click()
+    assert len(chosen) == saves + 1
+    panel.reset()
+    assert chosen[-1] == {} and panel.colours["sorcerer"] == "#3fc7eb" and panel.enabled.isChecked()
+    # a disabled preference opens with each class's own colour still shown
+    off = ClassColours({"enabled": False, "colors": {"sorcerer": "#123456"}})
+    assert not off.enabled.isChecked() and off.colours["sorcerer"] == "#123456"
+
+
+def test_a_characters_build_and_the_class_colours(qapp, tmp_path):
+    from aion2calc.gui.combat_saved import Section
+    app = FakeApp()
+    app.log_server.review_log = _built()
+    page = _page(app)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    view.official.read = lambda url: _red_png()                     # the official hosts, never the network
+    settle(lambda: view.summary is not None and view.ranks is not None and view.names is not None and not view.awaiting)
+    assert view.build_window is None and cw.CHARACTER_BUILDS in _labels(view)
+    sorc = _find(view, QPushButton, lambda b: b.accessibleName() == "Character build of TestSorc ✓ · Zikel")
+    assert "#123456" in sorc.styleSheet()                              # the user's colour for a sorcerer
+    # the saved build: its note, how it was read, its details with their pictures, every recorded field
+    sorc.click()
+    labels = _labels(view)
+    assert view.state["character"] == "p1" and view.build_window is not None
+    assert cw.CHARACTER_BUILDS not in labels and not any(t.startswith("DPS uses") for t in labels)   # in the review's place
+    assert cw.SAVED_NOTE in labels and "Official profile · TestSorc · eu · Server Zikel" in labels
+    assert "Lv 50 · Sorcerer · Elyos\nZikel · Europe\nGear score: 2500\nCombat power: 12345" in labels
+    assert all(f"<b>{t}</b>" in labels for t in ("Staff of Frost", "Flame Burst", "Wolf Cub", "Board of Fire"))
+    assert "+7 · Epic · Lv 50" in labels and "Pet genus is shown only when recorded: Beast." in labels
+    settle(lambda: not any(l.text() == "◇" and l.accessibleName() == "Staff of Frost" for l in view.findChildren(QLabel)
+                           if l.isVisibleTo(view)))
+    ring = _find(view, QLabel, lambda l: l.accessibleName() == "Image unavailable")
+    assert ring.text() == "◇"                                           # its picture on plain http is not read
+    portrait = _find(view, QLabel, lambda l: l.accessibleName() == "TestSorc")
+    assert portrait.pixmap() is not None and not portrait.pixmap().isNull()
+    fields = [f.button.text() for f in view.findChildren(Section) if f.isVisibleTo(view) and f.button.accessibleName().startswith("Recorded field")]
+    assert fields == ["region", "profile", "stat", "equipment", "skill", "petwing", "daevanion"]
+    target = tmp_path / "profile.json"
+    view._ask_where = lambda name: str(target) if name == cw.PROFILE_FILE else ""
+    _click(view, cw.EXPORT_PROFILE)
+    assert json.loads(target.read_text())["data"] == CHARACTER_DATA
+    # the current profile looked up on the server chosen, shown as a preview; the saved one again
+    assert _find(view, QComboBox, lambda c: c.accessibleName() == "Region").currentData() == "nae"
+    assert _find(view, QComboBox, lambda c: c.accessibleName() == "Character server").currentData() == "2102"
+    _click(view, cw.FETCH_CURRENT)
+    settle(lambda: cw.PREVIEW_NOTE in _labels(view))
+    path, body = next(p for p in reversed(app.posts) if p[0] == "/api/character/profile")
+    assert body["region"] == "nae" and body["player"]["server"] == "2102" and body["player"]["id"] == "p1"
+    assert "Status: ok · current" in " ".join(_labels(view))
+    _click(view, cw.BACK_TO_SAVED)
+    assert cw.SAVED_NOTE in _labels(view)
+    # a picture that cannot be read: the app's logo in its place (``onerror``)
+    view.official_kept.clear()
+    view.official._asked.clear()
+    view.official.read = lambda url: (_ for _ in ()).throw(OSError("offline"))
+    view.draw()
+    settle(lambda: any(l.toolTip() == "Source image unavailable" for l in view.findChildren(QLabel) if l.isVisibleTo(view)))
+    # back to the log; a character without a saved profile, a server to choose first
+    _click(view, cw.BACK_TO_LOG)
+    assert view.build_window is None and view.state["character"] == "" and cw.CHARACTER_BUILDS in _labels(view)
+    _find(view, QPushButton, lambda b: b.accessibleName() == "Character build of TestCleric").click()
+    assert cw.NO_PROFILE in _labels(view)
+    _click(view, cw.FETCH_CURRENT)
+    assert cw.NO_SERVER in _labels(view)
+    _click(view, cw.BACK_TO_LOG)
+    assert view.build_window is None and view.state["character"] == "" and cw.CHARACTER_BUILDS in _labels(view)
+    # the class colours: a palette applied is drawn at once and kept by the app
+    _click(view, cw.CLASS_COLOURS_BUTTON)
+    assert view.colours_panel is not None and view.colours_panel.colours["sorcerer"] == "#123456"
+    view.colours_panel.palette.setCurrentIndex(view.colours_panel.palette.findData("High contrast"))
+    _click(view, "Apply")
+    path, body = app.posts[-1]
+    assert path == "/api/ui" and body["combat_colors"]["colors"]["sorcerer"] == "#36d6ff"
+    settle(lambda: "#36d6ff" in _find(view, QPushButton, lambda b: b.accessibleName() == "Character build of TestSorc ✓ · Zikel").styleSheet())
+    _click(view, cw.CLASS_COLOURS_BUTTON)
+    assert view.colours_panel is None
 
 
 def _buttons(widget):

@@ -1,3 +1,15 @@
+## A combat log's own page in the native interface, part 10 (0.2.466)
+
+**A log's review in the app's window now shows each character's build**, as the web page does:
+- **Character builds:** a button for each character in the encounter, in their class's colour, opens their build in place of the review;
+- **the build:** the official profile saved with the log at upload, or that none was, with when it was received and read; the character's portrait, level, class, server and region, gear score and combat power; their stats, equipment, skills (and whether each is equipped), pet and wings with the pet's genus, and Daevanion boards, with their pictures from the official site; and every field the official service recorded, unfolded on request. **Export this profile JSON** saves it;
+- **Fetch current official profile (not historical)** looks the character up on the region and home server you choose, as a preview that leaves the saved build as it is; **Return to saved historical profile** goes back to it;
+- **← Back to log** returns to the review.
+
+**Class colors** beside the player opens the class colours' panel: class colours on or off, a palette applied with **Apply**, a colour for each class, and **Reset class colors**. The colours are drawn at once and kept by the app, as Settings keeps them.
+
+The review's movement replay still opens in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 9 (0.2.465)
 
 **A log's review in the app's window now compares it with other logs**, as the web page does:
