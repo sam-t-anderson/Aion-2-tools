@@ -2,27 +2,38 @@
 the Build Planner, My Character and Saved Results: the side menu of the ten windows and the window chosen.
 
 The native interface draws the Overview (its counts, notes, stat priority, damage and healing shares), Skills (active
-and passive, each skill's level and supporting effects) and Stigma windows so far; each of the others says it is
-drawn in the web interface for now, with the web page's button. The words are ``results.py``'s.
+and passive, each skill's level and supporting effects) and Stigma windows, and since 0.2.435 the Daevanion window
+(each board's nodes, the points used, and the skill levels and stats the boards give) and the Equipment window (the
+paper doll's slots, the rolls to keep and where an enchant level is worth most). Each of the others says it is drawn in
+the web interface for now, with the web page's button. The words are ``results.py``'s.
 """
 from __future__ import annotations
 
 import html
+import math
 import urllib.parse
 
-from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QGuiApplication, QLinearGradient, QPainter, QPainterPath, QPixmap
+from PySide6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, QUrl
+from PySide6.QtGui import (QColor, QDesktopServices, QFont, QFontMetricsF, QGuiApplication, QLinearGradient, QPainter,
+                           QPainterPath, QPen, QPixmap, QPolygonF, QRadialGradient)
 from PySide6.QtWidgets import (QFrame, QGraphicsOpacityEffect, QGridLayout, QHBoxLayout, QLabel, QPushButton,
-                               QVBoxLayout, QWidget)
+                               QScrollArea, QSizePolicy, QToolTip, QVBoxLayout, QWidget)
 
 from . import pictures
 from . import results as r
 from . import theme
+from .chrome import FlowLayout
 from .database_page import Icons, Kpi, Window, pairs_grid
 from .timers_page import Fold
 
 WEB_NOTE = "This window is drawn in the web interface for now."
 COMPARISON_NOTE = "Generating a comparison is on the web page for now."
+#: A window's two- and three-column parts take one column at this width or less (app.css's 1100 px breakpoint, where
+#: ``.daev``, ``.paperdoll`` and ``.grid2`` stack, less the page's margins and the windows' menu).
+NARROW = 780
+ICON_BG = "#0b0f18"                                      # --icon-bg: a node's words, a picture's ground
+BOARD_LIGHT, BOARD_DARK = "#18233a", "#0a0f19"           # --board-a, --board-b
+INSET = QColor(6, 9, 15, 166)                            # --inset
 
 
 def _label(text: str = "", name: str = "", rich: bool = False, wrap: bool = True) -> QLabel:
@@ -50,6 +61,14 @@ def _note(rich_text: str) -> QFrame:
     text.setTextInteractionFlags(Qt.TextSelectableByMouse)
     layout.addWidget(text)
     return box
+
+
+def _rich_counter(words: str, figure: str) -> QLabel:
+    """A counter (``.counter``): its words muted, then its figure, in its box."""
+    label = _label(f"<span style='color: {theme.COLORS['muted']}; font-weight: 600;'>{html.escape(words)}</span>"
+                   f"&nbsp;&nbsp;{html.escape(figure)}", "counter", rich=True, wrap=False)
+    label.setAccessibleName(f"{words} {figure}")
+    return label
 
 
 def icon_path(url) -> str:
@@ -118,9 +137,11 @@ def bar_rows(rows: list[tuple[str, str, float]], words_on_bar: bool) -> QWidget:
 class SkillIcon(QWidget):
     """A skill's picture (``.icon``) in its square with its level (``.lv``) at the corner."""
 
-    def __init__(self, size: int, level: str = "", parent: QWidget | None = None):
+    def __init__(self, size: int, level: str = "", parent: QWidget | None = None, placeholder: str = "",
+                 badge: int = 12):
         super().__init__(parent)
         self.level, self.pixmap = level, None
+        self.placeholder, self.badge = placeholder, badge      # ``.asset-placeholder``: drawn until a picture is read
         self.path = ""
         self.setFixedSize(size, size)
 
@@ -141,12 +162,18 @@ class SkillIcon(QWidget):
             shown = self.pixmap.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
             painter.drawPixmap((self.width() - shown.width()) // 2, (self.height() - shown.height()) // 2, shown)
             painter.restore()
+        elif self.placeholder:
+            font = QFont(self.font())
+            font.setPixelSize(16)
+            painter.setFont(font)
+            painter.setPen(QColor(theme.COLORS["gold"]))
+            painter.drawText(QRectF(self.rect()), int(Qt.AlignCenter), self.placeholder)
         painter.setPen(QColor(theme.COLORS["line2"]))
         painter.drawPath(frame)
         if self.level:
             font = QFont(self.font())
             font.setBold(True)
-            font.setPixelSize(12)
+            font.setPixelSize(self.badge)
             painter.setFont(font)
             width = painter.fontMetrics().horizontalAdvance(self.level) + 8
             height = painter.fontMetrics().height()
@@ -157,24 +184,431 @@ class SkillIcon(QWidget):
         painter.end()
 
 
+def _whole(value) -> int:
+    """A grid line as the board's CSS reads it: a whole number (up to a thousand), else none (0)."""
+    number = r._number(value)
+    return int(number) if number is not None and number.is_integer() and 0 < number <= 1000 else 0
+
+
+def _shape(rect: QRectF, shape: str, radius: float = 4) -> QPainterPath:
+    """A node's outline: a skill level's circle, the start's hexagon (``clip-path``), a stat's rounded square."""
+    path = QPainterPath()
+    if shape == "skill":
+        path.addEllipse(rect)
+    elif shape == "start":
+        x, y, w, h = rect.x(), rect.y(), rect.width(), rect.height()
+        path.addPolygon(QPolygonF([QPointF(x + 0.25 * w, y + 0.05 * h), QPointF(x + 0.75 * w, y + 0.05 * h),
+                                   QPointF(x + w, y + 0.5 * h), QPointF(x + 0.75 * w, y + 0.95 * h),
+                                   QPointF(x + 0.25 * w, y + 0.95 * h), QPointF(x, y + 0.5 * h)]))
+        path.closeSubpath()
+    else:
+        path.addRoundedRect(rect, radius, radius)
+    return path
+
+
+def _glow(painter: QPainter, rect: QRectF, shape: str) -> None:
+    """A taken node's light (``.node.sel``'s shadows): a gold glow blurred over 12 px, under a 2 px white ring."""
+    painter.save()
+    painter.setBrush(Qt.NoBrush)
+    for step in range(12):
+        reach = step + 0.5                                 # a blurred edge fades as the normal curve's tail (sigma 6 px)
+        alpha = 0.55 * 0.5 * math.erfc(reach / 6 / math.sqrt(2))
+        painter.setPen(QPen(QColor(233, 203, 128, round(255 * alpha)), 1))
+        painter.drawPath(_shape(rect.adjusted(-reach, -reach, reach, reach), shape, 4 + reach))
+    painter.setPen(QPen(QColor(255, 255, 255, 191), 2))
+    painter.drawPath(_shape(rect.adjusted(-1, -1, 1, 1), shape, 5))
+    painter.restore()
+
+
+def _cover(painter: QPainter, target: QRectF, pixmap: QPixmap) -> None:
+    """A picture filling ``target`` without changing its shape, its middle kept (``object-fit: cover``)."""
+    source = QRectF(pixmap.rect())
+    if source.isEmpty():
+        return
+    scale = max(target.width() / source.width(), target.height() / source.height())
+    width, height = target.width() / scale, target.height() / scale
+    painter.drawPixmap(target, pixmap, QRectF(source.center().x() - width / 2, source.center().y() - height / 2,
+                                              width, height))
+
+
+class NodeBoard(QWidget):
+    """A Daevanion board (``.board``), in its frame's padding: its nodes on a grid of 34 px squares 5 px apart, each in
+    its grade's colour; those the build takes bright, ringed and glowing, the others dim; a skill level a circle with
+    its skill's picture (its initials until the picture is read), the start a hexagon. A node's words are its tooltip.
+    The board is drawn once and kept until a picture arrives."""
+
+    CELL, STEP, PAD = 34, 39, 14
+
+    def __init__(self, board: dict, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.name = r.js_text(board.get("name"))
+        self.nodes: list[tuple[dict, QRectF]] = []
+        rows, cols = _whole(board.get("rows")), _whole(board.get("cols"))
+        for nd in r.board_nodes(board):
+            row, col = _whole(nd.get("row")), _whole(nd.get("col"))
+            if not row or not col:
+                continue                                   # a node without its place on the grid (the app makes none)
+            rows, cols = max(rows, row), max(cols, col)
+            self.nodes.append((nd, QRectF(self.PAD + (col - 1) * self.STEP, self.PAD + (row - 1) * self.STEP,
+                                          self.CELL, self.CELL)))
+        self.wanted = {icon_path(r.node_icon(nd)) for nd, _rect in self.nodes if r.node_icon(nd)}
+        self.pictures: dict[str, QPixmap] = {}
+        self._cache: QPixmap | None = None
+        self.setFixedSize(max(0, cols * self.STEP - 5) + 2 * self.PAD, max(0, rows * self.STEP - 5) + 2 * self.PAD)
+        self.setAccessibleName(f"{self.name} board")
+
+    def picture(self, path: str, pixmap: QPixmap) -> None:
+        if path in self.wanted:
+            self.pictures[path] = pixmap
+            self._cache = None
+            self.update()
+
+    def node_at(self, point: QPointF) -> dict | None:
+        for nd, rect in reversed(self.nodes):             # the one drawn last is on top
+            shape = r.node_shape(nd)
+            if shape != "none" and _shape(rect, shape).contains(point):
+                return nd
+        return None
+
+    def event(self, event) -> bool:
+        if event.type() == QEvent.ToolTip:
+            nd = self.node_at(QPointF(event.pos()))
+            if nd is None:
+                QToolTip.hideText()
+                event.ignore()
+            else:
+                QToolTip.showText(event.globalPos(), r.node_tip(nd), self)
+            return True
+        return super().event(event)
+
+    def paintEvent(self, _event) -> None:
+        ratio = self.devicePixelRatioF()
+        if self._cache is None or self._cache.devicePixelRatio() != ratio:
+            self._cache = QPixmap(round(self.width() * ratio), round(self.height() * ratio))
+            self._cache.setDevicePixelRatio(ratio)
+            self._cache.fill(Qt.transparent)
+            painter = QPainter(self._cache)
+            self._draw(painter, ratio)
+            painter.end()
+        painter = QPainter(self)
+        painter.drawPixmap(0, 0, self._cache)
+        painter.end()
+
+    def _draw(self, painter: QPainter, ratio: float) -> None:
+        painter.setRenderHint(QPainter.Antialiasing)
+        font = QFont(self.font())
+        font.setPixelSize(13)
+        font.setBold(True)
+        font.setLetterSpacing(QFont.AbsoluteSpacing, -0.2)
+        for nd, rect in self.nodes:
+            shape = r.node_shape(nd)
+            if shape == "none":
+                continue                                   # .node.none: its place kept, nothing drawn
+            lit = r.node_lit(nd)
+            if lit and shape != "start":                   # the start's hexagon cuts its own light away
+                _glow(painter, rect, shape)
+            painter.setOpacity(1.0 if lit else 0.38)       # the whole node at once, as CSS's opacity does
+            painter.drawPixmap(rect.topLeft(), self._node(nd, shape, font, ratio))
+            painter.setOpacity(1.0)
+
+    def _node(self, nd: dict, shape: str, font: QFont, ratio: float) -> QPixmap:
+        """One node, at full strength: its colour, its faint edge, its words and its picture."""
+        image = QPixmap(round(self.CELL * ratio), round(self.CELL * ratio))
+        image.setDevicePixelRatio(ratio)
+        image.fill(Qt.transparent)
+        painter = QPainter(image)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        rect = QRectF(0, 0, self.CELL, self.CELL)
+        painter.fillPath(_shape(rect, shape), QColor(r.node_fill(nd)))
+        if shape != "start":                               # the hexagon cuts its square's edge away
+            painter.setPen(QPen(QColor(255, 255, 255, 20), 1))
+            painter.setBrush(Qt.NoBrush)
+            painter.drawPath(_shape(rect.adjusted(0.5, 0.5, -0.5, -0.5), shape, 3.5))
+        inner = rect.adjusted(1, 1, -1, -1)
+        text = r.node_text(nd)
+        if text:
+            painter.save()
+            painter.setClipPath(_shape(inner, shape, 3))
+            painter.setFont(font)
+            painter.setPen(QColor(ICON_BG))
+            wide = QFontMetricsF(font).horizontalAdvance(text) > inner.width()   # wider: from its left, cut at its right
+            painter.drawText(inner, int((Qt.AlignLeft if wide else Qt.AlignHCenter) | Qt.AlignVCenter), text)
+            painter.restore()
+        pixmap = self.pictures.get(icon_path(r.node_icon(nd))) if shape == "skill" else None
+        if pixmap is not None and not pixmap.isNull():
+            spot = QRectF(4, 4, 26, 26)                    # .node-skill-icon: 26 px, 3 px inside the edge, round
+            clip = QPainterPath()
+            clip.addEllipse(spot)
+            painter.setClipPath(clip)
+            _cover(painter, spot, pixmap)
+        painter.end()
+        return image
+
+
+class BoardFrame(QFrame):
+    """The board's frame (``.board-wrap``): a dark radial glow from its middle within its line and rounded corners, the
+    board in its middle, scrolled across when the frame is narrower than the board."""
+
+    def __init__(self, board: NodeBoard, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("boardWrap")
+        self.board = board
+        self.scroll = QScrollArea()
+        self.scroll.setObjectName("boardScroll")
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        self.scroll.setAlignment(Qt.AlignCenter)
+        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setWidget(board)
+        board.setAutoFillBackground(False)                 # set by setWidget; the frame's light shows round the nodes
+        self.scroll.viewport().setObjectName("boardView")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(1, 1, 1, 1)
+        layout.addWidget(self.scroll)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+        self._fit()
+
+    def _fit(self) -> None:
+        """The board's height, and the scroll bar's under it when the board is wider than the frame."""
+        across = self.board.width() > self.width() - 2
+        height = self.board.height() + (self.scroll.horizontalScrollBar().sizeHint().height() if across else 0)
+        if self.scroll.minimumHeight() != height or self.scroll.maximumHeight() != height:
+            self.scroll.setFixedHeight(height)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._fit()
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        outline = QPainterPath()
+        outline.addRoundedRect(rect, 6, 6)
+        light = QRadialGradient(rect.center(), max(1.0, 0.7 * math.hypot(self.width() / 2, self.height() / 2)))
+        light.setColorAt(0, QColor(BOARD_LIGHT))
+        light.setColorAt(1, QColor(BOARD_DARK))
+        painter.fillPath(outline, light)
+        painter.setPen(QPen(QColor(theme.COLORS["line"]), 1))
+        painter.drawPath(outline)
+        painter.end()
+
+
+class BoardTab(QPushButton):
+    """A board's tab (``.tabs button``): its name, then its points used of its total, faint; the chosen one gold."""
+
+    def __init__(self, name: str, count: str, chosen: bool, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("tabOn" if chosen else "tab")
+        self.setAccessibleName(f"{name} {count}")
+        self.setCursor(Qt.PointingHandCursor)
+        line = QHBoxLayout(self)
+        line.setContentsMargins(15, 8, 15, 8)              # the tab's padding, and its edge
+        line.setSpacing(4)
+        for words, kind in ((name, "tabName"), (count, "tabCount")):
+            label = _label(words, kind, wrap=False)
+            label.setAttribute(Qt.WA_TransparentForMouseEvents)
+            line.addWidget(label)
+
+    def sizeHint(self) -> QSize:
+        return self.layout().sizeHint()
+
+    def minimumSizeHint(self) -> QSize:
+        return self.layout().sizeHint()
+
+
+class Swatch(QWidget):
+    """A colour in the board's key (``.legend i``): a 12 px square, its corners rounded."""
+
+    def __init__(self, colour: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.colour = QColor(colour)
+        self.setFixedSize(12, 12)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        outline = QPainterPath()
+        outline.addRoundedRect(QRectF(self.rect()), 3, 3)
+        painter.fillPath(outline, self.colour)
+        painter.end()
+
+
+def _legend() -> QWidget:
+    """The board's key (``.legend``): each grade's colour and cost, then what the shapes mean."""
+    box = _plain()
+    flow = FlowLayout(box, align=Qt.AlignLeft, gap=(12, 12))
+    for colour, words in r.LEGEND:
+        item = _plain()
+        line = QHBoxLayout(item)
+        line.setContentsMargins(0, 0, 0, 0)
+        line.setSpacing(4)
+        line.addWidget(Swatch(colour), 0, Qt.AlignVCenter)
+        line.addWidget(_label(words, "muted", wrap=False))
+        flow.addWidget(item)
+    flow.addWidget(_label(r.LEGEND_NOTE, "muted", wrap=False))
+    return box
+
+
+class Split(QWidget):
+    """A window's parts side by side, one under another when the window is narrow (``.daev``, ``.paperdoll`` and
+    ``.grid2``, which app.css stacks under its 1100 px breakpoint). ``widths`` holds each part's width side by side, 0
+    for an equal share of the rest."""
+
+    def __init__(self, parts: list[QWidget], widths: list[int], gap: int, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("plain")
+        self.parts, self.widths = parts, widths
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setSpacing(gap)
+        self.narrow: bool | None = None
+        self.place(False)
+
+    def place(self, narrow: bool) -> None:
+        if narrow == self.narrow:
+            return
+        self.narrow = narrow
+        for part in self.parts:
+            self.grid.removeWidget(part)
+        for index in range(len(self.parts)):
+            self.grid.setColumnStretch(index, 0)
+        for index, (part, width) in enumerate(zip(self.parts, self.widths)):
+            if narrow:
+                part.setMinimumWidth(0)
+                part.setMaximumWidth(16777215)
+                self.grid.addWidget(part, index, 0)
+            else:
+                if width:
+                    part.setFixedWidth(width)
+                self.grid.addWidget(part, 0, index)
+                self.grid.setColumnStretch(index, 0 if width else 1)
+        if narrow:
+            self.grid.setColumnStretch(0, 1)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self.place(event.size().width() <= NARROW)
+
+
+class SlotTile(QFrame):
+    """A slot of the paper doll (``.slot``): its item's picture with its enchant level, the slot, the item in its grade's
+    colour, its first four stats, its rolls, stones and skill levels as chips, and where it comes from; a 3 px edge
+    on its left in the grade's colour."""
+
+    def __init__(self, s: dict, icon: QWidget, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("slotTile")
+        grade = r.slot_grade(s)
+        self.grade = grade
+        self.edge = _css_colour(r.GRADES[grade]) if grade else QColor(theme.COLORS["line2"])
+        self.setMinimumHeight(52)
+        row = QHBoxLayout(self)
+        row.setContentsMargins(11, 7, 9, 7)                # 6 px 8 px inside its edges (the left one 3 px)
+        row.setSpacing(16)                                 # the picture's 42 px column (34 px used), then 8 px
+        row.addWidget(icon, 0, Qt.AlignVCenter)
+        words = QVBoxLayout()
+        words.setSpacing(1)
+        words.addWidget(_label(r.js_text(s.get("slot")).upper(), "slotName"))
+        words.addWidget(_label(r.slot_item(s), "gname" + grade))
+        stats = r.slot_stats(s)
+        if stats:
+            words.addWidget(_label(stats, "slotStats", rich=True))
+        chips = r.slot_extras(s)
+        if chips:
+            holder = _plain()
+            flow = FlowLayout(holder, align=Qt.AlignLeft, gap=(3, 2), centre=False)
+            for kind, text in chips:
+                chip = _label(text, {"chip": "chip", "manastone": "chipGold", "gold": "chipGold", "skill": "chipSkill"}[kind],
+                              wrap=False)
+                if kind == "manastone":
+                    chip.setToolTip("Manastone")
+                flow.addWidget(chip)
+            words.addWidget(holder)
+        if s.get("source"):
+            words.addWidget(_label(r.js_text(s.get("source")), "faint"))
+        row.addLayout(words, 1)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = QRectF(self.rect())
+        outline = QPainterPath()
+        outline.addRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), 5, 5)
+        painter.fillPath(outline, QColor(theme.COLORS["panel2"]))
+        painter.setPen(QPen(QColor(theme.COLORS["line"]), 1))
+        painter.drawPath(outline)
+        clip = QPainterPath()
+        clip.addRoundedRect(rect, 5, 5)
+        painter.setClipPath(clip)
+        painter.fillRect(QRectF(0, 0, 3, rect.height()), self.edge)
+        painter.end()
+
+
+def _css_colour(text: str) -> QColor:
+    """A colour as app.css writes it: ``#rrggbb``, or ``rgba(r, g, b, a)`` with ``a`` from 0 to 1."""
+    if text.startswith("rgba("):
+        red, green, blue, alpha = (float(x) for x in text[5:-1].split(","))
+        return QColor(round(red), round(green), round(blue), round(alpha * 255))
+    return QColor(text)
+
+
+class Doll(QFrame):
+    """The paper doll's middle (``.doll``): the class, who wears the gear and its combat power, in the middle of a faint
+    gold glow."""
+
+    def __init__(self, cls: str, who: str, power: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("doll")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(17, 17, 17, 17)
+        layout.setSpacing(2)
+        layout.addStretch(1)
+        for text, kind in ((cls.upper(), "dollClass"), (who, "dollWho"), (power, "dollPower")):
+            if text:
+                label = _label(text, kind)
+                label.setAlignment(Qt.AlignHCenter)
+                layout.addWidget(label)
+        layout.addStretch(1)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        outline = QPainterPath()
+        outline.addRoundedRect(rect, 6, 6)
+        painter.fillPath(outline, INSET)
+        middle = QPointF(self.width() * 0.5, self.height() * 0.4)
+        reach = math.hypot(max(middle.x(), self.width() - middle.x()), max(middle.y(), self.height() - middle.y()))
+        glow = QRadialGradient(middle, max(1.0, 0.6 * reach))   # circle at 50% 40%, gone at 60% of its farthest corner
+        glow.setColorAt(0, QColor(232, 207, 142, 31))
+        glow.setColorAt(1, QColor(232, 207, 142, 0))
+        painter.fillPath(outline, glow)
+        painter.setPen(QPen(QColor(theme.COLORS["line"]), 1))
+        painter.drawPath(outline)
+        painter.end()
+
+
 class ResultWindows(QWidget):
     """A result's windows: the side menu and the chosen window (``renderWindows``). ``open_web`` opens a page of the
     web interface (the windows not drawn here yet); ``state`` keeps the chosen window and tabs, as the web page's
     state object does."""
 
     def __init__(self, api=None, open_web=None, web_page: str = "history", clipboard=None, when=None,
-                 parent: QWidget | None = None):
+                 parent: QWidget | None = None, open_link=None):
         super().__init__(parent)
         self.setObjectName("plain")
         self.open_web, self.web_page = open_web, web_page
+        self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.clipboard = clipboard or (lambda text: QGuiApplication.clipboard().setText(text))
         self.when = when or (lambda ms: str(ms))
         self.view: dict = {}
-        self.state = {"win": "overview", "skilltab": "active"}
+        self.state = {"win": "overview", "skilltab": "active", "board": 0}
         self.icons = Icons(api, self)
         self.icons.loaded.connect(self._icon)
         self.pixmaps: dict[str, QPixmap] = {}
         self.shown_icons: list[SkillIcon] = []
+        self.boards: list[NodeBoard] = []
         row = QHBoxLayout(self)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(16)
@@ -221,7 +655,7 @@ class ResultWindows(QWidget):
                 widget.hide()
                 widget.setParent(None)
                 widget.deleteLater()
-        self.shown_icons = []
+        self.shown_icons, self.boards = [], []
         key = self.state.get("win") or "overview"
         for name, button in self.menu.items():
             wanted = "sideItemOn" if name == key else "sideItem"
@@ -233,6 +667,10 @@ class ResultWindows(QWidget):
             self.body.addWidget(self._skills())
         elif key == "stigma":
             self.body.addWidget(self._stigmas())
+        elif key == "daevanion":
+            self.body.addWidget(self._daevanion())
+        elif key == "equipment":
+            self.body.addWidget(self._equipment())
         elif key == "overview":
             self.body.addWidget(self._overview())
             self.body.addWidget(self._comparison())
@@ -240,12 +678,14 @@ class ResultWindows(QWidget):
             self.body.addWidget(self._web_window(dict((k, t) for k, t, _m in r.WINDOWS)[key]))
 
     # ------------------------------------------------------------------ parts
-    def _window(self, title: str, counter: str = "", copy: str = "") -> Window:
-        window = Window(title)
+    def _window(self, title: str, counter: tuple[str, str] | None = None, copy: str = "", subtitle: str = "") -> Window:
+        """A window (``win``): its title, then its counter or its subtitle, its tools at the head's end."""
+        window = Window(title, subtitle)
         if counter:
-            label = _label(counter, "counter", wrap=False)
-            window.head.insertWidget(1, label)
+            window.head.insertWidget(1, _rich_counter(*counter))
             window.head.insertStretch(2, 1)                      # the counter beside the title, the tools at the end
+        elif not subtitle:
+            window.head.addStretch(1)
         if copy:
             button = QPushButton("Copy as text")
             button.setObjectName("small")
@@ -264,7 +704,10 @@ class ResultWindows(QWidget):
         button.clicked.connect(lambda: self.open_web(self.web_page) if self.open_web else None)
         return button
 
-    def _stat_grid(self, rows: list[tuple[str, str]], title: str) -> QWidget:
+    def _stat_grid(self, window: Window, rows: list[tuple[str, str]], title: str) -> None:
+        """A window's figures under its title (``statGrid``); none when it has none."""
+        if not rows:
+            return
         box = QFrame()
         box.setObjectName("statsum")
         layout = QVBoxLayout(box)
@@ -273,10 +716,10 @@ class ResultWindows(QWidget):
         layout.addWidget(_label(title.upper(), "statTitle"))
         columns = max(1, min(4, (max(self.width() - 246, 480) + 18) // (210 + 18)))
         layout.addWidget(pairs_grid([(name, html.escape(value)) for name, value in rows], columns))
-        return box
+        window.body.addWidget(box)
 
-    def _icon_widget(self, url, size: int, level: str) -> SkillIcon:
-        widget = SkillIcon(size, level)
+    def _icon_widget(self, url, size: int, level: str, placeholder: str = "", badge: int = 12) -> SkillIcon:
+        widget = SkillIcon(size, level, placeholder=placeholder, badge=badge)
         path = icon_path(url)
         widget.path = path
         if path in self.pixmaps:
@@ -294,14 +737,13 @@ class ResultWindows(QWidget):
         for widget in self.shown_icons:
             if widget.path == path:
                 widget.set_pixmap(self.pixmaps[path])
+        for board in self.boards:
+            board.picture(path, self.pixmaps[path])
 
     # ------------------------------------------------------------------ the Overview
     def _overview(self) -> Window:
         v = self.view
-        window = self._window("Overview")
-        if v.get("loadout_name"):
-            window.subtitle.setText(str(v["loadout_name"]))
-            window.subtitle.show()
+        window = self._window("Overview", subtitle=str(v.get("loadout_name") or ""))
         counts = _plain()
         grid = QGridLayout(counts)
         grid.setContentsMargins(0, 0, 0, 0)
@@ -406,7 +848,7 @@ class ResultWindows(QWidget):
         window.body.addWidget(tabs)
         for skill in (v.get("skills") or {}).get(tab) or []:
             window.body.addWidget(self._skill(skill))
-        window.body.addWidget(self._stat_grid(r.skills_grid(v), "From this system"))
+        self._stat_grid(window, r.skills_grid(v), "From this system")
         return window
 
     def _skill_tab(self, name: str) -> None:
@@ -499,8 +941,133 @@ class ResultWindows(QWidget):
         for col in range(4):
             grid.setColumnStretch(col, 1)
         window.body.addWidget(cards)
-        window.body.addWidget(self._stat_grid(r.stigmas_grid(v), "Stats from this system"))
+        self._stat_grid(window, r.stigmas_grid(v), "Stats from this system")
         return window
+
+    # ------------------------------------------------------------------ Daevanion
+    def _daevanion(self) -> Window:
+        """The Daevanion window: the boards' tabs; the points used, the board's points and nodes, and the skill levels
+        and stats all the boards give at its side; the board and its key; the stats again under them."""
+        v = self.view
+        d = r._dict(v.get("daevanion"))
+        index = self.state.get("board") or 0
+        board = r.daevanion_board(v, index)
+        if board is None:
+            window = self._window("Daevanion")
+            empty = _label(r.NO_BOARD, "empty")
+            empty.setAlignment(Qt.AlignCenter)
+            window.body.addWidget(empty)
+            return window
+        window = self._window("Daevanion", copy=r.daevanion_copy(v))
+        link = r.planner_link(v)
+        if QUrl(link).scheme() in ("http", "https"):     # the planner in the browser; no other kind of address opens
+            button = QPushButton(r.PLANNER)
+            button.setObjectName("small")
+            button.clicked.connect(lambda: self.open_link(link))
+            window.tool(button)
+        tabs = _plain()
+        flow = FlowLayout(tabs, align=Qt.AlignLeft, gap=(4, 4))
+        for place, name, count in r.board_tabs(v):
+            tab = BoardTab(name, count, place == index)
+            tab.clicked.connect(lambda _checked=False, place=place: self._board(place))
+            flow.addWidget(tab)
+        window.body.addWidget(tabs)
+        nodes = NodeBoard(board)
+        for path in nodes.wanted:
+            if path in self.pixmaps:
+                nodes.picture(path, self.pixmaps[path])
+            else:
+                self.icons.ask(path)
+        self.boards.append(nodes)
+        column = _plain()
+        stack = QVBoxLayout(column)
+        stack.setContentsMargins(0, 0, 0, 0)
+        stack.setSpacing(10)
+        stack.addWidget(BoardFrame(nodes))
+        stack.addWidget(_legend())
+        stack.addStretch(1)
+        window.body.addWidget(Split([self._daevside(d, board), column], [260, 0], 14))
+        self._stat_grid(window, r.daevanion_stats(d), "Stats from this system")
+        return window
+
+    def _daevside(self, d: dict, board: dict) -> QFrame:
+        """The board's side (``.daevside``): the points used (and the Ariel crystal's), the board's points and nodes,
+        the skill levels and the stats."""
+        side = QFrame()
+        side.setObjectName("daevside")
+        column = QVBoxLayout(side)
+        column.setContentsMargins(13, 13, 13, 13)
+        column.setSpacing(2)
+        counters = _plain()
+        flow = FlowLayout(counters, align=Qt.AlignLeft, gap=(0, 4))
+        flow.addWidget(_rich_counter("Points used", r.points_used(d)))
+        ariel = r.ariel_used(d)
+        if ariel:
+            counter = _rich_counter("Ariel crystal used", ariel)
+            counter.setToolTip(r.ARIEL_TIP)
+            flow.addWidget(counter)
+        column.addWidget(counters)
+        gold = theme.COLORS["gold"]
+        sections = (
+            (f"{r.js_text(board.get('name'))} board", [_label(r.board_line(board))]),
+            ("Skill levels", [_label(f"{html.escape(name)} <b style='color: {gold};'>{html.escape(levels)}</b>", rich=True)
+                              for name, levels in r.daevanion_skills(d)] or [_label("none", "faint")]),
+            ("Stats (all boards)", [_label(f"{html.escape(name)} <b>{html.escape(text)}</b>", rich=True)
+                                    for name, text in r.daevanion_stats(d)]),
+        )
+        for head, rows in sections:
+            column.addSpacing(8)
+            column.addWidget(_label(head.upper(), "daevHead"))
+            column.addSpacing(4)
+            for row in rows:
+                column.addWidget(row)
+        column.addStretch(1)
+        return side
+
+    def _board(self, place: int) -> None:
+        self.state["board"] = place
+        self.draw()
+
+    # ------------------------------------------------------------------ Equipment
+    def _equipment(self) -> Window:
+        """The Equipment window: the paper doll (the weapons and armour on its left, the accessories on its right, the
+        class in its middle), the rolls to keep and where an enchant level is worth most, then the gear's stats."""
+        v = self.view
+        window = self._window("Equipment", copy=r.equipment_copy(v), subtitle=r.equipment_sub(v))
+        left, right = r.equipment_slots(v)
+        window.body.addWidget(Split([self._slots(left), Doll(*r.doll(v)), self._slots(right)], [0, 220, 0], 12))
+        rolls = r.roll_rows(v)
+        if rolls:
+            halves = []
+            for head, rows in ((r.ROLLS_HEAD, [f"<b>{html.escape(slug)}</b>: {html.escape(stats)}" for slug, stats in rolls]),
+                               (r.ENCHANT_HEAD, [f"{html.escape(slot)} <b>{html.escape(dps)}</b> DPS / level"
+                                                 for slot, dps in r.enchant_rows(v)])):
+                half = _plain()
+                column = QVBoxLayout(half)
+                column.setContentsMargins(0, 0, 0, 0)
+                column.setSpacing(2)
+                column.addWidget(_label(head, "goldHead"))
+                column.addSpacing(8)
+                for row in rows:
+                    column.addWidget(_label(row, rich=True))
+                column.addStretch(1)
+                halves.append(half)
+            window.body.addSpacing(2)
+            window.body.addWidget(Split(halves, [0, 0], 16))
+        self._stat_grid(window, r.equipment_grid(v), r.EQUIPMENT_GRID)
+        return window
+
+    def _slots(self, slots: list[dict]) -> QWidget:
+        """One side of the paper doll (``.slots``): its slots' tiles, 6 px apart."""
+        box = _plain()
+        column = QVBoxLayout(box)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(6)
+        for s in slots:
+            enchant = f"+{r.js_text(s.get('enchant'))}" if s.get("enchant") else ""
+            column.addWidget(SlotTile(s, self._icon_widget(s.get("icon"), 34, enchant, placeholder="◇", badge=13)))
+        column.addStretch(1)
+        return box
 
     def stop(self) -> None:
         self.icons.stop()
@@ -511,8 +1078,8 @@ QPushButton#sideItem, QPushButton#sideItemOn {{ text-align: left; padding: 9px 1
     background: transparent; border: 1px solid transparent; color: {theme.COLORS['muted']}; }}
 QPushButton#sideItemOn, QPushButton#sideItem:hover {{ color: {theme.COLORS['gold']}; background: rgba(232, 207, 142, 0.07);
     border-color: rgba(206, 182, 122, 0.28); }}
-QLabel#counter {{ padding: 4px 10px; border: 1px solid rgba(206, 182, 122, 0.28); border-radius: 4px;
-    background: rgba(6, 9, 15, 0.65); font-weight: 700; }}
+QLabel#counter, QFrame#win QLabel#counter {{ padding: 4px 10px; border: 1px solid rgba(206, 182, 122, 0.28);
+    border-radius: 4px; background: rgba(6, 9, 15, 0.65); font-weight: 700; }}
 QPushButton#tab, QPushButton#tabOn {{ border: 1px solid {theme.COLORS['line']}; background: rgba(6, 9, 15, 0.65);
     color: {theme.COLORS['muted']}; padding: 7px 14px; border-radius: 4px; font-weight: 600; }}
 QPushButton#tabOn {{ color: #10131a; background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ecd79f, stop:1 #b9984f);
@@ -541,4 +1108,24 @@ QFrame#note QLabel {{ color: #f1d4a3; }}
 QFrame#note QLabel#muted {{ color: {theme.COLORS['muted']}; }}
 QWidget#foldBody, QWidget#plain {{ background: transparent; }}
 QToolButton#fold {{ border: none; padding: 2px 0; color: {theme.COLORS['text']}; }}
-"""
+QFrame#daevside {{ background: rgba(6, 9, 15, 0.65); border: 1px solid {theme.COLORS['line']}; border-radius: 6px; }}
+QFrame#win QLabel#daevHead {{ color: {theme.COLORS['gold']}; font-weight: 700; }}
+QScrollArea#boardScroll, QWidget#boardView {{ background: transparent; border: none; }}
+QFrame#win QLabel#empty {{ color: {theme.COLORS['faint']}; padding: 18px; }}
+QPushButton#tab QLabel, QPushButton#tabOn QLabel {{ font-weight: 600; }}
+QPushButton#tab QLabel#tabName {{ color: {theme.COLORS['muted']}; }}
+QPushButton#tabOn QLabel#tabName {{ color: #10131a; }}
+QPushButton#tab QLabel#tabCount, QPushButton#tabOn QLabel#tabCount {{ color: {theme.COLORS['faint']}; }}
+QFrame#win QLabel#slotName {{ color: {theme.COLORS['faint']}; }}
+QFrame#win QLabel#gname {{ color: {theme.COLORS['text']}; font-weight: 600; }}
+QFrame#win QLabel#slotStats {{ color: {theme.COLORS['muted']}; }}
+QFrame#win QLabel#chip, QFrame#win QLabel#chipGold, QFrame#win QLabel#chipSkill {{ padding: 1px 6px; border-radius: 3px;
+    background: rgba(57, 194, 224, 0.12); color: #9fe3f2; border: 1px solid rgba(57, 194, 224, 0.25); }}
+QFrame#win QLabel#chipGold {{ background: rgba(233, 203, 128, 0.12); color: {theme.COLORS['gold']};
+    border-color: rgba(206, 182, 122, 0.28); }}
+QFrame#win QLabel#chipSkill {{ color: {theme.COLORS['gold']}; }}
+QFrame#win QLabel#dollClass {{ color: {theme.COLORS['gold']}; font-size: 18px; font-weight: 700; }}
+QFrame#win QLabel#dollWho {{ color: {theme.COLORS['muted']}; }}
+QFrame#win QLabel#dollPower {{ color: {theme.COLORS['gold']}; }}
+""" + "".join(
+    f"QFrame#win QLabel#gname{grade} {{ color: {colour}; font-weight: 600; }}\n" for grade, colour in r.GRADES.items())

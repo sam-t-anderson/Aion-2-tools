@@ -111,6 +111,12 @@ def _button(widget, words):
     return next((b for b in widget.findChildren(QPushButton) if b.text() == words and b.isVisibleTo(widget)), None)
 
 
+def _counter(widget):
+    """A window's counter as a screen reader reads it: its words, then its figure."""
+    QCoreApplication.processEvents()
+    return next(label.accessibleName() for label in widget.findChildren(QLabel, "counter") if label.isVisibleTo(widget))
+
+
 def _opened(page, identifier):
     page.opened = None
     page.open(identifier)
@@ -180,7 +186,7 @@ def test_the_overviews_words(view):
 
 def test_the_skills_and_stigmas_words(view):
     blaze = view["skills"]["active"][0]
-    assert r.skill_counter(view) == "Skill points 383 / 383"
+    assert r.skill_counter(view) == ("Skill points", "383 / 383")
     assert r.skill_level(blaze) == f"<b>Lv 20</b> <span style='color: {r.ACCENT};'>= SP 10 + Daevanion 4 + gear 6</span>"
     assert r.skill_level({**blaze, "gear": 0}).endswith("= SP 10 + Daevanion 4</span>")
     assert r.skill_slots(blaze) == "3 selection slot(s)\n3 recommended" and r.skill_slots({"specs": []}) == ""
@@ -195,7 +201,7 @@ def test_the_skills_and_stigmas_words(view):
     assert r.skills_grid(view)[-1][0].startswith("Bonus levels to chase")
     assert r.skills_grid({**view, "gear_skill_rolls": [{"name": "Blaze", "levels": 2}], "bonus_levels": []})[1:] == [
         ("Skill levels from gear", "Blaze +2")]
-    assert r.stigma_counter(view) == "Stigma points 188 / 188"
+    assert r.stigma_counter(view) == ("Stigma points", "188 / 188")
     assert r.stigmas_copy(view) == "Cold Storm: Lv 13\nElement Enhancement: Lv 20\nFire Wall: Lv 20\nDelayed Explosion: Lv 8"
     assert r.stigmas_grid(view)[0] == ("Cold Storm", "Lv 13 · 2 effects")
     active, inactive = view["stigmas"][0]["specs"][0], view["stigmas"][0]["specs"][2]
@@ -240,7 +246,7 @@ def test_the_saved_runs_and_a_build_opened(qapp, view):
     cards = [card for card in windows.findChildren(QFrame, "skill") if card.isVisibleTo(windows)]
     assert len(cards) == len(view["skills"]["active"])
     texts = _texts(windows)
-    assert r.skill_counter(view) in texts and r.skill_level(view["skills"]["active"][0]) in texts
+    assert _counter(windows) == "Skill points 383 / 383" and r.skill_level(view["skills"]["active"][0]) in texts
     assert "3 selection slot(s)\n3 recommended" in texts and "+50% MP restored" in texts
     badges = [b for b in windows.findChildren(QLabel, "specOn") if b.isVisibleTo(windows)]
     assert len(badges) == sum(1 for s in view["skills"]["active"] for x in s["specs"] if x["chosen"])
@@ -259,11 +265,12 @@ def test_the_saved_runs_and_a_build_opened(qapp, view):
     QCoreApplication.processEvents()
     assert len([c for c in windows.findChildren(QFrame, "stigma") if c.isVisibleTo(windows)]) == 4
     texts = _texts(windows)
-    assert r.stigma_counter(view) in texts and "Level 13" in texts and r.stigma_effect(view["stigmas"][0]["specs"][0]) in texts
+    assert _counter(windows) == "Stigma points 188 / 188" and "Level 13" in texts
+    assert r.stigma_effect(view["stigmas"][0]["specs"][0]) in texts
     _button(windows, "Copy as text").click()
     assert copied[-1] == r.stigmas_copy(view)
     # a window not drawn here yet: its web page
-    windows.choose("daevanion")
+    windows.choose("genus")
     QCoreApplication.processEvents()
     assert w.WEB_NOTE in _texts(windows)
     _button(windows, "Open the web Saved Results page").click()
