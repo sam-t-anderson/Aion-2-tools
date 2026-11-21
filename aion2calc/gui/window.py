@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHBoxLayout, QHe
 from . import theme
 from .api import AppApi, Poller
 from .news import NewsPage
+from .crafting_page import CraftingPage
 from .database_page import DatabasePage
 from .gathering_page import GatheringPage
 from .pets_page import PetsPage
@@ -233,6 +234,8 @@ class MainWindow(QMainWindow):
                     widget = GatheringPage(api, self.show_page)
                 elif key == "pets":
                     widget = PetsPage(api)
+                elif key == "crafting":
+                    widget = CraftingPage(api)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)

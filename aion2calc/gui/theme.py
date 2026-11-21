@@ -67,6 +67,28 @@ def digits(value) -> str:
     return _digit_locale().toString(js_round(value))
 
 
+def number(value, most: int = 3) -> str:
+    """``Number(value).toLocaleString(undefined, {maximumFractionDigits: most})``: the value to at most ``most``
+    places without trailing zeros, its whole digits grouped as ``digits`` groups them. As the browser does, it rounds
+    the value's shortest decimal form (1.0005 reads 1.001), a half away from zero, and keeps the sign of a negative
+    value that rounds to nothing ("-0")."""
+    try:
+        x = float(value)
+    except (TypeError, ValueError):
+        return "NaN"
+    if math.isnan(x):
+        return "NaN"
+    if math.isinf(x):
+        return "∞" if x > 0 else "-∞"
+    rounded = Decimal(repr(x)).quantize(Decimal(1).scaleb(-most), rounding=ROUND_HALF_UP)
+    whole, _, part = f"{abs(rounded):f}".partition(".")
+    part = part.rstrip("0")
+    locale = _digit_locale()
+    grouped = (locale.toString(int(whole)) if int(whole) < 2 ** 63 else      # beyond Qt's whole numbers: in threes
+               locale.groupSeparator().join(f"{int(whole):,}".split(",")))
+    return ("-" if rounded.is_signed() else "") + grouped + (locale.decimalPoint() + part if part else "")
+
+
 def kfmt(x) -> str:
     """A rate or amount as the overlay writes it: 1.23M, 45.60K, 812; a dash when there is none."""
     try:
