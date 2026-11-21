@@ -1,0 +1,476 @@
+"""A build's result windows' words (0.2.434), as pages/results.js writes them for the Build Planner, My Character and
+Saved Results: the windows' list, and the Overview, Skills and Stigma windows' figures, lines and notes. The native
+windows (``result_windows.py``) draw them; the notes are rich text in the subset Qt's text engine draws, the
+``<details>`` of the web page opened in place.
+"""
+from __future__ import annotations
+
+import html
+import math
+
+from . import theme
+
+#: The windows of a result (results.js ``WINDOWS``): key, title, icon.
+WINDOWS = (("overview", "Overview", "◆"), ("skills", "Skills", "✦"), ("stigma", "Stigma", "⬢"),
+           ("daevanion", "Daevanion", "✧"), ("genus", "Pet Genus", "◈"), ("equipment", "Equipment", "⚔"),
+           ("arcana", "Arcana", "❖"), ("titles", "Titles & wings", "♛"), ("hotbar", "Skills hotbar", "▦"),
+           ("macro", "Macro & rotation", "⌨"))
+NATIVE = ("overview", "skills", "stigma")             # the windows the native interface draws so far
+COMPARISON = ("Generate a separate {mode} example with common gear and the server’s published point budgets (highest "
+              "reported totals when available; explicitly labeled example fallback otherwise). Your personal build, "
+              "Genus and HP/skill reserves stay saved separately. Seed searches and weighted refinement can take several "
+              "minutes; completed comparisons are reused until the scoring inputs change. Only anonymous allocations are "
+              "submitted. Stationary damage comparison, not a survival or win-rate model.")
+MUTED, FAINT, GOLD, ACCENT = theme.COLORS["muted"], theme.COLORS["faint"], theme.COLORS["gold"], theme.COLORS["accent"]
+
+
+def e(value) -> str:
+    """``esc``: what a result holds, as text in rich text."""
+    return html.escape("" if value is None else str(value))
+
+
+def _number(value):
+    """``isNaN``'s reading of a value: a number, or None for none or what does not read as one."""
+    if value is None:
+        return None
+    try:
+        x = float(value)
+    except (TypeError, ValueError):
+        return None
+    return None if math.isnan(x) else x
+
+
+def n0(value) -> str:
+    """``n0``: a whole number grouped by commas, "—" for none."""
+    x = _number(value)
+    return "—" if x is None or math.isinf(x) else f"{theme.js_round(x):,}"
+
+
+def pct(value, digits: int = 1) -> str:
+    """``pct``: a share as a percent to ``digits`` places, "—" for none."""
+    x = _number(value)
+    return "—" if x is None else theme.fixed(100 * x, digits) + "%"
+
+
+def sp(value) -> str:
+    """``sp``: a signed percent to one place."""
+    x = _number(value)
+    return "—" if x is None else ("+" if x >= 0 else "") + theme.fixed(100 * x, 1) + "%"
+
+
+def cap(text) -> str:
+    text = str(text or "")
+    return text[:1].upper() + text[1:]
+
+
+def js_text(value) -> str:
+    """A number in a sentence as JavaScript writes it (``${x}``): 180 rather than 180.0."""
+    if isinstance(value, float) and value.is_integer() and abs(value) < 1e21:
+        return str(int(value))
+    return "" if value is None else str(value)
+
+
+def muted(text: str) -> str:
+    return f"<span style='color: {MUTED};'>{text}</span>"
+
+
+def small_muted(text: str) -> str:
+    return f"<p style='color: {MUTED};'>{text}</p>"
+
+
+def table(headers: list[str], rows: list[list[str]]) -> str:
+    """A table (``table.t``) in rich text: its headings in gold, its cells as given."""
+    head = "".join(f"<th align='left' style='color: {theme.COLORS['gold_dim']};'>{h}</th>" for h in headers)
+    body = "".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in rows)
+    return f"<table cellspacing='0' cellpadding='4' width='100%'><tr>{head}</tr>{body}</table>"
+
+
+def details(summary: str, body: str) -> str:
+    """A ``<details>`` opened in place: its summary as a heading of its own."""
+    return f"<p><i>{summary}</i></p>{body}"
+
+
+# ------------------------------------------------------------------ the Overview
+def kpis(v: dict) -> list[tuple[str, str]]:
+    """The Overview's counts: each scenario's DPS, the typical top build, crit chance, cooldown reduction and combat
+    speed."""
+    out = [(f"{k} DPS", n0(x)) for k, x in (v.get("dps") or {}).items()]
+    if v.get("baseline"):
+        out.append(("Typical top build", n0(v["baseline"].get("community_optimized_rotation"))))
+    stats = v.get("stats") or {}
+    out += [("Crit chance", pct(stats.get("crit_chance_vs_target"))), ("Cooldown red.", pct(stats.get("cdr"))),
+            ("Combat speed", pct(stats.get("combat_speed")))]
+    return out
+
+
+def objective(v: dict) -> str:
+    """The objective's note: its score, its scenarios' weights, durations and DPS."""
+    goal = v.get("objective")
+    if not goal:
+        return ""
+    parts = []
+    for name, weight in (goal.get("weights") or {}).items():
+        duration = (goal.get("durations") or {}).get(name)
+        parts.append(f"{e(name)} {pct(weight)}" + (f" · {n0(duration)}s" if duration else "") +
+                     f" · {n0((goal.get('components') or {}).get(name))} DPS")
+    return (f"<b>{e(goal.get('label'))}: {n0(goal.get('score'))}</b><br>" + " · ".join(parts) +
+            small_muted(e(goal.get("note"))))
+
+
+def scoring_policy(v: dict, when) -> str:
+    """A community or common comparison preset's note, with its assumptions opened."""
+    policy = v.get("scoring_policy")
+    if not policy:
+        return ""
+    mode = str(policy.get("mode") or "")
+    head = (f"{'Community' if v.get('preset_source') == 'community' else 'Common comparison'} {e(mode.upper())} preset · "
+            f"{n0(v.get('score'))} weighted modeled DPS")
+    pace = ("sustained and burst player-target damage" if mode == "pvp" else "boss and training-dummy damage")
+    checked = f"Last checked {e(when(v['preset_checked_at'] * 1000))}" if v.get("preset_checked_at") else ""
+    inner = f"{e(policy.get('note'))}<br>Evaluator {e(policy.get('model'))}"
+    generation = v.get("candidate_generation")
+    if generation:
+        inner += (f"<br>Candidate search: {e(generation.get('objective'))} · {e(generation.get('iterations'))} "
+                  "iteration(s). Selected by the common weighted score; not a global optimum.")
+        selection = generation.get("selection")
+        if selection:
+            inner += f"<br>{e(selection.get('method'))}" + "".join(
+                f"<br>{e(c.get('objective'))}: {n0(c.get('score'))} weighted modeled DPS"
+                for c in selection.get("candidates") or [])
+    return (f"{head}<br><small>Equal weighting of {pace}. Common gear and comparison point budgets. {checked}</small>"
+            + details("Comparison assumptions", inner))
+
+
+def world_pvp(w) -> str:
+    """The world PvP measures beside the typical build's (``worldPvpHTML``)."""
+    if not w:
+        return ""
+    typical = w.get("typical_build") or {}
+
+    def row(label, x, y, fmt):
+        return [label, fmt(x), "—" if y is None else fmt(y)]
+    rows = [row("Score (DPS × share survived × share not controlled)", w.get("score"), typical.get("score"), n0),
+            row(f"Damage on up to {e((w.get('assumptions') or {}).get('enemies_in_reach', 3))} players (DPS)",
+                w.get("dps"), typical.get("dps"), n0),
+            row("Share of the fight survived", w.get("alive_share"), typical.get("alive_share"), pct),
+            row("Share of it not crowd-controlled", w.get("acting_share"), typical.get("acting_share"), pct),
+            row("Effective HP (with shields and heals)", w.get("effective_hp"), typical.get("effective_hp"), n0),
+            row("Hard crowd control you deal (s per minute)", w.get("control_s_per_min"), typical.get("control_s_per_min"),
+                lambda x: theme.fixed(x, 1)),
+            row("Crowd control you take (share of the fight)", w.get("controlled_self"), typical.get("controlled_self"), pct)]
+    line = (f"{e(w.get('attackers'))} attackers · {pct(w.get('controlled'))} of their time under your crowd control · "
+            f"damage taken {pct(w.get('damage_taken'))} of an undefended player's"
+            + (f" · {pct(w['evade_chance'])} of hits evaded" if w.get("evade_chance") else "")
+            + (f" · {pct(w['block_chance'])} of the rest blocked (half damage)" if w.get("block_chance") else "")
+            + f" · Status Effect Resist {pct(w.get('status_resist') or 0)} · {len(w.get('defensives') or [])} defensive "
+              "effects counted.")
+    return ("<h4>World PvP</h4>" + table(["", "This build", "Typical build"], rows) + small_muted(line)
+            + small_muted(e(w.get("note") or "")))
+
+
+def progression(p) -> str:
+    """The point budgets' provenance (``progressionHTML``), the body of its fold."""
+    if not p:
+        return ""
+    rows = [[e(cap(r.get("resource"))), n0(r.get("observed_spent")), n0(r.get("available_assumption")),
+             n0(r.get("assumed_unspent")), e(r.get("source")),
+             "Unknown" if r.get("verified_maximum") is None else n0(r.get("verified_maximum"))]
+            for r in p.get("resources") or []]
+    return table(["Resource", "Observed spent", "Assumed available", "Assumed unspent", "Basis", "Verified maximum"], rows) \
+        + small_muted(e(p.get("note")))
+
+
+def _requirement(window: dict) -> str:
+    need = window.get("skill_requirement")
+    if not need:
+        return " · Unlinked assumption"
+    return (f"<br>Requested retention: {e(need.get('name'))} · trained Lv {e(need.get('minimum'))}"
+            + (f" · {e(need.get('effect'))}" if need.get("effect") else ""))
+
+
+def cooldowns(checks, scope: str = "reduction windows") -> str:
+    """``cooldownSummary``."""
+    if not checks:
+        return ""
+    items = []
+    for c in checks:
+        starts = ", ".join(f"{e(t)}s" for t in c.get("activation_starts_s") or []) or "none"
+        if c.get("status") == "no_active_windows":
+            what = f"No active {e(scope)}"
+        elif c.get("cooldown_s") is None:
+            what = "Cooldown unknown · reuse not assessed"
+        else:
+            gap = ("No repeated activation" if c.get("shortest_reuse_gap_s") is None
+                   else f"shortest reuse gap {e(c['shortest_reuse_gap_s'])}s")
+            what = f"Assumed effective cooldown {e(c['cooldown_s'])}s · {gap} · assumed spacing satisfied"
+        items.append(f"<li>{e(c.get('skill'))} · starts: {starts} · {what}"
+                     + (" · largest of differing assumptions used" if c.get("mixed_assumptions") else "") + "</li>")
+    return "<ul>" + "".join(items) + "</ul>"
+
+
+def reservations(rows) -> str:
+    """``rotationReservationSummary``."""
+    if not rows:
+        return ""
+    items = "".join(
+        f"<li>Skill #{e(r.get('skill_id'))} · assumed use {e(r.get('start_s'))}s · entered cooldown {e(r.get('cooldown_s'))}s · "
+        + (f"reserved in modeled group(s): {', '.join(e(g) for g in r.get('cooldown_groups') or [])} · matching actions: "
+           f"{', '.join(e(a) for a in r.get('matched_actions') or [])}" if r.get("status") == "reserved" else
+           "Unavailable: no matching modeled action; no rotation cooldown reserved") + "</li>" for r in rows)
+    return f"<h4>Cooldown reservations in the damage rotation</h4><ul>{items}</ul>"
+
+
+def action_timing(timing) -> str:
+    """``actionTimingSummary``: the outgoing action-time assumptions."""
+    if not timing:
+        return ""
+    windows = "".join(
+        f"<li>{e(w.get('name'))} · {e(w.get('start_s'))}–{e(w.get('end_s'))}s"
+        + (" · Rotation cooldown reservation requested" if w.get("reserve_cooldown") else "") + _requirement(w) + "</li>"
+        for w in timing.get("windows") or [])
+    cases = "".join(
+        f"<p>{e(name)} · {e(c.get('paused_s'))}s unavailable for new actions / {e(c.get('duration_s'))}s · clipped interval "
+        f"union: {', '.join(f'{e(a)}–{e(b)}s' for a, b in c.get('blocks') or []) or 'none'}</p>"
+        + cooldowns(c.get("cooldown_checks"), "action-time windows in this scenario") + reservations(c.get("rotation_reservations"))
+        for name, c in (timing.get("cases") or {}).items())
+    return f"<h3>Outgoing action-time assumptions</h3><ul>{windows}</ul>{cases}" + small_muted(e(timing.get("note")))
+
+
+def survival(plan) -> str:
+    """``survivalSummary``: the HP reserve of a constrained damage optimization."""
+    if not plan:
+        return ""
+    out = (f"<h3>HP reserve · constrained damage optimization</h3><p>Crystal-board flat HP: <b>{n0(plan.get('selected_node_hp'))}</b>"
+           f" · requested floor: {n0(plan.get('minimum_node_hp'))} · previous contribution: {n0(plan.get('reference_node_hp'))}. "
+           f"{'Reserve met.' if plan.get('meets_node_floor') else 'Reserve not met.'}</p>")
+    if plan.get("estimated_total_hp_proxy") is not None:
+        out += (f"<p>Estimated total HP proxy: {n0(plan['estimated_total_hp_proxy'])} · worst assumed headroom: "
+                f"{'Not assessed' if plan.get('worst_headroom_hp') is None else n0(plan['worst_headroom_hp'])}</p>")
+    opponents = plan.get("opponents") or []
+    if opponents:
+        rows = []
+        for row in opponents:
+            cell = e(row.get("name"))
+            evidence = row.get("recorded_evidence")
+            cell += (f"<br><small>{'Imported recording · editable assumption' if evidence else 'User assumption'} · "
+                     f"{js_text(row.get('window_s'))}s window"
+                     + (f"<br>{e(evidence.get('title'))} · {e(evidence.get('recipient'))} · recorded peak "
+                        f"{e(evidence.get('damage'))} HP ({e(evidence.get('start_s'))}–{e(evidence.get('end_s'))}s)" if evidence else "")
+                     + "</small>")
+            bench = row.get("opponent_benchmark")
+            if bench:
+                cell += (f"<br><small>Opponent benchmark (editable assumption): {e(bench.get('title'))} · {e(bench.get('metric'))} "
+                         f"{e(bench.get('modeled_dps'))} modeled DPS × {e(bench.get('scale'))} · source duration "
+                         f"{e(bench.get('source_duration_s'))}s. Not measured incoming damage.</small>"
+                         + details("Source benchmark assumptions",
+                                   f"<small>Class: {e(bench.get('class'))} · saved timestamp: {e(bench.get('created'))} · duration: "
+                                   f"{e(bench.get('duration_source'))}<br>{e(bench.get('model_note'))}<br>Source model version and "
+                                   "cross-version comparability are not verified. The original score remains separate from the "
+                                   "editable pressure fields.</small>"))
+            if row.get("peak_pressure_hp") is not None:
+                cell += (f"<br><small>Peak ongoing pressure {n0(row['peak_pressure_hp'])} HP at {e(row.get('peak_pressure_at_s'))}s · "
+                         f"healing delay {e(row.get('healing_delay_s'))}s · active {e(row.get('healing_active_s'))}s</small>")
+            if row.get("reductions"):
+                items = "".join(
+                    f"<li>{e(w.get('name'))} · {e(w.get('kind'))}: {e(w.get('reduction_pct'))}% from {e(w.get('start_s'))}s to "
+                    f"{e(w.get('end_s'))}s ({e(w.get('active_s'))}s active)"
+                    + (f"<br>Retain {e(w['skill_requirement'].get('name'))} · trained Lv {e(w['skill_requirement'].get('minimum'))}"
+                       + (f" · {e(w['skill_requirement'].get('effect'))}" if w['skill_requirement'].get('effect') else "")
+                       if w.get("skill_requirement") else " · Unlinked assumption") + "</li>"
+                    for w in row["reductions"])
+                cell += details("Assumed defense / control / movement timing",
+                                f"<ul>{items}</ul><small>Same healing without added reductions: {n0(row.get('unprotected_required_hp'))} HP "
+                                f"required. Assumed requirement reduction: {n0(row.get('assumed_requirement_reduction_hp'))} HP. Initial hit "
+                                "unchanged; strongest overlap only. No skill casts or tactical success are simulated.</small>"
+                                + cooldowns(row.get("cooldown_checks")))
+            rows.append([cell, n0(row.get("required_hp")),
+                         f"{n0(row.get('headroom_hp'))} · " + ("Meets assumed HP requirement" if row.get("meets_assumed_pressure")
+                                                                 else "Below requirement")])
+        out += table(["Assumed encounter / opponent", "Hit + pressure + reserve", "HP headroom (proxy)"], rows)
+    binding = plan.get("binding_opponents") or []
+    out += f"<p>{'Strictest incoming requirement: ' + ' · '.join(e(b) for b in binding) if binding else ''}</p>"
+    out += small_muted(e(plan.get("note")))
+    traced = [r for r in opponents if r.get("damage_trace")]
+    if traced:
+        inner = ""
+        for r in traced:
+            events = r["damage_trace"].get("events") or []
+            bench = r.get("opponent_benchmark") or {}
+            inner += (f"<h4>{e(r.get('name'))}</h4><p>Source {e(bench.get('source_start_s'))}–{e(bench.get('source_end_s'))}s · "
+                      f"{len(events)} hits · {n0(r['damage_trace'].get('total'))} scaled damage · peak deficit at "
+                      f"{e(r.get('peak_pressure_at_s'))}s</p>"
+                      + table(["Window time", "Expected incoming damage"],
+                              [[f"{theme.fixed(t, 3)}s", n0(amount)] for t, amount in events[:200]])
+                      + (small_muted("First 200 hits displayed; all saved hits are evaluated.") if len(events) > 200 else ""))
+        out += details("Imported expected-hit schedules", inner)
+    return out + small_muted("DPS is maximized subject to this HP floor. These personal constraints are not compared "
+                             "against damage-only community presets.")
+
+
+def skill_reserves(plan) -> str:
+    """``skillReserveSummary``: the trained-skill reserves."""
+    if not plan:
+        return ""
+    out = (f"<h3>Trained skill reserves · {'met' if plan.get('met') else 'not met'}</h3>"
+           + table(["Skill", "Minimum", "Selected"], [[e(r.get("name")), js_text(r.get("minimum")), js_text(r.get("selected"))]
+                                                      for r in plan.get("skills") or []]))
+    if plan.get("effects"):
+        out += "<h4>Reserved supporting effects</h4><ul>" + "".join(
+            f"<li>{e(x.get('skill'))} · {e(x.get('text'))} (effect Lv {e(x.get('unlock'))}) · "
+            f"{'retained' if x.get('selected') else 'missing'}</li>" for x in plan["effects"]) + "</ul>"
+    if plan.get("effective_levels"):
+        out += "<h4>Required effective levels</h4><ul>" + "".join(
+            f"<li>{e(r.get('name'))} · Lv {e(r.get('selected'))} / required {e(r.get('minimum'))} (trained {e(r.get('trained'))} + "
+            f"Daevanion {e(r.get('daevanion'))} + fixed bonuses {e(r.get('gear'))})</li>" for r in plan["effective_levels"]) + "</ul>"
+    return out + small_muted(e(plan.get("note")))
+
+
+def weight_rows(v: dict) -> list[tuple[str, str, float]]:
+    """Stat priority: each upgrade, its DPS gain and its bar's length (a quarter of a percent a percent)."""
+    rows = []
+    for x in v.get("weights") or []:
+        gain = _number(x.get("pct")) or 0.0
+        rows.append((str(x.get("label") or ""), ("+" if gain >= 0 else "") + theme.fixed(gain, 2) + "%",
+                     max(0.0, min(100.0, gain * 25))))
+    return rows
+
+
+def share_rows(shares, most: int = 12) -> list[tuple[str, str, float]]:
+    """Damage (or healing) share: the first twelve skills, each with its share and its bar beside the largest's."""
+    shares = shares or {}
+    top = max([*(float(x) for x in shares.values()), 0.0]) or 1.0
+    return [(str(name), pct(x), 100 * float(x) / top) for name, x in list(shares.items())[:most]]
+
+
+def healing(v: dict) -> dict | None:
+    """The healing share's box (0.2.368, 0.2.386): None where the web page draws none, else its lines and rows."""
+    recorded = v.get("healing") if isinstance(v.get("healing"), dict) and (v["healing"].get("shares") or {}) else None
+    modelled = v.get("modelled_healing") if isinstance(v.get("modelled_healing"), dict) and v["modelled_healing"].get("per_minute") else None
+    if "healing" not in v and not modelled:
+        return None
+    lines = []
+    if modelled:
+        lines.append(f"Modelled: {n0(modelled.get('hps'))} HPS in a boss fight ("
+                     + ", ".join(f"{e(r.get('skill'))} {pct(r.get('share'))}" for r in (modelled.get("by_skill") or [])[:3])
+                     + f"): each heal at this character's level times {theme.fixed(modelled.get('multiplier') or 0, 2)} for its "
+                       "Attack, as often as recorded healers heal.")
+    if recorded:
+        fights, recordings = recorded.get("fights"), recorded.get("recordings")
+        lines.append(f"Recorded: {n0(recorded.get('hps'))} HPS over {fights} fight{'' if fights == 1 else 's'} "
+                     f"({n0((recorded.get('seconds') or 0) / 60)} min) in {recordings} recording{'' if recordings == 1 else 's'} "
+                     "saved on this computer.")
+    else:
+        lines.append("No recorded healing by this character yet. Fights recorded with the live meter on this computer fill "
+                     "this in" + ("" if modelled else "; the model simulates heal amounts for Clerics and Chanters only") + ".")
+    return {"lines": lines, "rows": share_rows(recorded.get("shares")) if recorded else []}
+
+
+def overview_notes(v: dict, when) -> list[str]:
+    """The Overview's notes between its counts and its tables, in the web page's order, each rich text (the model
+    note and world PvP are one; the provenance is its own fold, ``progression``)."""
+    notes = []
+    for text in (objective(v), scoring_policy(v, when)):
+        if text:
+            notes.append(text)
+    if v.get("world_pvp"):
+        notes.append(world_pvp(v["world_pvp"]))
+    return notes
+
+
+def model_note(v: dict) -> str:
+    return "" if v.get("world_pvp") else str(v.get("model_note") or "")
+
+
+def comparison_text(v: dict) -> str:
+    return COMPARISON.format(mode="PvP" if str(v.get("scenario") or "").startswith("pvp") else "PvE")
+
+
+# ------------------------------------------------------------------ Skills
+def skill_counter(v: dict) -> str:
+    return f"Skill points {n0((v.get('points') or {}).get('skill'))} / {n0((v.get('budgets') or {}).get('skill'))}"
+
+
+def skill_level(s: dict) -> str:
+    """A skill's level and where it comes from: rich text, "<b>Lv 20</b> = SP 10 + Daevanion 4 + gear 6"."""
+    source = f"= SP {e(s.get('sp'))} + Daevanion {e(s.get('daev'))}" + (f" + gear {e(s['gear'])}" if s.get("gear") else "")
+    return f"<b>Lv {e(s.get('eff'))}</b> <span style='color: {ACCENT};'>{source}</span>"
+
+
+def skill_slots(s: dict) -> str:
+    """Its selection slots, how many effects are recommended, and the next effect's level."""
+    if not s.get("specs"):
+        return ""
+    chosen = sum(1 for x in s["specs"] if x.get("chosen"))
+    return (f"{e(s.get('slots'))} selection slot(s)\n{chosen} recommended"
+            + (f"\nNext effect at Lv {e(s['next_effect_level'])}" if s.get("next_effect_level") else ""))
+
+
+def effect_state(x: dict) -> str:
+    return "Recommended" if x.get("chosen") else "Available" if x.get("available") else "Locked"
+
+
+def skills_copy(v: dict) -> str:
+    """The Skills window as text (``Copy as text``)."""
+    lines = []
+    for s in (v.get("skills") or {}).get("active", []) + (v.get("skills") or {}).get("passive", []):
+        chosen = [x for x in s.get("specs") or [] if x.get("chosen")]
+        if (s.get("sp") or 0) > 1 or chosen:
+            lines.append(f"{s.get('name')}: train to {js_text(s.get('sp'))} (Lv {js_text(s.get('eff'))})" + (
+                " — specialties " + "; ".join(f"{x.get('n')}: {x.get('text')} (effect Lv {e(x.get('unlock'))})" for x in chosen)
+                if chosen else ""))
+    text = "\n".join(lines)
+    chase = bonus_levels(v)
+    return text + ("\nBonus levels from gear rolls and arcana cards: " + chase if chase else "")
+
+
+def bonus_levels(v: dict) -> str:
+    """A community preset's bonus levels: the skills to put gear rolls and arcana card options on."""
+    return ", ".join(f"{r.get('name')} +{js_text(r.get('levels'))}" + (f" ({', '.join(r['arcana'])})" if r.get("arcana") else "")
+                     for r in v.get("bonus_levels") or [])
+
+
+def skills_grid(v: dict) -> list[tuple[str, str]]:
+    """The Skills window's figures (``statGrid``, "From this system")."""
+    rows = [("Skill points spent", f"{n0((v.get('points') or {}).get('skill'))} / {n0((v.get('budgets') or {}).get('skill'))}")]
+    rolls = ", ".join(f"{r.get('name')} +{js_text(r.get('levels'))}" for r in v.get("gear_skill_rolls") or [])
+    if rolls:
+        rows.append(("Skill levels from gear", rolls))
+    chase = bonus_levels(v)
+    if chase:
+        rows.append(("Bonus levels to chase: gear rolls and arcana cards (the cards that can roll each skill)", chase))
+    return rows
+
+
+# ------------------------------------------------------------------ Stigma
+def stigma_counter(v: dict) -> str:
+    return f"Stigma points {n0((v.get('points') or {}).get('stigma'))} / {n0((v.get('budgets') or {}).get('stigma'))}"
+
+
+def stigmas_copy(v: dict) -> str:
+    return "\n".join(f"{s.get('name')}: Lv {js_text(s.get('level'))}" for s in v.get("stigmas") or [])
+
+
+def stigmas_grid(v: dict) -> list[tuple[str, str]]:
+    return [(str(s.get("name")), f"Lv {js_text(s.get('level'))} · {sum(1 for x in s.get('specs') or [] if x.get('active'))} effects")
+            for s in v.get("stigmas") or []]
+
+
+def stigma_effect(x: dict) -> str:
+    """A stigma's effect (rich text): its number in gold, its words, its level faint; muted while inactive."""
+    words = f"<b style='color: {GOLD};'>{e(x.get('n'))}</b> {e(x.get('text'))} <span style='color: {FAINT};'>(Lv {e(x.get('unlock'))})</span>"
+    return words if x.get("active") else f"<span style='color: {MUTED};'>{words}</span>"
+
+
+# ------------------------------------------------------------------ Saved Results
+def saved_line(when_text: str) -> str:
+    return f"Saved result from {when_text}. This is a snapshot; advice may change as gear or game data changes."
+
+
+def view_of(doc: dict) -> dict | None:
+    """The build a saved result shows in the result windows: an optimized character's optimized build, or the
+    result itself."""
+    result = doc.get("result") if isinstance(doc, dict) else None
+    if not isinstance(result, dict):
+        return None
+    view = result.get("optimized") if doc.get("kind") == "optimize-character" else result
+    return view if isinstance(view, dict) else None
