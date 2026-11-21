@@ -216,10 +216,12 @@ def test_a_class_colour_palette_sets_all_nine_classes_and_default_puts_them_back
     # the eight released classes and the Brawler (0.2.390)
     assert len(defaults) == 9 and "brawler" in defaults and all(re.fullmatch(r"#[0-9a-f]{6}", v) for v in defaults.values())
     try:
-        box.locator("[data-palette]").select_option("Colourblind-friendly")
+        # Choosing a palette saves the box as it stands (any change in it saves): that save is let through first, or
+        # it could be the one Apply's ``posted`` takes when it goes out late.
+        posted(page, lambda: box.locator("[data-palette]").select_option("Colourblind-friendly"))
         saved = posted(page, lambda: box.locator("[data-apply-palette]").click())["combat_colors"]
         assert saved == {"enabled": True, "colors": colours()} and colours()["sorcerer"] == "#56b4e9"
-        box.locator("[data-palette]").select_option("Default (class colours)")
+        posted(page, lambda: box.locator("[data-palette]").select_option("Default (class colours)"))
         assert posted(page, lambda: box.locator("[data-apply-palette]").click())["combat_colors"]["colors"] == defaults
     finally:
         put_back(page, {"combat_colors": {}})
