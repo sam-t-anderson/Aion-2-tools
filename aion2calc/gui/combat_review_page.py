@@ -204,7 +204,9 @@ class ReviewPage(QWidget):
         else:
             self.draw()
 
-    def metric(self, key: str) -> None:
+    def choose_metric(self, key: str) -> None:
+        """A metric chosen (``data-metric``). Not ``metric``: ``QWidget.metric()`` is Qt's own, asked for the page's paint
+        metrics."""
         self.state["metric"] = key
         self.draw()
 
@@ -360,7 +362,7 @@ class ReviewPage(QWidget):
         """The metric shown (``data-metric``): the summary sorts by it."""
         box, line = _plain(QHBoxLayout, 6)
         for key, words in cw.METRICS:
-            tab = _button(words, lambda key=key: self.metric(key), "primary" if self.state["metric"] == key else "small")
+            tab = _button(words, lambda key=key: self.choose_metric(key), "primary" if self.state["metric"] == key else "small")
             line.addWidget(tab)
         line.addStretch(1)
         return box
