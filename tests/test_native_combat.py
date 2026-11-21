@@ -311,6 +311,7 @@ class LogServer:
         self.ranks = REVIEW_RANKS                               # what its rankings routes answer
         self.reconstruction = None                              # a combined review of a recording's parts, or refused
         self.combined = None                                    # its combination of a fight's recordings, or refused
+        self.movement = None                                    # a fight's movement merged from its recordings, or refused
         self.points = {"observations": [
             {"class_name": "sorcerer", "skill": 100, "stigma": 20, "daevanion": 300, "ariel": None, "region": "NA"},
             {"class_name": "sorcerer", "skill": 110, "stigma": 20, "daevanion": 300, "ariel": 5, "region": "EU"},
@@ -352,6 +353,10 @@ class LogServer:
             if self.combined is None:
                 raise ValueError("RuntimeError: Community server (409): no other public recording of this fight")
             return json.loads(json.dumps(self.combined))
+        if route == "/api/v1/logs/log0001/movement":
+            if self.movement is None:
+                raise ValueError("RuntimeError: Community server (409): no other public recording of this fight")
+            return {**json.loads(json.dumps(self.movement)), "segment": int(q["segment"][0])}
         if route.startswith("/api/v1/logs/") and route.endswith("/rankings"):
             return {**json.loads(json.dumps(self.ranks)), "segment": int(q["segment"][0])}
         if route == "/api/v1/npc-portraits":

@@ -23,15 +23,17 @@ from collections import OrderedDict
 from PySide6.QtCore import (QAbstractListModel, QEvent, QLineF, QModelIndex, QPoint, QPointF, QRectF, QSize, Qt, QTimer,
                             Signal)
 from PySide6.QtGui import (QColor, QFont, QFontInfo, QFontMetricsF, QPainter, QPainterPath, QPainterPathStroker, QPen,
-                           QPolygonF, QTextCharFormat, QTextLayout, QTextOption)
-from PySide6.QtWidgets import (QAbstractItemView, QBoxLayout, QComboBox, QFrame, QLabel, QListView, QSlider, QStyle,
-                               QStyledItemDelegate, QStyleOptionSlider, QToolTip, QVBoxLayout, QWidget)
+                           QPixmap, QPolygonF, QTextCharFormat, QTextLayout, QTextOption)
+from PySide6.QtWidgets import (QAbstractItemView, QBoxLayout, QCheckBox, QComboBox, QFrame, QGraphicsOpacityEffect,
+                               QHBoxLayout, QLabel, QListView, QSlider, QStyle, QStyledItemDelegate, QStyleOptionSlider,
+                               QToolTip, QVBoxLayout, QWidget)
 
 from . import combat_replay as rp
 from . import theme
 from .chrome import FlowLayout
-from .combat_saved import _button, _head, _label
+from .combat_saved import _button, _clear, _head, _label
 from .combat import js_string
+from .results import _dict, _truthy
 
 GROUND = QColor(136, 136, 136, 34)       # ``background: #8882``
 TEXT = QColor(theme.COLORS["text"])      # ``currentColor``
@@ -625,11 +627,255 @@ class TickedSlider(QSlider):
         painter.end()
 
 
-class ReplayPanel(QWidget):
-    """The replay with its controls (``replay``'s box): its heading and note, Play and Rewind, the speed, the time
-    slider and its clock, the arena's shape, and the arena. ``store`` keeps the speed and the shape for every log."""
+SWATCH_GROUND = QColor(136, 136, 136, 34)  # ``.cr-key svg { background: #8882; border-radius: 3px }``
 
-    def __init__(self, replay: rp.Replay, store, parent: QWidget | None = None):
+
+def swatch_pixmap(swatch: tuple, shape: str = "circle") -> QPixmap:
+    """A key entry's swatch (``swatch``): its 10 x 10 view drawn 16 px square on its faint ground, crisp at twice the
+    size."""
+    picture = QPixmap(32, 32)
+    picture.setDevicePixelRatio(2)
+    picture.fill(Qt.transparent)
+    painter = QPainter(picture)
+    painter.setRenderHint(QPainter.Antialiasing)
+    painter.setPen(Qt.NoPen)
+    painter.setBrush(SWATCH_GROUND)
+    painter.drawRoundedRect(QRectF(0, 0, 16, 16), 3, 3)
+    painter.scale(1.6, 1.6)
+    kind = swatch[0]
+
+    def stroke(colour: QColor, width: float, alpha: float = 1.0, dashes=None, round_ends: bool = False) -> None:
+        painter.setPen(_pen(_with(colour, alpha), width, dashes, round_ends))
+        painter.setBrush(Qt.NoBrush)
+
+    if kind == "dot":
+        _kind, fill, radius, ring, alpha = swatch
+        painter.setPen(_pen(QColor("#ffffff"), 0.75, [1, 1]) if ring else Qt.NoPen)
+        painter.setBrush(_with(QColor(fill) if fill else TEXT, alpha))
+        painter.drawEllipse(QPointF(5, 5), radius, radius)
+    elif kind == "trail":
+        stroke(TEXT, 1.2, 0.6)
+        painter.drawPath(_polyline([(1, 8), (4, 4), (6.5, 6), (9, 2)]))
+    elif kind == "room":                                             # ``.cr-room``, in the arena's shape
+        painter.setPen(_pen(_with(TEXT, 0.6), 0.6))
+        painter.setBrush(_with(TEXT, 0.06))
+        if shape == "circle":
+            painter.drawEllipse(QPointF(5, 5), 4, 4)
+        else:
+            painter.drawRect(QRectF(1, 1, 8, 8))
+    elif kind == "cast":
+        stroke(GOLD_MARK, 0.9)
+        painter.drawEllipse(QPointF(3.5, 5), 2.4, 2.4)
+        stroke(GOLD_MARK, 0.7, dashes=[1, 0.7])
+        painter.drawLine(QPointF(3.5, 5), QPointF(8, 5))
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(GOLD_MARK)
+        painter.drawEllipse(QPointF(8, 5), 1.3, 1.3)
+    elif kind == "aoe":                                              # ``M2,8 L8,8 A6,6 0 0 0 2,2 Z``
+        painter.setPen(_pen(AREA, 0.7))
+        painter.setBrush(_with(AREA, 0.3))
+        painter.drawPath(_sector(2, 8, 6, 0, 0, 90))
+    elif kind == "band":                                             # a dash's or a trail's band
+        stroke(AREA, 2.6, 0.4, round_ends=True)
+        painter.drawPath(_polyline([(1.6, 8.2), (4.2, 5), (8.4, 3.2)]))
+    elif kind == "wedges":                                           # two wedges with a safe gap between them
+        painter.setPen(_pen(AREA, 0.6))
+        painter.setBrush(_with(AREA, 0.3))
+        for start in (math.degrees(math.atan2(1.6, 4.3)), math.degrees(math.atan2(-1.6, -4.3)) % 360):
+            painter.drawPath(_sector(5, 5, 4.6, 0, start, math.degrees(math.atan2(4.3, 1.6) - math.atan2(1.6, 4.3))))
+    elif kind == "spawn":
+        stroke(GREEN_MARK, 0.9, dashes=[1.2, 0.8])
+        painter.drawEllipse(QPointF(5, 5), 3.6, 3.6)
+    elif kind == "death":
+        stroke(TEXT, 1.4, round_ends=True)
+        painter.drawLine(QPointF(2.6, 2.6), QPointF(7.4, 7.4))
+        painter.drawLine(QPointF(7.4, 2.6), QPointF(2.6, 7.4))
+    elif kind == "hit":
+        stroke(RED_MARK, 0.9)
+        painter.drawEllipse(QPointF(5, 5), 3.4, 3.4)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(RED_MARK)
+        painter.drawEllipse(QPointF(5, 5), 1.4, 1.4)
+    painter.end()
+    return picture
+
+
+class KeyEntry(QWidget):
+    """An entry of the key (``.cr-key li``): its swatch and words, and, when it can be unticked, its box; the box is
+    ticked or unticked from anywhere on the entry (its ``<label>``), and an unticked entry is dimmed and struck
+    through."""
+
+    toggled = Signal(str, bool)
+
+    def __init__(self, item: dict, shape: str, ticked: bool, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("plain")
+        self.item = item
+        line = QHBoxLayout(self)
+        line.setContentsMargins(0, 0, 0, 0)
+        line.setSpacing(6)                                       # ``gap: 6px``
+        self.box: QCheckBox | None = None
+        if item["key"] is not None:
+            self.box = QCheckBox()
+            self.box.setAccessibleName(item["text"])
+            self.box.setChecked(ticked)
+            self.box.toggled.connect(self._toggled)
+            line.addWidget(self.box, 0, Qt.AlignVCenter)
+            self.setCursor(Qt.PointingHandCursor)
+        self.swatches = []
+        for part in (("band",), ("wedges",)) if item["swatch"][0] == "extras" else (item["swatch"],):
+            swatch = QLabel()
+            swatch.setPixmap(swatch_pixmap(part, shape))
+            swatch.setFixedSize(16, 16)
+            line.addWidget(swatch, 0, Qt.AlignVCenter)
+            self.swatches.append((swatch, part))
+        self.words = QLabel(item["text"])
+        self.words.setWordWrap(True)
+        self.words.setTextFormat(Qt.PlainText)
+        line.addWidget(self.words, 1)
+        self._look()
+
+    def sizeHint(self) -> QSize:
+        """As wide as its words on one line (``max-content``): the flow wraps them only when the entry is wider than a
+        line."""
+        line = self.layout()
+        parts = ([self.box] if self.box is not None else []) + [swatch for swatch, _part in self.swatches]
+        across = sum(part.sizeHint().width() for part in parts) + line.spacing() * len(parts)
+        words = math.ceil(self.words.fontMetrics().horizontalAdvance(self.words.text())) + 2
+        down = max([self.words.fontMetrics().height()] + [part.sizeHint().height() for part in parts])
+        return QSize(across + words, down)
+
+    def set_shape(self, shape: str) -> None:
+        for swatch, part in self.swatches:
+            if part[0] == "room":
+                swatch.setPixmap(swatch_pixmap(part, shape))
+
+    def _look(self) -> None:
+        """``.cr-key label:has(input:not(:checked)) { opacity: .55; text-decoration: line-through }``"""
+        unticked = self.box is not None and not self.box.isChecked()
+        font = self.words.font()
+        font.setStrikeOut(unticked)
+        self.words.setFont(font)
+        if unticked:
+            fade = QGraphicsOpacityEffect(self)
+            fade.setOpacity(0.55)
+            self.setGraphicsEffect(fade)
+        else:
+            self.setGraphicsEffect(None)
+
+    def _toggled(self, ticked: bool) -> None:
+        self._look()
+        self.toggled.emit(self.item["key"], ticked)
+
+    def mouseReleaseEvent(self, event) -> None:
+        if self.box is not None and event.button() == Qt.LeftButton and self.rect().contains(event.position().toPoint()):
+            self.box.toggle()
+        super().mouseReleaseEvent(event)
+
+
+class KeyPanel(QWidget):
+    """The replay's key (``.cr-key``): what each token and mark is; each entry that can be hidden with its box,
+    ticked while it is shown, and **Show all** while any is not. The players are listed, or with over twelve their
+    classes."""
+
+    changed = Signal()
+
+    def __init__(self, replay: rp.Replay, shape: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("plain")
+        self.replay, self.shape = replay, shape
+        column = QVBoxLayout(self)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(4)
+        head = QWidget()
+        head.setObjectName("plain")
+        line = FlowLayout(head, align=Qt.AlignLeft, gap=(6, 4))
+        title = QLabel(f"<b>{rp.KEY_HEAD}</b>")                  # ``<strong>Key</strong>``
+        title.setTextFormat(Qt.RichText)
+        line.addWidget(title)
+        line.addWidget(_label(rp.KEY_NOTE, "small", wrap=False))
+        self.show_all = _button(rp.SHOW_ALL, self.show_everything)
+        line.addWidget(self.show_all)
+        column.addWidget(head)
+        self.lists = QWidget()
+        self.lists.setObjectName("plain")
+        self.lists_column = QVBoxLayout(self.lists)
+        self.lists_column.setContentsMargins(0, 0, 0, 0)
+        self.lists_column.setSpacing(4)
+        column.addWidget(self.lists)
+        self.entries: list[KeyEntry] = []
+        self.fill()
+
+    def fill(self) -> None:
+        """The key's entries (``keyHTML``) as the replay has them now."""
+        _clear(self.lists_column)
+        self.entries = []
+        title, people = self.replay.key_people()
+        for name, items in (("Key", self.replay.key()), (title, people)):
+            if not items:
+                continue
+            box = QWidget()
+            box.setObjectName("plain")
+            box.setAccessibleName(name)                          # ``<ul aria-label>``
+            flow = FlowLayout(box, align=Qt.AlignLeft, gap=(16, 4))
+            for item in items:
+                entry = KeyEntry(item, self.shape, item["key"] not in self.replay.hidden)
+                entry.toggled.connect(self._toggled)
+                flow.addWidget(entry)
+                self.entries.append(entry)
+            self.lists_column.addWidget(box)
+        self._show_all()
+
+    def set_shape(self, shape: str) -> None:
+        self.shape = shape
+        for entry in self.entries:
+            entry.set_shape(shape)
+
+    def _show_all(self) -> None:
+        self.show_all.setVisible(any(e.box is not None and not e.box.isChecked() for e in self.entries))
+
+    def _toggled(self, key: str, ticked: bool) -> None:
+        if ticked:
+            self.replay.hidden.discard(key)
+        else:
+            self.replay.hidden.add(key)
+        self._show_all()
+        self.changed.emit()
+
+    def show_everything(self) -> None:
+        """**Show all**: every entry ticked again."""
+        for entry in self.entries:
+            if entry.box is not None:
+                self.replay.hidden.discard(entry.item["key"])
+                entry.box.blockSignals(True)
+                entry.box.setChecked(True)
+                entry.box.blockSignals(False)
+                entry._look()
+        self._show_all()
+        self.changed.emit()
+
+
+def merge_row(merge, merging: dict | None) -> QWidget:
+    """``mergeHTML``: **Add other recordings of this fight**, or that they are being looked for, and why the last try
+    failed."""
+    row = QWidget()
+    row.setObjectName("plain")
+    flow = FlowLayout(row, align=Qt.AlignLeft, gap=(6, 4))
+    loading = _truthy(_dict(merging).get("loading"))
+    flow.addWidget(_button(rp.MERGING if loading else rp.MERGE, merge, enabled=not loading))
+    error = _dict(merging).get("error")
+    if _truthy(error):
+        flow.addWidget(_label(js_string(error), "small"))       # ``role="status"``
+    return row
+
+
+class ReplayPanel(QWidget):
+    """The replay with its controls (``replay``'s box): its heading and note, the other recordings merged into it (or
+    the button to add them), Play and Rewind, the speed, the time slider and its clock, the arena's shape, the arena
+    and the key. ``store`` keeps the speed and the shape for every log; ``merge`` asks for the other recordings, and
+    ``merging`` is how that is going."""
+
+    def __init__(self, replay: rp.Replay, store, parent: QWidget | None = None, merge=None, merging: dict | None = None):
         super().__init__(parent)
         self.setObjectName("plain")
         self.replay, self.store = replay, store
@@ -647,6 +893,10 @@ class ReplayPanel(QWidget):
         column.addWidget(_head(rp.HEAD))
         if replay.note:
             column.addWidget(_label(replay.note, "small"))
+        if replay.sources_note():
+            column.addWidget(_label(replay.sources_note(), "small"))
+        if merge is not None:
+            column.addWidget(merge_row(merge, merging))
         controls = QWidget()
         controls.setObjectName("plain")
         flow = FlowLayout(controls, align=Qt.AlignLeft, gap=(8, 6))
@@ -692,6 +942,9 @@ class ReplayPanel(QWidget):
             self.events.show_events(replay.event_rows())
             self.body.addWidget(self.events)
         column.addWidget(body)
+        self.key = KeyPanel(replay, self.shape)                  # ``.cr-key``
+        self.key.changed.connect(self._key_changed)
+        column.addWidget(self.key)
         self.draw(0.0)
 
     @staticmethod
@@ -706,7 +959,7 @@ class ReplayPanel(QWidget):
 
     def resizeEvent(self, event) -> None:
         self.scrub.setFixedWidth(max(60, min(self.width() // 2, SCRUB_MOST)))
-        if self.events is not None:                              # under 760 px the list goes under the arena, 220 px tall
+        if self.events is not None:                              # under 535 px the list goes under the arena, 220 px tall
             narrow = self.width() < NARROW
             self.body.setDirection(QBoxLayout.TopToBottom if narrow else QBoxLayout.LeftToRight)
             if narrow:
@@ -719,9 +972,17 @@ class ReplayPanel(QWidget):
         super().resizeEvent(event)
 
     def room(self) -> dict | None:
-        """The arena drawn: the room in the shape chosen (``drawRoom``)."""
+        """The arena drawn: the room in the shape chosen (``drawRoom``), none while the key hides it."""
         rooms = self.replay.rooms
-        return {**rooms[self.shape], "shape": self.shape} if rooms is not None else None
+        if rooms is None or "arena" in self.replay.hidden:
+            return None
+        return {**rooms[self.shape], "shape": self.shape}
+
+    def _key_changed(self) -> None:
+        """An entry of the key ticked or unticked (``keyChanged``): the list and the moment drawn again."""
+        if self.events is not None:
+            self.events.show_events(self.replay.event_rows())
+        self.draw(self.clock)
 
     def draw(self, t: float) -> None:
         """The moment ``t`` (``draw``): the slider, the clock and the arena."""
@@ -769,8 +1030,9 @@ class ReplayPanel(QWidget):
         self.draw(min(self.replay.duration, t))
 
     def set_shapes(self, shapes: dict | None) -> None:
-        """The measured areas come (``aoeRedraw``): the list and the moment drawn again with them."""
+        """The measured areas come (``aoeRedraw``): the key, the list and the moment drawn again with them."""
         self.replay.shapes = shapes
+        self.key.fill()
         if self.events is not None:
             self.events.show_events(self.replay.event_rows())
         self.draw(self.clock)
@@ -789,6 +1051,7 @@ class ReplayPanel(QWidget):
         """The arena's shape (``data-room-shape``): kept for every log."""
         self.shape = rp.room_shape(value)
         self.store.setValue(rp.ROOM_KEY, self.shape)
+        self.key.set_shape(self.shape)                            # the key's arena in the shape (``data-key-room``)
         self.arena.show_moment(self.arena.tokens, self.room(), self.arena.marks)
 
     def stop(self) -> None:
