@@ -44,8 +44,8 @@ OPPONENT_NOTE = ("The review below reads the fight from their side: the summary,
                  "their deaths, and the buffs, debuffs and crowd control on and from them. Only what the recording holds of "
                  "them is shown.")
 REFRESH = "Refresh rankings"
-ELSEWHERE = ("The graph, timeline, events, abilities and skills, actions, death recaps, insights, rankings, reports, "
-             "comparisons and movement replay of this log open in the web interface for now.")
+ELSEWHERE = ("The timeline, events, abilities and skills, actions, death recaps, insights, rankings, reports, comparisons "
+             "and movement replay of this log open in the web interface for now.")
 OPEN_WEB = "Open the full review in the web interface"
 SUMMARY_COLUMNS = ["Player / server", "Class", "Damage done", "DPS", "Damage taken", "Healing", "HPS", "Deaths"]
 
@@ -183,7 +183,8 @@ def matches_mode(doc: dict, segment: dict, mode: str) -> bool:
 def fresh_state(mode=None, segment=None) -> dict:
     """The review's choices as it opens (``state``)."""
     return {"mode": mode if mode in ("pve", "pvp") else "", "run": "", "segment": segment if isinstance(segment, int) else 0,
-            "metric": "summary", "view": "table", "combine": True, "pets": True, "actor": "", "enemy": ""}
+            "metric": "summary", "view": "table", "combine": True, "pets": True, "actor": "", "enemy": "", "graph": True,
+            "graph_mode": "total", "hidden": set()}
 
 
 def settle_segment(doc: dict, state: dict) -> None:
@@ -760,3 +761,276 @@ def reconstructed(doc: dict) -> bool:
     """A combined review of several parts, which ranks nothing (``mount``'s first line)."""
     m = _dict(doc.get("meta"))
     return _truthy(m.get("reconstruction")) or _truthy(_dict(m.get("capture_quality")).get("reconstructed"))
+
+
+# ------------------------------------------------------------------ the graph, the ping, the bosses and the enemies (0.2.458)
+OPTIONS = (("graph", "Graph"), ("pets", "Pets"), ("combine", "Combine pets with owner"))
+GRAPH_MODES = (("total", "Live style · bars + 10 s average"), ("players", "Player series"))
+GRAPH_HINT = "Hover or click the graph for rates. In Timeline view, click a time to move the timeline window there."
+KINDS = ("Damage done", "Healing", "Damage taken")
+NO_PING = "Recorder ping: not recorded for this encounter."
+HP_NOTE = "HP is observed, not inferred from damage. A last positive sample does not establish the final outcome."
+ENEMY_COLUMNS = ["Enemy", "Creature type", "Damage received", "Observed lifespan"]
+UNNAMED_NOTE = ("Unnamed summon and Unnamed NPC are entities the game data gives no name, labelled by their kind: mostly what a "
+                "boss summons for its attacks. Each row counts every one of that name.")
+ALL_ENEMIES = "All enemies"
+_UNNAMED = re.compile(r"^(Unnamed (summon|NPC)|\?\?\?)$")
+
+
+def is_boss(e) -> bool:
+    """A boss the review marks (``bossEntity``): never a mini-boss the catalog once took for one."""
+    e = _dict(e)
+    return _truthy(e.get("is_boss")) and js_text(e.get("mob_code")) not in MINIBOSS_CODES
+
+
+def npc_name(e, names: dict | None = None) -> str:
+    """An NPC's name (``npcName``): the catalog's, else the community's for a code the catalog names "#<code>"."""
+    e = _dict(e)
+    name = js_text(e["name"]) if e.get("name") not in (None, "") else js_text(e.get("id") if e.get("id") is not None else "")
+    if e.get("mob_code") is not None and re.fullmatch(r"#\d+", name) and names:
+        found = names.get(js_text(e["mob_code"]))
+        if found:
+            return js_text(found)
+    return name
+
+
+def community_names(answer) -> dict:
+    """The community's NPC names by code (``A2CommunityNames``, npc-portraits.js), from the log server's map."""
+    answer = _dict(answer)
+    rows = answer.get("portraits") if isinstance(answer.get("portraits"), dict) else answer
+    return {js_text(code): row["name"] for code, row in _dict(rows).items()
+            if isinstance(row, dict) and isinstance(row.get("name"), str) and row["name"]}
+
+
+def enemy_ids(state: dict) -> set:
+    return set(filter(None, js_text(state.get("enemy") or "").split(",")))
+
+
+def visible_events(d: dict, state: dict) -> list[dict]:
+    """The events the review shows (``visibleEvents``): a player's, the enemies chosen, pets or not, the metric's."""
+    owner, ours, r, enemies = d["owner"], d["ours"], d["r"], enemy_ids(state)
+    metric = state["metric"]
+    out = []
+    for e in d["events"]:
+        kind, source, target = e.get("kind"), e.get("source"), e.get("target")
+        if state["actor"] and owner(source) != state["actor"] and owner(target) != state["actor"]:
+            continue
+        if state.get("enemy") and not d["foe"] and kind == "damage" and target not in enemies and source not in enemies:
+            continue
+        if not state.get("pets", True) and (_truthy(_dict(r.get(source)).get("owner")) or _truthy(_dict(r.get(target)).get("owner"))):
+            continue
+        if not (metric == "summary" or (metric == "damage" and kind == "damage" and ours(source))
+                or (metric == "taken" and kind == "damage" and ours(target)) or (metric == "healing" and kind == "heal")
+                or (metric == "deaths" and kind == "death")):
+            continue
+        out.append(e)
+    return out
+
+
+def _locale_key(text: str):
+    from .combat import locale_key
+    return locale_key(text)
+
+
+def graph(d: dict, events: list[dict], state: dict, hidden: set) -> dict:
+    """The rate chart (``graph``): each player's damage done, healing and damage taken a second in buckets of a second
+    or more, the metric's total with its trailing ten-second average, and the bosses' HP (an opponent's own, or the
+    enemies chosen)."""
+    duration = max(_num(d["segment"].get("duration")) or 0.0, 1.0)
+    step = max(1, math.ceil(duration / 1200))
+    count = math.ceil(duration / step)
+    metric = state["metric"]
+    primary = "Healing" if metric == "healing" else "Damage taken" if metric == "taken" else "Damage done"
+    owner, ours = d["owner"], d["ours"]
+    series: dict = {}
+    for e in events:
+        kind = e.get("kind")
+        if kind == "death":
+            continue
+        if kind == "heal":
+            actor, line_kind = owner(e.get("source")), "Healing"
+        elif ours(e.get("source")):
+            actor, line_kind = owner(e.get("source")), "Damage done"
+        elif ours(e.get("target")):
+            actor, line_kind = owner(e.get("target")), "Damage taken"
+        else:
+            continue
+        key = f"{js_text(actor)}:{line_kind}"
+        if key in hidden:
+            continue
+        line = series.setdefault(key, {"key": key, "actor": actor, "kind": line_kind, "values": [0.0] * count})
+        i = max(0, min(count - 1, math.floor((_num(e.get("t")) or 0.0) / step)))
+        line["values"][i] += _amount(e) / max(0.001, min(step, duration - i * step))
+    r = d["r"]
+    lines = sorted(series.values(), key=lambda s: (_locale_key(actor_label(r.get(s["actor"]))), js_text(s["actor"]),
+                                                  KINDS.index(s["kind"])))
+    total = [0.0] * count
+    for s in lines:
+        if s["kind"] == primary:
+            for i, v in enumerate(s["values"]):
+                total[i] += v
+    roll = []
+    for i in range(count):
+        amount = spent = 0.0
+        j = i
+        while j >= 0 and (i - j) * step < 10:
+            span = min(step, duration - j * step, 10 - (i - j) * step)
+            amount += total[j] * span
+            spent += span
+            j -= 1
+        roll.append(amount / max(0.001, spent))
+    maximum = max([1.0] + total + roll)
+    if state.get("graph_mode") == "players":
+        maximum = max([maximum] + [v for s in lines for v in s["values"]])
+    enemies = enemy_ids(state)
+
+    def counts(s):
+        if not (0 <= (_num(s.get("t")) if _num(s.get("t")) is not None else -1) <= duration):
+            return False
+        if d["foe"]:
+            return s.get("entity") == d["foe"]
+        if state.get("enemy"):
+            return s.get("entity") in enemies
+        return is_boss(r.get(s.get("entity")))
+    health = [s for s in _list(d["segment"].get("health")) if isinstance(s, dict) and counts(s)]
+    hp_max = max([1.0] + [(_num(s.get("max")) or _num(s.get("current")) or 0.0) for s in health])
+    hp_of = "their HP" if d["foe"] else "boss HP"
+    line_words = (f"{primary} per second · {step}s buckets"
+                  + (f" · red: {hp_of}, right scale" if health else f" · {'Their' if d['foe'] else 'Boss'} HP: not recorded"))
+    return {"duration": duration, "step": step, "count": count, "total": total, "roll": roll, "lines": lines,
+            "health": health, "hp_max": hp_max, "hp_of": hp_of, "primary": primary, "maximum": maximum,
+            "mode": "players" if state.get("graph_mode") == "players" else "total", "words": line_words}
+
+
+def graph_detail(model: dict, t: float, r: dict, foe: str) -> dict:
+    """The rates at a moment of the graph (``inspect``): the totals, each player's three rates, and each boss's latest HP."""
+    t = max(0.0, min(model["duration"], t))
+    i = min(model["count"] - 1, math.floor(t / model["step"]))
+
+    def rate(x):
+        return "—" if x is None else number(x) + "/s"
+    rates: dict = {}
+    for s in model["lines"]:
+        rates.setdefault(s["actor"], {})[s["kind"]] = s["values"][i]
+    head = (f"{clock(t, True)} · Total {model['primary'].lower()}: {rate(model['total'][i])} · 10 s average: "
+            f"{rate(model['roll'][i])}")
+    rows = [{"actor": actor, "label": actor_label(r.get(actor)), "cells": [rate(row.get(k)) for k in KINDS]}
+            for actor, row in rates.items()]
+    hp = []
+    for entity in dict.fromkeys(s.get("entity") for s in model["health"]):
+        samples = sorted((s for s in model["health"] if s.get("entity") == entity and (_num(s.get("t")) or 0.0) <= t),
+                         key=lambda s: -(_num(s.get("t")) or 0.0))
+        if samples:
+            s = samples[0]
+            hp.append([actor_label(r.get(entity)), number(s.get("current")),
+                       number(s.get("max")) if _truthy(s.get("max")) else "Unavailable", clock(s.get("t"), True)])
+    return {"at": t, "head": head, "rows": rows, "hp": hp, "hp_head": ["Opponent" if foe else "Boss", "Remaining HP",
+                                                                       "Observed maximum", "Sample time"]}
+
+
+def latency(d: dict) -> dict | None:
+    """The recorder's ping (``latencyHTML``): its samples, average, least and most, the source, and the points drawn;
+    None when the encounter recorded none."""
+    seg = d["segment"]
+    end = _num(seg.get("duration")) or 0.0
+    samples = []
+    for p in _list(seg.get("ping")):
+        if not isinstance(p, (list, tuple)) or len(p) != 2:
+            continue
+        t, ms = _num(p[0]), _num(p[1])
+        if t is None or ms is None or isinstance(p[0], bool) or isinstance(p[1], bool):
+            continue
+        if 0 <= t <= end and 0 <= ms <= 60000:
+            samples.append((t, ms))
+    if not samples:
+        return None
+    values = [ms for _t, ms in samples]
+    every = max(1, math.ceil(len(samples) / 1500))
+    recorder = d["r"].get(seg.get("ping_recorder"))
+    return {"title": "Recorder ping" + (f" · {actor_label(recorder)}" if recorder else ""),
+            "figures": (f"Average {theme.fixed(sum(values) / len(values), 1)} ms · Minimum {theme.fixed(min(values), 1)} ms · "
+                        f"Maximum {theme.fixed(max(values), 1)} ms · {number(len(samples))} samples"),
+            "source": ("Passive TCP acknowledgement RTT" if seg.get("ping_source") == "passive_tcp_ack"
+                       else "Recorded latency; measurement source unavailable")
+                      + ". These samples describe the recording connection, not every party member or game action latency. "
+                        "Gaps have no samples; the average weights recorded samples equally.",
+            "duration": max(0.001, end), "scale": max(1.0, max(values)),
+            "points": [p for i, p in enumerate(samples) if i % every == 0 or i == len(samples) - 1]}
+
+
+def boss_hp(d: dict, state: dict) -> list[list[str]]:
+    """Each boss's latest recorded HP (``bossHPHTML``), the enemies chosen only."""
+    seg, enemies = d["segment"], enemy_ids(state)
+    end = _num(seg.get("duration")) or 0.0
+    rows = []
+    for b in _list(seg.get("entities")):
+        if not is_boss(b) or (state.get("enemy") and b.get("id") not in enemies):
+            continue
+        samples = sorted((h for h in _list(seg.get("health")) if isinstance(h, dict) and h.get("entity") == b.get("id")
+                          and (_num(h.get("t")) or 0.0) <= end), key=lambda h: -(_num(h.get("t")) or 0.0))
+        hp = samples[0] if samples else None
+        top, now = (_num(hp.get("max")), _num(hp.get("current"))) if hp else (None, None)
+        rows.append([js_text(b.get("name") or b.get("id")), number(now) if hp else "Not recorded",
+                     number(top) if hp and top else "Not recorded",
+                     theme.fixed(100 * now / top, 1) + "%" if hp and top and now is not None and now <= top else "Unavailable",
+                     clock(hp.get("t"), True) if hp else "—"])
+    return rows
+
+
+def enemy_encounters(d: dict, state: dict, names: dict | None = None) -> dict:
+    """The enemies (``encounters``): one row per name, a boss's forms and every spawn of an add together, a PvP opponent
+    its own; the unnamed summons nobody struck folded away."""
+    groups: dict = {}
+    of: dict = {}
+    for e in _list(d["segment"].get("entities")):
+        if not isinstance(e, dict) or e.get("kind") != "enemy":
+            continue
+        key = f"id:{js_text(e.get('id'))}" if _truthy(e.get("is_player")) else f"name:{npc_name(e, names)}"
+        g = groups.setdefault(key, {"entity": e, "ids": [], "codes": [], "boss": False, "damage": 0.0, "struck": 0,
+                                    "first": math.inf, "last": -math.inf})
+        g["ids"].append(e.get("id"))
+        if e.get("mob_code") is not None and e["mob_code"] not in g["codes"]:
+            g["codes"].append(e["mob_code"])
+        g["boss"] = g["boss"] or is_boss(e)
+        of[e.get("id")] = g
+    for x in d["events"]:
+        t = _num(x.get("t")) or 0.0
+        for identifier in (x.get("source"), x.get("target")):
+            g = of.get(identifier)
+            if g is not None:
+                g["first"], g["last"] = min(g["first"], t), max(g["last"], t)
+        if x.get("kind") != "damage":
+            continue
+        hit, by = of.get(x.get("target")), of.get(x.get("source"))
+        if hit is not None:
+            hit["damage"] += _amount(x)
+        if by is not None and hit is None:
+            by["struck"] += 1
+
+    def unnamed(g):
+        return not _truthy(g["entity"].get("is_player")) and _UNNAMED.match(npc_name(g["entity"], names)) is not None
+    ordered = sorted(groups.values(), key=lambda g: (-int(g["boss"]), -g["damage"], g["first"]))
+    folded = [g for g in ordered if unnamed(g) and not g["damage"]]
+    shown = [g for g in ordered if g not in folded]
+
+    def row(g):
+        e = g["entity"]
+        return {"ids": ",".join(js_text(i) for i in g["ids"]), "entity": e, "player": _truthy(e.get("is_player")),
+                "name": actor_label(e) if _truthy(e.get("is_player")) else npc_name(e, names), "count": len(g["ids"]),
+                "code": e.get("mob_code"),
+                "filter": "Filter" + (" (opponent)" if _truthy(e.get("is_player")) else " (boss)" if g["boss"] else ""),
+                "types": ", ".join(js_text(c) for c in g["codes"]) or "Unknown", "damage": number(g["damage"]),
+                "lifespan": (f"{theme.fixed(g['first'], 1)}–{theme.fixed(g['last'], 1)}s" if g["first"] <= g["last"] else "—")}
+    hidden = None
+    if folded:
+        n = sum(len(g["ids"]) for g in folded)
+        hits = sum(g["struck"] for g in folded)
+        one = n == 1
+        summons = all(npc_name(g["entity"], names) == "Unnamed summon" for g in folded)
+        noun = ("unnamed summon" if one else "unnamed summons") if summons else ("unnamed entity" if one else "unnamed entities")
+        hidden = {"title": f"{number(n)} {noun} the party never struck",
+                  "note": (f"The game data gives {'it' if one else 'these'} no name. {'It' if one else 'They'} took no damage"
+                           + (f" and struck the party {number(hits)} time{'' if hits == 1 else 's'}" if hits else "")
+                           + ": part of the boss's attacks rather than enemies to fight."),
+                  "rows": [row(g) for g in folded]}
+    return {"rows": [row(g) for g in shown], "named_note": any(unnamed(g) for g in shown), "folded": hidden}

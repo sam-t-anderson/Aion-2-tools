@@ -8,15 +8,18 @@ Drawn here so far:
 - the capture's quality, with how a cut fight was joined, and the run timing and boss progression;
 - the summary of every player's damage done and taken, healing and deaths, by the metric chosen, with each player's
   parse from the log server's rankings.
+- Since 0.2.458 the rate chart, in either style, with the rates and the bosses' HP at any moment of it; the recorder's
+  ping; the bosses' remaining HP; and the enemy encounters, any of which narrows the review to it.
 
-The rest of the review (its graph, timeline, events, abilities, actions, death recaps, insights, rankings, reports,
+The rest of the review (its timeline, events, abilities, actions, death recaps, insights, rankings, reports,
 comparisons and movement replay) opens in the web interface for now, from a button on the page.
 """
 from __future__ import annotations
 
 import html
 
-from PySide6.QtWidgets import QComboBox, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QCheckBox, QComboBox, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from . import combat_review as cw
 from . import combat_records as cr
@@ -26,8 +29,10 @@ from .account import TIER_COLOURS
 from .account_page import _parse_pill
 from .api import AppApi, Requests
 from .combat_community import _note
+from .combat_review_charts import HP, LINE, PingChart, RateChart
 from .combat_saved import TIMEOUT, Section, _button, _clear, _head, _label
 from .database_page import Window
+from .pictures import Pictures
 from .result_windows import GridTable
 from .results import _dict, _truthy, js_text
 
@@ -61,11 +66,21 @@ class ReviewPage(QWidget):
     """A log's own page (``pageCombatLog``, ``A2CombatReview.mount``). ``open_web`` opens a page of the app (another log
     opens here again); ``open_in_web`` opens a page in the web interface itself (the full review)."""
 
-    def __init__(self, api: AppApi | None, open_web=None, open_in_web=None, parent: QWidget | None = None):
+    def __init__(self, api: AppApi | None, open_web=None, open_in_web=None, parent: QWidget | None = None,
+                 pictures: Pictures | None = None):
         super().__init__(parent)
         self.setObjectName("plain")
         self.open_web = open_web or (lambda page: None)
         self.open_in_web = open_in_web or self.open_web
+        self.pictures = pictures
+        self.names: dict | None = None                  # the community's NPC names, read once
+        self.soon = QTimer(self)                         # pictures that come together, drawn once
+        self.soon.setSingleShot(True)
+        self.soon.setInterval(120)
+        self.soon.timeout.connect(lambda: self.draw() if self.awaiting else None)
+        self.awaiting = False                            # a portrait of this review's still being read
+        if self.pictures is not None:
+            self.pictures.changed.connect(self.soon.start)
         self.requests = Requests(api, self, timeout=TIMEOUT) if api is not None else None
         if self.requests is not None:
             self.requests.replied.connect(self._replied)
@@ -81,6 +96,7 @@ class ReviewPage(QWidget):
         self.box.setSpacing(14)
 
     def stop(self) -> None:
+        self.soon.stop()
         if self.requests is not None:
             self.requests.stop()
 
@@ -109,6 +125,8 @@ class ReviewPage(QWidget):
         _clear(self.box)
         self.box.addWidget(_label(cw.LOADING, "muted"))
         self._ask("ui", "/api/ui")
+        if self.names is None:
+            self._ask("names", "/api/v1/npc-portraits", proxied=True)
         path, proxied = cw.log_path(kind, value)
         self._ask("log", path, proxied)
 
@@ -123,6 +141,9 @@ class ReviewPage(QWidget):
         kind = self._current(name)
         if kind == "ui":
             self.colours = _dict(_dict(answer).get("combat_colors"))
+        elif kind == "names":
+            self.names = cw.community_names(answer)
+            self.draw()
         elif kind == "log":
             if isinstance(answer, dict) and _truthy(answer.get("error")):
                 self._refused(js_text(answer["error"]))
@@ -214,6 +235,7 @@ class ReviewPage(QWidget):
         doc = self.doc
         if doc is None:
             return
+        self.awaiting = False
         _clear(self.box)
         state = self.state
         cw.settle_segment(doc, state)
@@ -264,6 +286,17 @@ class ReviewPage(QWidget):
         else:
             body.addWidget(self._runs(d))
         body.addWidget(self._tabs())
+        body.addWidget(self._options())
+        events = cw.visible_events(v, state)
+        if state["graph"] and state["metric"] != "deaths":
+            body.addWidget(self._graph(v, events))
+        body.addWidget(self._ping(d))
+        bosses = cw.boss_hp(d, state)
+        if bosses:
+            body.addWidget(_head("Remaining boss HP · latest recorded sample"))
+            body.addWidget(self._table(["Boss", "Remaining HP", "Observed maximum", "Remaining %", "Sample time"], bosses))
+            body.addWidget(_muted(cw.HP_NOTE))
+        body.addWidget(self._enemies(d))
         elsewhere = QFrame()
         elsewhere.setObjectName("note")
         line = QVBoxLayout(elsewhere)
@@ -331,6 +364,173 @@ class ReviewPage(QWidget):
             line.addWidget(tab)
         line.addStretch(1)
         return box
+
+    # ---------------------------------------------------------------- the options, graph, ping and enemies (0.2.458)
+    def _options(self) -> QWidget:
+        """What the review shows (``cr-options``): the graph, pets, and pets counted with their owner."""
+        box, line = _plain(QHBoxLayout, 14)
+        for key, words in cw.OPTIONS:
+            tick = QCheckBox(words)
+            tick.setChecked(bool(self.state.get(key, True)))
+            tick.toggled.connect(lambda checked, key=key: self._option(key, checked))
+            line.addWidget(tick)
+        line.addStretch(1)
+        return box
+
+    def _option(self, key: str, checked: bool) -> None:
+        """An option ticked (``data-control``): pets combined with their owner turn a pet chosen into its owner."""
+        if key == "combine" and checked and self.state["actor"]:
+            r = cw.refs(self.doc, self.state)
+            self.state["actor"] = _dict(r.get(self.state["actor"])).get("owner") or self.state["actor"]
+        self.state[key] = checked
+        self.draw()
+
+    def _graph(self, v: dict, events: list[dict]) -> QWidget:
+        """The rate chart (``graph``) with its style, key, the rates at the moment inspected, and its series."""
+        model = cw.graph(v, events, self.state, self.state["hidden"])
+        box, column = _plain(spacing=6)
+        head, line = _plain(QHBoxLayout, 10)
+        line.addWidget(self._pick("Graph style", cw.GRAPH_MODES, model["mode"], self._graph_mode))
+        line.addWidget(_label(model["words"], "small", wrap=False))
+        line.addStretch(1)
+        column.addWidget(head)
+        key, line = _plain(QHBoxLayout, 14)
+        if model["mode"] == "players":
+            line.addWidget(_label("Class-colored lines: player rates · solid: damage done · dashed: damage taken · dotted: "
+                                  "healing", "small"))
+        else:
+            line.addWidget(self._key(f"Bars: total {model['primary'].lower()} per second", "rgba(57, 194, 224, 0.28)", bar=True))
+            line.addWidget(self._key("Gold line: trailing 10-second average", LINE.name()))
+        if model["health"]:
+            line.addWidget(self._key(f"Red line: {model['hp_of']} (right axis)", HP.name()))
+        line.addStretch(1)
+        column.addWidget(key)
+        chart = RateChart(model, v["r"], self.colours)
+        self.chart = chart
+        column.addWidget(chart)
+        detail = QFrame()
+        detail.setObjectName("note")
+        self.detail = QVBoxLayout(detail)
+        self.detail.setContentsMargins(0, 0, 0, 0)
+        self.detail.setSpacing(6)
+        self.detail.addWidget(_label(cw.GRAPH_HINT, "small"))
+        column.addWidget(detail)
+        chart.inspected.connect(lambda t: self._inspected(model, v, t))
+        buttons, line = _plain(QHBoxLayout, 6)
+        for s in model["lines"]:
+            colour = cr.class_colour(_dict(v["r"].get(s["actor"])).get("class"), self.colours)
+            button = _button(f"{cw.actor_label(v['r'].get(s['actor']))} · {s['kind']}", lambda key=s["key"]: self._hide(key))
+            button.setStyleSheet(f"color: {colour};")
+            button.setAccessibleName(f"Hide {cw.actor_label(v['r'].get(s['actor']))} · {s['kind']}")
+            line.addWidget(button)
+        line.addWidget(_button("Show all series", self._show_all))
+        line.addStretch(1)
+        column.addWidget(buttons)
+        return box
+
+    @staticmethod
+    def _key(words: str, colour: str, bar: bool = False) -> QWidget:
+        """A key of the chart: its swatch and its words."""
+        box, line = _plain(QHBoxLayout, 6)
+        swatch = QFrame()
+        swatch.setFixedSize(18 if bar else 24, 12 if bar else 2)
+        swatch.setStyleSheet(f"background: {colour}; border: none;")
+        line.addWidget(swatch, 0, Qt.AlignVCenter)
+        line.addWidget(_label(words, "small", wrap=False))
+        return box
+
+    def _graph_mode(self, mode) -> None:
+        self.state["graph_mode"] = mode or "total"
+        self.draw()
+
+    def _hide(self, key: str) -> None:
+        self.state["hidden"].add(key)
+        self.draw()
+
+    def _show_all(self) -> None:
+        self.state["hidden"].clear()
+        self.draw()
+
+    def _inspected(self, model: dict, v: dict, t: float) -> None:
+        """The rates and the bosses' HP at the moment inspected (``inspect``)."""
+        detail = cw.graph_detail(model, t, v["r"], v["foe"])
+        _clear(self.detail)
+        head, words = detail["head"].split(" · ", 1)
+        self.detail.addWidget(_label(f"<b>{html.escape(head)}</b> · {html.escape(words)}", rich=True))
+        rows = [[self._name(v["r"].get(row["actor"]))] + row["cells"] for row in detail["rows"]]
+        self.detail.addWidget(self._table(["Player", "Damage done", "Healing", "Damage taken"], rows))
+        if detail["hp"]:
+            self.detail.addWidget(self._table(detail["hp_head"], detail["hp"]))
+
+    def _ping(self, d: dict) -> QWidget:
+        """The recorder's ping (``latencyHTML``)."""
+        ping = cw.latency(d)
+        if ping is None:
+            return _muted(cw.NO_PING)
+        box, column = _plain(spacing=6)
+        column.addWidget(_head(ping["title"]))
+        column.addWidget(_label(ping["figures"]))
+        column.addWidget(_muted(ping["source"]))
+        column.addWidget(PingChart(ping))
+        return box
+
+    def _enemies(self, d: dict) -> QWidget:
+        """The enemy encounters (``encounters``), each filtering the review to it, the unnamed summons folded."""
+        found = cw.enemy_encounters(d, self.state, self.names)
+        box, column = _plain(spacing=6)
+        column.addWidget(_head("Enemy encounters"))
+        column.addWidget(self._enemy_table(found["rows"]))
+        if found["named_note"]:
+            column.addWidget(_muted(cw.UNNAMED_NOTE))
+        if found["folded"]:
+            fold = Section(found["folded"]["title"], None, False)
+            fold.body_layout.addWidget(_muted(found["folded"]["note"]))
+            fold.body_layout.addWidget(self._enemy_table(found["folded"]["rows"]))
+            column.addWidget(fold)
+        row, line = _plain(QHBoxLayout)
+        line.addWidget(_button(cw.ALL_ENEMIES, lambda: self._filter("")))
+        line.addStretch(1)
+        column.addWidget(row)
+        return box
+
+    def _enemy_table(self, rows: list[dict]) -> QWidget:
+        cells = []
+        for row in rows:
+            cell, line = _plain(QHBoxLayout, 6)
+            if not row["player"] and self.pictures is not None:
+                portrait = self.pictures.portrait(row["code"])
+                if portrait is None and self.pictures.has_portrait(row["code"]):
+                    self.awaiting = True                  # drawn again once it comes, and only then
+                if portrait is not None and not portrait.isNull():
+                    face = QLabel()
+                    face.setFixedSize(22, 22)
+                    face.setScaledContents(True)
+                    face.setPixmap(portrait)
+                    line.addWidget(face)
+            name = self._name(row["entity"]) if row["player"] else _label(html.escape(row["name"]), rich=True)
+            if row["count"] > 1:
+                name.setText(name.text() + f" <span style='color: {C['muted']};'>×{row['count']}</span>")
+            name.setWordWrap(False)
+            line.addWidget(name)
+            chosen = self.state["enemy"] == row["ids"]
+            filter_button = _button(row["filter"], lambda ids=row["ids"]: self._filter(ids), "primary" if chosen else "small")
+            filter_button.setAccessibleName(f"Filter to {row['name']}")
+            line.addWidget(filter_button)
+            line.addStretch(1)
+            cell.setProperty("fill", True)
+            cells.append([cell, row["types"], row["damage"], row["lifespan"]])
+        table = self._table(cw.ENEMY_COLUMNS, cells)
+        if cells:
+            return table
+        box, column = _plain()
+        column.addWidget(table)
+        column.addWidget(_label("No recorded events.", "tcell"))
+        return box
+
+    def _filter(self, ids: str) -> None:
+        """The review narrowed to some enemies, or to all again (``data-enemy-filter``, ``data-clear-enemy``)."""
+        self.state["enemy"] = ids
+        self.draw()
 
     def _name(self, actor) -> QLabel:
         """An actor in its class's colour (``actorHTML``)."""

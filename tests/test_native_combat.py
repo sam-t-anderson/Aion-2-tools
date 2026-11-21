@@ -4,7 +4,7 @@ them; since 0.2.451 Saved Logs' recorded encounters by type (saved-logs.js) and 
 since 0.2.452 My Uploads (log-ownership.js) and My Character Identities (identity.js); since 0.2.453 the community's
 views (logs-view.js); since 0.2.454 Personal records (community.js); since 0.2.455 the featured encounters (featured.js);
 since 0.2.456 an analyzed encounter's page with its parse card (pages/combat.js, parse.js); since 0.2.457 a log's own
-page, its review's frame and summary (combat-review.js).
+page, its review's frame and summary (combat-review.js); since 0.2.458 its graph, ping, boss HP and enemies.
 Off screen over a fake app answering as the app does, a fake share server and a fake log server behind the app's
 community proxy (made-up logs, recordings, credentials, characters, teams and encounters).
 """
@@ -21,7 +21,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QBuffer, QCoreApplication, QEvent, QSettings  # noqa: E402
+from PySide6.QtCore import QBuffer, QCoreApplication, QEvent, QSettings, Qt  # noqa: E402
 from PySide6.QtGui import QColor, QImage  # noqa: E402
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QLabel, QLineEdit, QPlainTextEdit,  # noqa: E402
                                QPushButton)
@@ -258,6 +258,27 @@ REVIEW_RANKS = {"players": [{"id": "p1", "parse": 98.6, "parse_runs": 12, "parse
                 "note": "Ranked against public runs."}
 
 
+def _fight():
+    """The recorded log with more to its PvE fight: the boss's HP, two hounds, a summon nobody struck, an NPC the catalog
+    names only by its code, and the recorder's ping."""
+    fight = json.loads(json.dumps(REVIEW_LOG))
+    seg = fight["segments"][0]
+    seg["entities"][1]["mob_code"] = 2001
+    seg["entities"] += [{"id": "a1", "name": "Frost Hound", "kind": "enemy", "mob_code": 2002},
+                        {"id": "a2", "name": "Frost Hound", "kind": "enemy", "mob_code": 2002},
+                        {"id": "u1", "name": "Unnamed summon", "kind": "enemy", "mob_code": 9001},
+                        {"id": "c1", "name": "#4242", "kind": "enemy", "mob_code": 4242}]
+    seg["events"] += [{"kind": "damage", "t": 6.0, "source": "p1", "target": "a1", "amount": 400, "skill": "Flame Burst"},
+                      {"kind": "damage", "t": 7.5, "source": "p1", "target": "a2", "amount": 300, "skill": "Flame Burst"},
+                      {"kind": "damage", "t": 8.0, "source": "u1", "target": "p2", "amount": 50, "skill": "Spike"},
+                      {"kind": "damage", "t": 9.5, "source": "p1", "target": "c1", "amount": 100, "skill": "Flame Burst"}]
+    seg["health"] = [{"entity": "b1", "t": 0.0, "current": 10000, "max": 10000},
+                     {"entity": "b1", "t": 60.0, "current": 4000, "max": 10000}, {"entity": "b1", "t": 130.0, "current": 0}]
+    seg["ping"] = [[0.5, 42.0], [30.0, 55.5], [130, 40], [10, 70000], "bad"]
+    seg["ping_source"], seg["ping_recorder"] = "passive_tcp_ack", "p1"
+    return fight
+
+
 class LogServer:
     """The log server's public routes behind the app's community proxy, as logs-view.js asks them."""
 
@@ -286,6 +307,7 @@ class LogServer:
              "observed_kill_rate": 0.2, "fastest_kill_seconds": 400}]}
         self.featured: list[dict] = []                       # none featured, unless a test features one
         self.posted: list[tuple[str, dict]] = []               # what was sent to the server's routes
+        self.review_log = REVIEW_LOG                            # the log its raw route gives, and the app's recording
         self.points = {"observations": [
             {"class_name": "sorcerer", "skill": 100, "stigma": 20, "daevanion": 300, "ariel": None, "region": "NA"},
             {"class_name": "sorcerer", "skill": 110, "stigma": 20, "daevanion": 300, "ariel": 5, "region": "EU"},
@@ -322,9 +344,11 @@ class LogServer:
         if route.startswith("/api/v1/logs/") and route.endswith("/raw"):
             if route != "/api/v1/logs/log0001/raw":
                 raise ValueError("RuntimeError: Community server (404): no such log")
-            return json.loads(json.dumps(REVIEW_LOG))
+            return json.loads(json.dumps(self.review_log))
         if route.startswith("/api/v1/logs/") and route.endswith("/rankings"):
             return {**json.loads(json.dumps(REVIEW_RANKS)), "segment": int(q["segment"][0])}
+        if route == "/api/v1/npc-portraits":
+            return {"portraits": {"4242": {"name": "Ice Wraith", "icon": "https://img.example/npc/4242.png"}}}
         if route == "/api/v1/featured":
             return {"featured": json.loads(json.dumps(self.featured)), "note": "Featured by the operator."}
         if route.startswith("/api/v1/featured/"):
@@ -523,7 +547,7 @@ class FakeApp:
             if "file" in query:
                 if query["file"] != ["session-1.a2log.json"]:
                     raise ValueError("No such recording")
-                return json.loads(json.dumps(REVIEW_LOG))
+                return json.loads(json.dumps(self.log_server.review_log))
             return self.sessions(query)
         if path == "/api/jobs/imp":
             self.reads -= 1
@@ -2406,6 +2430,126 @@ def test_the_window_opens_a_log_review_itself(qapp):
     assert combat.review_page.where == {"kind": "local", "value": "session 1.json"}
     QCoreApplication.processEvents()
     assert combat.review_page.isVisibleTo(combat) and not combat.frame.isVisibleTo(combat)
+
+
+def test_the_review_graph_and_enemy_words():
+    import pytest as _pytest
+    fight = _fight()
+    state = cw.fresh_state()
+    d = cw.data(fight, state)
+    names = cw.community_names({"portraits": {"4242": {"name": "Ice Wraith", "icon": "x"}, "1": "y", "2": {"name": ""}}})
+    assert names == {"4242": "Ice Wraith"} and cw.community_names({"4242": {"name": "Ice Wraith"}}) == names
+    assert cw.npc_name({"name": "#4242", "mob_code": 4242}, names) == "Ice Wraith"
+    assert cw.npc_name({"name": "#4242", "mob_code": 4242}) == "#4242" and cw.npc_name({"name": "", "id": 5}) == "5"
+    assert cw.is_boss({"is_boss": True}) and not cw.is_boss({"is_boss": True, "mob_code": 2300907})
+    # the events shown: a player's, the metric's, without pets, the enemies chosen
+    every = cw.visible_events(d, state)
+    assert len(every) == len(d["events"])
+    assert len(cw.visible_events(d, {**state, "actor": "p2"})) == 6
+    assert [e["kind"] for e in cw.visible_events(d, {**state, "metric": "healing"})] == ["heal"]
+    assert not any(e.get("source") == "pet1" for e in cw.visible_events(d, {**state, "pets": False}))
+    hounds = cw.visible_events(d, {**state, "enemy": "a1,a2"})
+    assert [e.get("target") for e in hounds if e["kind"] == "damage"] == ["a1", "a2"]
+    # the rate chart
+    model = cw.graph(d, every, state, set())
+    assert (model["duration"], model["step"], model["count"], model["primary"], model["maximum"]) == (120, 1, 120, "Damage done", 1500)
+    assert [s["key"] for s in model["lines"]] == ["p2:Healing", "p2:Damage taken", "p1:Damage done"]
+    assert model["total"][:3] == [1000, 500, 1500] and model["roll"][:3] == [1000, 750, 1000]
+    assert model["roll"][9] == _pytest.approx(380) and model["roll"][10] == _pytest.approx(280)
+    assert len(model["health"]) == 2 and model["hp_max"] == 10000            # a sample after the fight left out
+    assert model["words"] == "Damage done per second · 1s buckets · red: boss HP, right scale"
+    detail = cw.graph_detail(model, 2.2, d["r"], "")
+    assert detail["head"] == "0:02.20 · Total damage done: 1,500/s · 10 s average: 1,000/s"
+    assert [(row["label"], row["cells"]) for row in detail["rows"]] == [
+        ("TestCleric", ["—", "0/s", "0/s"]), ("TestSorc ✓ · Zikel", ["1,500/s", "—", "—"])]
+    assert detail["hp"] == [["Ice Queen", "10,000", "10,000", "0:00.00"]] and detail["hp_head"][0] == "Boss"
+    assert cw.graph(d, every, state, {"p1:Damage done"})["maximum"] == 1.0
+    assert cw.graph(d, every, {**state, "graph_mode": "players"}, set())["mode"] == "players"
+    pvp = {**state, "segment": 1}
+    foe = cw.data(fight, pvp, "e1")
+    assert cw.graph(foe, cw.visible_events(foe, pvp), pvp, set())["words"].endswith("· Their HP: not recorded")
+    # the ping, the bosses' HP, the enemies
+    ping = cw.latency(d)
+    assert ping["title"] == "Recorder ping · TestSorc ✓ · Zikel" and len(ping["points"]) == 2
+    assert ping["figures"] == "Average 48.8 ms · Minimum 42.0 ms · Maximum 55.5 ms · 2 samples"
+    assert ping["source"].startswith("Passive TCP acknowledgement RTT. These samples describe the recording connection")
+    assert cw.latency(cw.data(REVIEW_LOG, state)) is None
+    assert cw.boss_hp(d, state) == [["Ice Queen", "4,000", "10,000", "40.0%", "1:00.00"]]
+    assert cw.boss_hp(d, {**state, "enemy": "a1,a2"}) == []
+    found = cw.enemy_encounters(d, state, names)
+    assert [(row["name"], row["ids"], row["count"], row["filter"], row["types"], row["damage"], row["lifespan"]) for row in found["rows"]] == [
+        ("Ice Queen", "b1", 1, "Filter (boss)", "2001", "3,000", "0.5–3.1s"),
+        ("Frost Hound", "a1,a2", 2, "Filter", "2002", "700", "6.0–7.5s"),
+        ("Ice Wraith", "c1", 1, "Filter", "4242", "100", "9.5–9.5s")]
+    assert not found["named_note"] and found["folded"]["title"] == "1 unnamed summon the party never struck"
+    assert found["folded"]["note"] == ("The game data gives it no name. It took no damage and struck the party 1 time: part of "
+                                       "the boss's attacks rather than enemies to fight.")
+    assert cw.enemy_encounters(cw.data(fight, pvp), pvp)["rows"][0]["filter"] == "Filter (opponent)"
+
+
+def test_the_review_graph_and_enemies(qapp):
+    from PySide6.QtTest import QTest
+    from aion2calc.gui.combat_review_charts import PingChart, RateChart
+    app = FakeApp()
+    app.log_server.review_log = _fight()
+    page = _page(app)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: "Enemy encounters" in _labels(view) and "Ice Wraith" in " ".join(_labels(view)))
+    texts = _labels(view)
+    assert all(t in texts for t in ("Bars: total damage done per second", "Gold line: trailing 10-second average",
+                                    "Red line: boss HP (right axis)", cw.GRAPH_HINT, "Recorder ping · TestSorc ✓ · Zikel",
+                                    "Average 48.8 ms · Minimum 42.0 ms · Maximum 55.5 ms · 2 samples", cw.HP_NOTE,
+                                    "Damage done per second · 1s buckets · red: boss HP, right scale"))
+    assert all(c in _cells(view) for c in ("4,000", "40.0%", "1:00.00", "0.5–3.1s", "700"))
+    assert len(view.findChildren(PingChart)[0].ping["points"]) == 2
+    assert any("Frost Hound" in t and "×2" in t for t in texts)
+    assert "1 unnamed summon the party never struck" in [f.button.text() for f in view.findChildren(Section)]
+    settle(lambda: any(label.width() == 22 and not label.pixmap().isNull() for label in view.findChildren(QLabel)
+                       if label.isVisibleTo(view)))                         # the boss's bundled portrait
+    # the moment inspected: by the pointer's move, a click or the arrow keys
+    chart = view.chart
+    assert isinstance(chart, RateChart) and chart.model["mode"] == "total"
+    chart.inspect(2.2)
+    texts = _labels(view)
+    assert "<b>0:02.20</b> · Total damage done: 1,500/s · 10 s average: 1,000/s" in texts
+    assert "1,500/s" in _cells(view) and "10,000" in _cells(view)
+    chart.setFocus()
+    QTest.keyClick(chart, Qt.Key_Right)
+    assert chart.at == _pytest_approx(3.2)
+    # the series: one hidden, all shown again; the players' style
+    _click(view, "TestCleric · Healing")
+    assert "TestCleric · Healing" not in _buttons(view)
+    _click(view, "Show all series")
+    assert "TestCleric · Healing" in _buttons(view)
+    _choose(view, "Graph style", "players")
+    assert view.chart.model["mode"] == "players" and any(t.startswith("Class-colored lines") for t in _labels(view))
+    # an enemy chosen narrows the review to it; all again
+    _find(view, QPushButton, lambda b: b.accessibleName() == "Filter to Frost Hound").click()
+    assert view.state["enemy"] == "a1,a2" and "700" in _cells(view) and "4,000" not in _cells(view)
+    assert _find(view, QPushButton, lambda b: b.accessibleName() == "Filter to Frost Hound").objectName() == "primary"
+    _click(view, cw.ALL_ENEMIES)
+    assert view.state["enemy"] == "" and "4,000" in _cells(view)
+    # the options: no graph; pets apart, a pet chosen becoming its owner when they are combined again
+    _find(view, QCheckBox, lambda c: c.text() == "Graph").setChecked(False)
+    assert not [c for c in view.findChildren(RateChart) if c.isVisibleTo(view)]
+    _find(view, QCheckBox, lambda c: c.text() == "Graph").setChecked(True)
+    _find(view, QCheckBox, lambda c: c.text() == "Combine pets with owner").setChecked(False)
+    assert any("Spirit" in t for t in _labels(view))
+    _choose(view, "Player", "pet1")
+    _find(view, QCheckBox, lambda c: c.text() == "Combine pets with owner").setChecked(True)
+    assert view.state["actor"] == "p1"
+
+
+def _buttons(widget):
+    """The buttons shown, once what was drawn last has shown."""
+    QCoreApplication.processEvents()
+    return [b.text() for b in widget.findChildren(QPushButton) if b.isVisibleTo(widget)]
+
+
+def _pytest_approx(x):
+    import pytest as _pytest
+    return _pytest.approx(x)
 
 
 def test_the_window_draws_combat_logs_itself(qapp):

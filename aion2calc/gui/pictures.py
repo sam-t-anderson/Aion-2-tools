@@ -112,6 +112,15 @@ class Pictures(QObject):
         self._ask_map()
         return self._picture(self.npcs.get(str(code)))
 
+    def has_portrait(self, code) -> bool:
+        """Whether the app bundles a portrait for a boss's code (``portrait`` may still be reading it); True until the
+        asset map is read, as any code may be in it."""
+        if code is None or isinstance(code, bool):
+            return False
+        if self._map_state != "read":
+            return True
+        return str(code) in self.npcs
+
     def _ask_map(self) -> None:
         state = self._map_state
         if self.requests is None or state in ("asking", "read"):

@@ -259,7 +259,7 @@ class CombatPage(QWidget):
     def open_review(self, kind: str, value: str, mode=None, segment=None) -> None:
         """A log's own page in place of the views (``#/combat-log/local/<file>``, ``#/combat-log/shared/<id>``)."""
         if self.review_page is None:
-            self.review_page = ReviewPage(self.api, self.open_web, self.open_in_web)
+            self.review_page = ReviewPage(self.api, self.open_web, self.open_in_web, pictures=self.pictures)
             self.featured_line.addWidget(self.review_page)
         self.review_page.show_log(kind, value, mode, segment)
         self._in_place(self.review_page)
