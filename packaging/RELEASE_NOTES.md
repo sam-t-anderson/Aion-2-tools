@@ -1,3 +1,20 @@
+## The Arcana and Titles windows in the native interface (0.2.436)
+
+**Two more result windows are native now.** A saved build's **Arcana** and **Titles, wings & pet** windows open in the app's window, as the web page draws them:
+- **Arcana:**
+  - a character's arcana cards: each card's picture and enchant level, its name in its grade's colour, its deity stat (Time [Siel] +20.3), its skill levels and its stats;
+  - **RECOMMENDED VARIANT PER SLOT**: each slot's variant (or either), and what each variant gives;
+  - **SKILL ROLLS**: the value of each arcana slot's skill rolls, the best at +5 first, with its four best skills;
+  - the deity and primary stats' totals in a window of their own;
+  - **Copy as text**.
+- **Titles, wings & pet:**
+  - the titles, wings and pet the build wears, the wings in their grade's colour and the pet with its level;
+  - the best titles for the build with their equip and owned bonuses, each title in its grade's colour;
+  - the stats from the equipped titles.
+- The cards sit five to a row, two on a narrow window, as on the web page.
+
+Pet Genus, Skills hotbar and Macro & rotation are on the web Saved Results page for now.
+
 ## The Daevanion and Equipment windows in the native interface (0.2.435)
 
 **Two more result windows are native now.** A saved build's **Daevanion** and **Equipment** windows open in the app's window, as the web page draws them:

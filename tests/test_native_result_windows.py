@@ -1,6 +1,7 @@
-"""The native result windows' second part (0.2.435): a saved build's Daevanion and Equipment windows as
-pages/results.js draws them (``winDaevanion``, ``slotTile``, ``winEquipment``), off screen, over the app's own result
-view of the bundled sorcerer build, and that build dressed with every slot extra the web page shows.
+"""The native result windows' second and third parts (0.2.435, 0.2.436): a saved build's Daevanion, Equipment,
+Arcana and Titles, wings & pet windows as pages/results.js draws them (``winDaevanion``, ``slotTile``, ``winEquipment``,
+``winArcana``, ``winTitles``), off screen, over the app's own result view of the bundled sorcerer build, and that build
+dressed with every slot extra, arcana card and the pet the web page shows.
 """
 import copy
 import json
@@ -15,7 +16,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QCoreApplication, QEvent, QPoint, QPointF  # noqa: E402
 from PySide6.QtGui import QColor, QHelpEvent  # noqa: E402
-from PySide6.QtWidgets import QApplication, QFrame, QLabel, QToolTip  # noqa: E402
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QTableWidget, QToolTip  # noqa: E402
 
 from aion2calc.gui import result_windows as w  # noqa: E402
 from aion2calc.gui import results as r  # noqa: E402
@@ -38,7 +39,7 @@ def view():
 @pytest.fixture(scope="module")
 def dressed(view):
     """The build as a character's: a name, server and combat power, every kind of chip on its weapons and necklace,
-    enchant levels, and Ariel crystal points."""
+    enchant levels, Ariel crystal points, three arcana cards and a pet."""
     full = copy.deepcopy(view)
     full.update(name="Example", server="Testserver", combat_power=3512, equipment_source=None)
     slots = full["equipment"]["slots"]
@@ -47,6 +48,14 @@ def dressed(view):
     slots[1].update(enchant=9, manastones=[["Accuracy", "+18"], ["Attack", "+5"]])
     slots[3].update(enchant=8, rolls=[["Attack", "+12"]])
     full["daevanion"].update(ariel_used=12, ariel_budget=40)
+    full["arcana_items"] = [
+        {"slot": "Chalice", "name": "Chalice of Vigor", "grade": "Unique", "enchant": 5, "icon": "/web/aion2/items/chalice.webp",
+         "deity": {"label": "Time [Siel]", "points": 20.25}, "skills": [["Blaze", 2], ["Hellfire", 1]],
+         "stats": [{"label": "Attack", "text": "+20"}, {"label": "Accuracy", "text": "+15"}]},
+        {"slot": "Bell", "name": "Bell of Magic", "grade": "Legend", "enchant": 0, "deity": {"label": "Death [Triniel]", "points": "7"},
+         "stats": [{"label": "HP", "text": "+300"}]},
+        {"slot": "Mirror", "name": "Mirror of Purity", "grade": "Epic", "skills": [["Frost", 1]], "stats": []}]
+    full["extras"] = {**full["extras"], "pet": {"name": "Pet one", "level": 30, "icon": "https://metabot.gg/web/aion2/pets/one.webp"}}
     return full
 
 
@@ -288,3 +297,105 @@ def test_an_equipment_window_without_gear(qapp, view):
     texts = _texts(windows)
     assert "loadout used for this build" in texts and "SORCERER" in texts and not _shown(windows, w.SlotTile)
     assert _button(windows, "Copy as text") is None and r.ROLLS_HEAD not in texts and r.EQUIPMENT_GRID.upper() not in texts
+
+
+def test_the_arcana_words(view, dressed):
+    assert r.arcana_deity({"label": "Time [Siel]", "points": 20}) == "Time [Siel] +20"
+    assert [r.arcana_deity({"label": "L", "points": x}) for x in ("20.25", None, "x", -0.04, 2.675)] == [
+        "L +20.3", "L +0", "L +0", "L +0", "L +2.7"]                  # toFixed(1), then the number as JavaScript writes it
+    assert r.arcana_deity({"points": 3}) == r.arcana_deity({}) == r.arcana_deity(None) == ""
+    first = r.arcana_cards(dressed)[0]
+    assert first == {"icon": "/web/aion2/items/chalice.webp", "enchant": "+5", "grade": "Unique", "name": "Chalice of Vigor",
+                     "deity": "Time [Siel] +20.3", "skills": ["Blaze +2", "Hellfire +1"], "stats": "Attack +20, Accuracy +15"}
+    assert [(c["enchant"], c["deity"], c["skills"]) for c in r.arcana_cards(dressed)[1:]] == [
+        ("+0", "Death [Triniel] +7", []), ("+0", "", ["Frost +1"])] and r.arcana_cards(view) == []
+    assert r.arcana_picks(view)[:2] == [("Chalice / Grail", "Vigor or Frenzy", ["Vigor or Frenzy: Time +20", "Magic or Purity: Space +20"]),
+                                        ("Parchment", "Either variant", ["Vigor or Frenzy: Life +20", "Magic or Purity: Destiny +20"])]
+    rows = r.arcana_roll_rows(view)
+    assert [row[0] for row in rows] == ["Compass", "Bell", "Parchment", "Chalice", "Mirror"]      # the best at +5 first
+    assert rows[0] == ["Compass", "+0.1%", "+0.3%", "Bittercold Wind +0.1% / +0.1% · Ice Chain +0.0% / +0.1% · "
+                       "Flame Scattershot +0.0% / +0.0% · Winter's Shackles +0.0% / +0.0%"]
+    assert rows[2][1:3] == ["+-0.7%", "+-1.3%"]                                                    # the web page's own sign
+    assert rows[4][3].endswith("Robe of Earth -6.8% / -3.6%")
+    assert r.arcana_copy(view).split("\n") == ["Chalice / Grail: Vigor or Frenzy", "Parchment: either", "Compass: Magic or Purity",
+                                                "Bell: Magic or Purity", "Mirror: Vigor or Frenzy"]
+    assert r.arcana_copy(dressed).split("\n")[:3] == ["Chalice: Chalice of Vigor +5, Time [Siel] +20.3 — Blaze +2, Hellfire +1",
+                                                      "Bell: Bell of Magic +0, Death [Triniel] +7", "Mirror: Mirror of Purity +0 — Frost +1"]
+    assert r.arcana_copy({"arcana_items": [{"slot": "S", "name": "N", "deity": {}}]}) == "S: N +0, "   # {} is true in JavaScript
+    assert r.deity_grid(view)[:2] == [("Might", "+21"), ("Precision", "+1")] and len(r.deity_grid(view)) == 9
+
+
+def test_the_titles_words(view, dressed):
+    tiles = r.title_tiles(view)
+    assert [(t["slot"], t["item"], t["grade"]) for t in tiles] == [
+        ("Attack title", "Guardian of Altgard / Verteron", ""), ("Other title", "Through Hell and Back", ""),
+        ("Owned titles", "collection bonuses (estimate)", ""), ("Wings", "Ultimate Daeva Wings", "Unique")]
+    assert tiles[2]["stats"].count("<b ") == 3 and r.slot_stats({"stats": [{"text": "+1", "label": "A"}] * 6}, None).count("<b ") == 6
+    pet = r.title_tiles(dressed)[-1]
+    assert (pet["slot"], pet["item"], pet["level"], pet["stats"], pet["icon"]) == (
+        "Pet", "Pet one", "Lv 30", r.PET_NOTE, "https://metabot.gg/web/aion2/pets/one.webp")
+    assert r.title_tiles({"extras": {"pet": {}}})[0]["level"] == "Lv " and r.title_tiles({"extras": {"pet": 0}}) == []
+    assert r.title_tiles({"extras": {"wing": {"icon": "/w.webp"}, "wings": [{"item": "W"}]}})[0]["icon"] == "/w.webp"
+    rows = r.title_rows(view)
+    assert rows[0] == ("Unbound by Genus", "Unique", "PvE Damage Boost +4.5%, Attack Bonus +34, Critical Hit +68",
+                       "PvE Damage Boost +1%") and len(rows) == 10
+    assert r.titles_grid(view)[:2] == [("Attack", "+4"), ("Critical Hit", "+20")] and r.titles_grid({}) == []
+
+
+def test_the_arcana_window(qapp, dressed):
+    app, page, windows = _windows(dressed, "arcana")
+    texts = _texts(windows)
+    titles = [label.text() for label in _shown(windows, QLabel, "winTitle")]
+    assert titles == ["ARCANA", "DEITY & PRIMARY STATS"] and r.ARCANA_SUB in texts
+    cards = _shown(windows, QFrame, "arcanaCard")
+    assert len(cards) == 3 + 5
+    first = cards[0]
+    icon = first.findChildren(w.SkillIcon)[0]
+    assert icon.level == "+5" and icon.path.endswith("chalice.webp") and cards[1].findChildren(w.SkillIcon)[0].level == "+0"
+    assert first.findChildren(QLabel, "gnameUnique")[0].text() == "Chalice of Vigor"
+    assert [l.text() for l in _shown(first, QLabel) if l.objectName() in ("gold", "chip", "muted")] == [
+        "Time [Siel] +20.3", "Blaze +2", "Hellfire +1", "Attack +20, Accuracy +15"]
+    assert [l.text() for l in _shown(cards[4], QLabel)] == ["Parchment", "Either variant",
+                                                           "Vigor or Frenzy: Life +20<br>Magic or Purity: Destiny +20"]
+    for words in (r.PICKS_HEAD, r.ROLLS_TABLE_HEAD, "TOTALS"):
+        assert words in texts
+    rolls = _shown(windows, QTableWidget)[0]
+    assert rolls.rowCount() == 5 and [rolls.horizontalHeaderItem(c).text() for c in range(4)] == r.ROLLS_COLUMNS
+    assert (rolls.item(0, 0).text(), rolls.item(2, 1).text()) == ("Compass", "+-0.7%")
+    assert _rgb(rolls.item(0, 0).foreground().color()) == _rgb(QColor(theme.COLORS["gold"]))
+    _button(windows, "Copy as text").click()
+    assert windows.copied == [r.arcana_copy(dressed)]
+    # two columns of cards on a narrow window, five on a wide one
+    deck = next(d for d in _shown(windows, w.Columns) if cards[0] in d.cards)
+    assert deck.columns == 2 and deck.grid.getItemPosition(deck.grid.indexOf(cards[2]))[:2] == (1, 0)
+    page.resize(1500, 1500)
+    settle(lambda: deck.columns == 5)
+    assert deck.grid.getItemPosition(deck.grid.indexOf(cards[2]))[:2] == (0, 2)
+
+
+def test_an_arcana_window_without_arcana(qapp, view):
+    bare = {**view, "extras": {k: v for k, v in view["extras"].items() if not k.startswith("arcana") and k != "deity"}}
+    _app, _page_, windows = _windows(bare, "arcana")
+    assert r.NO_ARCANA in _texts(windows) and _button(windows, "Copy as text") is None
+    assert [label.text() for label in _shown(windows, QLabel, "winTitle")] == ["ARCANA"]       # no deity: no second window
+
+
+def test_the_titles_window(qapp, dressed):
+    app, page, windows = _windows(dressed, "titles")
+    texts = _texts(windows)
+    assert "TITLES, WINGS & PET" in texts and r.TITLES_HEAD in texts and r.TITLES_GRID.upper() in texts
+    tiles = _shown(windows, w.SlotTile)
+    assert [t.findChildren(QLabel, "slotName")[0].text() for t in tiles] == ["ATTACK TITLE", "OTHER TITLE", "OWNED TITLES",
+                                                                           "WINGS", "PET"]
+    wings, pet = tiles[3], tiles[4]
+    assert wings.grade == "Unique" and _near(QColor(wings.grab().toImage().pixel(1, wings.height() // 2)), "#e9a43a", 20)
+    assert pet.findChildren(QLabel, "gname")[0].text() == f"Pet one <span style='color: {theme.COLORS['muted']};'>Lv 30</span>"
+    assert r.PET_NOTE in _texts(pet)
+    icons = [t.findChildren(w.SkillIcon)[0] for t in tiles]
+    assert [i.path for i in icons[:4]] == ["", "", "", ""] and icons[4].path.endswith("pets%2Fone.webp")
+    assert not any(i.placeholder for i in icons)                                    # titles' pictures stay empty
+    ranking = _shown(windows, QTableWidget)[0]
+    assert ranking.rowCount() == 10 and ranking.item(0, 0).text() == "Unbound by Genus"
+    assert _rgb(ranking.item(0, 0).foreground().color()) == _rgb(QColor("#e9a43a"))
+    assert _rgb(ranking.item(0, 2).foreground().color()) == _rgb(QColor(theme.COLORS["muted"]))
+    assert _button(windows, "Copy as text") is None

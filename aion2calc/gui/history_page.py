@@ -7,7 +7,7 @@ the optimizations and advice saved on this computer, newest first, each opened, 
   ``POST /api/history``, which checks it.
 - **Export:** the saved result as the web page exports it (``aion2calc-result-<id>.json``), where you choose.
 - **Open:** the snapshot under the list. A build opens in the result windows (``result_windows.py``: Overview, Skills,
-  Stigma, Daevanion and Equipment drawn here, the others on the web page for now); an advice's text in its box; an
+  Stigma, Daevanion, Equipment, Arcana and Titles drawn here, the others on the web page for now); an advice's text in its box; an
   advice's full view is on the web page for now.
 
 The list is read each time the page is shown.

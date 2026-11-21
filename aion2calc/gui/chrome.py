@@ -492,7 +492,8 @@ class MetricChip(QAbstractButton):
 
 class FlowLayout(QLayout):
     """Widgets side by side, on to another line where there is no room (``flex-wrap: wrap``). ``align`` is where a
-    line's widgets sit (the toolbar's to the right, ``justify-content: flex-end``; the chips to the left), ``gap`` the
+    line's widgets sit (the toolbar's to the right, ``justify-content: flex-end``; the chips to the left; a card's
+    chips in its middle, ``text-align: center``), ``gap`` the
     room between them across and down, ``lead`` the room above the first line (the first line's ``margin-top``;
     nothing when no widget is shown), ``centre`` whether a line's widgets sit in its middle (``align-items:
     center``) or at its top (``flex-start``). A widget wider than a line takes the line (``max-width: 100%``) at its
@@ -581,7 +582,8 @@ class FlowLayout(QLayout):
             tall = max(hint.height() for _item, hint in line)
             spare = max(0, area.width() - used)
             pushed = any(id(item.widget()) in self._pushed for item, _hint in line if item.widget() is not None)
-            x = area.x() + (spare if self.align & Qt.AlignRight and not pushed else 0)
+            x = area.x() + (spare if self.align & Qt.AlignRight and not pushed else
+                            spare // 2 if self.align & Qt.AlignHCenter and not pushed else 0)
             for item, hint in line:
                 if pushed and item.widget() is not None and id(item.widget()) in self._pushed:
                     x += spare

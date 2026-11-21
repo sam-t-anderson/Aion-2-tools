@@ -4,8 +4,10 @@ the Build Planner, My Character and Saved Results: the side menu of the ten wind
 The native interface draws the Overview (its counts, notes, stat priority, damage and healing shares), Skills (active
 and passive, each skill's level and supporting effects) and Stigma windows, and since 0.2.435 the Daevanion window
 (each board's nodes, the points used, and the skill levels and stats the boards give) and the Equipment window (the
-paper doll's slots, the rolls to keep and where an enchant level is worth most). Each of the others says it is drawn in
-the web interface for now, with the web page's button. The words are ``results.py``'s.
+paper doll's slots, the rolls to keep and where an enchant level is worth most), and since 0.2.436 the Arcana window
+(a character's cards, the variant for each slot and the value of each slot's skill rolls, with the deity totals) and
+the Titles, wings & pet window. Each of the others says it is drawn in the web interface for now, with the web page's
+button. The words are ``results.py``'s.
 """
 from __future__ import annotations
 
@@ -24,6 +26,7 @@ from . import results as r
 from . import theme
 from .chrome import FlowLayout
 from .database_page import Icons, Kpi, Window, pairs_grid
+from .gathering_page import table
 from .timers_page import Fold
 
 WEB_NOTE = "This window is drawn in the web interface for now."
@@ -492,14 +495,14 @@ class Split(QWidget):
 
 
 class SlotTile(QFrame):
-    """A slot of the paper doll (``.slot``): its item's picture with its enchant level, the slot, the item in its grade's
-    colour, its first four stats, its rolls, stones and skill levels as chips, and where it comes from; a 3 px edge
-    on its left in the grade's colour."""
+    """A slot (``.slot``): its picture (an item's with its enchant level), the slot, the item in its grade's colour (a
+    pet's level after it), its stats, its rolls, stones and skill levels as chips, and where it comes from; a 3 px
+    edge on its left in the grade's colour. The paper doll's slots, and the titles, wings and pet."""
 
-    def __init__(self, s: dict, icon: QWidget, parent: QWidget | None = None):
+    def __init__(self, slot: str, item: str, grade: str, stats: str, icon: QWidget, chips=(), source: str = "",
+                 level: str = "", parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("slotTile")
-        grade = r.slot_grade(s)
         self.grade = grade
         self.edge = _css_colour(r.GRADES[grade]) if grade else QColor(theme.COLORS["line2"])
         self.setMinimumHeight(52)
@@ -509,12 +512,14 @@ class SlotTile(QFrame):
         row.addWidget(icon, 0, Qt.AlignVCenter)
         words = QVBoxLayout()
         words.setSpacing(1)
-        words.addWidget(_label(r.js_text(s.get("slot")).upper(), "slotName"))
-        words.addWidget(_label(r.slot_item(s), "gname" + grade))
-        stats = r.slot_stats(s)
+        words.addWidget(_label(slot.upper(), "slotName"))
+        if level:
+            words.addWidget(_label(f"{html.escape(item)} <span style='color: {theme.COLORS['muted']};'>"
+                                   f"{html.escape(level)}</span>", "gname" + grade, rich=True))
+        else:
+            words.addWidget(_label(item, "gname" + grade))
         if stats:
             words.addWidget(_label(stats, "slotStats", rich=True))
-        chips = r.slot_extras(s)
         if chips:
             holder = _plain()
             flow = FlowLayout(holder, align=Qt.AlignLeft, gap=(3, 2), centre=False)
@@ -525,9 +530,15 @@ class SlotTile(QFrame):
                     chip.setToolTip("Manastone")
                 flow.addWidget(chip)
             words.addWidget(holder)
-        if s.get("source"):
-            words.addWidget(_label(r.js_text(s.get("source")), "faint"))
+        if source:
+            words.addWidget(_label(source, "faint"))
         row.addLayout(words, 1)
+
+    @classmethod
+    def of(cls, s: dict, icon: QWidget) -> "SlotTile":
+        """A slot of the paper doll (``slotTile``): its first four stats, its chips and its source."""
+        return cls(r.js_text(s.get("slot")), r.slot_item(s), r.slot_grade(s), r.slot_stats(s), icon, r.slot_extras(s),
+                   r.js_text(s.get("source")) if s.get("source") else "")
 
     def paintEvent(self, _event) -> None:
         painter = QPainter(self)
@@ -543,6 +554,14 @@ class SlotTile(QFrame):
         painter.setClipPath(clip)
         painter.fillRect(QRectF(0, 0, 3, rect.height()), self.edge)
         painter.end()
+
+
+def _table(headers: list[str], rows: list[list[str]], right: tuple[int, ...] = (), stretch: int = 0):
+    """A table of every row (``table.t``; the Gathering page's), its rows as tall as their words once its columns have
+    their widths."""
+    widget = table(headers, rows, right, stretch)
+    widget.horizontalHeader().sectionResized.connect(lambda *_: (widget.resizeRowsToContents(), widget.updateGeometry()))
+    return widget
 
 
 def _css_colour(text: str) -> QColor:
@@ -587,6 +606,65 @@ class Doll(QFrame):
         painter.setPen(QPen(QColor(theme.COLORS["line"]), 1))
         painter.drawPath(outline)
         painter.end()
+
+
+class Columns(QWidget):
+    """Cards in equal columns (``.cards``): five, or two on a narrow window, as app.css has them under its 1100 px
+    breakpoint; a row's cards as tall as its tallest."""
+
+    def __init__(self, cards: list[QWidget], wide: int = 5, narrow: int = 2, gap: int = 12,
+                 parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("plain")
+        self.cards, self.wide, self.narrow = cards, wide, narrow
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setSpacing(gap)
+        self.columns = 0
+        self.place(wide)
+
+    def place(self, columns: int) -> None:
+        if columns == self.columns:
+            return
+        self.columns = columns
+        for card in self.cards:
+            self.grid.removeWidget(card)
+        for index, card in enumerate(self.cards):
+            self.grid.addWidget(card, index // columns, index % columns)
+        for column in range(max(self.wide, self.narrow)):
+            self.grid.setColumnStretch(column, 1 if column < columns else 0)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self.place(self.narrow if event.size().width() <= NARROW else self.wide)
+
+
+def _card() -> tuple[QFrame, QVBoxLayout]:
+    """A card (``.card``): its gold-edged box, its words in its middle."""
+    card = QFrame()
+    card.setObjectName("arcanaCard")
+    column = QVBoxLayout(card)
+    column.setContentsMargins(13, 13, 13, 13)
+    column.setSpacing(3)
+    return card, column
+
+
+def _centred(text: str, name: str = "", rich: bool = False) -> QLabel:
+    label = _label(text, name, rich=rich)
+    label.setAlignment(Qt.AlignHCenter)
+    return label
+
+
+def _pick_card(slot: str, pick: str, variants: list[str]) -> QFrame:
+    """A slot's recommended variant (``.card``): the slot, the variant, and what each variant gives."""
+    card, column = _card()
+    column.addWidget(_centred(slot, "cardSlot"))
+    column.addSpacing(6)
+    column.addWidget(_centred(pick, "cardPick"))
+    column.addSpacing(6)
+    column.addWidget(_centred("<br>".join(html.escape(line) for line in variants), "faint", rich=True))
+    column.addStretch(1)
+    return card
 
 
 class ResultWindows(QWidget):
@@ -671,6 +749,11 @@ class ResultWindows(QWidget):
             self.body.addWidget(self._daevanion())
         elif key == "equipment":
             self.body.addWidget(self._equipment())
+        elif key == "arcana":
+            for window in self._arcana():
+                self.body.addWidget(window)
+        elif key == "titles":
+            self.body.addWidget(self._titles())
         elif key == "overview":
             self.body.addWidget(self._overview())
             self.body.addWidget(self._comparison())
@@ -1065,9 +1148,95 @@ class ResultWindows(QWidget):
         column.setSpacing(6)
         for s in slots:
             enchant = f"+{r.js_text(s.get('enchant'))}" if s.get("enchant") else ""
-            column.addWidget(SlotTile(s, self._icon_widget(s.get("icon"), 34, enchant, placeholder="◇", badge=13)))
+            column.addWidget(SlotTile.of(s, self._icon_widget(s.get("icon"), 34, enchant, placeholder="◇", badge=13)))
         column.addStretch(1)
         return box
+
+    # ------------------------------------------------------------------ Arcana
+    def _arcana(self) -> list[Window]:
+        """The Arcana window: a character's cards, the variant recommended for each slot and the value of each slot's
+        skill rolls; then the deity and primary stats' totals in a window of their own."""
+        v = self.view
+        window = self._window("Arcana", copy=r.arcana_copy(v), subtitle=r.ARCANA_SUB)
+        cards, picks, rows = r.arcana_cards(v), r.arcana_picks(v), r.arcana_roll_rows(v)
+        if cards:
+            window.body.addWidget(Columns([self._arcana_card(card) for card in cards]))
+        if picks:
+            window.body.addSpacing(2)
+            window.body.addWidget(_label(r.PICKS_HEAD, "goldHead"))
+            window.body.addWidget(Columns([_pick_card(*pick) for pick in picks]))
+        if rows:
+            window.body.addSpacing(4)
+            window.body.addWidget(_label(r.ROLLS_TABLE_HEAD, "goldHead"))
+            rolls = _table(r.ROLLS_COLUMNS, rows, right=(1, 2), stretch=3)
+            for row in range(len(rows)):
+                rolls.item(row, 0).setForeground(QColor(theme.COLORS["gold"]))
+            window.body.addWidget(rolls)
+        if not (cards or picks or rows):
+            empty = _label(r.NO_ARCANA, "empty")
+            empty.setAlignment(Qt.AlignCenter)
+            window.body.addWidget(empty)
+        shown = [window]
+        deity = r.deity_grid(v)
+        if deity:
+            totals = self._window("Deity & primary stats")
+            self._stat_grid(totals, deity, "Totals")
+            shown.append(totals)
+        return shown
+
+    def _arcana_card(self, card: dict) -> QFrame:
+        """A character's arcana card (``.card``): its picture and enchant level, its name in its grade's colour, its
+        deity stat, its skill levels and its stats."""
+        box, column = _card()
+        column.addWidget(self._icon_widget(card["icon"], 52, card["enchant"]), 0, Qt.AlignHCenter)
+        column.addSpacing(3)
+        column.addWidget(_centred(card["name"], "gname" + card["grade"]))
+        if card["deity"]:
+            column.addWidget(_centred(card["deity"], "gold"))
+        if card["skills"]:
+            holder = _plain()
+            flow = FlowLayout(holder, align=Qt.AlignHCenter, gap=(3, 2), centre=False)
+            for words in card["skills"]:
+                flow.addWidget(_label(words, "chip", wrap=False))
+            column.addWidget(holder)
+        if card["stats"]:
+            column.addWidget(_centred(card["stats"], "muted"))
+        column.addStretch(1)
+        return box
+
+    # ------------------------------------------------------------------ Titles, wings & pet
+    def _titles(self) -> Window:
+        """The Titles, wings & pet window: the titles, wings and pet the build wears beside the best titles for it,
+        then the stats from its titles."""
+        v = self.view
+        window = self._window(r.TITLES_TITLE)
+        worn = _plain()
+        column = QVBoxLayout(worn)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(6)
+        for tile in r.title_tiles(v):
+            column.addWidget(SlotTile(tile["slot"], tile["item"], tile["grade"], tile["stats"],
+                                      self._icon_widget(tile["icon"], 34, ""), level=tile["level"]))
+        column.addStretch(1)
+        best = _plain()
+        column = QVBoxLayout(best)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(8)
+        column.addWidget(_label(r.TITLES_HEAD, "goldHead"))
+        rows = r.title_rows(v)
+        ranking = _table(r.TITLE_COLUMNS, [[name, equip, owned] for name, _grade, equip, owned in rows], stretch=1)
+        for row, (_name, grade, _equip, _owned) in enumerate(rows):
+            name = ranking.item(row, 0)
+            name.setForeground(_css_colour(r.GRADES[grade]) if grade else QColor(theme.COLORS["text"]))
+            font = QFont(name.font())
+            font.setWeight(QFont.DemiBold)
+            name.setFont(font)
+            ranking.item(row, 2).setForeground(QColor(theme.COLORS["muted"]))
+        column.addWidget(ranking)
+        column.addStretch(1)
+        window.body.addWidget(Split([worn, best], [0, 0], 16))
+        self._stat_grid(window, r.titles_grid(v), r.TITLES_GRID)
+        return window
 
     def stop(self) -> None:
         self.icons.stop()
@@ -1127,5 +1296,10 @@ QFrame#win QLabel#chipSkill {{ color: {theme.COLORS['gold']}; }}
 QFrame#win QLabel#dollClass {{ color: {theme.COLORS['gold']}; font-size: 18px; font-weight: 700; }}
 QFrame#win QLabel#dollWho {{ color: {theme.COLORS['muted']}; }}
 QFrame#win QLabel#dollPower {{ color: {theme.COLORS['gold']}; }}
+QFrame#arcanaCard {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {theme.COLORS['card_a']},
+    stop:1 {theme.COLORS['card_b']}); border: 1px solid rgba(206, 182, 122, 0.28); border-radius: 8px; }}
+QFrame#win QLabel#gold {{ color: {theme.COLORS['gold']}; }}
+QFrame#win QLabel#cardSlot {{ color: {theme.COLORS['gold']}; font-weight: 700; }}
+QFrame#win QLabel#cardPick {{ font-weight: 700; }}
 """ + "".join(
     f"QFrame#win QLabel#gname{grade} {{ color: {colour}; font-weight: 600; }}\n" for grade, colour in r.GRADES.items())
