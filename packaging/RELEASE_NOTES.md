@@ -1,3 +1,13 @@
+## Combat Logs' Personal records in the native interface (0.2.454)
+
+**Personal records opens in the app's window too**, read from your log server as the web page reads it, under its filters (mode, metric, encounter type, game version — the latest submitted first —, boss, difficulty, region and party size):
+- **Recorded boss defeats** (PvE), read once you open them: each boss and context's region and version, map and instance, last recorded defeat and how long ago, its observations, its latest engagement and roster, and its source log. Search the bosses shown, or read them again;
+- **Class performance:** each class's distribution per encounter as a box (range, quartiles, median) in the class's colour, which is your palette from Settings when you set one, with its median, range, parses and coverage;
+- **Personal records:** a character's best records and every matching public attempt, found by name, server (chosen by region and faction) and, when known, its database ID, fifty to a page;
+- **Character consistency and trends:** each matched group's spread and trend, its samples drawn in upload order (hover a point for its time and rate), and each sample's log.
+
+Every Combat Logs view is now in the app's window; a log's own page and the featured encounters still open in the web interface.
+
 ## Combat Logs' community views in the native interface (0.2.453)
 
 **The community's combat logs open in the app's window too**, read from your log server as the web page reads them:

@@ -14,7 +14,9 @@
   kept like Saved Logs, and read again after an upload, as the web page reads them.
 - Since 0.2.453 the community's views too (combat_community.py): **Community Combat Logs**, **Completed-run speed**,
   **Boss progression** and **Highest observed build points**, each drawn when first chosen and kept.
-- **Personal records**, and a log's own page, open in the web interface for now.
+- Since 0.2.454 **Personal records** too (combat_extras.py): the recorded boss defeats, each class's performance, and a
+  character's records, attempts, consistency and trends.
+- A log's own page, and the featured encounters, open in the web interface for now.
 """
 from __future__ import annotations
 
@@ -30,6 +32,7 @@ from . import combat as cb
 from . import theme
 from .api import AppApi, Job, Requests
 from .combat_community import BossProgression, BuildPoints, Community, CommunityLogs, RunSpeed
+from .combat_extras import PersonalRecords
 from .combat_owned import Identities, OwnedUploads
 from .combat_saved import RecordedEncounters, UploadQueue, _button, _clear, _head, _label, _row
 from .database_page import Window
@@ -85,6 +88,7 @@ class CombatPage(QWidget):
             QFrame#note QLabel, QFrame#note QCheckBox {{ background: transparent; color: #f1d4a3; }}
             QFrame#note QWidget#plain {{ background: transparent; }}
             QFrame#note QLabel#queueHead {{ color: #f1d4a3; font-size: 15px; font-weight: 700; }}
+            QLabel#bucketHead {{ font-weight: 700; margin-top: 4px; }}
             QFrame#rowNote {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
                 border-radius: 5px; padding: 6px 9px; }}
             QFrame#note QToolButton#fold {{ color: #f1d4a3; }}
@@ -118,12 +122,6 @@ class CombatPage(QWidget):
         self.lists.setContentsMargins(0, 0, 0, 0)
         self.lists.setSpacing(6)
         self.body.addWidget(self.lists_box)
-        self.elsewhere_box = QWidget()                   # a view or a list the web page shows for now
-        self.elsewhere_box.setObjectName("plain")
-        self.elsewhere = QVBoxLayout(self.elsewhere_box)
-        self.elsewhere.setContentsMargins(0, 0, 0, 0)
-        self.elsewhere.setSpacing(10)
-        self.body.addWidget(self.elsewhere_box)
         self.saved_panel: QWidget | None = None          # Saved Logs, drawn once and kept
         self.recorded: RecordedEncounters | None = None
         self.queue: UploadQueue | None = None
@@ -133,6 +131,7 @@ class CombatPage(QWidget):
         self.speed: RunSpeed | None = None
         self.progression: BossProgression | None = None
         self.points: BuildPoints | None = None
+        self.records: PersonalRecords | None = None
         self.shared = Community(self.store if self.store is not None else interface_store(), self)
         self.pictures = Pictures(api, self) if api is not None else None
         self.message = None
@@ -156,22 +155,19 @@ class CombatPage(QWidget):
 
     def draw(self) -> None:
         self._tabs(self.views, cb.VIEWS, self.view, self.show_view, underlined=True)
-        _clear(self.elsewhere)
         community = self.view == "community"
         self.lists_box.setVisible(community)
         if community:
             self._tabs(self.lists, cb.LISTS, self.list, self.show_list)
-        elsewhere = self.view == "extras"                        # Personal records: on the web page for now
-        if elsewhere:
-            self.elsewhere.addWidget(_label(cb.ON_THE_WEB_VIEW, "muted"))
-            self.elsewhere.addWidget(_row(_button("Open it on the web page", lambda: self._web("combat"))))
         for view, key, name, draw in (("community", "community", "community_logs", self._community),
                                       ("community", "saved", "saved_panel", self._saved),
                                       ("community", "owned", "owned", self._owned),
                                       ("community", "identities", "identities", self._identities),
                                       ("speed", None, "speed", lambda: self._view(RunSpeed)),
                                       ("progression", None, "progression", lambda: self._view(BossProgression)),
-                                      ("points", None, "points", lambda: self._view(BuildPoints))):
+                                      ("points", None, "points", lambda: self._view(BuildPoints)),
+                                      ("extras", None, "records",
+                                       lambda: PersonalRecords(self.api, self.shared, self.open_web))):
             shown = self.view == view and (key is None or self.list == key)
             panel = getattr(self, name)
             if shown and panel is None:
@@ -180,7 +176,6 @@ class CombatPage(QWidget):
                 self.body.addWidget(panel)
             if panel is not None:
                 panel.setVisible(shown)
-        self.elsewhere_box.setVisible(elsewhere)
 
     def _community(self) -> CommunityLogs:
         """Community Combat Logs."""
@@ -280,7 +275,7 @@ class CombatPage(QWidget):
                 self.queue.load(self.queue.offset)
         if self.seen:
             self._uploaded()
-            for view in (self.community_logs, self.speed, self.progression, self.points):
+            for view in (self.community_logs, self.speed, self.progression, self.points, self.records):
                 if view is not None and view.isVisibleTo(self):
                     view.refresh()                       # the one shown, read again as the web page reads it
         self.seen = True
@@ -412,7 +407,7 @@ class CombatPage(QWidget):
 
     def closeEvent(self, event) -> None:
         for worker in (self.requests, self.job, self.recorded, self.queue, self.owned, self.identities,
-                       self.community_logs, self.speed, self.progression, self.points, self.pictures):
+                       self.community_logs, self.speed, self.progression, self.points, self.records, self.pictures):
             if worker is not None:
                 worker.stop()
         super().closeEvent(event)
