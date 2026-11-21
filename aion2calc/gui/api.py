@@ -3,13 +3,15 @@
 ``AppApi`` sends one request at a time and answers with the decoded JSON. ``Poller`` asks for one path at an
 interval off the interface's thread and hands each answer to it as a Qt signal, so a slow answer never freezes
 a window; a poll still waiting when the next is due is not sent twice. ``Requests`` sends a window's one-off
-requests (a button's action, 0.2.416) the same way, each answered under the name the window gave it.
+requests (a button's action, 0.2.416) the same way, each answered under the name the window gave it. ``Job`` runs
+one of the app's jobs (an optimization, 0.2.439) as app.js's ``runJob`` does: started, then read every 1.2 s.
 """
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -143,3 +145,67 @@ class Requests(QObject):
             self.failed.emit(name, why(exc))
             return
         self.replied.emit(name, answer)
+
+
+class Job(QObject):
+    """One of the app's jobs, as app.js's ``runJob`` runs it: ``start`` sends its request (answered with the job's id),
+    then the job is read from ``/api/jobs/<id>`` every 1.2 s; each reading's log comes as ``logged``, then its result
+    as ``done`` or its error (or why a request failed) as ``failed``. One job at a time."""
+
+    logged = Signal(list)
+    done = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, api: AppApi, parent: QObject | None = None, interval_ms: int = 1200):
+        super().__init__(parent)
+        self.requests = Requests(api, self)
+        self.requests.replied.connect(self._replied)
+        self.requests.failed.connect(self._failed)
+        self.timer = QTimer(self)
+        self.timer.setSingleShot(True)
+        self.timer.setInterval(interval_ms)
+        self.timer.timeout.connect(self._read)
+        self.id, self.running, self.turn = "", False, 0
+
+    def start(self, path: str, body: dict) -> None:
+        self.turn += 1                                     # a job started anew: what an earlier one answers is dropped
+        self.id, self.running = "", True
+        self.requests.post(f"start:{self.turn}", path, body)
+
+    def _read(self) -> None:
+        self.requests.get(f"read:{self.turn}", "/api/jobs/" + urllib.parse.quote(self.id, safe=""))
+
+    def _replied(self, name: str, answer) -> None:
+        kind, _, turn = name.partition(":")
+        if turn != str(self.turn) or not self.running:
+            return
+        answer = answer if isinstance(answer, dict) else {}
+        if kind == "start":
+            self.id = str(answer.get("job") or "")
+            if not self.id:
+                self._end("The app did not start the job.")
+                return
+            self.timer.start()
+            return
+        log = answer.get("log")
+        self.logged.emit(list(log) if isinstance(log, list) else [])
+        if answer.get("status") == "done":
+            self.running = False
+            self.done.emit(answer.get("result"))
+        elif answer.get("status") == "error":
+            self._end(str(answer.get("error") or ""))
+        else:
+            self.timer.start()
+
+    def _failed(self, name: str, why: str) -> None:
+        if name.partition(":")[2] == str(self.turn) and self.running:
+            self._end(why)
+
+    def _end(self, why: str) -> None:
+        self.running = False
+        self.failed.emit(why)
+
+    def stop(self) -> None:
+        self.timer.stop()
+        self.running = False
+        self.requests.stop()

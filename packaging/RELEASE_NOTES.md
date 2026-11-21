@@ -1,3 +1,16 @@
+## The Build Planner page in the native interface (0.2.439)
+
+**The Build Planner is native now.** The app's window draws Character → Build Planner itself, as the web page shows it:
+- **Welcome:** the three steps to your best build (My Character, Gear & Advice, Live Meter), each opening its page, and the Discord link. **Hide** keeps it hidden.
+- **Build planner:**
+  - the optimized builds, the community's presets and the examples, each with its weighted or scenario DPS; **Refresh presets** checks the community's;
+  - **Optimize** a class in PvE, PvP damage or World PvP with your skill, stigma, Daevanion and Ariel crystal budgets. The log server's highest reported totals for the class fill them in, and its note says they are not verified caps;
+  - the job's progress as it runs;
+  - **Saved results** opens that page.
+- **The chosen build** in its result windows, all ten of them, its stat priority filled in when its job ends.
+
+The builds are read each time you open the page, with the chosen build and the class's budgets.
+
 ## The Pet Genus window in the native interface (0.2.438)
 
 **Every result window is native now.** A saved build's **Pet Genus Insight** window opens in the app's window, as the web page draws it:
