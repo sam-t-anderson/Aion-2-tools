@@ -603,8 +603,16 @@ def _page(app, **kwargs):
     return page
 
 
-def _texts(widget):
+def _shown():
+    """What was drawn last, shown: the waiting events handled, then the shows a redraw among them queued (a widget
+    added to a shown layout is shown by a queued call, so a redraw a timer starts in ``processEvents`` would otherwise
+    leave its widgets unshown for the next look)."""
     QCoreApplication.processEvents()
+    QCoreApplication.sendPostedEvents()
+
+
+def _texts(widget):
+    _shown()
     return [label.text() for label in widget.findChildren(QLabel) if label.isVisibleTo(widget)]
 
 
@@ -854,18 +862,18 @@ def _recorded(app, tmp_path, **kwargs):
 
 
 def _labels(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [label.text() for label in widget.findChildren(QLabel) if label.isVisibleTo(widget)]
 
 
 def _folds(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [f for f in widget.findChildren(Section) if f.isVisibleTo(widget)]
 
 
 def _find(widget, kind, test):
     """The first shown ``kind`` passing ``test``, once what was drawn last has shown."""
-    QCoreApplication.processEvents()
+    _shown()
     return next(w for w in widget.findChildren(kind) if test(w) and w.isVisibleTo(widget))
 
 
@@ -942,7 +950,7 @@ def _click(widget, words):
 
 
 def _picks(queue):
-    QCoreApplication.processEvents()
+    _shown()
     return {b.accessibleName(): b for b in queue.findChildren(QCheckBox) if b.accessibleName().startswith("Select ")
             and b.isVisibleTo(queue)}
 
@@ -1205,12 +1213,12 @@ def _owned(app, tmp_path, answers=(), **kwargs):
 
 
 def _row_buttons(widget, words):
-    QCoreApplication.processEvents()
+    _shown()
     return [b for b in widget.findChildren(QPushButton) if b.text() == words and b.isVisibleTo(widget)]
 
 
 def _visibility_boxes(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [c for c in widget.findChildren(QComboBox) if c.accessibleName() == "Upload visibility" and c.isVisibleTo(widget)]
 
 
@@ -1510,7 +1518,7 @@ def _view(kind, app, tmp_path, **kwargs):
 
 
 def _cells(widget):
-    QCoreApplication.processEvents()
+    _shown()
     return [label.text() for label in widget.findChildren(QLabel) if label.objectName() == "tcell" and label.isVisibleTo(widget)]
 
 
@@ -2324,7 +2332,7 @@ def test_the_review_words():
 
 
 def _summary_cell(view, row, column):
-    QCoreApplication.processEvents()
+    _shown()
     return view.summary.cell(row, column)
 
 
@@ -2340,6 +2348,8 @@ def test_a_shared_log_review(qapp):
     asked = app.log_server.asked
     assert "/api/v1/logs/log0001/raw" in asked and "/api/v1/logs/log0001/rankings?segment=0" in asked
     assert not page.frame.isVisibleTo(page) and view.isVisibleTo(page)
+    # the page's paint metrics are Qt's own (``QWidget.metric``): asking for them leaves the metric chosen as it was
+    assert view.logicalDpiY() > 0 and view.state["metric"] == "summary"
     texts = _labels(view)
     assert all(t in texts for t in ("120.0s", "Run r1 · Finished · boss killed", cw.ELSEWHERE, "No markers"))
     assert any(t.startswith("Installed game version: 2.1.0.3") for t in texts)
@@ -2806,7 +2816,7 @@ def test_the_review_events_and_timeline(qapp):
 
 def _buttons(widget):
     """The buttons shown, once what was drawn last has shown."""
-    QCoreApplication.processEvents()
+    _shown()
     return [b.text() for b in widget.findChildren(QPushButton) if b.isVisibleTo(widget)]
 
 
