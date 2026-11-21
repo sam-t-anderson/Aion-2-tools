@@ -26,7 +26,8 @@ and the events strip as chips, and the ping, the frame rate and the toolbar of i
 
 The tenth part (0.2.423) is arena mode (arena.py): in the Arena of Solitude, the Arena of Cooperation and a
 battlefield, the opponent's (or your target's) card in the target card's place and the three metrics in the rows'
-place, in the layout the options pick, with the match in the clock.
+place, in the layout the options pick, with the match in the clock. The eleventh (0.2.424) is the raid plan view
+(plan.py), behind the toolbar's tabs.
 """
 from __future__ import annotations
 
@@ -58,6 +59,7 @@ from .host import WindowHost
 from .look import (ANIMATION_MS, CHIP_SHADOW, ROW_SHADOW, TextEffect, TextLook, background_rect, contrast_colour, cycled,
                    draw_text, forget_pictures, hex_colour, reduced_motion, sheen_brush)
 from .pictures import Pictures
+from .plan import PlanMap, plan_view
 
 #: The metrics, in the order the metric chip steps through them, with the chip's words (overlay.html ``#ovmetrics``).
 METRICS = (("dps", "DPS"), ("hps", "HPS"), ("dtps", "D.Taken"))
@@ -1819,6 +1821,9 @@ class MeterOverlay(QWidget):
         self.arena_box = QVBoxLayout()            # arena mode's rows in their place (``A2Arena.body``)
         self.arena_box.setSpacing(0)
         content.addLayout(self.arena_box)
+        self.plan_map = PlanMap(self.content)     # the raid plan's map in the plan view (``.ovarena``)
+        self.plan_map.hide()
+        content.addWidget(self.plan_map, 0, Qt.AlignHCenter)
         box.addWidget(self.content)
         self.card.rows_part = self.content
         self.panel = PlayerPanel()
@@ -1873,6 +1878,15 @@ class MeterOverlay(QWidget):
         self.metric_chip = MetricChip(self.toolbar)
         self.metric_chip.clicked.connect(self.next_metric)
         tools.addWidget(self.metric_chip)
+        # The views (``.ovtabs``, ``order: 1``): the meter and the raid plan, the tab of the view not shown.
+        self.tabs: dict[str, IconButton] = {}
+        for view, icon_name, words, tip in (("meter", "meter", "Meter", "The meter"),
+                                            ("plan", "plan", "Plan", "The raid plan: your saved Raid Planner plans")):
+            tab = IconButton(icon_name, words, tip, self.toolbar)
+            tab.clicked.connect(lambda _checked=False, v=view: self.set_view(v))
+            tools.addWidget(tab)
+            self.tabs[view] = tab
+        self.tabs["meter"].hide()
         self.tools: dict[str, IconButton] = {}
         actions = {"lock": self.toggle_lock, "split": self.new_fight, "copy": self.copy,
                    "options": self.toggle_options, "capture": self.toggle_capture, "hide": self.hide_overlay}
@@ -1982,6 +1996,12 @@ class MeterOverlay(QWidget):
         self.look = RowLook({})
         self._arena_pool: dict[str, list[QWidget]] = {}   # arena mode's widgets, by kind, kept for the next reading
         self._arena_order: list[QWidget] = []
+        self.view = "meter"                       # the meter, or the raid plan (``tab``)
+        self.plans: dict = {}                     # the Raid Planner's saved plans, as the app keeps them
+        self._plans_at = -math.inf
+        self._plan_start = time.monotonic()       # the plan view's own clock (``t``), running from the start
+        self._plan_timer = QTimer(self)
+        self._plan_timer.timeout.connect(self._show_plan)
         self._cooldowns_top = False
         self._cooldown_timer = QTimer(self)
         self._cooldown_timer.timeout.connect(lambda: self.cooldowns.tick(time.monotonic()))
@@ -2063,6 +2083,7 @@ class MeterOverlay(QWidget):
             self.requests.stop()
         self.pictures.stop()
         self._anim_timer.stop()
+        self._plan_timer.stop()
         self.fps.run(False)
         forget_pictures()
         forget_icons()
@@ -2363,6 +2384,8 @@ class MeterOverlay(QWidget):
             self._tick_timer.stop()
             self._shown_rates.clear()
         self._cooldown_timer.setInterval(500 if self._perf else 250)
+        if self.view == "plan":                   # the plan's map a quarter as often in performance mode
+            self._plan_timer.start(400 if self._perf else 100)
         # The overlay's frame rate (``overlay_show_fps``): its frames counted while it is on, never in performance
         # mode, where nothing drives a frame each turn of the screen.
         counting = ui.get("overlay_show_fps") is True and not self._perf
@@ -2428,6 +2451,62 @@ class MeterOverlay(QWidget):
         self._shown_rates.clear()                 # the rows tick from the new metric's rates, not the old one's
         self.apply_meter(self.answer)
 
+    def set_view(self, view: str) -> None:
+        """The meter or the raid plan (the toolbar's tabs): the tab of the other view shows. Opened, the plan view
+        asks the app for the saved plans again."""
+        view = "plan" if view == "plan" else "meter"
+        if view == self.view:
+            return
+        self.view = view
+        for key, tab in self.tabs.items():
+            tab.setVisible(key != view)
+        if view == "plan":
+            self._refresh_plans(True)
+            self._plan_timer.start(400 if self._perf else 100)   # the map moves on, a quarter as often in performance mode
+        else:
+            self._plan_timer.stop()
+        self.apply_meter(self.answer)
+
+    def _refresh_plans(self, now: bool = False) -> None:
+        """Ask the app for the saved plans (``/api/plans/saved``): at once, or at most every 15 s while the view is
+        open."""
+        if self.requests is None or (not now and time.monotonic() - self._plans_at < 15):
+            return
+        self._plans_at = time.monotonic()
+        self.requests.get("plans", "/api/plans/saved")
+
+    def _show_plan(self) -> None:
+        """The raid plan view (``renderPlan``): the plan's map at its moment in the rows' place, the rest put away
+        but the toolbar, the events strip and the options; with no plan saved, where to save one."""
+        if self.view != "plan":
+            return
+        for part in (self.metric_chip, self.ping, self.lines, self.identity, self.target_card, self.arena_card,
+                     self.contribution, self.dummy, self.fps, self.graph, self.cooldowns, self.clock, self.connection,
+                     self.warning, self.panel_scroll):
+            part.hide()
+        for row in self.rows:
+            row.hide()
+        self._show_arena(None, [], lambda _player: False, self.rate_metric)
+        self._refresh_plans()
+        plan, moment, live, length = plan_view(self.plans, self.answer, self.ui.get("overlay_plan_autoplay") is not False,
+                                               time.monotonic() - self._plan_start)
+        if plan is None:
+            self.plan_map.hide()
+            self.empty.setText("No saved plan yet. Plans you save in the app's Raid Planner show here.")
+            self.empty.show()
+            self.status_text = ""
+        else:
+            self.empty.hide()
+            name = (plan.get("meta") or {}).get("name") or "plan"
+            self.status_text = (f"{'▶ live · ' if live else ''}{name} · {theme.fixed(moment, 0)}/"
+                                f"{theme.fixed(length, 0)}s")
+            self.plan_map.set_moment(plan, moment)
+            self.plan_map.setToolTip(self.status_text)
+            self.plan_map.show()
+        self.content_box.setContentsMargins(0, 8, 0, 2)   # ``.ovarena { margin: 2px auto }``
+        self._sync_tools()
+        self._relayout()
+
     def next_metric(self) -> None:
         """A click on the metric chip: the next metric, DPS, HPS, damage taken and round again."""
         keys = [key for key, _words in METRICS]
@@ -2472,6 +2551,11 @@ class MeterOverlay(QWidget):
         if not isinstance(answer, dict):
             return
         self.answer = answer
+        if self.view == "plan":                   # the reading plays a bound plan with the fight
+            self._show_plan()
+            return
+        self.plan_map.hide()
+        self.fps.setVisible(self.fps.running())
         ui, look, metric = self.ui, self.look, self.rate_metric
         snap = answer.get("snapshot") if isinstance(answer.get("snapshot"), dict) else {}
         segment = snap.get("selected_segment")
@@ -3310,6 +3394,11 @@ class MeterOverlay(QWidget):
         if name == "background":
             self._background_read(answer)
             return
+        if name == "plans":
+            if isinstance(answer, dict) and isinstance(answer.get("plans"), dict):
+                self.plans = answer["plans"]
+                self._show_plan()
+            return
         if name.startswith("detail:"):
             self._detail_answered(name[len("detail:"):], answer)
         elif name == "capture":
@@ -3346,6 +3435,8 @@ class MeterOverlay(QWidget):
             return
         if name == "background":
             self._background_lost()
+            return
+        if name == "plans":                       # asked again within 15 s, while the view is open
             return
         if name.startswith("detail:"):
             key = name[len("detail:"):]
