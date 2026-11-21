@@ -318,4 +318,4 @@ def test_running_the_advice(qapp):
 def test_the_window_draws_gear_and_advice_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("gear"), GearPage) and not isinstance(window.page("gear"), WebPage)
-    assert isinstance(window.page("combat"), WebPage)                    # not moved over yet
+    assert isinstance(window.page("raid"), WebPage)                    # not moved over yet

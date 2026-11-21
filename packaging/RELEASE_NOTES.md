@@ -1,3 +1,13 @@
+## Combat Logs in the native interface, part 1 (0.2.450)
+
+**Combat Logs opens in the app's window now**, with its views (Browse logs, Completed-run speed, Boss progression, Highest observed build points and Personal records) and its lists (Community Combat Logs, My Uploads, Saved Logs and My Character Identities) as the web page has them. **Saved Logs** is drawn there:
+- **Analyze** a fight from an AbyssLogs or A2DIL link (for a party log, name a player), or from a file with **Choose a file…**: an AbyssLogs segment (gzipped or not), aion2calc JSON or CSV. Its progress shows beside it, and its analysis opens once it is done;
+- the folder every analyzed log is saved in, with how many files it holds and **Open folder**;
+- **Share to a log server:** its address, its upload key (only whether one is saved is shown), who can see your uploads, and **Save**;
+- the **Analyzed encounters**, each with **Open**.
+
+The other views and lists, the recorded encounters by type, the recordings to upload, and an encounter's analysis still open in the web interface: **Open it on the web page**.
+
 ## Account's Legions in the native interface (0.2.449)
 
 **Account is whole in the native interface now**: its **Legions** open in the app's window too, as the web page draws them:

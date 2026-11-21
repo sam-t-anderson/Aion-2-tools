@@ -28,6 +28,7 @@ from .gathering_page import GatheringPage
 from .gear_page import GearPage
 from .history_page import HistoryPage
 from .character_page import CharacterPage
+from .combat_page import CombatPage
 from .maps_page import MapsPage
 from .planner_page import PlannerPage
 from .pets_page import PetsPage
@@ -254,6 +255,8 @@ class MainWindow(QMainWindow):
                     widget = GearPage(api, self.show_page, self.open_web)
                 elif key == "account":
                     widget = AccountPage(api, self.open_web)
+                elif key == "combat":
+                    widget = CombatPage(api, self.open_web)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)
