@@ -1,3 +1,18 @@
+## My Character in the native interface (0.2.440)
+
+**My Character is native now.** The app's window draws Character → My Character itself, as the web page shows it:
+- **Search** a character by name in a region and **Import** it, or open one imported before (newest first). With **Settings → My Character at launch**, the one opened last opens from its last snapshot, or refreshed.
+- **The character:**
+  - its DPS in each scenario and the points spent of each budget;
+  - where its budgets come from, and its warnings;
+  - the totals to optimize with: what the profile shows spent, or what you type above it, kept for that character. The class's highest reported totals are shown for reference only;
+  - the game version and the damage objective;
+  - whether the saved Pet Genus Insight lines count, with the PvE enemy mix.
+- **Optimize** a PvE, PvP damage or World PvP build: its progress as it runs, then its score and gain, the model's note, the community preset's word, what changes, and the optimized build in the result windows. A run goes on while you look at another character, and is shown on its own character's page.
+- Not here yet:
+  - the HP reserve, opponents and action windows, and the trained-skill reserves: an optimization from this window keeps the build's HP and reserves no skills;
+  - the Genus lines themselves, which are edited on Gear & Advice for now.
+
 ## The Build Planner page in the native interface (0.2.439)
 
 **The Build Planner is native now.** The app's window draws Character → Build Planner itself, as the web page shows it:
