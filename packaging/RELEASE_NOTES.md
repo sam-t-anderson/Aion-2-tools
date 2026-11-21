@@ -1,3 +1,16 @@
+## The whole advice in the native interface (0.2.446)
+
+**Gear & Advice is whole in the native interface now**: its advice's last window, **Genus Insight**, is drawn in the app's window too, as the web page draws it:
+- the note on where the genus lines come from, and the **genus roll targets**;
+- the five genera's tabs, each with its recorded level, and the **genus coverage**;
+- the chosen genus's **Insight ring** and its **nine slots**: a locked slot and what to roll for once it opens; a slot not recorded and what to roll for in it (or, in slot 4, a possible line to chase); a line saved with its modeled gain, and whether it is the best modeled line for its slot or what to reroll for (hover a slot for what to roll for and the next two);
+- every slot's rolls, folded: what to roll for at the best listed grade, the next two, and how many options it has;
+- beside them, **what to roll for first**, **your fight time** per genus as a bar, the **line to chase**, and **the order to level the genera in**.
+
+The genus chosen stays chosen for the next advice shown, as on the web page, and **Copy as text** copies the chosen genus's rolls and the lines saved.
+
+**Saved Results shows a saved advice in the native interface too**, with every window Gear & Advice draws; it no longer sends you to the web page for it.
+
 ## The advice's arcana, titles and Pantheon in the native interface (0.2.445)
 
 **Gear & Advice draws the advice's arcana, titles and Pantheon in the app's window too**, as the web page does:

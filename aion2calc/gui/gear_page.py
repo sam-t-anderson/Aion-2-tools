@@ -1,5 +1,5 @@
-"""The native Gear & Advice page (0.2.443; its advice since 0.2.444, its arcana, titles and Pantheon since 0.2.445):
-Character → Gear & Advice as pages/gear.js shows it.
+"""The native Gear & Advice page (0.2.443; its advice since 0.2.444, whole since 0.2.446): Character → Gear & Advice as
+pages/gear.js shows it.
 
 - **The character** to advise, chosen among those imported on My Character, and **Run advice** (its job): its progress
   as it runs, and the advice kept from the last run (when it was calculated, what has changed since). Opening the page,
@@ -13,7 +13,7 @@ Character → Gear & Advice as pages/gear.js shows it.
   list kept with **Save titles**.
 
 The advice is drawn under them (``advice_view.AdviceView``): its top changes, skill specialties, paper doll, upgrade path,
-arcana, titles, Pantheon, fights and calibration. Its genus recommendations open in the web interface for now.
+arcana, titles, Pantheon, Genus Insight (with the inventory's lines where the advice has none), fights and calibration.
 """
 from __future__ import annotations
 
@@ -105,6 +105,8 @@ class GearPage(QWidget):
         self.api, self.show_page, self.open_web = api, show_page, open_web
         self.key = ""                                    # the character chosen (``st.key``)
         self.inv: dict = {}
+        self.advice_state: dict = {}                      # ``S.gear``: the advice's genus shown, kept across its views
+        self.advice_view: AdviceView | None = None
         self.advice = None                               # the advice shown, and the kept run's facts (``st.adv``, ``st.kept``)
         self.kept = None
         self.advice_job: dict | None = None
@@ -227,8 +229,12 @@ class GearPage(QWidget):
     def show_advice(self, advice, kept) -> None:
         """The advice on the page (``showAdvice``): its windows (``renderAdvice``), under the line about the advice
         kept."""
+        if self.advice_view is not None:
+            self.advice_view.stop()
         _clear(self.out)
-        self.out.addWidget(AdviceView(self.api, advice if isinstance(advice, dict) else {}, self.open_web))
+        self.advice_view = AdviceView(self.api, advice if isinstance(advice, dict) else {}, self.open_web,
+                                      state=self.advice_state, inventory=self.inv)
+        self.out.addWidget(self.advice_view)
         self.advice, self.kept = advice, kept
         self._kept(kept)
 
@@ -644,7 +650,7 @@ class GearPage(QWidget):
             self.toast.say(why)
 
     def closeEvent(self, event) -> None:
-        for worker in (self.requests, self.advising):
+        for worker in (self.requests, self.advising, self.advice_view):
             if worker is not None:
                 worker.stop()
         super().closeEvent(event)

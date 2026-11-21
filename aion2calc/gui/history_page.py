@@ -7,8 +7,8 @@ the optimizations and advice saved on this computer, newest first, each opened, 
   ``POST /api/history``, which checks it.
 - **Export:** the saved result as the web page exports it (``aion2calc-result-<id>.json``), where you choose.
 - **Open:** the snapshot under the list. A build opens in the result windows (``result_windows.py``: every window
-  drawn here); an advice's text in its box; an
-  advice's full view is on the web page for now.
+  drawn here); an advice's text in its box; an advice in its view (``advice_view.AdviceView``, as Gear & Advice shows
+  it, since 0.2.446).
 
 The list is read each time the page is shown.
 """
@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (QFileDialog, QFrame, QGridLayout, QHBoxLayout, QL
                                QScrollArea, QVBoxLayout, QWidget)
 
 from . import result_windows, results, theme
+from .advice_view import STYLE as ADVICE_STYLE, AdviceView
 from .api import AppApi, Requests
 from .database_page import Window
 from .gathering_page import GatheringPage
@@ -31,7 +32,6 @@ from .news import when
 NO_RUNS = "No saved runs yet. Completed optimizations and advice save here automatically."
 TOO_LARGE = "Result exceeds 20 MiB"
 LIMIT = 20 * 1024 * 1024
-ADVICE_NOTE = "The advice view is drawn in the web interface for now."
 
 
 def _label(text: str = "", name: str = "", wrap: bool = True) -> QLabel:
@@ -65,7 +65,7 @@ class HistoryPage(QWidget):
             QFrame#runRow QLabel {{ background: transparent; }}
             QPlainTextEdit#diff {{ background: rgba(6, 9, 15, 0.65); border: 1px solid {theme.COLORS['line']}; border-radius: 6px;
                                    padding: 10px; }}
-            """)
+            """ + ADVICE_STYLE)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -103,6 +103,8 @@ class HistoryPage(QWidget):
         layout.addWidget(view)
         layout.addStretch(1)
         self.windows: result_windows.ResultWindows | None = None
+        self.advice: AdviceView | None = None                   # a saved advice opened
+        self.advice_state: dict = {}                            # its genus shown, kept across the advice opened
         self.reveal = QTimer(self)
         self.reveal.setSingleShot(True)
         self.reveal.timeout.connect(lambda: self.scroll.ensureWidgetVisible(view, 0, 0))
@@ -207,8 +209,9 @@ class HistoryPage(QWidget):
 
     def _show(self, doc: dict) -> None:
         """The saved result under the list (``#history-view``): its date, then its windows, its text or the advice."""
-        if self.windows is not None:
-            self.windows.stop()
+        for shown in (self.windows, self.advice):
+            if shown is not None:
+                shown.stop()
         while self.view.count():
             child = self.view.takeAt(0)
             widget = child.widget()
@@ -216,7 +219,7 @@ class HistoryPage(QWidget):
                 widget.hide()
                 widget.setParent(None)
                 widget.deleteLater()
-        self.windows = None
+        self.windows = self.advice = None
         self.opened = doc
         self.view.addWidget(_label(results.saved_line(when((doc.get("created") or 0) * 1000)), "muted"))
         kind = doc.get("kind")
@@ -228,12 +231,9 @@ class HistoryPage(QWidget):
             text.setMaximumHeight(420)
             self.view.addWidget(text)
         elif kind == "advice":
-            window = Window("Advice")
-            window.body.addWidget(_label(ADVICE_NOTE, "muted"))
-            button = QPushButton("Open the web Saved Results page")
-            button.clicked.connect(lambda: self.open_web("history") if self.open_web else None)
-            window.body.addWidget(button, 0, Qt.AlignLeft)
-            self.view.addWidget(window)
+            result = doc.get("result")
+            self.advice = AdviceView(self.api, result if isinstance(result, dict) else {}, self.open_web, state=self.advice_state)
+            self.view.addWidget(self.advice)
         else:
             self.windows = result_windows.ResultWindows(self.api, self.open_web, "history", when=when)
             self.view.addWidget(self.windows)
@@ -263,8 +263,9 @@ class HistoryPage(QWidget):
         return path
 
     def closeEvent(self, event) -> None:
-        if self.windows is not None:
-            self.windows.stop()
+        for shown in (self.windows, self.advice):
+            if shown is not None:
+                shown.stop()
         if self.requests is not None:
             self.requests.stop()
         super().closeEvent(event)

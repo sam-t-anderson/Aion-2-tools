@@ -13,17 +13,20 @@
   ranked by what its titles take off the hits you take), and the titles worth collecting;
 - **Pantheon** (0.2.445): the ten deities with your points and what 10 more are worth, the arcana's deity choices, and
   the recommended board (``pantheon_board``) with its list;
+- **Genus Insight** (0.2.446): the roll targets, the genera's tabs and coverage, the chosen genus's ring and nine slots
+  (what to roll for, or the line saved with its gain), every slot's rolls, and its side: what to roll for first, your
+  fight time per genus, the line to chase and the order to level the genera in;
 - **Your fights** and **Model calibration**.
 
-The genus advice is not drawn here yet: ``open_web`` opens it on the web page.
+Gear & Advice shows it under its advice kept or run, Saved Results a saved advice.
 """
 from __future__ import annotations
 
 import html
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QUrl
-from PySide6.QtGui import (QColor, QDesktopServices, QFont, QGuiApplication, QPainter, QPainterPath, QPen, QPixmap,
-                           QRadialGradient)
+from PySide6.QtGui import (QColor, QDesktopServices, QFont, QGuiApplication, QLinearGradient, QPainter, QPainterPath, QPen,
+                           QPixmap, QRadialGradient)
 from PySide6.QtWidgets import (QFrame, QGraphicsDropShadowEffect, QGraphicsOpacityEffect, QGridLayout, QHBoxLayout, QLabel,
                                QLayout, QProgressBar, QPushButton, QVBoxLayout, QWidget)
 
@@ -34,7 +37,8 @@ from . import theme
 from .chrome import FlowLayout
 from .database_page import Icons, Window
 from .pantheon_board import PantheonBoard
-from .result_windows import Across, Bar, GridTable, SkillIcon, _css_colour, icon_path
+from .result_windows import (Across, Bar, BoardTab, GenusRing, GridTable, SkillIcon, _cell, _css_colour, _faint, _gain,
+                             coverage_section, icon_path, targets_section)
 from .timers_page import Fold
 
 GAIN = "#8fe08f"
@@ -119,6 +123,53 @@ class Columns(QWidget):
         self.place(self.wide if event.size().width() >= self.below else self.narrow)
 
 
+class MixBar(QWidget):
+    """Your fight time per genus (``.mix``): each genus's share of the bar in its colour, its name and share on it."""
+
+    COLOURS = (("#ecd79f", "#b9984f"), ("#9fe3f2", "#3a9bb5"), ("#a8e6a8", "#4f9f4f"), ("#e6a8e6", "#9f4f9f"))
+
+    def __init__(self, segments: list[tuple[str, float, str]], parent: QWidget | None = None):
+        super().__init__(parent)
+        self.segments = [(name, max(0.0, share), words) for name, share, words in segments]
+        self.setFixedHeight(22)
+        self.setToolTip("\n".join(words for _name, _share, words in self.segments))
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        frame = QPainterPath()
+        frame.addRoundedRect(QRectF(0.5, 0.5, self.width() - 1, self.height() - 1), 4, 4)
+        painter.setClipPath(frame)
+        total = sum(share for _name, share, _words in self.segments)
+        x = 0.0
+        font = QFont(self.font())
+        font.setBold(True)
+        painter.setFont(font)
+        for index, (_name, share, words) in enumerate(self.segments):
+            if total <= 0:
+                break
+            width = self.width() * share / total
+            top, bottom = self.COLOURS[index] if index < len(self.COLOURS) else self.COLOURS[0]
+            fill = QLinearGradient(0, 0, 0, self.height())
+            fill.setColorAt(0, QColor(top))
+            fill.setColorAt(1, QColor(bottom))
+            box = QRectF(x, 0, width, self.height())
+            painter.fillRect(box, fill)
+            painter.setPen(QColor(0, 0, 0, 102))
+            painter.drawLine(QPointF(x + width - 0.5, 0), QPointF(x + width - 0.5, self.height()))
+            painter.save()
+            painter.setClipRect(box, Qt.IntersectClip)
+            painter.setPen(QColor("#10131a"))
+            painter.drawText(box, int(Qt.AlignCenter), words)
+            painter.restore()
+            x += width
+        painter.setClipping(False)
+        painter.setPen(QColor(theme.COLORS["line"]))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawPath(frame)
+        painter.end()
+
+
 class Sigil(QWidget):
     """A deity's sigil (``.sigil``): its lord's initial on a disc of the deity's colour, lit from the upper left."""
 
@@ -198,10 +249,10 @@ def _grade_edges() -> str:
 
 
 STYLE = f"""
-QLabel#chip {{ background: rgba(57, 194, 224, 0.10); border: 1px solid rgba(57, 194, 224, 0.35); border-radius: 9px;
-               padding: 1px 7px; color: #9fe3f2; }}
-QLabel#chipGold {{ background: rgba(233, 203, 128, 0.10); border: 1px solid rgba(233, 203, 128, 0.45); border-radius: 9px;
-                   padding: 1px 7px; color: {theme.COLORS['gold']}; }}
+QLabel#chip {{ background: rgba(57, 194, 224, 0.12); border: 1px solid rgba(57, 194, 224, 0.25); border-radius: 3px;
+               padding: 1px 6px; color: #9fe3f2; }}
+QLabel#chipGold {{ background: rgba(233, 203, 128, 0.12); border: 1px solid {FRAME}; border-radius: 3px;
+                   padding: 1px 6px; color: {theme.COLORS['gold']}; }}
 QFrame#topRow {{ background: {theme.COLORS['panel2']}; border: 1px solid {theme.COLORS['line']}; border-radius: 5px; }}
 QFrame#topRow QLabel {{ background: transparent; }}
 QLabel#topMark {{ background: {INSET}; border: 1px solid {FRAME}; border-radius: 13px; color: {theme.COLORS['gold']}; }}
@@ -249,6 +300,17 @@ QFrame#dtile QLabel {{ background: transparent; }}
 QLabel#dn {{ font-weight: 700; }}
 QLabel#pts {{ color: {theme.COLORS['gold']}; font-size: 20px; font-weight: 800; }}
 QFrame#prow {{ background: {INSET}; border: 1px solid #1d2539; border-radius: 6px; }}
+QFrame#gslot {{ background: {INSET}; border: 1px solid {theme.COLORS['line']}; border-radius: 6px; }}
+QFrame#gslot[aimed="true"] {{ border-color: rgba(57, 194, 224, 0.45); }}
+QFrame#gslot[special="true"] {{ border-color: {FRAME_HI};
+    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #1c1d1e, stop: 1 {INSET}); }}
+QFrame#gslot[filled="true"] {{ background: {theme.COLORS['panel2']}; }}
+QFrame#gslot[dead="true"] {{ border-color: rgba(217, 83, 79, 0.5); }}
+QFrame#gslot QLabel, QFrame#gslot QWidget#plain {{ background: transparent; }}
+QLabel#gn {{ color: {theme.COLORS['faint']}; font-weight: 700; }}
+QLabel#gst {{ font-weight: 700; }}
+QLabel#gv {{ color: {theme.COLORS['accent']}; }}
+QLabel#gaimOk {{ color: {theme.COLORS['good']}; }}
 QFrame#prow QLabel, QFrame#prow QWidget#plain {{ background: transparent; }}
 QProgressBar#cum {{ background: {INSET}; border: none; border-radius: 3px; min-height: 18px; max-height: 18px; text-align: center;
                     font-weight: 700; color: {theme.COLORS['text']}; }}
@@ -263,10 +325,13 @@ class AdviceView(QWidget):
     """An advice's windows. ``open_web`` opens the web page (for the parts not drawn here yet), ``clipboard`` takes
     the words a window's "Copy as text" copies and ``open_link`` an item's page; both default to the system's."""
 
-    def __init__(self, api, advice: dict, open_web=None, clipboard=None, open_link=None, parent: QWidget | None = None):
+    def __init__(self, api, advice: dict, open_web=None, clipboard=None, open_link=None, parent: QWidget | None = None,
+                 state: dict | None = None, inventory: dict | None = None):
         super().__init__(parent)
         self.setObjectName("plain")
         self.advice, self.open_web = advice if isinstance(advice, dict) else {}, open_web
+        self.state = state if state is not None else {}          # ``S.gear``: the genus shown, kept by the page
+        self.inventory = inventory
         self.clipboard = clipboard or (lambda text: QGuiApplication.clipboard().setText(text))
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.icons = Icons(api, self)
@@ -278,7 +343,7 @@ class AdviceView(QWidget):
         self.box.setSpacing(14)
         self.tiles: dict[str, QPushButton] = {}
         for part in (self._top, self._specialties, self._equipment, self._path, self._arcana, self._titles,
-                     self._pantheon, self._rest, self._fights):
+                     self._pantheon, self._genus, self._fights):
             widget = part()
             if widget is not None:                         # no titles in the advice: no window
                 self.box.addWidget(widget)
@@ -313,14 +378,15 @@ class AdviceView(QWidget):
     def item_icon(self, size: int, item) -> ItemIcon:
         return self._picture(ItemIcon(size, item), r._dict(item).get("icon"))
 
-    def _window(self, title: str, subtitle: str = "", copy: str = "") -> Window:
+    def _window(self, title: str, subtitle: str = "", copy="") -> Window:
+        """A window with its "Copy as text": the words given, or worked out when it is pressed (the genus shown)."""
         window = Window(title, subtitle)
         if not subtitle:
             window.head.addStretch(1)
         if copy:
             button = QPushButton("Copy as text")
             button.setObjectName("small")
-            button.clicked.connect(lambda _checked=False: self.clipboard(copy))
+            button.clicked.connect(lambda _checked=False: self.clipboard(copy() if callable(copy) else copy))
             window.tool(button)
         return window
 
@@ -927,20 +993,150 @@ class AdviceView(QWidget):
             window.body.addWidget(pair)
         return window
 
-    # ---------------------------------------------------------------- the genus, on the web page for now
-    def _rest(self) -> Window:
-        window = self._window("Genus Insight")
-        window.body.addWidget(_label("The genus recommendations open in the web interface for now.", "muted"))
-        button = QPushButton("Open them on the web page")
-        button.setObjectName("small")
-        button.clicked.connect(lambda _checked=False: self.open_web("gear") if self.open_web else None)
-        row = _plain()
-        line = QHBoxLayout(row)
+    # ---------------------------------------------------------------- genus insight
+    def _genus(self) -> Window:
+        a = self.advice
+        state = a_.genus_state(a, self.inventory)
+        genus = a_.genus_tab(a, self.state.get("genusTab"))
+        window = self._window("Genus Insight", a_.GENUS_SUB, lambda: a_.genus_copy(self.advice, genus))
+        note = QFrame()
+        note.setObjectName("note")
+        QVBoxLayout(note).addWidget(_label(a_.GENUS_NOTE))
+        window.body.addWidget(note)
+        targets = targets_section(a)
+        if targets is not None:
+            window.body.addWidget(targets)
+        tabs = _plain()                                    # ``.tabs``
+        flow = FlowLayout(tabs, align=Qt.AlignLeft, gap=(4, 4))
+        for name, level in a_.genus_tabs(state):
+            tab = BoardTab(name, level, name == genus)
+            tab.clicked.connect(lambda _checked=False, name=name: self.show_genus(name))
+            flow.addWidget(tab)
+        window.body.addWidget(tabs)
+        coverage = coverage_section(a)
+        if coverage is not None:
+            window.body.addWidget(coverage)
+        pair = _plain()                                    # ``.gwrap``
+        line = QHBoxLayout(pair)
         line.setContentsMargins(0, 0, 0, 0)
-        line.addWidget(button)
-        line.addStretch(1)
-        window.body.addWidget(row)
+        line.setSpacing(14)
+        main = _plain()
+        column = QVBoxLayout(main)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(8)
+        column.addWidget(GenusRing(genus, state.get(genus)), 0, Qt.AlignHCenter)
+        grid = QGridLayout()                               # ``.ggrid``
+        grid.setSpacing(8)
+        for index, cell in enumerate(a_.genus_cells(a, state, genus)):
+            grid.addWidget(self._genus_cell(cell), index // 3, index % 3)
+        for index in range(3):
+            grid.setColumnStretch(index, 1)
+        column.addLayout(grid)
+        rows = a_.genus_rolls_table(a, genus)
+        if rows is not None:
+            fold = Fold(a_.ROLLS_FOLD)                  # ``details.grolls``
+            cells = []
+            for row in rows:
+                aim = (f"<b>{html.escape(row['aim'][0])}</b> {_faint(row['aim'][1])} {_gain(row['aim'][2])}" if row["aim"]
+                       else _faint("no modeled line"))
+                cells.append([_cell(html.escape(row["slot"]) + (" " + _faint("amp") if row["amp"] else "")), _cell(aim),
+                              _cell("<br>".join(f"{html.escape(stat)} {_faint(gain)}" for stat, gain in row["then"])),
+                              _cell(_faint(row["options"]))])
+            fold.add(GridTable(a_.ROLLS_COLUMNS, cells, {1: 3, 2: 2, 3: 2}))
+            column.addWidget(fold)
+        line.addWidget(main, 1)
+        line.addWidget(self._genus_side(a, state, genus), 0, Qt.AlignTop)
+        window.body.addWidget(pair)
+        self.genus_window = window
         return window
+
+    def _genus_cell(self, cell: dict) -> QFrame:
+        """A slot of the genus (``.gslot``): its number at its corner, then what it holds."""
+        frame = QFrame()
+        frame.setObjectName("gslot")
+        frame.setMinimumHeight(78)
+        frame.setProperty("special", cell["special"])
+        frame.setToolTip(cell["title"])
+        grid = QGridLayout(frame)
+        grid.setContentsMargins(8, 8, 8, 8)
+        grid.addWidget(_label(cell["n"], "gn", wrap=False), 0, 0, Qt.AlignLeft | Qt.AlignTop)
+        body = _plain()                                   # across the cell, its words in its middle
+        column = QVBoxLayout(body)
+        column.setContentsMargins(14, 4, 14, 0)
+        column.setSpacing(2)
+        column.addStretch(1)
+        if cell["kind"] == "locked":
+            column.addWidget(_centred(_label(cell["text"], "faint")))
+            if cell["aim"]:
+                column.addWidget(_centred(_label(cell["aim"])))
+        elif cell["kind"] == "empty":
+            frame.setProperty("aimed", cell["aimed"])
+            column.addWidget(_centred(_label(cell["text"], "faint")))
+            if cell["aim"]:
+                stat, grade, gain = cell["aim"]
+                column.addWidget(_centred(_label(f"<span style='color: {theme.COLORS['muted']};'>roll for</span><br>"
+                                                 f"{html.escape(stat)} {_faint(grade)} {_gain(gain)}", rich=True)))
+            elif cell["possible"]:
+                column.addWidget(_centred(_label(cell["possible"], "faint")))
+        else:
+            frame.setProperty("filled", True)
+            frame.setProperty("dead", cell["dead"])
+            column.addWidget(_centred(_label(cell["stat"], "gst")))
+            column.addWidget(_centred(_label(cell["value"], "gv")))
+            kind, words = cell["gain"]
+            if kind == "note":
+                column.addWidget(_centred(_label(words, "muted")))
+            else:
+                column.addWidget(_centred(_label(f"<b style='color: {GAIN if kind == 'up' else DOWN};'>{html.escape(words)}</b>",
+                                                 rich=True)))
+            if cell["verdict"] is not None:
+                verdict, said = cell["verdict"]
+                if verdict == "keep":
+                    column.addWidget(_centred(_label(said, "gaimOk")))
+                else:
+                    stat, grade, gain = said
+                    column.addWidget(_centred(_label(f"<span style='color: {theme.COLORS['muted']};'>reroll for</span> "
+                                                     f"{html.escape(stat)} {_faint(grade)} {_gain(gain)}", rich=True)))
+        column.addStretch(1)
+        grid.addWidget(body, 0, 0)
+        return _dimmed(frame, 0.45) if cell["kind"] == "locked" else frame
+
+    def _genus_side(self, a: dict, state: dict, genus: str) -> QWidget:
+        """The genus's side (``.gside``)."""
+        side = a_.genus_side(a, state, genus)
+        box = _plain()
+        box.setFixedWidth(320)
+        column = QVBoxLayout(box)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(6)
+        column.addWidget(_label(f"ROLL FOR · {genus}", "aHead"))
+        if side["best"] is None:
+            column.addWidget(_label(a_.NO_CANDIDATE, "faint"))
+        for slot, stat, grade, gain in side["best"] or []:
+            column.addWidget(_label(f"slot {html.escape(slot)}: <b>{html.escape(stat)}</b> {_faint(grade)} {_gain(gain)}", rich=True))
+        column.addWidget(_label(side["basis"], "muted"))
+        column.addWidget(_label("YOUR FIGHT TIME", "aHead"))
+        column.addWidget(MixBar(side["mix"]))
+        if side["chase"] is not None:
+            chase = side["chase"]
+            column.addWidget(_label("CHASE", "aHead"))
+            column.addWidget(_label(f"{html.escape(chase['line'])} <span style='color: {theme.COLORS['muted']};'>"
+                                    f"{html.escape(chase['value'])}</span> {_gain(chase['gain'])}", rich=True))
+            column.addWidget(_label(chase["note"], "muted"))
+        column.addWidget(_label("LEVEL ORDER", "aHead"))
+        for genus_line, words in side["order"]:
+            column.addWidget(_label(f"{html.escape(genus_line)} {_faint(words)}", rich=True))
+        return box
+
+    def show_genus(self, genus: str) -> None:
+        """Another genus's tab chosen: the window drawn again for it, the choice kept by the page (``S.gear.genusTab``)."""
+        self.state["genusTab"] = genus
+        old = self.genus_window
+        index = self.box.indexOf(old)
+        self.box.insertWidget(index, self._genus())
+        old.hide()
+        old.setParent(None)
+        old.deleteLater()
 
     # ---------------------------------------------------------------- the fights and the calibration
     def _fights(self) -> QWidget:

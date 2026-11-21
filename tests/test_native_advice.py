@@ -1,7 +1,7 @@
 """An advice's view in the native interface (0.2.444), as pages/advice.js draws it: the top changes, the skill
 specialties, the paper doll and each slot's way to its best item, the upgrade path, the arcana, titles and Pantheon
-(0.2.445, with the recommended board), and the fights and calibration. Off screen, over the browser tests' kept advice
-(tests/browser/kept_advice.json, a made-up Sorcerer's).
+(0.2.445, with the recommended board), Genus Insight (0.2.446), and the fights and calibration. Off screen, over the
+browser tests' kept advice (tests/browser/kept_advice.json, a made-up Sorcerer's).
 """
 import copy
 import json
@@ -16,14 +16,14 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QBuffer, QCoreApplication, QEvent  # noqa: E402
 from PySide6.QtGui import QColor, QImage  # noqa: E402
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton  # noqa: E402
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton  # noqa: E402
 
 from aion2calc.gui import advice as a_  # noqa: E402
 from aion2calc.gui import news  # noqa: E402
-from aion2calc.gui.advice_view import AdviceView  # noqa: E402
+from aion2calc.gui.advice_view import AdviceView, MixBar  # noqa: E402
 from aion2calc.gui.database_page import Window  # noqa: E402
 from aion2calc.gui.pantheon_board import PantheonBoard  # noqa: E402
-from aion2calc.gui.result_windows import icon_path  # noqa: E402
+from aion2calc.gui.result_windows import BoardTab, GenusRing, icon_path  # noqa: E402
 from aion2calc.gui.timers_page import Fold  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -169,11 +169,11 @@ def test_the_advice_view(qapp):
     for button in (b for b in view.findChildren(QPushButton) if b.text() == "Copy as text"):
         button.click()
     assert copied == [a_.top_copy(KEPT), a_.specialties_copy(KEPT), a_.doll_copy(KEPT), a_.path_copy(KEPT), a_.arcana_copy(KEPT),
-                      a_.titles_copy(KEPT), a_.pantheon_copy(KEPT)]
-    next(b for b in view.findChildren(QPushButton) if b.text() == "Open them on the web page").click()
+                      a_.titles_copy(KEPT), a_.pantheon_copy(KEPT), a_.genus_copy(KEPT, "Cogni")]
+    assert not [b for b in view.findChildren(QPushButton) if b.text() == "Open them on the web page"]   # all drawn here
     fight = next(label for label in view.findChildren(QLabel) if "web:combat-log/analysis/1" in label.text())
     fight.linkActivated.emit("web:combat-log/analysis/1")
-    assert opened == ["gear", "combat-log/analysis/1"] and len(links) == 1
+    assert opened == ["combat-log/analysis/1"] and len(links) == 1
     older = AdviceView(None, {**KEPT, "skill_specialties": None, "fights": None, "rotation": {}})
     assert a_.SPECIALTIES_OLD in [label.text() for label in older.findChildren(QLabel)]
     assert a_.NO_FIGHTS in [label.text() for label in older.findChildren(QLabel)]
@@ -308,11 +308,132 @@ def test_the_arcana_titles_and_pantheon_windows(qapp):
     board.grab()                                                                  # drawn with its picture
     for button in (b for b in view.findChildren(QPushButton) if b.text() == "Copy as text"):
         button.click()
-    assert copied[4:7] == [a_.arcana_copy(view.advice), a_.titles_copy(view.advice), a_.pantheon_copy(view.advice)]
+    assert copied[4:8] == [a_.arcana_copy(view.advice), a_.titles_copy(view.advice), a_.pantheon_copy(view.advice),
+                           a_.genus_copy(view.advice, "Cogni")]
     # no titles or board in the advice: no Titles window, no board
     bare = AdviceView(None, {**KEPT, "titles": None})
     assert "TITLES" not in [w.findChild(QLabel, "winTitle").text() for w in bare.findChildren(Window)]
     assert not bare.findChildren(PantheonBoard)
+
+
+def _genus() -> dict:
+    """The kept advice with Cogni at level 5 (three lines saved and scored), what each slot can roll, a line to chase
+    and its fight time; Fera with a level but no lines."""
+    a = copy.deepcopy(KEPT)
+    g = a["genus"]
+    g["state"] = {"Cogni": {"level": 5, "lines": [{"slot": 1, "stat": "Attack", "value": "30"},
+                                                  {"slot": 2, "stat": "Critical Hit", "value": "40"},
+                                                  {"slot": "3", "stat": "HP", "value": 120}]},
+                  "Fera": {"level": 2, "lines": []}}
+    g["lines"] = [{"genus": "Cogni", "slot": 1, "stat": "Attack", "value": "30", "gain": 0.0123},
+                  {"genus": "Cogni", "slot": 2, "stat": "Critical Hit", "value": "40", "gain": 0.0004},
+                  {"genus": "Cogni", "slot": 3, "stat": "HP", "value": 120, "gain": 0.0},
+                  {"genus": "Fera", "slot": 1, "stat": "PvP Defense", "value": "9", "gain": None, "reason": "Defensive effect"}]
+    g["roll_targets"] = {"basis": "Global slot property tables", "genera": {"Cogni": {
+        "best": [{"slot": 4, "stat": "Cogni Damage Boost", "grade": "Legend", "range": "2.4–4.8%", "gain": 0.031}],
+        "slots": {"1": {"aim": [{"stat": "Attack", "grade": "Unique", "range": "20–40", "gain": 0.015},
+                                {"stat": "Critical Hit", "grade": "Unique", "range": "30–60", "gain": 0.012},
+                                {"stat": "Accuracy", "grade": "Epic", "range": "10–20", "gain": 0.004}], "options": 12, "unmodeled": 3},
+                  "2": {"aim": [{"stat": "Attack", "grade": "Unique", "range": "20–40", "gain": 0.015}], "options": 12, "unmodeled": 3},
+                  "4": {"aim": [{"stat": "Cogni Damage Boost", "grade": "Legend", "range": "2.4–4.8%", "gain": 0.031}], "options": 8,
+                        "unmodeled": 0},
+                  "7": {"aim": [{"stat": "Cogni Damage Boost", "grade": "Legend", "range": "2.4–4.8%", "gain": 0.02}], "options": 8,
+                        "unmodeled": 0},
+                  "9": {"aim": [], "options": 4, "unmodeled": 4}}}}}
+    g["chase"] = [{"genus": "Fera", "line": "Fera Damage Boost", "slot": 4, "value": "4.8%", "gain": 0.012,
+                   "assumption": "At the catalog's upper range"}]
+    g["level_order"] = [{"genus": "Cogni", "level": 5, "share": 0.4, "next": {"opens_slot": 6}},
+                        {"genus": "Fera", "level": 2, "share": 0.35, "next": {"grade": True}},
+                        {"genus": "Natura", "level": None, "share": 0.25, "next": None}]
+    g["mix"] = {"Cogni": 0.4, "Fera": 0.35, "Natura": 0.25}
+    return a
+
+
+def test_the_genus_words():
+    a = _genus()
+    state = a_.genus_state(a)
+    assert a_.genus_tab(a) == "Cogni" and a_.genus_tab(a, "Fera") == "Fera" and a_.genus_tab({}) == "Cogni"
+    assert a_.genus_tabs(state) == [("Cogni", "Lv 5"), ("Fera", "Lv 2"), ("Natura", "Not recorded"), ("Varian", "Not recorded"),
+                                    ("Special", "Not recorded")]
+    # where the lines come from: the advice's, else its inventory snapshot, else the page's inventory
+    inv = {"genus": {"Varian": {"level": 1, "lines": []}}}
+    assert a_.genus_state(KEPT) == {} and a_.genus_state({"genus": {}}, inv) == inv["genus"]
+    assert a_.genus_state({"genus": {}, "inventory_snapshot": {"genus": {"Fera": {}}}}, inv) == {"Fera": {}}
+    cells = a_.genus_cells(a, state, "Cogni")
+    one, two, three, four, five, six, seven, _eight, nine = cells
+    assert (one["kind"], one["stat"], one["value"], one["gain"], one["dead"], one["verdict"]) == (
+        "filled", "Attack", "30", ("up", "+1.2%"), False, ("keep", "✓ best modeled line for this slot"))
+    assert one["title"] == "Roll for: Attack Unique 20–40 (+1.5%); then Critical Hit (Unique 30–60, +1.2%), Accuracy (Epic 10–20, +0.4%)"
+    assert (two["gain"], two["verdict"]) == (("up", "+0.04%"), ("reroll", ("Attack", "Unique 20–40", "+1.5%")))   # small: two places
+    assert (three["stat"], three["value"], three["gain"], three["dead"], three["verdict"]) == (       # its slot read as a number
+        "HP", "120", ("down", "No modeled damage gain"), True, None)
+    assert (four["kind"], four["special"], four["aimed"], four["text"], four["aim"]) == (
+        "empty", True, True, "Not recorded", ("Cogni Damage Boost", "Legend 2.4–4.8%", "+3.1%"))
+    assert (five["kind"], five["aim"], five["possible"]) == ("empty", None, "")
+    assert (six["kind"], six["text"], six["aim"]) == ("locked", "opens at Lv 6", "")
+    assert (seven["kind"], seven["aim"]) == ("locked", "then roll for Cogni Damage Boost")
+    assert nine["kind"] == "locked" and nine["title"] == ""                                  # nothing to aim for
+    fera = a_.genus_cells(a, state, "Fera")
+    assert fera[0]["kind"] == "empty" and fera[0]["text"] == "Not recorded" and fera[3]["kind"] == "locked"
+    natura = a_.genus_cells(a, state, "Natura")                                             # no level: nothing locked
+    assert {c["kind"] for c in natura} == {"empty"} and natura[3]["text"] == "Level not entered"
+    unlevelled = copy.deepcopy(a)
+    unlevelled["genus"]["state"]["Fera"] = {"lines": [{"slot": 1, "stat": "PvP Defense", "value": "9"}]}
+    first, _s, _t, chase = a_.genus_cells(unlevelled, a_.genus_state(unlevelled), "Fera")[:4]
+    assert first["gain"] == ("note", "Defensive effect") and chase["possible"] == "Possible line: Fera Damage Boost"
+    side = a_.genus_side(a, state, "Cogni")
+    assert side["best"] == [("4", "Cogni Damage Boost", "Legend 2.4–4.8%", "+3.1%")]
+    assert side["basis"] == "Global slot property tables. Gains are not additive across slots."
+    assert side["mix"] == [("Cogni", 0.4, "Cogni 40%"), ("Fera", 0.35, "Fera 35%"), ("Natura", 0.25, "Natura 25%")]
+    assert side["chase"] is None and side["order"] == [
+        ("1. Cogni", "Lv 5 · 40% of fights · next opens slot 6"), ("2. Fera", "Lv 2 · 35% of fights · next changes grade chances"),
+        ("3. Natura", "Lv not recorded · 25% of fights")]
+    fera_side = a_.genus_side(a, state, "Fera")
+    assert fera_side["best"] is None and fera_side["chase"] == {
+        "line": "Fera Damage Boost · slot 4", "value": "4.8%", "gain": "+1.2%",
+        "note": "At the catalog's upper range. Damage-only candidate; confirm the defensive tradeoff in game."}
+    rows = a_.genus_rolls_table(a, "Cogni")
+    assert [(row["slot"], row["amp"]) for row in rows] == [("1", False), ("2", False), ("4", True), ("7", False), ("9", False)]
+    assert rows[0]["then"] == [("Critical Hit", "+1.2%"), ("Accuracy", "+0.4%")] and rows[0]["options"] == "12 (3 unmodeled)"
+    assert rows[4]["aim"] is None and a_.genus_rolls_table(a, "Fera") is None
+    assert a_.genus_copy(a, "Cogni").split("\n") == [
+        "Cogni slot 1: roll for Attack (Unique 20–40, +1.5%)", "Cogni slot 2: roll for Attack (Unique 20–40, +1.5%)",
+        "Cogni slot 4: roll for Cogni Damage Boost (Legend 2.4–4.8%, +3.1%)",
+        "Cogni slot 7: roll for Cogni Damage Boost (Legend 2.4–4.8%, +2.0%)", "Cogni slot 9: roll for no modeled line",
+        "Cogni slot 1: Attack 30 (+1.2%)", "Cogni slot 2: Critical Hit 40 (+0.0%)", "Cogni slot 3: HP 120 (+0.0%)",
+        "Fera slot 1: PvP Defense 9 (Defensive effect)"]
+    assert a_.genus_copy(KEPT, "Cogni") == ""
+
+
+def test_the_genus_window(qapp):
+    copied = []
+    state = {}
+    view = AdviceView(None, _genus(), clipboard=copied.append, state=state)
+    view.resize(1240, 4000)
+    view.show()
+    QCoreApplication.processEvents()
+    window = view.genus_window
+    texts = _texts(window)
+    for words in (a_.GENUS_NOTE, "Genus roll targets", "Genus coverage", "ROLL FOR · Cogni", "YOUR FIGHT TIME", "LEVEL ORDER",
+                  "✓ best modeled line for this slot", "No modeled damage gain", "opens at Lv 6", "then roll for Cogni Damage Boost"):
+        assert any(words in t for t in texts), words
+    tabs = [tab for tab in window.findChildren(BoardTab)]
+    assert [(tab.accessibleName(), tab.objectName()) for tab in tabs][:2] == [("Cogni Lv 5", "tabOn"), ("Fera Lv 2", "tab")]
+    slots = [frame for frame in window.findChildren(QFrame) if frame.objectName() == "gslot"]
+    assert len(slots) == 9 and slots[3].property("special") and slots[3].property("aimed") and slots[2].property("dead")
+    assert slots[0].toolTip().startswith("Roll for: Attack") and window.findChildren(MixBar)[0].segments[0] == ("Cogni", 0.4, "Cogni 40%")
+    assert window.findChildren(GenusRing)[0].genus == "Cogni"
+    assert "All slots · what each can roll and what to aim for" in [fold.button.text() for fold in window.findChildren(Fold)]
+    # another genus: the window drawn again for it, the choice kept for the page's next advice
+    index = view.box.indexOf(window)
+    tabs[1].click()
+    QCoreApplication.processEvents()
+    assert state == {"genusTab": "Fera"} and view.genus_window is not window and view.box.indexOf(view.genus_window) == index
+    assert any("CHASE" == t for t in _texts(view.genus_window)) and view.genus_window.findChildren(GenusRing)[0].genus == "Fera"
+    next(b for b in view.genus_window.findChildren(QPushButton) if b.text() == "Copy as text").click()
+    assert copied == [a_.genus_copy(view.advice, "Fera")]
+    again = AdviceView(None, _genus(), state=state)
+    assert again.genus_window.findChildren(GenusRing)[0].genus == "Fera"
 
 
 def test_gear_and_advice_shows_the_advice_kept(qapp):

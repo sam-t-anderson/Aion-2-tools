@@ -21,6 +21,8 @@ from aion2calc.app import history as store  # noqa: E402
 from aion2calc.gui import history_page as h  # noqa: E402
 from aion2calc.gui import result_windows as w  # noqa: E402
 from aion2calc.gui import results as r  # noqa: E402
+from aion2calc.gui.advice_view import AdviceView  # noqa: E402
+from aion2calc.gui.database_page import Window  # noqa: E402
 from aion2calc.gui.history_page import HistoryPage  # noqa: E402
 from aion2calc.gui.news import when  # noqa: E402
 from aion2calc.gui.window import MainWindow, WebPage  # noqa: E402
@@ -286,14 +288,22 @@ def test_the_saved_runs_and_a_build_opened(qapp, view):
 def test_advice_its_text_and_the_export(qapp, view, tmp_path):
     saved = tmp_path / "saved.json"
     docs = {ID: _doc("optimize-class", view), TEXT_ID: _doc("advice-text", {"text": "Line one\n  Line two"}, "Text advice", CREATED + 1),
-            ADVICE_ID: _doc("advice", {"character": {}}, "Advice", CREATED + 2)}
+            ADVICE_ID: _doc("advice", json.loads((pathlib.Path(__file__).parent / "browser" / "kept_advice.json").read_text(encoding="utf-8")),
+                            "Advice", CREATED + 2)}
     page = _page(FakeApp(docs), save_as=lambda name: (setattr(page, "asked", name), str(saved))[1], open_web=lambda p: None)
     assert [row["id"] for row in page.rows] == [ADVICE_ID, TEXT_ID, ID]                 # newest first
     _opened(page, TEXT_ID)
     text = next(box for box in page.findChildren(QPlainTextEdit) if box.isVisibleTo(page))
     assert text.toPlainText() == "Line one\n  Line two" and text.isReadOnly() and page.windows is None
-    _opened(page, ADVICE_ID)
-    assert h.ADVICE_NOTE in _texts(page) and _button(page, "Open the web Saved Results page")
+    _opened(page, ADVICE_ID)                                                             # the advice's view, as Gear & Advice's
+    advice = page.advice
+    assert advice is not None and advice.isVisibleTo(page) and advice.advice == docs[ADVICE_ID]["result"]
+    titles = [window.findChild(QLabel, "winTitle").text() for window in advice.findChildren(Window)]
+    assert titles[:3] == ["TOP CHANGES", "SKILL SPECIALTIES", "EQUIPMENT"] and "GENUS INSIGHT" in titles
+    advice.show_genus("Fera")
+    assert page.advice_state == {"genusTab": "Fera"}                                    # kept for the next advice opened
+    _opened(page, TEXT_ID)
+    assert page.advice is None and not [view for view in page.findChildren(AdviceView) if view.isVisibleTo(page)]
     page.export(ID)
     settle(lambda: saved.exists())
     assert page.asked == f"aion2calc-result-{ID}.json" and json.loads(saved.read_text(encoding="utf-8")) == json.loads(json.dumps(docs[ID]))
