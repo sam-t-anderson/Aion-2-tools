@@ -15,9 +15,11 @@ Drawn here so far:
   scrubbed, its lanes shown, hidden or collapsed, and each effect inspected.
 - Since 0.2.460 the abilities and skills: each player's abilities as bars and as a table, their skills' casts with
   cooldown usage, and the cast timeline.
+- Since 0.2.461 the casts, buffs and break gauge: the rotation, the buffs and debuffs, the crowd control, the break
+  gauge, the boss casts and the buff contribution estimate.
 
-The rest of the review (its actions, death recaps, insights, rankings, reports, comparisons and movement replay) opens
-in the web interface for now, from a button on the page.
+The rest of the review (its death recaps, insights, rankings, reports, comparisons and movement replay) opens in the web
+interface for now, from a button on the page.
 """
 from __future__ import annotations
 
@@ -39,7 +41,7 @@ from .api import AppApi, Requests
 from .combat_community import _note
 from .chrome import FlowLayout
 from .combat_review_charts import HP, LINE, PingChart, RateChart
-from .combat_review_views import ContributionBars, FilterPopup, Placer, Timeline
+from .combat_review_views import ContributionBars, FilterPopup, GaugeChart, Placer, Timeline
 from .combat_saved import TIMEOUT, Section, _button, _clear, _head, _label
 from .database_page import Window
 from .pictures import Pictures
@@ -350,6 +352,7 @@ class ReviewPage(QWidget):
         if state["timeline"] and state["view"] == "timeline":
             body.addWidget(self._timeline(v, events))
         body.addWidget(self._details(d, v, events))
+        body.addWidget(self._actions(v))
         elsewhere = QFrame()
         elsewhere.setObjectName("note")
         line = QVBoxLayout(elsewhere)
@@ -860,6 +863,144 @@ class ReviewPage(QWidget):
             layout.addWidget(_muted(f"{lane['omitted']} not drawn (overlap)"))
         layout.addStretch(1)
         return cell
+
+    # ---------------------------------------------------------------- the casts, buffs and break gauge (0.2.461)
+    def _actions(self, v: dict) -> QWidget:
+        """The casts, buffs and break gauge (``actionsHTML``): the tab chosen's, or nothing (**Hide**); or why the log
+        holds none."""
+        doc, state = self.doc, self.state
+        missing = cw.actions_missing(doc, v, state)
+        self.actions_box = None
+        if missing:
+            return _muted(missing)
+        box, column = _plain(spacing=8)
+        self.actions_box = box
+        column.addWidget(_head("Casts, buffs and break gauge"))
+        tabs, line = _plain(QHBoxLayout, 6)
+        for key, words in cw.ACTIONS:
+            tab = _button(words.replace("&", "&&"), lambda key=key: self._actions_tab(key),   # "&" alone marks a mnemonic
+                          "primary" if state["actions"] == key else "small")
+            tab.setAccessibleName(f"{words} actions")
+            line.addWidget(tab)
+        line.addStretch(1)
+        column.addWidget(tabs)
+        tab = state["actions"]
+        if tab == "rotation":
+            t = cw.rotation_tab(doc, v, state)
+            if t.get("missing"):
+                column.addWidget(_label(t["missing"], "small", rich=True))
+            else:
+                column.addWidget(_muted(cw.ROTATION_NOTE))
+                column.addWidget(self._rows(cw.ROTATION_COLUMNS, t["totals"], v))
+                if t["mp"]:
+                    column.addWidget(_label("<b>MP</b>", rich=True))
+                    column.addWidget(_muted(cw.MP_NOTE))
+                    column.addWidget(self._rows(cw.MP_COLUMNS, t["mp"], v))
+                column.addWidget(_label(cw.SKILLS_ABOVE, "small", rich=True))
+                if t["has_chains"]:
+                    column.addWidget(_label("<b>Chain skills</b>", rich=True))
+                    column.addWidget(_muted(cw.CHAINS_NOTE))
+                    column.addWidget(self._rows(cw.CHAIN_COLUMNS, t["chains"], v))
+        elif tab in ("effects", "cc"):
+            t = cw.effects_tab(doc, v, state) if tab == "effects" else cw.cc_tab(doc, v, state)
+            if t.get("missing"):
+                column.addWidget(_muted(t["missing"]))
+            else:
+                column.addWidget(_muted(t["note"]))
+                for table in t["tables"]:
+                    if table["title"]:
+                        column.addWidget(_label(f"<b>{html.escape(table['title'], quote=False)}</b>", rich=True))
+                    if table.get("older"):
+                        column.addWidget(_muted(cw.OLDER_ANALYSIS))
+                        continue
+                    if table.get("note"):
+                        column.addWidget(_muted(table["note"]))
+                    column.addWidget(self._rows(table["columns"], table["rows"], v))
+        elif tab == "stagger":
+            t = cw.stagger_tab(doc, v, state)
+            column.addWidget(_muted(t["note"]))
+            if not t["bosses"]:
+                column.addWidget(_label(cw.NO_STAGGER))
+            for b in t["bosses"]:
+                column.addWidget(_label(f"<b>{html.escape(b['title'], quote=False)}</b>" + (cw._muted_html("elite") if b["elite"] else ""),
+                                        rich=True))
+                column.addWidget(_label(b["line"], "small"))
+                if b["gauge"] is not None:
+                    column.addWidget(GaugeChart(b["gauge"]))
+                column.addWidget(self._rows(cw.STAGGER_COLUMNS, b["rows"], v))
+        elif tab == "boss":
+            t = cw.boss_tab(doc, v, state, self.names)
+            column.addWidget(_label(t["note"], "small", rich=True))
+            if t.get("missing"):
+                column.addWidget(_label(t["missing"]))
+            else:
+                column.addWidget(self._rows(cw.BOSS_COLUMNS, t["skills"], v))
+                column.addWidget(_label("<b>Casts in order</b>", rich=True))
+                column.addWidget(_muted(cw.BOSS_ORDER_NOTE))
+                column.addWidget(self._rows(cw.BOSS_ORDER_COLUMNS, t["order"], v))
+                for words in t["notes"]:
+                    column.addWidget(_muted(words))
+        elif tab == "contribution":
+            t = cw.contribution_tab(doc, v, state)
+            if t.get("missing"):
+                column.addWidget(_muted(t["missing"]))
+            else:
+                column.addWidget(_label(t["note"], "small", rich=True))
+                column.addWidget(self._rows(cw.CONTRIBUTION_COLUMNS, t["players"], v))
+                if t["unlisted"]:
+                    column.addWidget(_muted(t["unlisted"]))
+                column.addWidget(_label("<b>Who added what</b>", rich=True))
+                column.addWidget(self._rows(cw.GIVEN_COLUMNS, t["given"], v))
+                column.addWidget(_label("<b>Credited buffs</b>", rich=True))
+                column.addWidget(self._rows(cw.CREDITED_COLUMNS, t["buffs"], v))
+                if t["checks"]:
+                    column.addWidget(_label("<b>Check against this fight's hits</b>", rich=True))
+                    column.addWidget(_label(cw.CHECKS_NOTE, "small", rich=True))
+                    column.addWidget(self._rows(cw.CHECK_COLUMNS, t["checks"], v))
+        omitted = cw.omitted_actions(doc, state)
+        if tab and omitted:
+            column.addWidget(_muted(omitted))
+        return box
+
+    def _actions_tab(self, key: str) -> None:
+        """A tab of the casts, buffs and break gauge chosen (``data-actions``)."""
+        self.state["actions"] = key
+        self.draw()
+
+    def _actor_html(self, actor) -> str:
+        """An actor as rich text (``actorHTML``): a player in their class's colour, anyone else plainly."""
+        words = html.escape(cw.actor_label(actor))
+        if cw.is_character(actor, self.doc):
+            return f"<span style='color: {cr.class_colour(_dict(actor).get('class'), self.colours)};'>{words}</span>"
+        return words
+
+    def _cell(self, cell, v: dict):
+        """A cell of the model's rows: text, an actor, a skill with its icon, rich text, or a list of actors with counts."""
+        if not isinstance(cell, dict):
+            return cell
+        r = v["r"]
+        if "actor" in cell:
+            if cell.get("boss"):
+                return _label(self._actor_html(r.get(cell["actor"])) + cw._muted_html("boss"), rich=True)
+            return self._actor(r.get(cell["actor"]))
+        if "ref" in cell:
+            return self._actor(cell["ref"])
+        if "skill" in cell:
+            return self._skill_cell(cell.get("skill_id"), cell["skill"], False)
+        if "html" in cell:
+            return _label(cell["html"], rich=True)
+        if "sources" in cell:
+            return _label(" ".join((f"{self._actor_html(r.get(source))} ×{cw.js_string(n)}" if source else
+                                    f"Not recorded ×{cw.js_string(n)}") for source, n in cell["sources"]), rich=True)
+        if "aimed" in cell:
+            return _label(" ".join(f"{self._actor_html(r.get(target))} ×{cw.js_string(n)}" for target, n in cell["aimed"])
+                          or "—", rich=True)
+        return ""
+
+    def _rows(self, columns: list[str], rows: list[list], v: dict) -> QWidget:
+        """One of the section's tables, its first column with a larger share, as the web page's tables share the width."""
+        return self._grid(columns, [[self._cell(c, v) for c in row] for row in rows],
+                          {c: 2 if c == 0 else 1 for c in range(len(columns))})
 
     # ---------------------------------------------------------------- the timeline (0.2.459)
     def _timeline(self, v: dict, events: list[dict]) -> QWidget:

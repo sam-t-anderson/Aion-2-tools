@@ -3004,6 +3004,248 @@ def test_the_review_abilities_and_skills(qapp):
     settle(lambda: any(t.startswith("Skill casts are not recorded for this encounter.") for t in _labels(view)))
 
 
+def _acting():
+    """The casting fight with what the analyzer summarises beyond the casts: a buff on the sorcerer, a stun (re-applied)
+    and a slow on the boss, the boss's chill on the cleric, its break gauge with a break, the sorcerer's MP, the boss's
+    and a hound's casts, a chain skill; in the arena, the opponent's stance, the sorcerer's stun on them, their fear on
+    the sorcerer and an imported buff; and a buff contribution estimate, as the analyzer writes one."""
+    from aion2calc.combat import insights
+    fight = _casting()
+    seg, arena = fight["segments"]
+    seg["effects"] = [
+        {"target": "p1", "source": "p2", "t": 1.0, "end": 11.0, "skill_id": 17150001, "skill": "Blessing of Wind", "ended": "expired"},
+        {"target": "b1", "source": "p1", "t": 4.0, "end": 6.0, "skill_id": 13070001, "skill": "Stunning Blow", "ended": "expired",
+         "refreshes": 1},
+        {"target": "b1", "source": "p1", "t": 8.0, "end": 9.5, "skill_id": 13020001, "skill": "Frost Chain", "ended": "removed"},
+        {"target": "p2", "source": "b1", "t": 3.1, "end": 13.1, "skill_id": 90010001, "skill": "Chill"}]
+    seg["gauge"] = [{"entity": "b1", "t": 0.0, "current": 1000, "max": 1000}, {"entity": "b1", "t": 2.7, "current": 400, "max": 1000},
+                    {"entity": "b1", "t": 6.0, "current": 50, "max": 1000}, {"entity": "b1", "t": 9.0, "current": 1000, "max": 1000}]
+    seg["hits"] = [{"t": 2.7, "player": "p1", "target": "b1", "damage": 1500, "skill_id": 11010001},
+                   {"t": 6.0, "player": "p2", "target": "b1", "damage": 100, "skill_id": 17010001},
+                   {"t": 7.0, "player": "p1", "target": "b1", "damage": 700, "skill_id": 11010001}]
+    seg["resources"] = [{"entity": "p1", "t": 0.0, "mp": 1000, "max": 1000}, {"entity": "p1", "t": 5.0, "mp": 150},
+                        {"entity": "p1", "t": 10.0, "mp": 600}]
+    seg["npc_casts"] = [{"source": "b1", "t": 3.0, "skill_id": 50010001, "skill": "Frost Breath", "target": "p2"},
+                        {"source": "b1", "t": 3.5, "skill_id": 50010001, "skill": "Frost Breath", "target": "p2"},
+                        {"source": "a1", "t": 6.5, "skill_id": 50020001, "target": "p1"}]
+    seg["chains"] = [{"player": "p1", "skill_id": 13010001, "next_id": 13100002, "next": "Spark", "t": 1.0, "end": 3.0}]
+    arena["effects"] = [
+        {"target": "e1", "source": "e1", "t": 1.0, "end": 5.0, "skill_id": 12150001, "skill": "Bow Stance"},
+        {"target": "e1", "source": "p1", "t": 2.0, "end": 4.0, "skill_id": 13070001, "skill": "Stunning Blow", "ended": "expired"},
+        {"target": "p1", "source": "e1", "t": 3.0, "end": 3.5, "skill_id": 16070001, "skill": "Terror Shot", "ended": "removed"}]
+    arena["buffs"] = [{"player": "e1", "name": "Rage", "skill_id": 12990001, "start": 0.5, "end": 9.0}]
+    fight["encounter_insights"] = insights.summarize(fight)
+    fight["encounter_insights"]["segments"][0]["contribution"] = {
+        "players": [{"player": "p1", "damage": 3300, "received": 300, "received_pct": 9.1, "adjusted_damage": 3000, "given": 0,
+                     "contribution_damage": 3000},
+                    {"player": "p2", "damage": 0, "received": 0, "received_pct": None, "adjusted_damage": 0, "given": 300,
+                     "contribution_damage": 300}],
+        "given": [{"source": "p2", "recipient": "p1", "skill": "Blessing of Wind", "skill_id": 17150001, "damage": 300}],
+        "buffs": [{"source": "p2", "skill": "Blessing of Wind", "skill_id": 17150001, "group": "aura", "value_pct": 10.0, "level": 5,
+                   "basis": "profile", "windows": 1}],
+        "checks": [{"group": "aura", "measured_pct": 9.5, "estimated_pct": 10.0, "hits_on": 4, "hits_off": 1, "pairs": 1}],
+        "unlisted_source_damage": 0}
+    return fight
+
+
+def _words(cells):
+    """A model's rows with each cell as its words: an actor by id, a skill by name, rich text as given."""
+    out = []
+    for row in cells:
+        line = []
+        for c in row:
+            if not isinstance(c, dict):
+                line.append(c)
+            elif "actor" in c:
+                line.append(("actor", c["actor"]) + (("boss",) if c.get("boss") else ()))
+            elif "skill" in c:
+                line.append(("skill", c["skill"]))
+            elif "html" in c:
+                line.append(("html", c["html"]))
+            elif "ref" in c:
+                line.append(("ref", _dict_id(c["ref"])))
+            else:
+                line.append(tuple(c.items()))
+        out.append(line)
+    return out
+
+
+def _dict_id(x):
+    return x.get("id") if isinstance(x, dict) else x
+
+
+def test_the_review_casts_buffs_and_break_gauge_words():
+    from aion2calc.gui.results import MUTED
+    fight = _acting()
+    state = cw.fresh_state()
+    d = cw.data(fight, state)
+    muted = lambda words: f" <span style='color: {MUTED};'>{words}</span>"
+    # why there's nothing to show: a combined review, an older log, a log without such records
+    assert cw.actions_missing(fight, d, state) == "" and cw.omitted_actions(fight, state) == ""
+    combined = {**fight, "meta": {**fight["meta"], "reconstruction": {"omitted_actions": ["casts"]}}}
+    assert cw.actions_missing(combined, d, state) == cw.COMBINED_ACTIONS
+    old = {k: v for k, v in fight.items() if k != "encounter_insights"}
+    assert cw.actions_missing(old, d, state).endswith("since 0.2.306; reopen the file with the updated app, or update the "
+                                                      "sharing server, to see them.")
+    bare = cw.data(fight, state)
+    bare["segment"] = {k: v for k, v in bare["segment"].items() if k not in ("casts", "effects", "gauge", "resources", "npc_casts")}
+    assert cw.actions_missing(fight, bare, state).endswith("since 0.2.306.")
+    limited = json.loads(json.dumps(fight))
+    limited["encounter_insights"]["segments"][0]["actions"]["omitted_actions"] = {"buffs": 3, "crowd_control": 1, "debuffs": 0}
+    assert cw.omitted_actions(limited, state) == "Row limits omitted 3 buffs rows, 1 crowd control rows."
+    # the rotation: each player's casts, the recording player's MP, the chain skill followed
+    t = cw.rotation_tab(fight, d, state)
+    assert _words(t["totals"]) == [[("actor", "p1"), "4", "2.0", "1", "0"], [("actor", "p2"), "2", "1.0", "0", "0"]]
+    assert _words(t["mp"]) == [[("actor", "p1"), "1,000 → 600", "150", ("html", "1,000"), "850", "425", "450",
+                                ("html", "5.0s" + muted("4.2%"))]]
+    assert _words(t["chains"]) == [[("actor", "p1"), ("skill", "Spark"), "1", "1", "100.0%"]] and t["has_chains"]
+    alone = cw.rotation_tab(fight, d, {**state, "actor": "p2"})
+    assert (len(alone["totals"]), alone["mp"], alone["chains"], alone["has_chains"]) == (1, [], [], True)
+    pvp = {**state, "segment": 1}
+    foe = cw.data(fight, pvp, "e1")
+    assert _words(cw.rotation_tab(fight, foe, {**pvp, "actor": "e1"})["totals"]) == [[("actor", "e1"), "2", "2.0", "0", "0"]]
+    silent = cw.data(fight, pvp, "e1")
+    silent["segment"] = {**silent["segment"], "casts": []}
+    assert cw.rotation_tab(fight, silent, {**pvp, "actor": "e1"}) == {"missing": cw.NO_FOE_CASTS}
+    # the buffs and debuffs: the party's buff, the debuffs on the boss (marked), the boss's effect on the party
+    t = cw.effects_tab(fight, d, state)
+    assert t["note"] == cw.WINDOWS_NOTE and [x["title"] for x in t["tables"]] == [
+        "Buffs on the party", "Debuffs on enemies", "Enemy effects on the party"]
+    assert _words(t["tables"][0]["rows"]) == [[("actor", "p1"), ("skill", "Blessing of Wind"), "8.3%", "10.0s", "1",
+                                               (("sources", [("p2", 1)]),)]]
+    assert [row[0] for row in _words(t["tables"][1]["rows"])] == [("actor", "b1", "boss"), ("actor", "b1", "boss")]
+    assert [len(x["rows"]) for x in cw.effects_tab(fight, d, {**state, "actor": "p2"})["tables"]] == [1, 0, 1]
+    # an opponent's: on them by their side, by the party, theirs on others, and the imported buff windows
+    t = cw.effects_tab(fight, foe, {**pvp, "actor": "e1"})
+    assert [(x["title"], _words(x["rows"])) for x in t["tables"]] == [
+        ("Buffs on them", [[("actor", "e1"), ("skill", "Bow Stance"), "6.7%", "4.0s", "1", (("sources", [("e1", 1)]),)]]),
+        ("Your party's effects on them", [[("actor", "e1"), ("skill", "Stunning Blow"), "3.3%", "2.0s", "1",
+                                           (("sources", [("p1", 1)]),)]]),
+        ("Their effects on others", [[("actor", "p1"), ("skill", "Terror Shot"), "0.8%", "0.5s", "1", (("sources", [("e1", 1)]),)]]),
+        ("Imported buff windows", [[("skill", "Rage"), "0:00.50 → 0:09.00"]])]
+    assert cw.effects_tab(fight, silent, {**pvp, "actor": "e1"})["tables"][-1]["title"] == "Imported buff windows"
+    nothing = cw.data(fight, pvp, "e1")
+    nothing["segment"] = {**nothing["segment"], "effects": [], "buffs": []}
+    assert cw.effects_tab(fight, nothing, {**pvp, "actor": "e1"}) == {"missing": cw.NO_EFFECTS_RECORDED}
+    groups = cw.effect_groups([{"target": "x", "skill_id": 5, "t": 0, "end": 4, "source": "a"},
+                               {"target": "x", "skill_id": 5, "t": 2, "end": 6, "source": "a"},
+                               {"target": "x", "skill_id": 5, "t": 8, "end": 9}], 10)
+    assert [(g["seconds"], g["applications"], g["sources"]) for g in groups] == [
+        (7.0, 3, [{"source": "a", "applications": 2}, {"source": None, "applications": 1}])]   # overlaps once
+    # the crowd control: by player, each application with how it ended
+    t = cw.cc_tab(fight, d, state)
+    assert t["note"] == cw.CC_NOTE and [x["title"] for x in t["tables"]] == ["", "Each application"]
+    assert t["tables"][0]["rows"] == [[{"actor": "p1"}, "Stun", "2", "2.0s", "2", "0"], [{"actor": "p1"}, "Slow", "1", "1.5s", "0", "1"]]
+    assert _words(t["tables"][1]["rows"]) == [
+        ["0:04.00", ("actor", "p1"), ("actor", "b1"), ("skill", "Stunning Blow"), ("html", "Stun"),
+         ("html", "2.00s" + muted("re-applied 1×")), "Ran its duration"],
+        ["0:08.00", ("actor", "p1"), ("actor", "b1"), ("skill", "Frost Chain"), ("html", "Slow" + muted("soft")), ("html", "1.50s"),
+         "Removed early"]]
+    t = cw.cc_tab(fight, cw.data(fight, pvp), pvp)                       # PvP: what the opponent landed on the party
+    assert [x["title"] for x in t["tables"]] == ["", "Each application", "Crowd control on your party",
+                                                "Each application on your party"]
+    assert _words(t["tables"][3]["rows"])[0][:5] == ["0:03.00", ("actor", "p1"), ("actor", "e1"), ("skill", "Terror Shot"),
+                                                     ("html", "Fear")]
+    older = json.loads(json.dumps(fight))
+    del older["encounter_insights"]["segments"][1]["actions"]["crowd_control_received"]
+    assert cw.cc_tab(older, cw.data(older, pvp), pvp)["tables"][2] == {"title": "Crowd control on your party", "columns": [],
+                                                                       "rows": [], "older": True}
+    t = cw.cc_tab(fight, foe, {**pvp, "actor": "e1"})
+    assert [(x["title"], len(x["rows"])) for x in t["tables"]] == [("Their crowd control on your party", 1),
+                                                                   ("Your party's crowd control on them", 1)]
+    assert cw.cc_tab(fight, nothing, {**pvp, "actor": "e1"}) == {"missing": cw.NO_CC_RECORDED}
+    # the break gauge: its line, readings and break, each player's share
+    t = cw.stagger_tab(fight, d, state)
+    boss = t["bosses"][0]
+    assert (boss["title"], boss["elite"], boss["line"]) == ("Ice Queen", False, "Gauge 1,000 · 4 readings · 950 drained · 1 break: "
+                                                                               "0:06.00 for 3.0s")
+    assert [(round(x), round(y, 1)) for x, y in boss["gauge"]["points"]] == [(0, 4.0), (22, 65.2), (50, 100.9), (75, 4.0)]
+    assert boss["gauge"]["breaks"] == [{"x": 50.0, "width": 25.0, "tip": "Broken 0:06.00 → 0:09.00 (3.0s)"}]
+    assert boss["rows"] == [[{"actor": "p1"}, "600", "63.2%", "700"], [{"actor": "p2"}, "350", "36.8%", "100"]]
+    assert cw.stagger_tab(fight, cw.data(fight, pvp), pvp)["bosses"] == []
+    # the boss casts: a boss's skill aimed at the cleric twice, a hound's (an add), the casts in order
+    t = cw.boss_tab(fight, d, state)
+    assert _words(t["skills"]) == [
+        [("ref", "b1"), ("skill", "Frost Breath"), "2", "0:03.00 → 0:03.50", (("aimed", [("p2", 2)]),)],
+        [("html", "Frost Hound" + muted("boss's add")), ("skill", "50020001"), "1", "0:06.50 → 0:06.50", (("aimed", [("p1", 1)]),)]]
+    assert _words(t["order"]) == [["0:03.00 → 0:03.50", ("ref", "b1"), ("skill", "Frost Breath"), "×2", ("actor", "p2")]]
+    assert t["notes"] == ["Not listed here: 1 cast by the bosses' adds and clones, counted in the skills above and listed on the "
+                          "movement replay."]
+    assert cw.boss_tab(fight, d, {**state, "actor": "p1"})["order"] == []
+    assert cw.boss_tab(fight, cw.data(fight, pvp), pvp) == {"note": cw.BOSS_NOTE, "missing": cw.NO_BOSS_CASTS}
+    assert (cw.add_name({"name": "Frost Hound"}), cw.add_name({"name": "Unnamed summon", "mob_code": 9}, {"9": "Ice Wisp"}),
+            cw.add_name({"name": "#77", "mob_code": 77}), cw.add_name(None)) == ("Frost Hound", "Ice Wisp", "Clone", "Clone")
+    # the buff contribution: per second on the active clock; who added what; the credited buffs; the check
+    t = cw.contribution_tab(fight, d, state)
+    assert _words(t["players"]) == [[("actor", "p1"), "550", ("html", "−50" + muted("9.1%")), "500", "+0", "500"],
+                                    [("actor", "p2"), "0", ("html", "−0" + muted("—")), "0", "+50", "50"]]
+    assert _words(t["given"]) == [[("actor", "p2"), ("skill", "Blessing of Wind"), ("actor", "p1"), "300", "50"]]
+    assert _words(t["buffs"]) == [[("actor", "p2"), ("skill", "Blessing of Wind"), "Damage Boost aura", "10.0%", "5",
+                                   "Official profile", "1"]]
+    assert t["checks"] == [["Damage Boost aura", "+9.5%", "+10.0%", "4 / 1", "1"]] and t["unlisted"] == ""
+    stranger = json.loads(json.dumps(fight))
+    stranger["encounter_insights"]["segments"][0]["contribution"]["given"][0].update(source="zz", recipient=None)
+    assert cw.contribution_tab(stranger, d, state)["given"][0][0] == "Not in the roster"
+    assert cw.contribution_tab(stranger, d, state)["given"][0][2] == "Not recorded"
+    assert cw.contribution_tab(fight, cw.data(fight, pvp), pvp) == {"missing": cw.CONTRIBUTION_NONE}
+    early = json.loads(json.dumps(fight))
+    early["encounter_insights"]["version"] = 3
+    assert cw.contribution_tab(early, d, state) == {"missing": cw.CONTRIBUTION_OLD}
+
+
+def test_the_review_casts_buffs_and_break_gauge(qapp):
+    from aion2calc.gui.combat_review_views import GaugeChart
+    app = FakeApp()
+    app.log_server.review_log = _acting()
+    page = _page(app)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: "Casts, buffs and break gauge" in _labels(view) and view.ranks is not None and view.names is not None
+           and not view.awaiting)
+
+    def tab(name):
+        _find(view, QPushButton, lambda b: b.accessibleName() == f"{name} actions").click()
+        return _labels(view), _cells(view)
+    # Rotation first: the casts, the MP and the chain skill; "&" in a tab's words no shortcut
+    assert _find(view, QPushButton, lambda b: b.accessibleName() == "Rotation actions").objectName() == "primary"
+    assert _find(view, QPushButton, lambda b: b.accessibleName() == "Buffs & debuffs actions").text() == "Buffs && debuffs"
+    labels, cells = _labels(view), _cells(view)
+    assert all(t in labels for t in (cw.ROTATION_NOTE, "<b>MP</b>", cw.MP_NOTE, cw.SKILLS_ABOVE, "<b>Chain skills</b>"))
+    assert all(c in cells for c in ("2.0", "1,000 → 600", "425", "100.0%"))
+    # the buffs and debuffs, the crowd control, the break gauge with its chart
+    labels, cells = tab("Buffs & debuffs")
+    assert "<b>Debuffs on enemies</b>" in labels and "8.3%" in cells and any("boss</span>" in t for t in labels)
+    labels, cells = tab("Crowd control")
+    assert cw.CC_NOTE in labels and "<b>Each application</b>" in labels and "Ran its duration" in cells and "Removed early" in cells
+    labels, cells = tab("Break gauge")
+    assert "Gauge 1,000 · 4 readings · 950 drained · 1 break: 0:06.00 for 3.0s" in labels and "63.2%" in cells
+    chart = _find(view, GaugeChart, lambda w: True)
+    assert len(chart.gauge["points"]) == 4 and chart.grab() is not None
+    # the boss casts, the buff contribution, Hide
+    labels, cells = tab("Boss casts")
+    assert "×2" in cells and any("Frost Hound" in t and "boss's add" in t for t in labels)
+    assert any(t.startswith("Not listed here: 1 cast") for t in labels)
+    labels, cells = tab("Buff contribution")
+    assert all(c in cells for c in ("550", "+50", "Damage Boost aura", "Official profile", "+9.5%"))
+    labels, cells = tab("Hide")
+    assert "8.3%" not in cells and "550" not in cells and view.state["actions"] == ""
+    # an opponent's own: their buffs and crowd control
+    _choose(view, "Encounter", 1)
+    settle(lambda: view.ranks is not None and not view.awaiting)
+    _choose(view, "Player", "e1")
+    labels, cells = tab("Buffs & debuffs")
+    assert all(t in labels for t in ("<b>Buffs on them</b>", "<b>Your party's effects on them</b>", "<b>Imported buff windows</b>"))
+    labels, cells = tab("Crowd control")
+    assert cw.CC_FOE_NOTE in labels and "<b>Their crowd control on your party</b>" in labels
+    # a combined review holds none of them
+    combined = json.loads(json.dumps(app.log_server.review_log))
+    combined["meta"]["reconstruction"] = {"omitted_actions": ["casts"]}
+    app.log_server.review_log = combined
+    view.reload()
+    settle(lambda: cw.COMBINED_ACTIONS in _labels(view))
+    assert "Casts, buffs and break gauge" not in _labels(view)
+
+
 def _buttons(widget):
     """The buttons shown, once what was drawn last has shown."""
     _shown()

@@ -1,3 +1,16 @@
+## A combat log's own page in the native interface, part 5 (0.2.461)
+
+**A log's review in the app's window now has its Casts, buffs and break gauge**, under the abilities and skills, with its tabs:
+- **Rotation:** each player's skill casts, casts a minute, procs and dodges; the recording player's MP (where it started and ended, its lowest, spent, restored, and the time under a fifth); and how often a chain skill followed while its window was open;
+- **Buffs & debuffs:** the buffs on the party, the debuffs on enemies (a boss's marked) and the enemies' effects on the party, each with its uptime, time, applications and who gave it. For a PvP opponent: the buffs on them, your party's effects on them, theirs on others, and their imported buff windows;
+- **Crowd control:** the crowd control your party landed, by player and state and each application, with how long it held and how it ended (a soft state marked as one); in PvP also what was landed on your party; for an opponent, theirs on your party and your party's on them;
+- **Break gauge:** each boss's gauge, readings, what was drained and the breaks, the gauge over the fight with each break shaded, and each player's share and damage during breaks;
+- **Boss casts:** the skills the bosses (and their adds) cast, when, and at whom, and the casts in order;
+- **Buff contribution:** the estimate of what each player took from others' buffs and added to others', who added what, the credited buffs and the check against the fight's own hits;
+- **Hide** folds the section away.
+
+The review's other sections (death recaps, insights, rankings, reports, comparisons and movement replay) still open in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 4 (0.2.460)
 
 **A log's review in the app's window now has its Abilities and skills**, under the view chosen, with its tabs:

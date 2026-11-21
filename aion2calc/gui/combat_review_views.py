@@ -16,7 +16,7 @@ from __future__ import annotations
 import math
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PySide6.QtWidgets import (QCheckBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton, QScrollArea, QStyle,
                                QToolTip, QVBoxLayout, QWidget)
 
@@ -282,6 +282,50 @@ class ContributionBars(QWidget):
                 QToolTip.hideText()
             else:
                 QToolTip.showText(event.globalPos(), f"{self.bars[index]['name']} · {self.bars[index]['value']}", self)
+            return True
+        return super().event(event)
+
+
+# ---------------------------------------------------------------- the break gauge (0.2.461)
+class GaugeChart(QWidget):
+    """A boss's break gauge over the fight (``gaugeChart``, ``viewBox="0 0 1000 110"`` stretched to its width): its
+    readings as a line, each break shaded with its time on hover."""
+
+    def __init__(self, gauge: dict, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.gauge = gauge
+        self.setFixedHeight(110)
+        self.setAccessibleName("Break gauge over the fight")
+
+    def sizeHint(self) -> QSize:
+        return QSize(1000, 110)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(SHADE)                                        # ``background: #8881``
+        painter.drawRoundedRect(QRectF(self.rect()), 4, 4)
+        sx = self.width() / 1000.0
+        shade = QColor("#f0c36a")
+        shade.setAlphaF(0.22)
+        painter.setBrush(shade)
+        for b in self.gauge["breaks"]:
+            painter.drawRect(QRectF(b["x"] * sx, 0, b["width"] * sx, 110))
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(QPen(QColor("#e3b35a"), 2))
+        painter.drawPolyline(QPolygonF([QPointF(x * sx, y) for x, y in self.gauge["points"]]))
+        painter.end()
+
+    def event(self, event) -> bool:
+        if event.type() == QEvent.ToolTip:
+            sx = self.width() / 1000.0
+            tip = next((b["tip"] for b in self.gauge["breaks"]
+                        if b["x"] * sx <= event.pos().x() <= (b["x"] + b["width"]) * sx), None)
+            if tip:
+                QToolTip.showText(event.globalPos(), tip, self)
+            else:
+                QToolTip.hideText()
             return True
         return super().event(event)
 

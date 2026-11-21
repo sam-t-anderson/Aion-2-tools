@@ -13,6 +13,8 @@ These are the review's model and the frame's words:
   (``efPass``, ``efColumn``), a page of a hundred at a time, and the recorded effect timeline (``timeline``).
 - Since 0.2.460 the abilities and skills (``detailsHTML``): each player's abilities by amount, as bars and as a table;
   their skills' casts with cooldown usage (``skillsHTML``); and every press over the fight (``castTimeline``).
+- Since 0.2.461 the casts, buffs and break gauge (``actionsHTML``): the rotation's totals, MP and chain skills; the
+  buffs and debuffs; the crowd control; the break gauge; the boss casts; and the buff contribution estimate.
 """
 from __future__ import annotations
 
@@ -50,8 +52,8 @@ OPPONENT_NOTE = ("The review below reads the fight from their side: the summary,
                  "their deaths, and the buffs, debuffs and crowd control on and from them. Only what the recording holds of "
                  "them is shown.")
 REFRESH = "Refresh rankings"
-ELSEWHERE = ("The actions, death recaps, insights, rankings, reports, comparisons and movement replay of this log open in the "
-             "web interface for now.")
+ELSEWHERE = ("The death recaps, insights, rankings, reports, comparisons and movement replay of this log open in the web "
+             "interface for now.")
 OPEN_WEB = "Open the full review in the web interface"
 SUMMARY_COLUMNS = ["Player / server", "Class", "Damage done", "DPS", "Damage taken", "Healing", "HPS", "Deaths"]
 
@@ -192,7 +194,7 @@ def fresh_state(mode=None, segment=None) -> dict:
             "metric": "summary", "view": "table", "combine": True, "pets": True, "actor": "", "enemy": "", "graph": True,
             "graph_mode": "total", "hidden": set(), "timeline": True, "timeline_window": 30, "timeline_start": 0.0,
             "skills": True, "deaths": True, "heals": True, "page": 0, "ef": None, "ef_search": {}, "ef_open": "",
-            "detail": "contribution", "hide_procs": True}
+            "detail": "contribution", "hide_procs": True, "actions": "rotation"}
 
 
 def settle_segment(doc: dict, state: dict) -> None:
@@ -1575,3 +1577,410 @@ def cast_timeline(doc: dict, d: dict, state: dict, colours: dict | None = None) 
         t += tick
     return {"width": float(width), "lanes": lanes, "ticks": ticks, "ruler": 33, "lane": 65, "bottom": 30, "corner": "",
             "empty": "No casts recorded"}
+
+
+# ------------------------------------------------------------------ the casts, buffs and break gauge (0.2.461)
+ACTIONS = (("rotation", "Rotation"), ("effects", "Buffs & debuffs"), ("cc", "Crowd control"), ("stagger", "Break gauge"),
+           ("boss", "Boss casts"), ("contribution", "Buff contribution"), ("", "Hide"))
+COMBINED_ACTIONS = ("This combined review leaves out the casts, buffs and break gauge: across these parts they exceed what one "
+                    "review can hold. Open a single part to see them.")
+ROTATION_NOTE = "Casts are the game's own cast records."
+ROTATION_COLUMNS = ["Player", "Skill casts", "Casts per minute", "Procs and passives", "Dodges"]
+MP_NOTE = ("The recording player's MP: the game sends no one else's. Spent is the sum of every drop (mostly skill costs); "
+           "restored is regeneration and MP-restoring skills. Below 20% is the time under a fifth of the maximum.")
+MP_COLUMNS = ["Player", "Start → end", "Lowest", "Maximum", "Spent", "Spent per minute", "Restored", "Below 20%"]
+SKILLS_ABOVE = "Each skill's casts and the cast timeline are under <i>Abilities and skills</i> above."
+CHAINS_NOTE = ("How often the chain skill followed while its window was open (recorded for the player who made the "
+               "recording).")
+CHAIN_COLUMNS = ["Player", "Chain skill", "Windows opened", "Followed", "Follow rate"]
+WINDOWS_NOTE = ("Windows run from each effect's application to its removal, or to its stated duration when no removal was "
+                "recorded. Overlapping applications on the same target count once. Uptime is over the whole encounter.")
+NO_EFFECTS_RECORDED = "Buffs and debuffs are not recorded for this encounter."
+CC_NOTE = ("Crowd control your party landed on enemies. The state comes from the skill's description; how long it held comes "
+           "from the effect's own records. Removed early means the game ended the effect before its duration (an immunity, "
+           "a break or a phase change, not told apart).")
+CC_FOE_NOTE = ("Crowd control between them and your party. The state comes from the skill's description; how long it held "
+               "comes from the effect's own records. Removed early means the game ended the effect before its duration.")
+CC_RECEIVED_NOTE = ("What players outside your party landed on it, such as a PvP opponent. The state comes from the skill's "
+                    "description; an NPC's skills have none, so a boss's crowd control is not listed.")
+NO_CC_RECORDED = "Crowd control is not recorded for this encounter."
+OLDER_ANALYSIS = "Not in this log's analysis, which an older app or sharing server made."
+CC_TOTAL_COLUMNS = ["Player", "State", "Landed (with re-applications)", "Total held", "Hard crowd control", "Removed early"]
+CC_RECEIVED_COLUMNS = ["Player", "State", "Taken (with re-applications)", "Total held", "Hard crowd control", "Removed early"]
+ENDED = {"expired": "Ran its duration", "removed": "Removed early"}
+STAGGER_NOTE = ("The break gauge is the game's own reading. A drop belongs to the hits on that enemy in the same read; when "
+                "several hits share one, it is split by each skill's listed Stagger Gauge Damage (from the skill "
+                "descriptions), else by what that skill drained alone. A break runs from the gauge emptying to it refilling.")
+NO_STAGGER = "No break-gauge readings were recorded in this encounter (only bosses and elites carry one)."
+STAGGER_COLUMNS = ["Player", "Gauge drained", "Share", "Damage during breaks"]
+BOSS_NOTE = ("The skills bosses cast, from the game's own cast records (recorded since 0.2.307 for catalog bosses, and since "
+             "0.2.394 for their adds and clones). Most boss skills have no name in the bundled tables and show their ID. "
+             "<i>Aimed at</i> is the player a cast targeted; area skills often name none.")
+BOSS_ORDER_NOTE = ("Quick repeats of one skill at one target (a channelled skill sends a cast every few hundredths of a second) "
+                   "are one row.")
+NO_BOSS_CASTS = "No boss casts were recorded in this encounter."
+BOSS_COLUMNS = ["Caster", "Skill", "Casts", "First → last", "Aimed at"]
+BOSS_ORDER_COLUMNS = ["Time", "Caster", "Skill", "Casts", "Aimed at"]
+CONTRIBUTION_OLD = ("The buff contribution needs analyzer 0.2.307 or later: reopen the file with the updated app, or update the "
+                    "sharing server.")
+CONTRIBUTION_NONE = ("No credited buff was recorded in this encounter, or it is PvP (PvP boosts and tolerances differ), so there "
+                     "is nothing to estimate.")
+CONTRIBUTION_NOTE = ("<b>An estimate, not a record. It is not used for rankings or parses until it has been checked against real "
+                     "data.</b> <i>From others' buffs</i> is the part of a player's hits that came from other players' damage "
+                     "buffs and debuffs; <i>Added to others</i> is what their own buffs added to other players' hits. "
+                     "Buff-adjusted DPS takes out what others gave; rDPS also credits what the player gave. A buff's size comes "
+                     "from its caster's skill level (the official profile, else the effect record, else the typical top "
+                     "player's). A +X% boost's share of a hit assumes the player's other damage boosts are the typical build's "
+                     "and a 30% boss Damage Tolerance (10% otherwise). Defense cuts and Combat Speed buffs are not credited, and "
+                     "pet hits are not adjusted. Per-second values use the damage table's active clock.")
+CONTRIBUTION_COLUMNS = ["Player", "DPS", "From others' buffs", "Buff-adjusted DPS", "Added to others", "rDPS"]
+GIVEN_COLUMNS = ["Given by", "Buff", "To", "Damage added", "Per second"]
+CREDITED_COLUMNS = ["Caster", "Buff", "Kind", "PvE value", "Level", "Level from", "Windows"]
+CHECKS_NOTE = ("The same player's plain hits with one skill on one target (no critical, double, perfect or periodic damage, "
+               "outside breaks) with only that buff group up, against none up. One fight rarely has enough hits without the "
+               "buff to settle it; <code>python -m aion2calc calibrate --buffs</code> pools many fights.")
+CHECK_COLUMNS = ["Buffs", "Measured gain", "Estimated gain", "Hits with / without", "Skill-target pairs"]
+BASIS = {"profile": "Official profile", "effect": "Effect record (inferred)", "typical": "Typical top player (assumed)",
+         "fixed": "Same at every level"}
+BUFF_KIND = {"aura": "Damage Boost aura", "block": "Damage Boost on block", "tolerance": "Enemy Damage Tolerance cut"}
+
+
+def _muted_html(words: str) -> str:
+    from .results import MUTED
+    return f" <span style='color: {MUTED};'>{words}</span>"
+
+
+def actions_missing(doc: dict, d: dict, state: dict) -> str:
+    """Why the encounter's casts, buffs and break gauge can't be shown (``actionsHTML``'s start), or nothing."""
+    if _list(_dict(_dict(doc.get("meta")).get("reconstruction")).get("omitted_actions")):
+        return COMBINED_ACTIONS
+    seg = d["segment"]
+    recorded = sum(len(_list(seg.get(k))) for k in ("casts", "effects", "gauge", "resources", "npc_casts"))
+    s = actions_of(doc, state)
+    if not _truthy(s) or not recorded:
+        return ("Casts, buffs and debuffs, crowd control and the break gauge are not recorded for this encounter. The live "
+                "meter records them since 0.2.306" + ("" if _truthy(s) else "; reopen the file with the updated app, or "
+                                                      "update the sharing server, to see them") + ".")
+    return ""
+
+
+def omitted_actions(doc: dict, state: dict) -> str:
+    """The rows the analyzer's limits left out (``Row limits omitted …``), or nothing."""
+    s = _dict(actions_of(doc, state))
+    parts = [f"{number(n)} {js_text(key).replace('_', ' ')} rows" for key, n in _dict(s.get("omitted_actions")).items()
+             if _truthy(n)]
+    return f"Row limits omitted {', '.join(parts)}." if parts else ""
+
+
+def _mine(state: dict, actor) -> bool:
+    return not state["actor"] or actor == state["actor"]
+
+
+def _cell_actor(actor) -> dict:
+    return {"actor": actor}
+
+
+def _cell_skill(skill_id, name) -> dict:
+    return {"skill_id": skill_id, "skill": js_string(_first(name, skill_id, "Unknown skill"))}
+
+
+def rotation_tab(doc: dict, d: dict, state: dict) -> dict:
+    """The rotation's totals, the recording player's MP, and the chain skills (``actions === "rotation"``)."""
+    r = rotation_for(doc, d, state)
+    s = _dict(actions_of(doc, state))
+    totals = [t for t in _list(r.get("totals")) if isinstance(t, dict)]
+    if d["foe"] and not totals:
+        return {"missing": NO_FOE_CASTS}
+    dodges = {x.get("source"): x.get("count") for x in _list(r.get("dodges")) if isinstance(x, dict)}
+    out = {"totals": [[_cell_actor(t.get("source")), number(t.get("casts")), fixed(t.get("per_minute"), 1), number(t.get("procs")),
+                       number(dodges.get(t.get("source")) or 0)] for t in totals if _mine(state, t.get("source"))]}
+    mp = [m for m in _list(s.get("mp")) if isinstance(m, dict) and _mine(state, m.get("entity"))]
+    out["mp"] = [[_cell_actor(m.get("entity")), f"{number(m.get('start'))} → {number(m.get('end'))}", number(m.get("lowest")),
+                  {"html": number(m.get("max")) + ("" if _truthy(m.get("max_from_record")) else _muted_html("highest reading"))},
+                  number(m.get("spent")), "—" if m.get("spent_per_minute") is None else number(m["spent_per_minute"]),
+                  number(m.get("restored")),
+                  {"html": f"{fixed(m.get('seconds_low'), 1)}s" + _muted_html(percent(m.get("low_pct")))}] for m in mp]
+    chains = [c for c in _list(r.get("chains")) if isinstance(c, dict)]
+    out["chains"] = [[_cell_actor(c.get("player")), _cell_skill(c.get("next_id"), c.get("next")), number(c.get("opened")),
+                      number(c.get("used")), percent(c.get("used_pct"))] for c in chains if _mine(state, c.get("player"))]
+    out["has_chains"] = bool(chains)
+    return out
+
+
+def effect_groups(effects: list, duration) -> list[dict]:
+    """An opponent's effect windows merged per recipient and effect (``effectGroups``), as the analyzer merges the
+    party's: from each application to its removal or stated duration; overlaps count once."""
+    duration = max(0.001, _num(duration) or 0.0)
+    groups: dict = {}
+    for x in effects:
+        groups.setdefault((js_string(x.get("target")), js_string(family(x.get("skill_id")))), []).append(x)
+    out = []
+    for rows in groups.values():
+        seconds, start, end = 0.0, 0.0, None
+        spans = sorted(((max(0.0, _num(x.get("t")) or 0.0), min(duration, _num(x.get("end")) or 0.0)) for x in rows),
+                       key=lambda span: span[0])
+        for a, b in spans:
+            if b <= a:
+                continue
+            if end is not None and a <= end:
+                end = max(end, b)
+            else:
+                if end is not None:
+                    seconds += end - start
+                start, end = a, b
+        if end is not None:
+            seconds += end - start
+        by: dict = {}
+        for x in rows:
+            key = x.get("source") or ""
+            by[key] = by.get(key, 0) + 1
+        out.append({"target": rows[0].get("target"), "skill_id": rows[0].get("skill_id"),
+                    "skill": js_string(rows[0]["skill"]) if _truthy(rows[0].get("skill")) else js_string(rows[0].get("skill_id")),
+                    "applications": len(rows), "seconds": seconds, "uptime_pct": 100 * seconds / duration,
+                    "sources": [{"source": source or None, "applications": n}
+                                for source, n in sorted(by.items(), key=lambda kv: -kv[1])[:5]]})
+    return sorted(out, key=lambda g: -g["seconds"])
+
+
+def _effect_rows(rows: list, state: dict) -> list:
+    out = []
+    for x in rows:
+        if not isinstance(x, dict):
+            continue
+        sources = [v for v in _list(x.get("sources")) if isinstance(v, dict)]
+        if not (_mine(state, x.get("target")) or any(_mine(state, v.get("source")) for v in sources)):
+            continue
+        out.append([{"actor": x.get("target"), "boss": _truthy(x.get("boss"))}, _cell_skill(x.get("skill_id"), x.get("skill")),
+                    percent(x.get("uptime_pct")), f"{fixed(x.get('seconds'), 1)}s", number(x.get("applications")),
+                    {"sources": [(v.get("source"), v.get("applications")) for v in sources]}])
+    return out
+
+
+def effects_tab(doc: dict, d: dict, state: dict) -> dict:
+    """The buffs on the party, the debuffs on enemies and the enemies' effects on the party; for an opponent, the
+    effects on them by their side and by the party, and theirs on others (``actions === "effects"``)."""
+    seg = d["segment"]
+    if d["foe"]:
+        fx = [x for x in _list(seg.get("effects")) if isinstance(x, dict)]
+        imported = [b for b in _list(seg.get("buffs")) if isinstance(b, dict) and b.get("player") == d["foe"]]
+        if not fx and not imported:
+            return {"missing": NO_EFFECTS_RECORDED}
+        ours, party = d["ours"], d["party"]
+
+        def by_party(x):
+            return _truthy(x.get("source")) and party(x.get("source"))
+        groups = [("Buffs on them", ["Recipient", "Buff", "Uptime", "Time", "Applications", "Given by"],
+                   [x for x in fx if ours(x.get("target")) and not by_party(x)]),
+                  ("Your party's effects on them", ["Recipient", "Effect", "Uptime", "Time", "Applications", "Applied by"],
+                   [x for x in fx if ours(x.get("target")) and by_party(x)]),
+                  ("Their effects on others", ["Recipient", "Effect", "Uptime", "Time", "Applications", "Source"],
+                   [x for x in fx if _truthy(x.get("source")) and ours(x.get("source")) and not ours(x.get("target"))])]
+        tables = [{"title": title, "columns": columns, "rows": _effect_rows(effect_groups(rows, seg.get("duration")), state)}
+                  for title, columns, rows in groups]
+        if imported:
+            tables.append({"title": "Imported buff windows", "columns": ["Buff", "Start → end"],
+                           "rows": [[_cell_skill(b.get("skill_id"), b.get("name")),
+                                     f"{signed_clock(b.get('start'))} → {signed_clock(b.get('end'))}"] for b in imported]})
+        return {"note": WINDOWS_NOTE, "tables": tables}
+    s = _dict(actions_of(doc, state))
+    return {"note": WINDOWS_NOTE, "tables": [
+        {"title": "Buffs on the party", "columns": ["Recipient", "Buff", "Uptime", "Time", "Applications", "Given by"],
+         "rows": _effect_rows(_list(s.get("buffs")), state)},
+        {"title": "Debuffs on enemies", "columns": ["Enemy", "Debuff", "Uptime", "Time", "Applications", "Applied by"],
+         "rows": _effect_rows(_list(s.get("debuffs")), state)},
+        {"title": "Enemy effects on the party", "columns": ["Recipient", "Effect", "Uptime", "Time", "Applications", "Source"],
+         "rows": _effect_rows(_list(s.get("incoming")), state)}]}
+
+
+def _cc_row(c: dict, d: dict, *who) -> list:
+    """One crowd control (``ccRow``): when, who, the skill, its state (soft or hard), how long it held and how it ended."""
+    end = _num(c.get("end"))
+    duration = _num(d["segment"].get("duration")) or 0.0
+    ended = ENDED.get(c.get("ended")) or ("Active at the end" if end is not None and end >= duration - 0.01
+                                          else "No removal recorded")
+    held = f"{fixed(c.get('seconds'), 2)}s" + (_muted_html(f"re-applied {number(c['refreshes'])}×") if _truthy(c.get("refreshes")) else "")
+    return ([signed_clock(c.get("t"))] + [_cell_actor(x) for x in who] + [_cell_skill(c.get("skill_id"), c.get("skill")),
+            {"html": html_escape(js_text(c.get("state") or "")) + ("" if _truthy(c.get("hard")) else _muted_html("soft"))},
+            {"html": held}, ended])
+
+
+def html_escape(text: str) -> str:
+    """Words set in rich text (an element's content: its quotes need no escaping)."""
+    import html
+    return html.escape(text, quote=False)
+
+
+def _cc_totals(rows: list, key: str, state: dict) -> list:
+    return [[_cell_actor(c.get(key)), js_text(c.get("state") or ""), number(c.get("landed")), f"{fixed(c.get('seconds'), 1)}s",
+             number(c.get("hard")), number(c.get("broken_early"))]
+            for c in rows if isinstance(c, dict) and _mine(state, c.get(key))]
+
+
+def cc_tab(doc: dict, d: dict, state: dict) -> dict:
+    """The crowd control (``actions === "cc"``): the party's by player and each application, and what players outside the
+    party landed on it; for an opponent, theirs on the party and the party's on them."""
+    s = _dict(actions_of(doc, state))
+    seg = d["segment"]
+    received = s.get("crowd_control_received")
+    crowd = [c for c in _list(s.get("crowd_control")) if isinstance(c, dict)]
+    if d["foe"]:
+        if not _list(seg.get("effects")):
+            return {"missing": NO_CC_RECORDED}
+
+        def theirs(identifier):
+            return _truthy(identifier) and d["ours"](identifier)
+        columns = ["Time", "Player", "Skill", "State", "Held", "Ended"]
+        return {"note": CC_FOE_NOTE, "tables": [
+            {"title": "Their crowd control on your party", "columns": columns,
+             "rows": [_cc_row(c, d, c.get("target")) for c in _list(received) if isinstance(c, dict) and theirs(c.get("source"))],
+             "older": received is None},
+            {"title": "Your party's crowd control on them", "columns": columns,
+             "rows": [_cc_row(c, d, c.get("source")) for c in crowd if theirs(c.get("target"))]}]}
+    tables = [{"title": "", "columns": CC_TOTAL_COLUMNS, "rows": _cc_totals(_list(s.get("crowd_control_by_source")), "source", state)},
+              {"title": "Each application", "columns": ["Time", "Player", "Target", "Skill", "State", "Held", "Ended"],
+               "rows": [_cc_row(c, d, c.get("source"), c.get("target")) for c in crowd if _mine(state, c.get("source"))]}]
+    pvp = mode_of(doc, seg) == "pvp"
+    if received is None:
+        if pvp:
+            tables.append({"title": "Crowd control on your party", "columns": [], "rows": [], "older": True})
+    elif pvp or _list(received):
+        tables.append({"title": "Crowd control on your party", "note": CC_RECEIVED_NOTE, "columns": CC_RECEIVED_COLUMNS,
+                       "rows": _cc_totals(_list(s.get("crowd_control_received_by_target")), "target", state)})
+        tables.append({"title": "Each application on your party",
+                       "columns": ["Time", "Player", "Source", "Skill", "State", "Held", "Ended"],
+                       "rows": [_cc_row(c, d, c.get("target"), c.get("source")) for c in _list(received)
+                                if isinstance(c, dict) and _mine(state, c.get("target"))]})
+    return {"note": CC_NOTE, "tables": tables}
+
+
+def stagger_tab(doc: dict, d: dict, state: dict) -> dict:
+    """Each enemy's break gauge (``actions === "stagger"``): its line, its readings over the fight with the breaks, and
+    each player's share of what was drained."""
+    s = _dict(actions_of(doc, state))
+    seg, r = d["segment"], d["r"]
+    bosses = []
+    for b in _list(s.get("stagger")):
+        if not isinstance(b, dict):
+            continue
+        breaks = [x for x in _list(b.get("breaks")) if isinstance(x, dict)]
+        line = (f"Gauge {number(b.get('max'))} · {number(b.get('readings'))} readings · {number(b.get('drained'))} drained"
+                + (f" ({number(b['unattributed'])} with no matching hit)" if _truthy(b.get("unattributed")) else "")
+                + f" · {len(breaks)} break{'' if len(breaks) == 1 else 's'}"
+                + (": " + ", ".join(f"{signed_clock(x.get('t'))} for {fixed(x.get('seconds'), 1)}s" for x in breaks) if breaks else ""))
+        rows = [g for g in _list(seg.get("gauge")) if isinstance(g, dict) and g.get("entity") == b.get("entity")]
+        rows.sort(key=lambda g: _num(g.get("t")) or 0.0)
+        duration = max(1.0, _num(seg.get("duration")) or 0.0)
+        gauge = None
+        if len(rows) >= 2:
+            def px(t):
+                return max(0.0, min(1000.0, (_num(t) or 0.0) * 1000 / duration))
+
+            def py(g):
+                top = _num(g.get("max")) or 0.0
+                return 110 - 4 - (110 - 8) * max(0.0, min(1.0, (_num(g.get("current")) or 0.0) / (top or 1)))
+            gauge = {"points": [(px(g.get("t")), py(g)) for g in rows],
+                     "breaks": [{"x": px(x.get("t")), "width": max(2.0, px(x.get("end")) - px(x.get("t"))),
+                                 "tip": f"Broken {signed_clock(x.get('t'))} → {signed_clock(x.get('end'))} ({fixed(x.get('seconds'), 1)}s)"}
+                                for x in breaks]}
+        bosses.append({"title": actor_label(r.get(b.get("entity"))), "elite": not _truthy(b.get("boss")), "line": line, "gauge": gauge,
+                       "rows": [[_cell_actor(p.get("player")), number(p.get("amount")), percent(p.get("share_pct")),
+                                 number(p.get("break_damage"))] for p in _list(b.get("players"))
+                                if isinstance(p, dict) and _mine(state, p.get("player"))]})
+    return {"note": STAGGER_NOTE, "bosses": bosses}
+
+
+def add_name(e, names: dict | None = None) -> str:
+    """A boss's add by its name (``addNameOf``): the catalog's, else the community's for its code, else "Clone"."""
+    name = npc_name(e, names) if isinstance(e, dict) and e else ""
+    if name and not _UNNAMED.match(name) and not re.fullmatch(r"#\d+", name):
+        return name
+    code = _dict(e).get("mob_code")
+    found = (names or {}).get(js_text(code)) if code is not None else None
+    return js_text(found) if found else "Clone"
+
+
+def boss_tab(doc: dict, d: dict, state: dict, names: dict | None = None) -> dict:
+    """The skills bosses cast and their casts in order (``actions === "boss"``)."""
+    s = _dict(actions_of(doc, state))
+    b = _dict(s.get("boss_casts"))
+    seg, r = d["segment"], d["r"]
+    entities = {e.get("id"): e for e in _list(seg.get("entities")) if isinstance(e, dict)}
+
+    def caster(identifier):
+        return r.get(identifier) or entities.get(identifier)
+    skills = [k for k in _list(b.get("skills")) if isinstance(k, dict)]
+    if not skills:
+        return {"note": BOSS_NOTE, "missing": NO_BOSS_CASTS}
+    rows = []
+    for k in skills:
+        if _truthy(k.get("add")):
+            many = _num(k.get("casters")) or 0
+            who = {"html": html_escape(add_name(caster(k.get("source")), names))
+                   + _muted_html("boss's add" + (f", {number(many)} of them" if many > 1 else ""))}
+        else:
+            who = {"ref": caster(k.get("source"))}
+        targets = [x for x in _list(k.get("targets")) if isinstance(x, dict)]
+        rows.append([who, _cell_skill(k.get("skill_id"), k.get("skill")), number(k.get("casts")),
+                     f"{signed_clock(k.get('first'))} → {signed_clock(k.get('last'))}",
+                     {"aimed": [(x.get("target"), x.get("casts")) for x in targets]}])
+    order = []
+    for c in _list(b.get("timeline")):
+        if not isinstance(c, dict) or (state["actor"] and c.get("target") != state["actor"]):
+            continue
+        order.append([signed_clock(c.get("t")) + (f" → {signed_clock(c['end'])}" if c.get("end") is not None else ""),
+                      {"ref": caster(c.get("source"))}, _cell_skill(c.get("skill_id"), c.get("skill")),
+                      ("×" + number(c.get("casts"))) if (_num(c.get("casts")) or 0) > 1 else "",
+                      _cell_actor(c.get("target")) if _truthy(c.get("target")) else "—"])
+    notes = []
+    if _truthy(b.get("omitted_timeline")):
+        notes.append(f"{number(b['omitted_timeline'])} later rows are not listed.")
+    if _truthy(b.get("add_casts")):
+        n = _num(b["add_casts"]) or 0
+        notes.append(f"Not listed here: {number(n)} cast{'' if n == 1 else 's'} by the bosses' adds and clones, counted in the "
+                     "skills above and listed on the movement replay.")
+    return {"note": BOSS_NOTE, "skills": rows, "order": order, "notes": notes}
+
+
+def contribution_tab(doc: dict, d: dict, state: dict) -> dict:
+    """The buff contribution estimate (``actions === "contribution"``): what each player took from others' buffs and
+    added to others', who added what, the credited buffs, and the check against the fight's own hits."""
+    insights = _dict(doc.get("encounter_insights"))
+    if (_num(insights.get("version")) or 0) < 4:
+        return {"missing": CONTRIBUTION_OLD}
+    c = None
+    for x in _list(insights.get("segments")):
+        if isinstance(x, dict) and x.get("segment") == state["segment"]:
+            c = x.get("contribution")
+    if not _truthy(c):
+        return {"missing": CONTRIBUTION_NONE}
+    c = _dict(c)
+    r = d["r"]
+
+    def per(v):
+        return number((_num(v) or 0.0) / max(0.001, d["dps_duration"]))
+
+    def who(identifier):
+        if not _truthy(identifier):
+            return "Not recorded"
+        return _cell_actor(identifier) if r.get(identifier) is not None else "Not in the roster"
+
+    def signed(v):
+        value = _num(v) or 0.0
+        return ("+" if value > 0 else "") + theme.fixed(value, 1) + "%"
+    players = [[who(p.get("player")), per(p.get("damage")),
+                {"html": f"−{per(p.get('received'))}" + _muted_html(percent(p.get("received_pct")))}, per(p.get("adjusted_damage")),
+                f"+{per(p.get('given'))}", per(p.get("contribution_damage"))]
+               for p in _list(c.get("players")) if isinstance(p, dict) and _mine(state, p.get("player"))]
+    given = [[who(g.get("source")), _cell_skill(g.get("skill_id"), g.get("skill")), who(g.get("recipient")),
+              number(g.get("damage")), per(g.get("damage"))]
+             for g in _list(c.get("given")) if isinstance(g, dict) and (_mine(state, g.get("source")) or _mine(state, g.get("recipient")))]
+    buffs = [[who(b.get("source")), _cell_skill(b.get("skill_id"), b.get("skill")), BUFF_KIND.get(b.get("group")) or js_text(b.get("group")),
+              f"{fixed(b.get('value_pct'), 1)}%", "—" if b.get("level") is None else js_text(b["level"]),
+              BASIS.get(b.get("basis")) or js_text(b.get("basis")), number(b.get("windows"))]
+             for b in _list(c.get("buffs")) if isinstance(b, dict)]
+    checks = [[BUFF_KIND.get(x.get("group")) or js_text(x.get("group")), signed(x.get("measured_pct")), signed(x.get("estimated_pct")),
+               f"{number(x.get('hits_on'))} / {number(x.get('hits_off'))}", number(x.get("pairs"))]
+              for x in _list(c.get("checks")) if isinstance(x, dict)]
+    unlisted = (f"{number(c['unlisted_source_damage'])} of the damage added came from casters who are not in the roster."
+                if _truthy(c.get("unlisted_source_damage")) else "")
+    return {"note": CONTRIBUTION_NOTE, "players": players, "unlisted": unlisted, "given": given, "buffs": buffs, "checks": checks}
