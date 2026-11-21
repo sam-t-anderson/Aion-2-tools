@@ -1085,17 +1085,21 @@ class GridTable(QWidget):
     """A table as the web page draws ``table.t``: its heads gold and upper-case over a line, each row over a faint
     line, the words wrapping in their columns. A cell is text, a label of rich text, or another widget (a row's
     button, at the cell's end; a form's field at its start, with ``left``; across its column, with its ``fill``
-    property set); ``stretch`` gives columns their share of the room to spare."""
+    property set); ``stretch`` gives columns their share of the room to spare, and the columns in ``right`` (``.r``)
+    have their words and heads at their ends."""
 
     def __init__(self, headers: list[str], rows: list[list], stretch: dict[int, int] | None = None,
-                 parent: QWidget | None = None, left: bool = False):
+                 parent: QWidget | None = None, left: bool = False, right: tuple[int, ...] = ()):
         super().__init__(parent)
         self.setObjectName("plain")
         self.grid = QGridLayout(self)
         self.grid.setContentsMargins(0, 0, 0, 0)
         self.grid.setSpacing(0)
         for column, words in enumerate(headers):
-            self.grid.addWidget(_label(words.upper(), "thead"), 0, column)
+            head = _label(words.upper(), "thead")
+            if column in right:
+                head.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+            self.grid.addWidget(head, 0, column)
         for index, row in enumerate(rows, start=1):
             for column, cell in enumerate(row):
                 if isinstance(cell, QWidget) and not isinstance(cell, QLabel):
@@ -1113,7 +1117,7 @@ class GridTable(QWidget):
                     continue
                 label = cell if isinstance(cell, QLabel) else _label(str(cell))
                 label.setObjectName("tcell")
-                label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                label.setAlignment((Qt.AlignRight if column in right else Qt.AlignLeft) | Qt.AlignVCenter)
                 self.grid.addWidget(label, index, column)
         for column, factor in (stretch or {}).items():
             self.grid.setColumnStretch(column, factor)
