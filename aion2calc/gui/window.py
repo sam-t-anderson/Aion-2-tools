@@ -23,6 +23,7 @@ from .api import AppApi, Poller
 from .news import NewsPage
 from .database_page import DatabasePage
 from .gathering_page import GatheringPage
+from .pets_page import PetsPage
 from .timers_page import TimersPage
 from .overlay import START_SCOPE, counter_lines
 from .settings_page import SettingsPage
@@ -230,6 +231,8 @@ class MainWindow(QMainWindow):
                     widget = DatabasePage(api)
                 elif key == "gathering":
                     widget = GatheringPage(api, self.show_page)
+                elif key == "pets":
+                    widget = PetsPage(api)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)
