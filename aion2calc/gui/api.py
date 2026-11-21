@@ -150,20 +150,21 @@ class Requests(QObject):
 class Job(QObject):
     """One of the app's jobs, as app.js's ``runJob`` runs it: ``start`` sends its request (answered with the job's id),
     then the job is read from ``/api/jobs/<id>`` every 1.2 s; each reading's log comes as ``logged``, then its result
-    as ``done`` or its error (or why a request failed) as ``failed``. One job at a time."""
+    as ``done`` or its error (or why a request failed) as ``failed``. A ``patient`` job reads again 2.5 s after a
+    reading that failed, as My Character's ``pollOpt`` keeps polling through a passing error. One job at a time."""
 
     logged = Signal(list)
     done = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, api: AppApi, parent: QObject | None = None, interval_ms: int = 1200):
+    def __init__(self, api: AppApi, parent: QObject | None = None, interval_ms: int = 1200, patient: bool = False):
         super().__init__(parent)
+        self.interval_ms, self.patient = interval_ms, patient
         self.requests = Requests(api, self)
         self.requests.replied.connect(self._replied)
         self.requests.failed.connect(self._failed)
         self.timer = QTimer(self)
         self.timer.setSingleShot(True)
-        self.timer.setInterval(interval_ms)
         self.timer.timeout.connect(self._read)
         self.id, self.running, self.turn = "", False, 0
 
@@ -185,7 +186,7 @@ class Job(QObject):
             if not self.id:
                 self._end("The app did not start the job.")
                 return
-            self.timer.start()
+            self.timer.start(self.interval_ms)
             return
         log = answer.get("log")
         self.logged.emit(list(log) if isinstance(log, list) else [])
@@ -195,11 +196,16 @@ class Job(QObject):
         elif answer.get("status") == "error":
             self._end(str(answer.get("error") or ""))
         else:
-            self.timer.start()
+            self.timer.start(self.interval_ms)
 
     def _failed(self, name: str, why: str) -> None:
-        if name.partition(":")[2] == str(self.turn) and self.running:
-            self._end(why)
+        kind, _, turn = name.partition(":")
+        if turn != str(self.turn) or not self.running:
+            return
+        if self.patient and kind == "read":
+            self.timer.start(max(self.interval_ms, 2500))         # a passing error: read again a little later
+            return
+        self._end(why)
 
     def _end(self, why: str) -> None:
         self.running = False

@@ -1046,8 +1046,8 @@ def _cell(rich: str) -> QLabel:
 
 class GridTable(QWidget):
     """A table as the web page draws ``table.t``: its heads gold and upper-case over a line, each row over a faint
-    line, the words wrapping in their columns. A cell is text, or a label of rich text; ``stretch`` gives columns
-    their share of the room to spare."""
+    line, the words wrapping in their columns. A cell is text, a label of rich text, or another widget (a row's
+    button, at the cell's end); ``stretch`` gives columns their share of the room to spare."""
 
     def __init__(self, headers: list[str], rows: list[list], stretch: dict[int, int] | None = None,
                  parent: QWidget | None = None):
@@ -1060,6 +1060,15 @@ class GridTable(QWidget):
             self.grid.addWidget(_label(words.upper(), "thead"), 0, column)
         for index, row in enumerate(rows, start=1):
             for column, cell in enumerate(row):
+                if isinstance(cell, QWidget) and not isinstance(cell, QLabel):
+                    box = QFrame()                             # the row's line under a widget too
+                    box.setObjectName("tcellBox")
+                    line = QHBoxLayout(box)
+                    line.setContentsMargins(8, 3, 8, 3)
+                    line.addStretch(1)
+                    line.addWidget(cell)
+                    self.grid.addWidget(box, index, column)
+                    continue
                 label = cell if isinstance(cell, QLabel) else _label(str(cell))
                 label.setObjectName("tcell")
                 label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
@@ -1976,5 +1985,6 @@ QFrame#note QLabel#noteHead {{ font-weight: 700; }}
 QFrame#win QLabel#thead {{ color: {theme.COLORS['gold_dim']}; font-weight: 600; padding: 6px 8px;
     border: none; border-bottom: 1px solid rgba(206, 182, 122, 0.28); }}
 QFrame#win QLabel#tcell {{ padding: 5px 8px; border: none; border-bottom: 1px solid #1d2539; }}
+QFrame#win QFrame#tcellBox {{ background: transparent; border: none; border-bottom: 1px solid #1d2539; }}
 """ + "".join(
     f"QFrame#win QLabel#gname{grade} {{ color: {colour}; font-weight: 600; }}\n" for grade, colour in r.GRADES.items())
