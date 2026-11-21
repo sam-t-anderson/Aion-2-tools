@@ -650,7 +650,7 @@ class ReviewPage(QWidget):
         r = d["r"]
         cells = [[row["time"], row["kind"], self._actor(r.get(row["source"])), self._actor(r.get(row["target"])), row["skill"],
                   row["amount"]] for row in model["rows"]]
-        table = self._grid(cw.EVENT_COLUMNS, cells, {0: 1, 1: 1, 2: 2, 3: 2, 4: 2, 5: 1})
+        table = self._grid(cw.EVENT_COLUMNS, cells, {0: 2, 1: 2, 2: 5, 3: 5, 4: 3, 5: 2})     # as the web table's share
         table.setAccessibleName("Events")
         self.events_table = table
         column.addWidget(table)
