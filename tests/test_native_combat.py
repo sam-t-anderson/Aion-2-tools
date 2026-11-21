@@ -2308,7 +2308,7 @@ def test_the_review_words():
 
 
 def _summary_cell(view, row, column):
-    QCoreApplication.processEvents()
+    _shown()
     return view.summary.cell(row, column)
 
 
