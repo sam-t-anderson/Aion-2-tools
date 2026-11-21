@@ -588,7 +588,11 @@ class SetRow(QFrame):
 
 
 class Toast(QLabel):
-    """The app's short message at the foot of the page for four seconds (app.js ``toast``)."""
+    """The app's short message at the foot of the page for four seconds (app.js ``toast``). A page that shows one
+    adds ``STYLE`` to its stylesheet."""
+
+    STYLE = (f"QLabel#toast {{ background: #1c2438; border: 1px solid rgba(233, 203, 128, 0.6); border-radius: 6px; "
+             f"padding: 8px 16px; color: {theme.COLORS['gold']}; }}")
 
     def __init__(self, parent: QWidget):
         super().__init__(parent)
@@ -785,8 +789,7 @@ class PetsPage(QWidget):
         {"".join(f"QPushButton#ptpin{name} {{ color: {tint}; }}" for name, tint in ACCENTS.items())}
         {", ".join(f"QPushButton#ptpin{name}:hover" for name in ("", *ACCENTS))} {{ color: {c['text']}; }}
         QPushButton#ptlink {{ background: transparent; border-radius: 6px; padding: 3px 9px; }}
-        QLabel#toast {{ background: #1c2438; border: 1px solid rgba(233, 203, 128, 0.6); border-radius: 6px; padding: 8px 16px;
-                        color: {c['gold']}; }}
+        {Toast.STYLE}
         """
 
     # ------------------------------------------------------------------ reading
