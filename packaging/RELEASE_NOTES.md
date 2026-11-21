@@ -1,3 +1,12 @@
+## A combat log's own page in the native interface, part 12 (0.2.468)
+
+**A log's review in the app's window now plays the fight's movement back**, as the web page's replay does:
+- **the view:** the fight's recorded positions on the ground they covered, north up. A boss fight's arena is drawn as a circle or a square (**Arena**, kept for every log), and anyone beyond the view is drawn faded at its edge;
+- **the tokens:** the bosses, their adds and clones in red, the players and their summons in their class colours, other enemies in grey, and the recording player ringed. Each moves between positions at most 6 seconds apart, else stays at its last known place. It is faded when last seen over 8 seconds ago and leaves once unseen for 20 seconds (a minute for players and bosses). A player is greyed while dead. A boss's and a player's movement in the last 6 seconds trails behind them, and the pointer names a token, when and how it was seen;
+- **the controls:** **Play** and **Pause**, **Rewind**, the speed (0.25× to 8×, kept for every log), the time slider and its clock. Drawing the page again starts the replay over, as the web page does.
+
+The replay's boss casts and events, its key, other recordings' movement and its Raid Planner file still open in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 11 (0.2.467)
 
 **A log's review in the app's window now joins a recording's parts and a fight's recordings**, as the web page does:
