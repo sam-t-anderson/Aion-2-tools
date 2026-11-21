@@ -333,3 +333,20 @@ def test_the_news_region_is_one_of_the_apps_settings(home):
     assert _clean({"news_region": "kr"}) == {"news_region": "kr"}                 # in a settings backup too
     with pytest.raises(ValueError):
         _clean({"news_region": "mars"})
+
+
+def test_a_card_shows_no_window_of_its_own(qapp):
+    """A card's category and preview are put in it before they are made visible: shown first, a parentless label
+    would flash as a window of its own, and a window shown closes any popup open."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QFrame
+    popup = QFrame(None, Qt.Popup)
+    popup.resize(60, 40)
+    popup.show()
+    QCoreApplication.processEvents()
+    card = news.Card(entry(1), "global", lambda url: None)
+    QCoreApplication.processEvents()
+    assert popup.isVisible() and not card.category.isHidden() and not card.preview.isHidden()
+    bare = news.Card(entry(2, category="", preview=""), "global", lambda url: None)
+    assert bare.category.isHidden() and bare.preview.isHidden()
+    popup.close()

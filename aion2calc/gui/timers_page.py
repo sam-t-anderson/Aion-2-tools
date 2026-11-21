@@ -134,8 +134,8 @@ class EventCard(QFrame):
         for widget in (self.name, self.schedule, self.note, self.status, self.countdown, self.next, self.upcoming):
             layout.addWidget(widget)
         self.unavailable = _label(timers.NO_GROUP)
-        self.unavailable.setVisible(item["unavailable"])
         layout.addWidget(self.unavailable)
+        self.unavailable.setVisible(item["unavailable"])   # once in the card: shown alone, a window of its own
         layout.addStretch(1)
         for widget in (self.status, self.countdown, self.next, self.upcoming):
             widget.setVisible(not item["unavailable"])

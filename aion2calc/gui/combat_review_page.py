@@ -10,16 +10,22 @@ Drawn here so far:
   parse from the log server's rankings.
 - Since 0.2.458 the rate chart, in either style, with the rates and the bosses' HP at any moment of it; the recorder's
   ping; the bosses' remaining HP; and the enemy encounters, any of which narrows the review to it.
+- Since 0.2.459 the Table, Timeline and Events views: the events' list with a spreadsheet's column filters, a time and
+  an amount range and its sort, a hundred at a time; and the recorded effect timeline, its window chosen, moved or
+  scrubbed, its lanes shown, hidden or collapsed, and each effect inspected.
 
-The rest of the review (its timeline, events, abilities, actions, death recaps, insights, rankings, reports,
-comparisons and movement replay) opens in the web interface for now, from a button on the page.
+The rest of the review (its abilities, actions, death recaps, insights, rankings, reports, comparisons and movement
+replay) opens in the web interface for now, from a button on the page.
 """
 from __future__ import annotations
 
 import html
+import math
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QCheckBox, QComboBox, QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import QRegularExpression, Qt, QTimer
+from PySide6.QtGui import QRegularExpressionValidator
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QFrame, QHBoxLayout, QLabel, QLineEdit, QSlider,
+                               QVBoxLayout, QWidget)
 
 from . import combat_review as cw
 from . import combat_records as cr
@@ -29,7 +35,9 @@ from .account import TIER_COLOURS
 from .account_page import _parse_pill
 from .api import AppApi, Requests
 from .combat_community import _note
+from .chrome import FlowLayout
 from .combat_review_charts import HP, LINE, PingChart, RateChart
+from .combat_review_views import FilterPopup, Placer, Timeline
 from .combat_saved import TIMEOUT, Section, _button, _clear, _head, _label
 from .database_page import Window
 from .pictures import Pictures
@@ -37,6 +45,7 @@ from .result_windows import GridTable
 from .results import _dict, _truthy, js_text
 
 C = theme.COLORS
+NUMBER = r"[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?"        # what a number field takes (``type="number"``)
 
 
 def _plain(layout=QVBoxLayout, spacing: int = 0):
@@ -91,14 +100,31 @@ class ReviewPage(QWidget):
         self.where: dict = {}
         self.state = cw.fresh_state()
         self.ranks = None
+        self.summary = None
+        self.popup: FilterPopup | None = None          # a column's filter of the events, while it is open
+        self.filter_buttons: dict = {}
+        self._forget_timeline()
         self.box = QVBoxLayout(self)
         self.box.setContentsMargins(0, 0, 0, 0)
         self.box.setSpacing(14)
 
     def stop(self) -> None:
         self.soon.stop()
+        if self.popup is not None:
+            self.popup.hide()
         if self.requests is not None:
             self.requests.stop()
+
+    def _forget_timeline(self) -> None:
+        """The timeline's lanes all shown and open again, its window at the start, nothing inspected: as another encounter
+        opens (``timelineHidden.clear()``…)."""
+        self.lanes_hidden: set = set()
+        self.lanes_folded: set = set()
+        self.effect = ""
+        self.lanes_open = False                       # the lanes' visibility opened (kept while the encounter is)
+        self.timeline_scroll: tuple | None = None
+        self.timeline_place: tuple | None = None
+        self.state["timeline_start"] = 0.0
 
     # ---------------------------------------------------------------- questions and answers
     def _ask(self, kind: str, path: str, proxied: bool = False, body: dict | None = None) -> None:
@@ -120,6 +146,7 @@ class ReviewPage(QWidget):
         self.where = {"kind": kind, "value": value}
         self.doc, self.ranks = None, None
         self.state = cw.fresh_state(mode, segment)
+        self._forget_timeline()
         for kind_of in ("log", "ranks"):
             self.asked[kind_of] = self.asked.get(kind_of, 0) + 1     # answers about the log shown before are let go
         _clear(self.box)
@@ -191,6 +218,7 @@ class ReviewPage(QWidget):
         the player and the parses."""
         state = self.state
         state[key] = value
+        state["page"] = 0
         if key == "mode":
             state["run"] = ""
             state["segment"] = max(0, next((i for i, s in enumerate(cw.segments(self.doc)) if cw.matches_mode(self.doc, s, value)), 0))
@@ -199,19 +227,31 @@ class ReviewPage(QWidget):
         if key in ("mode", "run", "segment"):
             state["enemy"] = state["actor"] = ""
             self.ranks = None
+            self._forget_timeline()
             self.draw()
             self.ask_ranks()
         else:
             self.draw()
 
-    def metric(self, key: str) -> None:
+    def choose_metric(self, key: str) -> None:
+        """A metric chosen (``data-metric``). Not ``metric``: ``QWidget.metric()`` is Qt's own, asked for the page's paint
+        metrics."""
         self.state["metric"] = key
+        self.state["page"] = 0
+        self.draw()
+
+    def view(self, key: str) -> None:
+        """A view chosen (``data-view``): the Table's summary, the Timeline (turned on when it is chosen), or the Events."""
+        self.state["view"] = key
+        if key == "timeline":
+            self.state["timeline"] = True
         self.draw()
 
     def open_segment(self, index: int) -> None:
         """Another encounter of the log (``data-attempt-segment``)."""
         self.state.update(segment=index, enemy="", actor="")
         self.ranks = None
+        self._forget_timeline()
         self.draw()
         self.ask_ranks()
 
@@ -297,6 +337,16 @@ class ReviewPage(QWidget):
             body.addWidget(self._table(["Boss", "Remaining HP", "Observed maximum", "Remaining %", "Sample time"], bosses))
             body.addWidget(_muted(cw.HP_NOTE))
         body.addWidget(self._enemies(d))
+        self.summary = self.timeline = None
+        self.filter_buttons = {}
+        if state["view"] == "table":                                 # the view chosen (``data-view``)
+            parse_column = self.rankings() and not foe
+            body.addWidget(_muted(cw.summary_note(d, v, foe, parse_column)))
+            body.addWidget(self._summary(d, v, parse_column))
+        elif state["view"] == "events":
+            body.addWidget(self._events(d, events))
+        if state["timeline"] and state["view"] == "timeline":
+            body.addWidget(self._timeline(v, events))
         elsewhere = QFrame()
         elsewhere.setObjectName("note")
         line = QVBoxLayout(elsewhere)
@@ -308,9 +358,9 @@ class ReviewPage(QWidget):
         row_line.addStretch(1)
         line.addWidget(row)
         body.addWidget(elsewhere)
-        parse_column = self.rankings() and not foe
-        body.addWidget(_muted(cw.summary_note(d, v, foe, parse_column)))
-        body.addWidget(self._summary(d, v, parse_column))
+        notes = cw.notes_line(d)
+        if notes:
+            body.addWidget(_muted(notes))
         if self.rankings():
             row, line = _plain(QHBoxLayout)
             line.addWidget(_button(cw.REFRESH, self.ask_ranks))
@@ -357,12 +407,16 @@ class ReviewPage(QWidget):
         return box
 
     def _tabs(self) -> QWidget:
-        """The metric shown (``data-metric``): the summary sorts by it."""
+        """The metric shown (``data-metric``), which the summary sorts by; and at the right the view (``data-view``)."""
         box, line = _plain(QHBoxLayout, 6)
         for key, words in cw.METRICS:
-            tab = _button(words, lambda key=key: self.metric(key), "primary" if self.state["metric"] == key else "small")
+            tab = _button(words, lambda key=key: self.choose_metric(key), "primary" if self.state["metric"] == key else "small")
             line.addWidget(tab)
         line.addStretch(1)
+        for key, words in cw.VIEWS:
+            tab = _button(words, lambda key=key: self.view(key), "primary" if self.state["view"] == key else "small")
+            tab.setAccessibleName(f"{words} view")
+            line.addWidget(tab)
         return box
 
     # ---------------------------------------------------------------- the options, graph, ping and enemies (0.2.458)
@@ -383,6 +437,7 @@ class ReviewPage(QWidget):
             r = cw.refs(self.doc, self.state)
             self.state["actor"] = _dict(r.get(self.state["actor"])).get("owner") or self.state["actor"]
         self.state[key] = checked
+        self.state["page"] = 0
         self.draw()
 
     def _graph(self, v: dict, events: list[dict]) -> QWidget:
@@ -407,6 +462,7 @@ class ReviewPage(QWidget):
         column.addWidget(key)
         chart = RateChart(model, v["r"], self.colours)
         self.chart = chart
+        chart.clicked.connect(lambda t: self._graph_clicked(model, t))
         column.addWidget(chart)
         detail = QFrame()
         detail.setObjectName("note")
@@ -438,6 +494,12 @@ class ReviewPage(QWidget):
         line.addWidget(swatch, 0, Qt.AlignVCenter)
         line.addWidget(_label(words, "small", wrap=False))
         return box
+
+    def _graph_clicked(self, model: dict, t: float) -> None:
+        """In Timeline view, a click on the graph moves the timeline's window to that moment (``hit.onclick``)."""
+        if self.state["view"] == "timeline":
+            cw.centred_window(self.state, t, model["duration"])
+            self.draw()
 
     def _graph_mode(self, mode) -> None:
         self.state["graph_mode"] = mode or "total"
@@ -538,6 +600,298 @@ class ReviewPage(QWidget):
         colour = cr.class_colour(actor.get("class"), self.colours)
         return _label(f"<span style='color: {colour};'>{html.escape(cw.actor_label(actor) if actor else cw.UNKNOWN)}</span>",
                       rich=True)
+
+    # ---------------------------------------------------------------- the events' list (0.2.459)
+    def _actor(self, actor) -> QLabel:
+        """An actor in the events' list (``actorHTML``): a player in their class's colour, anyone else plainly."""
+        if cw.is_character(actor, self.doc):
+            return self._name(actor)
+        return _label(cw.actor_label(actor))
+
+    @staticmethod
+    def _grid(columns, cells, stretch) -> QWidget:
+        """A table (``table``), "No recorded events." under its head when it has no rows."""
+        table = GridTable(columns, cells, stretch, left=True)
+        if cells:
+            return table
+        box, column = _plain()
+        column.addWidget(table)
+        column.addWidget(_label("No recorded events.", "tcell"))
+        return box
+
+    def _events(self, d: dict, events: list[dict]) -> QWidget:
+        """The events' list (``eventTable``): its filters, the kept events' summary, a page of them and the pager."""
+        model = cw.event_list(d, events, self.state)
+        self.event_model = model
+        ef = model["ef"]
+        box, column = _plain(spacing=6)
+        bar = QWidget()
+        bar.setObjectName("plain")
+        flow = FlowLayout(bar, align=Qt.AlignLeft, gap=(12, 8))
+        flow.addWidget(_label("Filter:", "small", wrap=False))
+        placer = self._placer()
+        for c in model["columns"]:
+            button = _button(c["caption"] + " ▾", lambda c=c: self._open_filter(c),
+                             "primary" if c["chosen"] is not None else "small")
+            button.setAccessibleName(c["caption"])
+            button.installEventFilter(placer)
+            self.filter_buttons[c["key"]] = button
+            flow.addWidget(button)
+        flow.addWidget(self._range("Time", ("t0", "from", "Time from (seconds)"), ("t1", "to", "Time to (seconds)"), "s"))
+        flow.addWidget(self._range("Amount", ("a0", "min", "Smallest amount"), ("a1", "max", "Largest amount"), ""))
+        flow.addWidget(self._pick("Sort", cw.SORTS, ef.get("sort", "time"), self._sort))
+        if model["clear"]:
+            flow.addWidget(_button("Clear filters", self._clear_filters))
+        column.addWidget(bar)
+        summary = _label(model["summary"], "small", rich=True) if model["count"] else _label(cw.NO_MATCH, "small")
+        summary.setAccessibleName("Events kept")
+        self.events_summary = summary
+        column.addWidget(summary)
+        r = d["r"]
+        cells = [[row["time"], row["kind"], self._actor(r.get(row["source"])), self._actor(r.get(row["target"])), row["skill"],
+                  row["amount"]] for row in model["rows"]]
+        table = self._grid(cw.EVENT_COLUMNS, cells, {0: 1, 1: 1, 2: 2, 3: 2, 4: 2, 5: 1})
+        table.setAccessibleName("Events")
+        self.events_table = table
+        column.addWidget(table)
+        pager, line = _plain(QHBoxLayout, 8)
+        line.addWidget(_button("Previous", lambda: self._page(-1)))
+        line.addWidget(_label(model["pager"], wrap=False))
+        line.addWidget(_button("Next", lambda: self._page(1)))
+        line.addStretch(1)
+        column.addWidget(pager)
+        return box
+
+    def _range(self, words: str, low: tuple, high: tuple, unit: str) -> QWidget:
+        """A time or an amount range (``data-ef-range``), each bound read once its field is left or Enter pressed."""
+        ef = cw.filters_of(self.state)
+        box, line = _plain(QHBoxLayout, 6)
+        line.addWidget(_label(words, "small", wrap=False))
+        for index, (key, hint, name) in enumerate((low, high)):
+            if index:
+                line.addWidget(_label("to", "small", wrap=False))
+            field = QLineEdit(js_text(ef.get(key) or ""))
+            field.setPlaceholderText(hint)
+            field.setAccessibleName(name)
+            field.setValidator(QRegularExpressionValidator(QRegularExpression(NUMBER), field))
+            field.setFixedWidth(84)
+            field.editingFinished.connect(lambda key=key, field=field: self._bound(key, field.text()))
+            line.addWidget(field)
+        if unit:
+            line.addWidget(_label(unit, "small", wrap=False))
+        return box
+
+    def _placer(self) -> Placer:
+        if self.popup is None:
+            self.popup = FilterPopup(self)
+            self.popup.kept.connect(self._keep)
+            self.popup.searched.connect(lambda key, words: self.state["ef_search"].__setitem__(key, words))
+            self.popup.closed.connect(lambda: self.state.__setitem__("ef_open", ""))
+            self.placer = Placer(self.popup, self)
+        return self.placer
+
+    def _open_filter(self, column: dict) -> None:
+        """A column's filter opened under its button (``data-ef-col``), or closed when it was open."""
+        self._placer()
+        popup = self.popup
+        if popup.isVisible() and popup.key == column["key"]:
+            popup.hide()
+            return
+        self.state["ef_open"] = column["key"]
+        popup.open(column, self.state["ef_search"].get(column["key"], ""),
+                   lambda key=column["key"]: self.filter_buttons.get(key))
+
+    def _keep(self, key: str, chosen) -> None:
+        """The values a column keeps (``keep``); all of them is no filter. Its filter stays open."""
+        ef = cw.filters_of(self.state)
+        if chosen is None:
+            ef["sel"].pop(key, None)
+        else:
+            ef["sel"][key] = list(chosen)
+        self.state["page"] = 0
+        self.draw()
+
+    def _bound(self, key: str, words: str) -> None:
+        ef = cw.filters_of(self.state)
+        if js_text(ef.get(key) or "") == words:                     # left unchanged (``change`` fires on a change)
+            return
+        ef[key] = words
+        self.state["page"] = 0
+        self.draw()
+
+    def _sort(self, value) -> None:
+        cw.filters_of(self.state)["sort"] = value or "time"
+        self.state["page"] = 0
+        self.draw()
+
+    def _clear_filters(self) -> None:
+        """Every filter and search let go (``data-ef-clear``)."""
+        self.state.update(ef=None, ef_search={}, ef_open="", page=0)
+        if self.popup is not None:
+            self.popup.hide()
+        self.draw()
+
+    def _page(self, step: int) -> None:
+        """The page before or after (``data-prev``, ``data-next``); the list keeps the page within its pages."""
+        self.state["page"] = max(0, int(self.state.get("page") or 0) + step)
+        self.draw()
+
+    # ---------------------------------------------------------------- the timeline (0.2.459)
+    def _timeline(self, v: dict, events: list[dict]) -> QWidget:
+        """The recorded effect timeline (``timeline``): whose lanes are shown, the window, the lanes, and the effect
+        inspected."""
+        state = self.state
+        model = cw.timeline(v, events, state, self.lanes_hidden, self.lanes_folded, self.colours)
+        self.timeline_model = model
+        box, column = _plain(spacing=8)
+        column.addWidget(_head("Recorded effect timeline"))
+        fold = Section(model["visibility"], None, self.lanes_open)
+        fold.button.setAccessibleName("Player timeline visibility")
+        fold.button.toggled.connect(lambda opened: setattr(self, "lanes_open", opened))
+        fold.body_layout.addWidget(_muted(cw.LANE_NOTE))
+        row = QWidget()
+        row.setObjectName("plain")
+        flow = FlowLayout(row, align=Qt.AlignLeft, gap=(12, 6))
+        for player in model["players"]:
+            tick = QCheckBox(player["label"])
+            tick.setChecked(player["shown"])
+            tick.toggled.connect(lambda shown, actor=player["id"]: self._lane_shown(actor, shown))
+            flow.addWidget(tick)
+        flow.addWidget(_button("Show all", self._lanes_all))
+        flow.addWidget(_button("Expand all", self._lanes_open_all))
+        fold.body_layout.addWidget(row)
+        self.lanes_fold = fold
+        column.addWidget(_noted(fold))
+        controls, line = _plain(QHBoxLayout, 10)
+        chosen = next((value for value, _words in model["windows"] if value == model["window"]), None)
+        line.addWidget(self._pick("Window", model["windows"], chosen, self._window))
+        line.addWidget(_button("Earlier", lambda: self._move_window(v, -1), enabled=model["earlier"]))
+        line.addWidget(_button("Later", lambda: self._move_window(v, 1), enabled=model["later"]))
+        line.addWidget(_label("Start", wrap=False))
+        start = QDoubleSpinBox()
+        start.setAccessibleName("Start")
+        start.setDecimals(1)
+        start.setSingleStep(0.5)
+        start.setRange(0.0, model["latest"])
+        start.setValue(model["start"])
+        start.setKeyboardTracking(False)
+        start.valueChanged.connect(self._start)
+        line.addWidget(start)
+        line.addWidget(_label(model["range"], wrap=False))
+        line.addStretch(1)
+        column.addWidget(controls)
+        scrub = QSlider(Qt.Horizontal)
+        scrub.setAccessibleName("Timeline window start")
+        scrub.setRange(0, math.floor(model["latest"] * 2))           # half seconds (``step=".5"``)
+        scrub.setValue(theme.js_round(model["start"] * 2))
+        scrub.sliderReleased.connect(lambda: self._start(scrub.value() / 2))
+        scrub.valueChanged.connect(lambda value: None if scrub.isSliderDown() else self._start(value / 2))
+        self.scrub = scrub
+        column.addWidget(scrub)
+        column.addWidget(_muted(model["note"]))
+        timeline = Timeline(model, self._lane_name, self._lane_folded, self._skill_picture)
+        place = (model["start"], model["span"])
+        if self.timeline_place == place and self.timeline_scroll is not None:
+            timeline.keep(self.timeline_scroll)                    # scrolled as it was, the window the same
+        self.timeline_place, self.timeline_scroll = place, None
+        for bar in (timeline.horizontalScrollBar(), timeline.verticalScrollBar()):
+            bar.valueChanged.connect(lambda _value, timeline=timeline: setattr(self, "timeline_scroll", timeline.scrolled()))
+        if self.pictures is not None:
+            self.pictures.changed.connect(timeline.tracks.update)    # a skill's icon read since
+        self.timeline = timeline
+        column.addWidget(timeline)
+        panel = QFrame()
+        panel.setObjectName("note")
+        panel_line = QVBoxLayout(panel)
+        panel_line.setContentsMargins(0, 0, 0, 0)
+        words = _label(self.effect or cw.EFFECT_HINT)
+        words.setAccessibleName("Effect inspected")
+        panel_line.addWidget(words)
+        self.effect_words = words
+        timeline.inspected.connect(lambda detail: self._inspect_effect(detail))
+        column.addWidget(panel)
+        return box
+
+    def _inspect_effect(self, detail: str) -> None:
+        """An effect inspected (``data-effect-detail``): it stays in the panel while the encounter is shown."""
+        self.effect = detail
+        self.effect_words.setText(detail)
+
+    def _skill_picture(self, address: str):
+        return self.pictures.by_address(address) if self.pictures is not None else None
+
+    def _lane_name(self, lane: dict) -> QWidget:
+        """A lane's name in its class's colour (``.cr-lane-name``), with its Collapse and Hide buttons when it is open."""
+        cell = QFrame()
+        cell.setObjectName("crLaneName")
+        layout = QVBoxLayout(cell)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(4)
+        layout.addStretch(1)
+        layout.addWidget(self._name(lane["actor"]))
+        if not lane["collapsed"]:
+            controls, line = _plain(QHBoxLayout, 4)
+            line.addWidget(self._lane_button("Collapse", lane, self._lane_fold))
+            line.addWidget(self._lane_button("Hide", lane, self._lane_hide))
+            line.addStretch(1)
+            layout.addWidget(controls)
+        layout.addStretch(1)
+        return cell
+
+    def _lane_folded(self, lane: dict) -> QWidget:
+        """A collapsed lane's own controls, where its markers would be (``.cr-lane-collapsed``)."""
+        cell, line = _plain(QHBoxLayout, 4)
+        line.setContentsMargins(10, 5, 10, 5)
+        line.addWidget(self._lane_button("Expand", lane, self._lane_fold))
+        line.addWidget(self._lane_button("Hide", lane, self._lane_hide))
+        line.addWidget(_label("Timeline collapsed", "small", wrap=False))
+        line.addStretch(1)
+        return cell
+
+    @staticmethod
+    def _lane_button(words: str, lane: dict, action) -> QWidget:
+        button = _button(words, lambda: action(lane["id"]))
+        button.setAccessibleName(f"{words} {lane['label']}")
+        return button
+
+    def _lane_fold(self, actor) -> None:
+        """A lane collapsed, or expanded again (``data-timeline-collapse``)."""
+        self.lanes_folded ^= {actor}
+        self.draw()
+
+    def _lane_hide(self, actor) -> None:
+        self.lanes_hidden.add(actor)
+        self.draw()
+
+    def _lane_shown(self, actor, shown: bool) -> None:
+        """A player's lane shown or hidden from the lanes' visibility (``data-timeline-visible``)."""
+        if shown:
+            self.lanes_hidden.discard(actor)
+        else:
+            self.lanes_hidden.add(actor)
+        self.draw()
+
+    def _lanes_all(self) -> None:
+        self.lanes_hidden.clear()
+        self.draw()
+
+    def _lanes_open_all(self) -> None:
+        self.lanes_folded.clear()
+        self.draw()
+
+    def _window(self, value) -> None:
+        """The window's length chosen (``data-timeline-window``): a number of seconds, or the whole encounter."""
+        self.state["timeline_window"] = value if value is not None else 0
+        self.draw()
+
+    def _move_window(self, v: dict, direction: int) -> None:
+        cw.moved_window(self.state, v["segment"].get("duration"), direction)
+        self.draw()
+
+    def _start(self, value) -> None:
+        """The window's start typed or scrubbed to (``data-time-start``, ``data-time-scrub``)."""
+        self.state["timeline_start"] = float(value)
+        self.draw()
 
     def _summary(self, d: dict, v: dict, parse_column: bool) -> QWidget:
         """Every player's totals (``summary``), with their parses."""

@@ -169,8 +169,8 @@ class Window(QFrame):
         self.title = _label(title.upper(), "winTitle", wrap=False)
         self.head.addWidget(self.title)
         self.subtitle = _label(subtitle, "muted")
-        self.subtitle.setVisible(bool(subtitle))
         self.head.addWidget(self.subtitle, 1)
+        self.subtitle.setVisible(bool(subtitle))      # once in the head: shown alone, it would be a window of its own
         outer.addWidget(head)
         body = QWidget()
         body.setObjectName("winBody")

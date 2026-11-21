@@ -265,13 +265,13 @@ class Card(QFrame):
         head.setSpacing(6)
         self.category = QLabel(str(row.get("category") or ""))
         self.category.setObjectName("chip")
-        self.category.setVisible(bool(self.category.text()))
         self.date = QLabel(date(row.get("published_at")))
         self.date.setObjectName("muted")
         head.addWidget(self.category)
         head.addStretch(1)
         head.addWidget(self.date)
         layout.addLayout(head)
+        self.category.setVisible(bool(self.category.text()))   # once in the card: shown alone, a window of its own
         self.title = QLabel(f'<a href="{html.escape(self.url)}" style="color: {theme.COLORS["accent"]};">'
                             f'{html.escape(str(row.get("title") or ""))}</a>')      # a link, as app.css draws one
         self.title.setObjectName("newsTitle")
@@ -286,8 +286,8 @@ class Card(QFrame):
         self.preview = QLabel(preview)
         self.preview.setTextFormat(Qt.PlainText)
         self.preview.setWordWrap(True)
-        self.preview.setVisible(bool(preview))
         layout.addWidget(self.preview)
+        self.preview.setVisible(bool(preview))
         self.meta = QLabel(meta(row, region))
         self.meta.setTextFormat(Qt.PlainText)
         self.meta.setObjectName("muted")

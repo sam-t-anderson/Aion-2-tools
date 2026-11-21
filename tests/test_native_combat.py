@@ -2541,6 +2541,269 @@ def test_the_review_graph_and_enemies(qapp):
     assert view.state["actor"] == "p1"
 
 
+def _timed():
+    """The fuller fight with its skills' ids (the sorcerer's Flame Burst has its icon bundled, Spark none), and four of
+    the sorcerer's Sparks within a second: the timeline's three stacks hold three of them and leave the fourth out."""
+    fight = _fight()
+    seg = fight["segments"][0]
+    for e in seg["events"]:
+        if e.get("skill") == "Flame Burst":
+            e["skill_id"] = 11010001
+    seg["events"] += [{"kind": "damage", "t": 20.0 + i / 10, "source": "p1", "target": "b1", "amount": 10, "skill": "Spark",
+                       "skill_id": 13100002} for i in range(4)]
+    return fight
+
+
+def test_the_review_events_and_timeline_words():
+    fight = _timed()
+    state = cw.fresh_state()
+    d = cw.data(fight, state)
+    events = cw.visible_events(d, state)
+    # the events' list: every event, each column's values by their counts, then their names
+    m = cw.event_list(d, events, state)
+    assert m["summary"] == ("<b>16</b> events · total <b>5,290</b> · average 378 · smallest 0 · largest 1,500 · 0.500s to "
+                            "20.300s") and m["pager"] == "1 / 1 · 16 events" and not m["filtered"] and not m["clear"]
+    columns = {c["key"]: c for c in m["columns"]}
+    assert [(o["name"], o["count"]) for o in columns["kind"]["values"]] == [("damage", 12), ("death", 2), ("heal", 1),
+                                                                             ("revive", 1)]
+    assert [(o["name"], o["count"]) for o in columns["source"]["values"]][:3] == [("TestSorc ✓ · Zikel", 9),
+                                                                                  (cw.UNKNOWN, 3), ("Ice Queen", 1)]
+    assert columns["source"]["values"][1]["value"] == "" and columns["kind"]["caption"] == "Event"
+    assert [o["name"] for o in columns["skill"]["values"]][:3] == ["Flame Burst", "Spark", "—"]
+    assert m["rows"][0] == {"time": "0.500s", "kind": "damage", "source": "p1", "target": "b1", "skill": "Flame Burst",
+                            "amount": "1,000"}
+    assert [(r["kind"], r["skill"], r["amount"]) for r in m["rows"] if r["kind"] in ("death", "revive")] == [
+        ("death", "—", "—"), ("death", "—", "—"), ("revive", "—", "0")]
+    # a column's values chosen and a smallest amount: the column counts what the other filters keep
+    state["ef"]["sel"]["kind"] = ["damage"]
+    state["ef"]["a0"] = "500"
+    m = cw.event_list(d, events, state)
+    assert m["summary"] == ("<b>4</b> of 16 events · total <b>3,800</b> · average 950 · smallest 500 · largest 1,500 · "
+                            "0.500s to 3.100s") and m["clear"]
+    columns = {c["key"]: c for c in m["columns"]}
+    assert columns["kind"]["caption"] == "Event · 1 of 2"                      # deaths have no amount to keep
+    assert [(o["name"], o["count"]) for o in columns["kind"]["values"]] == [("damage", 4), ("heal", 1)]
+    # sorted by amount, largest first, the earlier first of equal amounts
+    state["ef"].update(sort="amount", a0="", sel={})
+    m = cw.event_list(d, events, state)
+    assert [r["amount"] for r in m["rows"][:3]] == ["1,500", "1,000", "800"] and m["clear"] and not m["filtered"]
+    assert [r["time"] for r in m["rows"] if r["amount"] == "10"] == ["20.000s", "20.100s", "20.200s", "20.300s"]
+    # none kept; a value kept that none of the events has; a time range; bounds as typed
+    state["ef"].update(sort="time", sel={"kind": []})
+    m = cw.event_list(d, events, state)
+    assert m["count"] == 0 and m["summary"] == "" and m["columns"][0]["caption"] == "Event · 0 of 4"
+    state["ef"]["sel"] = {"skill": ["Gone"]}
+    skills = cw.event_list(d, events, state)["columns"][3]
+    assert ("Gone", 0) in [(o["name"], o["count"]) for o in skills["values"]] and skills["caption"] == "Ability · 1 of 8"
+    state["ef"].update(sel={}, t0="3", t1=" 6 ")
+    assert [r["time"] for r in cw.event_list(d, events, state)["rows"]] == ["3.100s", "3.500s", "5.000s", "5.000s", "6.000s"]
+    assert (cw.bound(""), cw.bound("abc"), cw.bound("1e1"), cw.bound(" 5 "), cw.bound(None)) == (None, None, 10.0, 5.0, None)
+    # the filters kept for the encounter, fresh for another; a hundred to a page, the page kept within the pages
+    assert cw.filters_of(state)["t0"] == "3" and cw.filters_of({**state, "segment": 1})["t0"] == ""
+    many = {**d, "events": [{"kind": "damage", "t": i / 10, "source": "p1", "target": "b1", "amount": i} for i in range(250)]}
+    state = cw.fresh_state()
+    state["page"] = 2
+    m = cw.event_list(many, many["events"], state)
+    assert (len(m["rows"]), m["pager"], m["rows"][0]["time"]) == (50, "3 / 3 · 250 events", "20.000s")
+    state["page"] = 9
+    assert cw.event_list(many, many["events"], state)["page"] == 2 and state["page"] == 2
+    # the timeline: a lane per player of the party, each effect in the window three stacks deep
+    state = cw.fresh_state()
+    t = cw.timeline(d, events, state, set(), set(), {})
+    assert (t["span"], t["width"], t["range"], t["earlier"], t["later"]) == (30, 960.0, "0:00–0:30", False, True)
+    assert [lane["label"] for lane in t["lanes"]] == ["TestSorc ✓ · Zikel", "TestCleric"]
+    assert t["visibility"] == "Player timeline visibility · 2 / 2 shown"
+    sorc, cleric = t["lanes"]
+    assert [(round(k["x"], 1), k["y"], k["tag"]) for k in sorc["marks"]][:2] == [(16.0, 3, "001"), (38.4, 30, "age")]
+    assert [k["y"] for k in sorc["marks"] if k["tag"] == "002"] == [3, 30, 57] and t["omitted"] == 1
+    assert "1 crowded markers omitted in this window; zoom in or use Events for every effect. Unavailable" in t["note"]
+    assert sorc["marks"][0]["icon"] == SKILL and sorc["marks"][0]["fill"] == cr.class_colour("sorcerer", {})
+    assert sorc["marks"][0]["detail"] == "0:00.50 · TestSorc ✓ · Zikel → Ice Queen · Flame Burst · 1,000"
+    assert [(k["tag"], k["fill"], k["y"]) for k in cleric["marks"]] == [("eal", cw.HEALED, 3), ("ath", cw.DEATH, 2),
+                                                                         ("ath", cw.DEATH, 2)]
+    assert cleric["marks"][1]["detail"] == "0:05.00 · Unknown / not recorded → TestCleric · death · 0"
+    assert [(k["x"], k["text"]) for k in t["ticks"] if k["long"]] == [(0.0, "0:00"), (160.0, "0:05"), (320.0, "0:10"),
+                                                                     (480.0, "0:15"), (640.0, "0:20"), (800.0, "0:25"),
+                                                                     (960.0, "0:30")]
+    assert t["ticks"][0]["at"] == 22.0 and t["ticks"][-1]["at"] == 938.0
+    # damage taken: the hits on a player in their lane, in orange; no skills, heals or deaths
+    taken = cw.timeline(d, cw.visible_events(d, {**state, "metric": "taken"}), {**state, "metric": "taken"}, set(), set(), {})
+    assert [(lane["label"], [k["fill"] for k in lane["marks"]]) for lane in taken["lanes"]] == [
+        ("TestCleric", [cw.TAKEN, cw.TAKEN])]
+    quiet = cw.timeline(d, events, {**state, "skills": False, "heals": False, "deaths": False}, set(), set(), {})
+    assert all(not lane["marks"] for lane in quiet["lanes"])
+    # pets apart: the pet's own lane
+    apart = {**state, "combine": False}
+    d_apart = cw.data(fight, apart)
+    assert [lane["label"] for lane in cw.timeline(d_apart, cw.visible_events(d_apart, apart), apart, set(), set(), {})["lanes"]] == [
+        "TestSorc ✓ · Zikel", "Spirit", "TestCleric"]
+    # a lane hidden, one collapsed; the whole encounter; the window kept within the encounter
+    t = cw.timeline(d, events, state, {"p2"}, {"p1"}, {})
+    assert t["visibility"] == "Player timeline visibility · 1 / 2 shown" and [p["shown"] for p in t["players"]] == [True, False]
+    assert [(lane["id"], lane["collapsed"], lane["marks"]) for lane in t["lanes"]] == [("p1", True, [])]
+    whole = cw.timeline(d, events, {**state, "timeline_window": 0}, set(), set(), {})
+    assert (whole["span"], whole["width"], whole["range"], whole["latest"]) == (120, 3840.0, "0:00–2:00", 0.0)
+    assert [k["text"] for k in whole["ticks"] if k["long"]] == ["0:00", "0:25", "0:50", "1:15", "1:40"]
+    late = {**state, "timeline_start": 200}
+    assert cw.timeline(d, events, late, set(), set(), {})["range"] == "1:30–2:00" and late["timeline_start"] == 90
+    cw.moved_window(late, 120, -1)
+    assert late["timeline_start"] == 60
+    cw.centred_window(late, 50.0, 120)
+    assert late["timeline_start"] == 35
+    whole_window = {**late, "timeline_window": 0}
+    cw.centred_window(whole_window, 100.0, 120)
+    assert whole_window["timeline_start"] == 40
+    assert cw.skill_icon(11010001) == SKILL and cw.skill_icon("11010001") == SKILL
+    assert cw.skill_icon(0) == cw.skill_icon("abc") == cw.skill_icon(1.5) == cw.skill_icon(None) == ""
+    # what the encounter's records leave out
+    assert cw.notes_line(d) == ("Movement replay is unavailable: no positions were recorded (recordings made before 0.2.350 "
+                                "have none).")
+    bare = {"events": [{"kind": "heal", "t": 1, "source": "p2"}], "segment": {"positions": [[0, 0]]}}
+    assert cw.notes_line(bare) == ("Some healing recipients are not carried by their packet variant. No death markers "
+                                   "recorded; zero counts do not establish a deathless run. ")
+
+
+def test_the_review_events_and_timeline(qapp):
+    from PySide6.QtCore import QPoint, QPointF
+    from PySide6.QtTest import QTest
+    from PySide6.QtWidgets import QDoubleSpinBox
+    from aion2calc.gui.combat_review_views import FilterPopup, Timeline
+    app = FakeApp()
+    fight = _timed()
+    fight["segments"][0]["events"] += [{"kind": "damage", "t": 30 + i / 10, "source": "p1", "target": "b1", "amount": 1,
+                                        "skill": "Tick"} for i in range(140)]
+    app.log_server.review_log = fight
+    page = _page(app)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: "Enemy encounters" in _labels(view))
+
+    def chosen(name):
+        return _find(view, QPushButton, lambda b: b.accessibleName() == name)
+    # the Table view first, with the summary; the note on what the records leave out
+    assert view.summary is not None and view.state["view"] == "table"
+    assert chosen("Table view").objectName() == "primary" and chosen("Events view").objectName() == "small"
+    assert any(t.startswith("Movement replay is unavailable") for t in _labels(view))
+    # the Events view: the events' list, a hundred to a page
+    chosen("Events view").click()
+    assert view.summary is None and view.events_summary.text().startswith("<b>156</b> events · total <b>5,430</b>")
+    assert "1 / 2 · 156 events" in _labels(view) and "0.500s" in _cells(view) and "Flame Burst" in _cells(view)
+    _click(view, "Next")
+    assert "2 / 2 · 156 events" in _labels(view) and "43.900s" in _cells(view) and "0.500s" not in _cells(view)
+    _click(view, "Next")
+    assert "2 / 2 · 156 events" in _labels(view)
+    _click(view, "Previous")
+    assert "1 / 2 · 156 events" in _labels(view)
+    # a column's filter: its values with their counts, under its button; one left out, the list on its first page
+    _click(view, "Next")
+    _click(view, "Event ▾")
+    popup = view.popup
+    assert isinstance(popup, FilterPopup) and popup.isVisible() and view.state["ef_open"] == "kind"
+    assert [tick.text() for tick in popup.ticks] == ["damage", "death", "heal", "revive"]
+    assert "152" in [label.text() for label in popup.findChildren(QLabel)]
+    assert popup.search.accessibleName() == "Find a value of Event"
+    popup.ticks[1].setChecked(False)
+    assert view.events_summary.text().startswith("<b>154</b> of 156 events") and popup.isVisible()
+    assert view.state["page"] == 0 and "Event · 3 of 4 ▾" in _buttons(view)
+    assert popup.anchor() is view.filter_buttons["kind"] and view.filter_buttons["kind"].objectName() == "primary"
+    # found by the search, only the found kept; none; all again
+    popup.search.setText("REV")
+    assert [row.isHidden() for row in popup.rows] == [True, True, True, False] and view.state["ef_search"]["kind"] == "REV"
+    popup.keep_found()
+    assert view.events_summary.text().startswith("<b>1</b> of 156 events") and "Event · 1 of 4 ▾" in _buttons(view)
+    popup.keep_none()
+    assert cw.NO_MATCH in _labels(view) and "No recorded events." in _labels(view)
+    popup.keep_all()
+    assert view.events_summary.text().startswith("<b>156</b> events") and "Event ▾" in _buttons(view)
+    # its button closes it; opened again, it finds as its search was left
+    _click(view, "Event ▾")
+    assert not popup.isVisible() and view.state["ef_open"] == ""
+    _click(view, "Event ▾")
+    assert popup.isVisible() and popup.search.text() == "REV" and [row.isHidden() for row in popup.rows][0]
+    popup.hide()
+    # a time and an amount range, read once typed; the sort; the filters let go
+    field = _find(view, QLineEdit, lambda f: f.accessibleName() == "Time from (seconds)")
+    field.setText("20")
+    field.editingFinished.emit()
+    assert view.events_summary.text().startswith("<b>144</b> of 156 events")
+    field = _find(view, QLineEdit, lambda f: f.accessibleName() == "Largest amount")
+    field.setText("5")
+    field.editingFinished.emit()
+    assert view.events_summary.text() == ("<b>140</b> of 156 events · total <b>140</b> · average 1 · smallest 1 · largest "
+                                          "1 · 30.000s to 43.900s")
+    assert _find(view, QLineEdit, lambda f: f.accessibleName() == "Time from (seconds)").text() == "20"
+    _click(view, "Clear filters")
+    _choose(view, "Sort", "amount")
+    QCoreApplication.processEvents()
+    assert view.events_table.cell(1, 0).text() == "2.700s" and view.events_table.cell(1, 5).text() == "1,500"   # largest
+    _click(view, "Clear filters")
+    assert view.events_summary.text().startswith("<b>156</b> events") and "Clear filters" not in _buttons(view)
+    # the Timeline view: the window's ruler over a lane per player
+    chosen("Timeline view").click()
+    timeline = view.timeline
+    assert isinstance(timeline, Timeline) and view.events_summary is not None
+    texts = _labels(view)
+    assert all(t in texts for t in ("Recorded effect timeline", "Encounter time", "0:00–0:30", cw.EFFECT_HINT))
+    assert any(t.startswith("Icons are recorded hits/heals") and "1 crowded markers omitted" in t for t in texts)
+    assert view.lanes_fold.button.text() == "Player timeline visibility · 2 / 2 shown"
+    names = [label.text() for cell in timeline.cells for label in cell.findChildren(QLabel)]
+    assert any("TestSorc ✓ · Zikel" in n for n in names) and any("TestCleric" in n for n in names)
+    assert not _find(view, QPushButton, lambda b: b.text() == "Earlier").isEnabled()
+    timeline.tracks.grab()                                                     # its markers drawn
+    timeline.ruler.grab()
+    settle(lambda: view._skill_picture(SKILL) is not None)                     # Flame Burst's bundled icon
+    # the window: later, the whole encounter, a start typed, scrubbed
+    _click(view, "Later")
+    assert "0:30–1:00" in _labels(view) and view.state["timeline_start"] == 30
+    _choose(view, "Window", 0)
+    assert "0:00–2:00" in _labels(view) and view.timeline_model["width"] == 3840.0
+    _choose(view, "Window", 30)
+    _find(view, QDoubleSpinBox, lambda s: s.accessibleName() == "Start").setValue(12.5)
+    assert "0:12–0:42" in _labels(view)
+    view.scrub.setValue(0)
+    assert "0:00–0:30" in _labels(view)
+    # an effect inspected by a click, then by the arrow keys along a lane and to the lane beside it
+    tracks = view.timeline.tracks
+    lanes = view.timeline_model["lanes"]
+    first = lanes[0]["marks"][0]
+    assert tracks.at(QPointF(first["x"] + 5, first["y"] + 5)) == (0, 0) and tracks.at(QPointF(500, 70)) is None
+    QTest.mouseClick(tracks, Qt.LeftButton, Qt.NoModifier, QPoint(round(first["x"]) + 5, first["y"] + 5))
+    assert view.effect == first["detail"] and view.effect_words.text() == first["detail"]
+    QTest.keyClick(tracks, Qt.Key_Right)
+    assert view.effect == "0:01.20 · Spirit → Ice Queen · Spirit Strike · 500"
+    QTest.keyClick(tracks, Qt.Key_Down)
+    assert view.effect == "0:03.50 · TestCleric → TestCleric · Heal · 600"
+    # lanes collapsed, hidden, shown again from the lanes' visibility (kept open), all expanded
+    chosen("Collapse TestSorc ✓ · Zikel").click()
+    assert view.lanes_folded == {"p1"} and "Timeline collapsed" in _labels(view)
+    chosen("Expand TestSorc ✓ · Zikel")
+    assert view.effect_words.text() == "0:03.50 · TestCleric → TestCleric · Heal · 600"   # the effect kept
+    chosen("Hide TestCleric").click()
+    assert view.lanes_fold.button.text() == "Player timeline visibility · 1 / 2 shown"
+    view.lanes_fold.button.click()
+    _find(view, QCheckBox, lambda c: c.text() == "TestCleric").setChecked(True)
+    QCoreApplication.processEvents()
+    assert view.lanes_fold.button.text() == "Player timeline visibility · 2 / 2 shown" and view.lanes_fold.body.isVisibleTo(view)
+    _click(view, "Expand all")
+    assert not view.lanes_folded
+    # a click on the graph in Timeline view moves the window there
+    chart = view.chart
+    QTest.mouseClick(chart, Qt.LeftButton, Qt.NoModifier,
+                     QPoint(round((60 + 880 * 50 / 120) * chart.width() / 1000), round(100 * chart.height() / 220)))
+    assert view.state["timeline_start"] == pytest.approx(35, abs=0.5)
+    # the Timeline option turned off; the Timeline view turns it on again
+    _find(view, QCheckBox, lambda c: c.text() == "Timeline").setChecked(False)
+    assert view.timeline is None and "Recorded effect timeline" not in _labels(view)
+    chosen("Timeline view").click()
+    assert view.state["timeline"] and view.timeline is not None
+    # another encounter: every lane shown and open, the window at its start, nothing inspected
+    view.lanes_hidden.add("p2")
+    _choose(view, "Encounter", 1)
+    assert (view.lanes_hidden, view.lanes_folded, view.effect, view.state["timeline_start"]) == (set(), set(), "", 0.0)
+    chosen("Table view").click()
+    assert view.summary is not None and view.timeline is None
+
+
 def _buttons(widget):
     """The buttons shown, once what was drawn last has shown."""
     QCoreApplication.processEvents()

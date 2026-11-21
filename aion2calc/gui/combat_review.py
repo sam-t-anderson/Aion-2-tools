@@ -8,6 +8,9 @@ These are the review's model and the frame's words:
   active clock. A PvP opponent can be read from their own side;
 - the summary table and its parses (``parseHTML``), and the notes around it: the PvP and arena match notes, an
   opponent's records, the heals left out or rebuilt, the sources, the capture quality and the run timing.
+- Since 0.2.458 the rate chart (``graph``), the recorder's ping, the bosses' HP and the enemy encounters.
+- Since 0.2.459 the Table, Timeline and Events views: the events' list with a spreadsheet's column filters
+  (``efPass``, ``efColumn``), a page of a hundred at a time, and the recorded effect timeline (``timeline``).
 """
 from __future__ import annotations
 
@@ -16,6 +19,7 @@ import re
 import urllib.parse
 
 from .account import parse_tier
+from .character import js_number
 from .combat import encode_component, js_string
 from .combat_records import build_label
 from .results import _dict, _list, _truthy, js_text
@@ -44,8 +48,8 @@ OPPONENT_NOTE = ("The review below reads the fight from their side: the summary,
                  "their deaths, and the buffs, debuffs and crowd control on and from them. Only what the recording holds of "
                  "them is shown.")
 REFRESH = "Refresh rankings"
-ELSEWHERE = ("The timeline, events, abilities and skills, actions, death recaps, insights, rankings, reports, comparisons "
-             "and movement replay of this log open in the web interface for now.")
+ELSEWHERE = ("The abilities and skills, actions, death recaps, insights, rankings, reports, comparisons and movement replay "
+             "of this log open in the web interface for now.")
 OPEN_WEB = "Open the full review in the web interface"
 SUMMARY_COLUMNS = ["Player / server", "Class", "Damage done", "DPS", "Damage taken", "Healing", "HPS", "Deaths"]
 
@@ -184,7 +188,8 @@ def fresh_state(mode=None, segment=None) -> dict:
     """The review's choices as it opens (``state``)."""
     return {"mode": mode if mode in ("pve", "pvp") else "", "run": "", "segment": segment if isinstance(segment, int) else 0,
             "metric": "summary", "view": "table", "combine": True, "pets": True, "actor": "", "enemy": "", "graph": True,
-            "graph_mode": "total", "hidden": set()}
+            "graph_mode": "total", "hidden": set(), "timeline": True, "timeline_window": 30, "timeline_start": 0.0,
+            "skills": True, "deaths": True, "heals": True, "page": 0, "ef": None, "ef_search": {}, "ef_open": ""}
 
 
 def settle_segment(doc: dict, state: dict) -> None:
@@ -764,7 +769,8 @@ def reconstructed(doc: dict) -> bool:
 
 
 # ------------------------------------------------------------------ the graph, the ping, the bosses and the enemies (0.2.458)
-OPTIONS = (("graph", "Graph"), ("pets", "Pets"), ("combine", "Combine pets with owner"))
+OPTIONS = (("graph", "Graph"), ("timeline", "Timeline"), ("skills", "Skills"), ("deaths", "Deaths"), ("heals", "Healing"),
+           ("pets", "Pets"), ("combine", "Combine pets with owner"))
 GRAPH_MODES = (("total", "Live style · bars + 10 s average"), ("players", "Player series"))
 GRAPH_HINT = "Hover or click the graph for rates. In Timeline view, click a time to move the timeline window there."
 KINDS = ("Damage done", "Healing", "Damage taken")
@@ -1034,3 +1040,268 @@ def enemy_encounters(d: dict, state: dict, names: dict | None = None) -> dict:
                            + ": part of the boss's attacks rather than enemies to fight."),
                   "rows": [row(g) for g in folded]}
     return {"rows": [row(g) for g in shown], "named_note": any(unnamed(g) for g in shown), "folded": hidden}
+
+
+# ------------------------------------------------------------------ the views: the events' list and the timeline (0.2.459)
+VIEWS = (("table", "Table"), ("timeline", "Timeline"), ("events", "Events"))
+FILTERS = (("kind", "Event"), ("source", "Caster / attacker"), ("target", "Recipient / target"), ("skill", "Ability"))
+RANGES = ("t0", "t1", "a0", "a1")
+SORTS = (("time", "by time"), ("amount", "by amount, largest first"))
+EVENT_COLUMNS = ["Time", "Event", "Caster / attacker", "Recipient / target", "Ability", "Amount"]
+NO_MATCH = "No event matches these filters."
+PAGE = 100
+WINDOWS = (15, 30, 60, 120, 0)
+LANE_NOTE = "Display only; graphs, tables and recorded totals are unchanged. Preferences reset when changing encounters."
+NO_LANES = "No timeline effects recorded for these filters."
+NO_EFFECTS = "No effects in this window"
+EFFECT_HINT = "Hover, focus or click a skill icon to inspect its effect."
+DEATH, HEALED, TAKEN = "#ef6262", "#58d68d", "#ed9863"
+_ABSENT = object()
+
+
+def _first(*values):
+    """``a || b || …``: the first value JavaScript reads as true, else the last."""
+    for value in values[:-1]:
+        if _truthy(value):
+            return value
+    return values[-1]
+
+
+def _joined(value) -> str:
+    """A value joined to text (``'' + x``): ``undefined`` for a field the record hasn't."""
+    return "undefined" if value is _ABSENT else js_string(value)
+
+
+def filter_value(key: str, e: dict) -> str:
+    """An event's value in a filter's column (``efKeys``)."""
+    if key == "kind":
+        return _joined(e.get("kind", _ABSENT))
+    if key in ("source", "target"):
+        return "" if e.get(key) is None else js_string(e.get(key))
+    return js_string(_first(e.get("skill"), e.get("skill_id"), "—"))
+
+
+def fresh_filters(segment: int) -> dict:
+    return {"seg": segment, "sel": {}, "t0": "", "t1": "", "a0": "", "a1": "", "sort": "time"}
+
+
+def filters_of(state: dict) -> dict:
+    """The events' filters (``state.ef``): kept while the page shows the encounter, fresh for another."""
+    ef = state.get("ef")
+    if not isinstance(ef, dict) or ef.get("seg") != state["segment"]:
+        ef = state["ef"] = fresh_filters(state["segment"])
+    return ef
+
+
+def bound(x) -> float | None:
+    """A range's bound as typed (``efNum``): none for an empty field or one that reads as no number."""
+    if x is None or x == "":
+        return None
+    value = js_number(x)
+    return value if math.isfinite(value) else None
+
+
+def filtered(ef: dict) -> bool:
+    """Whether any filter narrows the events: a column's values chosen, or a bound typed."""
+    return any(v is not None for v in ef["sel"].values()) or any(bound(ef.get(k)) is not None for k in RANGES)
+
+
+def passes(ef: dict, e: dict, skip: str = "", values: dict | None = None, bounds: tuple | None = None) -> bool:
+    """Whether the filters keep an event (``efPass``); ``skip`` leaves one column's own choice out, for its counts.
+    ``values`` (the event's value in each column) and ``bounds`` (the ranges read) can be given worked out already."""
+    for key, _name in FILTERS:
+        chosen = ef["sel"].get(key)
+        if key != skip and chosen is not None and (values[key] if values else filter_value(key, e)) not in chosen:
+            return False
+    t0, t1, a0, a1 = bounds if bounds is not None else (bound(ef.get(k)) for k in RANGES)
+    t = _num(e.get("t"))
+    if t is not None and ((t0 is not None and t < t0) or (t1 is not None and t > t1)):
+        return False
+    if (a0 is not None or a1 is not None) and e.get("kind") == "death":
+        return False
+    amount = _amount(e)
+    return not ((a0 is not None and amount < a0) or (a1 is not None and amount > a1))
+
+
+def _filter_name(key: str, value: str, raw, r: dict) -> str:
+    """A value's name in its column (``efLabel``): an actor's label, or the value itself."""
+    if key not in ("source", "target"):
+        return value
+    if not value:
+        return UNKNOWN
+    try:
+        ref = r.get(raw)                         # the actor by the id as the log holds it (a number or a text)
+    except TypeError:
+        ref = None
+    return actor_label(ref if ref is not None else r.get(value))
+
+
+def _spread(values: list) -> tuple[str, str]:
+    """``Math.min(...)`` and ``Math.max(...)`` of the events' times, to three places."""
+    if any(v is None for v in values):
+        return "NaN", "NaN"
+    return theme.fixed(min(values), 3), theme.fixed(max(values), 3)
+
+
+def event_list(d: dict, events: list[dict], state: dict) -> dict:
+    """The events' list (``eventTable``): the events the filters keep, sorted, a page of a hundred; each column's values
+    with their counts among the events the other filters keep; and the kept events' count, total, average, smallest and
+    largest, and their span."""
+    ef = filters_of(state)
+    r = d["r"]
+    bounds = tuple(bound(ef.get(k)) for k in RANGES)
+    rows = [(e, {key: filter_value(key, e) for key, _name in FILTERS}) for e in events]
+    shown = [e for e, values in rows if passes(ef, e, "", values, bounds)]
+    if ef.get("sort") == "amount":
+        shown.sort(key=lambda e: (-_amount(e), _num(e.get("t")) or 0.0))
+    columns = []
+    for key, name in FILTERS:
+        counts: dict = {}
+        raw: dict = {}
+        for e, values in rows:
+            if passes(ef, e, key, values, bounds):
+                value = values[key]
+                counts[value] = counts.get(value, 0) + 1
+                raw.setdefault(value, e.get(key))
+        chosen = ef["sel"].get(key)
+        for value in chosen or []:
+            counts.setdefault(value, 0)
+        values = [{"value": value, "count": n, "name": _filter_name(key, value, raw.get(value), r)}
+                  for value, n in counts.items()]
+        values.sort(key=lambda o: (-o["count"], _locale_key(o["name"])))
+        columns.append({"key": key, "name": name, "values": values, "chosen": chosen,
+                        "caption": name + (f" · {len(chosen)} of {len(values)}" if chosen is not None else "")})
+    kept = [e for e in shown if e.get("kind") != "death"]
+    total = sum(_amount(e) for e in kept)
+    narrowed = filtered(ef)
+    if shown:
+        first, last = _spread([_num(e.get("t")) for e in shown])
+        summary = (f"<b>{number(len(shown))}</b>{f' of {number(len(events))}' if narrowed else ''} events · total "
+                   f"<b>{number(total)}</b>")
+        if kept:
+            amounts = [_amount(e) for e in kept]
+            summary += (f" · average {number(total / len(kept))} · smallest {number(min(amounts))} · largest "
+                        f"{number(max(amounts))}")
+        summary += f" · {first}s to {last}s"
+    else:
+        summary = ""
+    pages = max(1, math.ceil(len(shown) / PAGE))
+    state["page"] = page = max(0, min(int(state.get("page") or 0), pages - 1))
+    lines = [{"time": f"{fixed(e.get('t'), 3)}s", "kind": "" if e.get("kind") is None else js_string(e.get("kind")),
+             "source": e.get("source"), "target": e.get("target"),
+             "skill": js_string(_first(e.get("skill"), e.get("skill_id"), "—")),
+             "amount": "—" if e.get("kind") == "death" else number(e.get("amount"))}
+            for e in shown[page * PAGE:(page + 1) * PAGE]]
+    return {"columns": columns, "count": len(shown), "summary": summary, "rows": lines, "page": page, "pages": pages,
+            "pager": f"{page + 1} / {pages} · {len(shown)} events", "filtered": narrowed,
+            "clear": narrowed or ef.get("sort") != "time", "ef": ef}
+
+
+def skill_icon(skill_id) -> str:
+    """A skill's icon on the timeline (``skillSource``): its family's, for a whole number above nought."""
+    n = js_number(skill_id)
+    if not (math.isfinite(n) and n.is_integer() and 0 < n <= 2 ** 53 - 1):
+        return ""
+    from .combat_analysis import SKILL_ART
+    return SKILL_ART.format(math.floor(n / 10000) * 10000)
+
+
+def timeline(d: dict, events: list[dict], state: dict, hidden: set, collapsed: set, colours: dict | None = None) -> dict:
+    """The recorded effect timeline (``timeline``): a lane per player of the party (or the opponent) in view, each hit,
+    heal and death in its window as a marker, three stacks deep, and the window's ruler. A crowded marker no stack has
+    room for is left out and counted."""
+    from .combat_records import class_colour
+    duration = max(_num(d["segment"].get("duration")) or 0.0, 1.0)
+    window = js_number(state.get("timeline_window"))
+    span = min(duration, window if _truthy(window) else duration)
+    start = max(0.0, min(_num(state.get("timeline_start")) or 0.0, duration - span))
+    state["timeline_start"] = start
+    end = start + span
+    width = max(900.0, min(8000.0, span * 32))
+    owner, ours, r, metric = d["owner"], d["ours"], d["r"], state["metric"]
+
+    def at(e):
+        return _num(e.get("t"))
+    shown = [e for e in events if at(e) is not None and at(e) >= start and (at(e) < end or (end == duration and at(e) <= end))]
+    ids = list(dict.fromkeys(x for e in events for x in (owner(e.get("source")), owner(e.get("target")))
+                             if _truthy(x) and ours(x)))
+    omitted = 0
+    lanes = []
+    for actor in ids:
+        if actor in hidden:
+            continue
+        ref = r.get(actor)
+        lane = {"id": actor, "actor": ref, "label": actor_label(ref), "collapsed": actor in collapsed, "marks": []}
+        lanes.append(lane)
+        if lane["collapsed"]:
+            continue
+        occupied = [-100.0, -100.0, -100.0]
+        for e in shown:
+            kind = e.get("kind")
+            if kind == "death":
+                keep = (state.get("deaths", True) and owner(e.get("target")) == actor
+                        and (not state.get("combine", True) or not _truthy(_dict(r.get(e.get("target"))).get("owner"))))
+            elif kind == "heal":
+                keep = state.get("heals", True) and owner(e.get("source")) == actor
+            else:
+                keep = state.get("skills", True) and owner(e.get("target") if metric == "taken" else e.get("source")) == actor
+            if not keep:
+                continue
+            x = max(0.0, min(width - 24, (at(e) - start) * width / span))
+            row = next((i for i, last in enumerate(occupied) if x >= last + 25), -1)
+            death = kind == "death"
+            if not death and row < 0:
+                omitted += 1
+                continue
+            if not death:
+                occupied[row] = x
+            fill = (DEATH if death else HEALED if kind == "heal" else TAKEN if metric == "taken"
+                    else class_colour(_dict(ref).get("class"), colours or {}))
+            detail = (f"{clock(at(e), True)} · {actor_label(r.get(e.get('source')))} → {actor_label(r.get(e.get('target')))} · "
+                      f"{_joined(e['skill'] if _truthy(e.get('skill')) else e.get('kind', _ABSENT))} · {number(e.get('amount'))}")
+            tag = _joined(e["skill_id"] if _truthy(e.get("skill_id")) else e.get("kind", _ABSENT))[-3:]
+            lane["marks"].append({"x": x, "y": 2 if death else 3 + row * 27, "death": death, "fill": fill, "detail": detail,
+                                  "tag": tag, "icon": "" if death else skill_icon(e.get("skill_id"))})
+    tick = 1 if span <= 30 else 5 if span <= 120 else math.ceil(span / 120)
+    major = tick * 5
+    ticks = []
+    t = math.ceil(start / tick) * tick
+    while t <= end:
+        x = (t - start) * width / span
+        long = abs(t / major - theme.js_round(t / major)) < 0.001
+        ticks.append({"x": x, "long": long, "text": clock(t) if long else "", "at": max(22.0, min(width - 22, x))})
+        t += tick
+    note = ("Icons are recorded hits/heals, not cast starts or durations. Three stacks separate nearby effects. Green: "
+            "healing; red: deaths; orange: damage taken. "
+            + (f"{number(omitted)} crowded markers omitted in this window; zoom in or use Events for every effect. " if omitted else "")
+            + "Unavailable skill images keep an ID tile.")
+    return {"duration": duration, "span": span, "start": start, "end": end, "width": width, "lanes": lanes,
+            "players": [{"id": i, "label": actor_label(r.get(i)), "shown": i not in hidden} for i in ids],
+            "visibility": f"Player timeline visibility · {len([i for i in ids if i not in hidden])} / {len(ids)} shown",
+            "windows": [(v, f"{v} seconds" if v else "Full encounter") for v in WINDOWS], "window": window,
+            "latest": max(0.0, duration - span), "earlier": start > 0, "later": end < duration,
+            "range": f"{clock(start)}–{clock(end)}", "ticks": ticks, "omitted": omitted, "note": note}
+
+
+def moved_window(state: dict, duration, direction: int) -> None:
+    """The timeline's window an earlier or a later one (``data-time-prev``, ``data-time-next``)."""
+    window = js_number(state.get("timeline_window"))
+    step = window if _truthy(window) else js_number(duration)
+    state["timeline_start"] = (_num(state.get("timeline_start")) or 0.0) + step * direction
+
+
+def centred_window(state: dict, t: float, duration: float) -> None:
+    """The timeline's window around a moment the graph was clicked at, in Timeline view."""
+    window = js_number(state.get("timeline_window"))
+    state["timeline_start"] = max(0.0, t - (window if _truthy(window) else duration) / 2)
+
+
+def notes_line(d: dict) -> str:
+    """What the encounter's records leave out (the note under the review's views)."""
+    events, seg = d["events"], d["segment"]
+    return (("Some healing recipients are not carried by their packet variant. "
+             if any(e.get("kind") == "heal" and not _truthy(e.get("target")) for e in events) else "")
+            + ("No death markers recorded; zero counts do not establish a deathless run. "
+               if not any(e.get("kind") == "death" for e in events) else "")
+            + ("Movement replay is unavailable: no positions were recorded (recordings made before 0.2.350 have none)."
+               if not _list(seg.get("positions")) and not _list(seg.get("movement")) else ""))
