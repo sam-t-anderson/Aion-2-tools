@@ -445,4 +445,4 @@ def test_a_schedule_that_cannot_be_read_says_why(qapp):
 def test_the_window_draws_the_timers_page_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("timers"), TimersPage) and not isinstance(window.page("timers"), WebPage)
-    assert isinstance(window.page("maps"), WebPage)                                # not moved over yet
+    assert isinstance(window.page("raid"), WebPage)                                # not moved over yet
