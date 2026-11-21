@@ -1,3 +1,13 @@
+## The native overlay's raid plan view (0.2.424)
+
+**Native overlay, eleventh part.** The native interface's overlay (Settings → Native interface, a preview) now has the web overlay's raid plan view:
+- **The toolbar's tabs** switch between the meter and the plan: the plan's map icon beside the metric chip, and in the plan view the meter's icon to come back.
+- **The plan view** draws your saved Raid Planner plan on its map, the players' and enemies' markers moving along the paths you gave them and the areas (circles, rings, cones and lines) where you put them. A marker hidden in the planner, or outside its time, is not drawn.
+- **Which plan:** with *Auto-play* on (Settings → Overlay, on by default) and a fight running against a boss a plan is bound to, that plan plays in step with the fight. Otherwise the plan you saved last plays round and round. The map's tooltip names the plan and the moment shown.
+- With no plan saved, the view says where to save one. The plans are the copy the app keeps of the planner's, read again when the view opens and every 15 s while it stays open.
+
+Back on the meter, the rows come back at once.
+
 ## The native overlay's arena mode (0.2.423)
 
 **Native overlay, tenth part.** The native interface's overlay (Settings → Native interface, a preview) now has the web overlay's arena mode. In the Arena of Solitude, the Arena of Cooperation and a battlefield:

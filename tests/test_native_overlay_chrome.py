@@ -99,7 +99,7 @@ def test_the_cards_parts_come_in_the_compact_layouts_order(qapp):
     tools = window.toolbar.layout()
     assert tools.itemAt(0).widget() is window.metric_chip            # the chip at the toolbar's head
     assert [tools.itemAt(i).widget().icon_name for i in range(1, tools.count())] == [
-        "camera", "new", "copy", "options", "stop", "close"]          # the fight runs: the stop square
+        "meter", "plan", "camera", "new", "copy", "options", "stop", "close"]   # the views' tabs; the stop square
     laid_out_apart(_shown(window))
 
 
@@ -256,7 +256,7 @@ def test_the_ping_left_and_the_toolbar_right_on_a_line_of_their_own(qapp):
 
 
 def test_the_icons_are_the_web_overlays_drawn_in_their_colour(qapp):
-    assert set(ICONS) == {"camera", "new", "copy", "options", "play", "stop", "close", "signal"}
+    assert set(ICONS) == {"camera", "new", "copy", "options", "play", "stop", "close", "signal", "plan", "meter"}
     for name in ICONS:
         picture = icon(name, 16, 16, "#ff0000").toImage()
         assert _near(picture, "#ff0000", reach=10) > 15, name     # drawn, in red

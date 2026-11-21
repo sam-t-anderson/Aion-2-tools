@@ -50,6 +50,8 @@ ICONS = {
     "play": _svg("<path d='M8 5.5v13l10.5-6.5z'/>", filled=True),
     "stop": _svg("<rect x='6.5' y='6.5' width='11' height='11' rx='2'/>", filled=True),
     "close": _svg("<path d='M6 6l12 12M18 6L6 18'/>", width="2.2", join=False),
+    "plan": _svg("<path d='M9 4L3.5 6v14L9 18l6 2 5.5-2V4L15 6z'/><path d='M9 4v14M15 6v14'/>", cap=False),
+    "meter": _svg("<path d='M6 20v-7M12 20V5M18 20v-10'/>", width="2.6", join=False),
     "signal": _svg("<rect x='0' y='11' width='3.5' height='5' rx='1'/><rect x='5.5' y='7.5' width='3.5' "
                    "height='8.5' rx='1'/><rect x='11' y='4' width='3.5' height='12' rx='1'/><rect x='16.5' y='0' "
                    "width='3.5' height='16' rx='1'/>", filled=True, box="0 0 20 16"),
