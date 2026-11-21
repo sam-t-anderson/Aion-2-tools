@@ -1,3 +1,16 @@
+## The Database page in the native interface (0.2.429)
+
+**The Database page is native now.** The app's window draws Game → Database itself, as the web page shows it:
+- **Game database:**
+  - how many items, characters and encounters it holds, and when it last updated;
+  - an update under way, with its phase, its progress, what it changed and its first errors;
+  - the data folder.
+
+  **Check for updates** and **Full re-sync** start an update. The page reads the database's state every two seconds while an update runs and every fifteen otherwise, only while it is shown.
+- **Item catalog:** search by name and category. Each item shows its icon, its name in its grade's colour, its category and level. An item opens with its fixed stats, its enchantment steps, its random roll pool and its skill roll pools.
+
+**Also:** the News and Timers pages show what the log server sends as plain text, never as markup.
+
 ## The Timers page in the native interface (0.2.428)
 
 **The Timers page is native now.** The app's window draws Game → Timers itself, with the web page's four parts:

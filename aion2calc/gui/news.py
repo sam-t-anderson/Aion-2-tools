@@ -280,12 +280,16 @@ class Card(QFrame):
         self.title.setToolTip(self.url)
         self.title.linkActivated.connect(lambda _link: open_link(self.url))
         layout.addWidget(self.title)
+        for label in (self.category, self.date):
+            label.setTextFormat(Qt.PlainText)             # the feed's words are never read as markup
         preview = str(row.get("preview") or "")[:PREVIEW]
         self.preview = QLabel(preview)
+        self.preview.setTextFormat(Qt.PlainText)
         self.preview.setWordWrap(True)
         self.preview.setVisible(bool(preview))
         layout.addWidget(self.preview)
         self.meta = QLabel(meta(row, region))
+        self.meta.setTextFormat(Qt.PlainText)
         self.meta.setObjectName("muted")
         self.meta.setWordWrap(True)
         layout.addWidget(self.meta)
@@ -381,6 +385,8 @@ class NewsPage(QWidget):
         self.note.setWordWrap(True)
         layout.addWidget(self.note)
         layout.addStretch(1)
+        for label in (self.status, self.unavailable, self.empty, self.note):
+            label.setTextFormat(Qt.PlainText)             # what the log server sends is never read as markup
         self.columns = 0
         self.render()
 
