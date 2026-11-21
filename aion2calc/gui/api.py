@@ -41,6 +41,11 @@ class AppApi:
         with urllib.request.urlopen(self.url(path), timeout=self.timeout) as response:
             return json.loads(response.read().decode("utf-8") or "{}")
 
+    def get_bytes(self, path: str) -> bytes:
+        """``path``'s body as it comes (an image), not its JSON."""
+        with urllib.request.urlopen(self.url(path), timeout=self.timeout) as response:
+            return response.read()
+
     def post(self, path: str, payload: dict) -> dict:
         request = urllib.request.Request(self.url(path), json.dumps(payload).encode("utf-8"),
                                          {"Content-Type": "application/json"})
@@ -112,21 +117,28 @@ class Requests(QObject):
     def get(self, name: str, path: str) -> None:
         self._submit(name, path, None)
 
+    def get_bytes(self, name: str, path: str) -> None:
+        """As ``get``, answered with the body's bytes (an image) rather than its JSON."""
+        self._submit(name, path, None, raw=True)
+
     def post(self, name: str, path: str, payload: dict) -> None:
         self._submit(name, path, payload)
 
-    def _submit(self, name: str, path: str, payload: dict | None) -> None:
+    def _submit(self, name: str, path: str, payload: dict | None, raw: bool = False) -> None:
         try:
-            self._pool.submit(self._send, name, path, payload)
+            self._pool.submit(self._send, name, path, payload, raw)
         except RuntimeError:                     # stopped: its window has closed, and nothing waits for the answer
             pass
 
     def stop(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
 
-    def _send(self, name: str, path: str, payload: dict | None) -> None:
+    def _send(self, name: str, path: str, payload: dict | None, raw: bool = False) -> None:
         try:
-            answer = self.api.get(path) if payload is None else self.api.post(path, payload)
+            if raw:
+                answer = self.api.get_bytes(path)
+            else:
+                answer = self.api.get(path) if payload is None else self.api.post(path, payload)
         except (OSError, ValueError, urllib.error.URLError) as exc:
             self.failed.emit(name, why(exc))
             return

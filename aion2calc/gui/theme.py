@@ -25,6 +25,15 @@ FALLBACK_CLASS_COLOR = "#7d8aa3"
 FONT_FAMILIES = ["Noto Sans", "Segoe UI", "Roboto", "sans-serif"]
 
 
+def clamp_int(value, low: int, high: int, default: int) -> int:
+    """A whole-number setting in its range, else its default (overlay.js ``clampInt``)."""
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return value if low <= value <= high else default
+
+
 def class_color(cls) -> str:
     return CLASS_COLORS.get(str(cls or "").lower(), FALLBACK_CLASS_COLOR)
 

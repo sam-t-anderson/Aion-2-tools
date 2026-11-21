@@ -20,7 +20,7 @@ import time
 
 from PySide6.QtCore import QObject, QPoint, QTimer
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtWidgets import QAbstractButton, QAbstractSlider
+from PySide6.QtWidgets import QAbstractButton, QAbstractSlider, QWidget
 
 from ..overlay import _HoverOpen, _follow_move, _follow_position, resolve_remembered_position
 
@@ -176,7 +176,9 @@ class WindowHost(QObject):
         controls (``reportInteractiveRects``): over these, clicks stay the overlay's."""
         window, ratio = self.window, self.window.devicePixelRatioF()
         rects = []
-        for control in window.findChildren(QAbstractButton) + window.findChildren(QAbstractSlider):
+        controls = (window.findChildren(QAbstractButton) + window.findChildren(QAbstractSlider)
+                    + window.findChildren(QWidget, "ovgrip"))   # the resize grips too, as the web overlay's
+        for control in controls:
             if not control.isVisibleTo(window) or control.width() <= 0:
                 continue
             corner = control.mapTo(window, QPoint(0, 0))

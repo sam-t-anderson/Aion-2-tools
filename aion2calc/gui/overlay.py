@@ -30,20 +30,23 @@ import sys
 import time
 from urllib.parse import quote
 
-from PySide6.QtCore import QPoint, QRectF, QSettings, Qt, QTimer
-from PySide6.QtGui import (QColor, QFont, QFontMetricsF, QGuiApplication, QLinearGradient, QPainter, QPainterPath,
-                           QPen)
-from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton,
+from PySide6.QtCore import QEvent, QPoint, QRect, QRectF, QSettings, QSize, Qt, QTimer
+from PySide6.QtGui import (QColor, QFont, QFontMetricsF, QGuiApplication, QImage, QLinearGradient, QPainter,
+                           QPainterPath, QPen, QPixmap)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QPushButton,
                                QScrollArea, QSizePolicy, QSlider, QVBoxLayout, QWidget)
 
 from . import events as schedule
 from . import theme
 from .api import AppApi, Poller, Requests
 from .host import WindowHost
+from .look import (ANIMATION_MS, TextEffect, TextLook, background_rect, contrast_colour, cycled, draw_text,
+                   forget_pictures, hex_colour, reduced_motion, sheen_brush)
 
 METRICS = (("dps", "DPS"), ("hps", "HPS"), ("dtps", "Taken"))
 DEFAULT_OPACITY = 0.72                    # the overlay page's own starting opacity (overlay.js ``op``)
 MAX_OVERLAY_HEIGHT = 800                  # the tallest the overlay window grows (overlay.js ``MAX_OVERLAY_H``)
+BACKGROUND_LIMIT = 3200                   # the background image's longest side as kept: an 800-px card at 200% on 2×
 GRAPH_LIMIT = 300                         # the readings the live graph keeps (overlay.js ``recordGraph``)
 #: The Players scope Start captures with: the web overlay's own when the app's Live Meter page saved none.
 START_SCOPE = "party"
@@ -77,15 +80,6 @@ def _num(value) -> float:
 def _round(value) -> int:
     """``Math.round`` of a reading's number: a half goes up, as the web overlay rounds."""
     return theme.js_round(_num(value))
-
-
-def _setting(value, low: int, high: int, default: int) -> int:
-    """A whole-number setting in its range, else its default (overlay.js ``clampInt``)."""
-    try:
-        value = int(value)
-    except (TypeError, ValueError):
-        return default
-    return value if low <= value <= high else default
 
 
 def _text(value) -> str:
@@ -367,7 +361,8 @@ class SparkGraph(QWidget):
 class _Card(QWidget):
     """The overlay's rounded card, painted at the overlay's opacity: the whole card, its top portion only (the
     header, the target and the counter lines, down to the first player row) or none (``mode``, the overlay's
-    Background setting)."""
+    Background setting). The background image (``background``) lies under the readings in the card or its top
+    portion, as the web overlay's ``#ovbg``."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -375,6 +370,10 @@ class _Card(QWidget):
         self.mode = "card"
         self.rows_top = None                      # where the first player row starts, for the top-only mode
         self.hover = "off"                        # hover to interact: "arming" while it counts, "open" once open
+        self.background: QPixmap | None = None    # the background image, with its opacity, zoom and darkening
+        self.bg_opacity, self.bg_zoom, self.bg_darken = 1.0, 1.0, 0.2
+        self._layer: QPixmap | None = None
+        self._layer_key = None
         self.setAttribute(Qt.WA_TranslucentBackground)
 
     def paintEvent(self, event):
@@ -383,18 +382,52 @@ class _Card(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
-        if self.mode == "top" and self.rows_top is not None and self.hover == "off":
+        top = self.mode == "top" and self.rows_top is not None
+        if top and self.hover == "off":
             rect.setHeight(max(0.0, min(rect.height(), self.rows_top - 2.0)))
         path = QPainterPath()
         path.addRoundedRect(rect, 12, 12)
         if self.mode != "none":
             r, g, b = theme.OVERLAY_CARD
             painter.fillPath(path, QColor(r, g, b, int(255 * self.opacity)))
+            if self.background is not None and not self.background.isNull():
+                box = QRectF(self.rect())         # the top portion's alone in the top-only mode (``--ov-top-h``)
+                if top:
+                    box.setHeight(max(0.0, min(box.height(), self.rows_top - 2.0)))
+                if box.height() >= 1:
+                    painter.save()
+                    painter.setOpacity(self.bg_opacity)
+                    painter.drawPixmap(box.topLeft(), self._background_layer(box))
+                    painter.restore()
         if self.hover != "off":                   # the edge says the overlay is opening to clicks, or open
             painter.setPen(QPen(QColor(theme.COLORS["accent"] if self.hover == "arming" else theme.COLORS["gold"]), 2))
         else:
             painter.setPen(QColor(255, 255, 255, 20))
         painter.drawPath(path)
+
+    def _background_layer(self, box: QRectF) -> QPixmap:
+        """The image and its darkening as one layer, as ``#ovbg``'s two backgrounds are one element: its opacity
+        then dims the whole of it, where drawn apart at that opacity the darkening would darken the card under the
+        image too. Made again only when its size, its image or its settings change."""
+        ratio = self.devicePixelRatioF()
+        key = (box.width(), box.height(), ratio, self.background.cacheKey(), self.bg_zoom, self.bg_darken)
+        if key != self._layer_key:
+            layer = QPixmap(max(1, math.ceil(box.width() * ratio)), max(1, math.ceil(box.height() * ratio)))
+            layer.setDevicePixelRatio(ratio)
+            layer.fill(Qt.transparent)
+            inner = QPainter(layer)
+            inner.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform)
+            whole = QRectF(0, 0, box.width(), box.height())
+            clip = QPainterPath()
+            clip.addRoundedRect(whole.adjusted(0.5, 0.5, -0.5, -0.5), 12, 12)
+            inner.setClipPath(clip)
+            image = self.background
+            inner.drawPixmap(background_rect(whole, image.width(), image.height(), self.bg_zoom), image,
+                             QRectF(image.rect()))
+            inner.fillRect(whole, QColor(0, 0, 0, round(255 * self.bg_darken)))
+            inner.end()
+            self._layer, self._layer_key = layer, key
+        return self._layer
 
 
 class HpBar(QWidget):
@@ -435,6 +468,19 @@ class GaugeBar(HpBar):
     def set_fraction(self, fraction: float) -> None:
         super().set_fraction(fraction)
         self.color = QColor("#e66a5a" if self.fraction <= 0.05 else "#e9a43a")
+
+
+class TtkBar(HpBar):
+    """The target's time-to-kill bar (overlay.css ``.ovtbar-ttk``): how much of the whole kill has gone by, by time,
+    3 px high, in the time-to-kill colour (``overlay_ttk_color``)."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.color = QColor("#8fb3d0")
+        self.setFixedHeight(3)
+        self.setToolTip("Estimated kill progress by time — how much of the whole kill has elapsed (engaged time so "
+                        "far vs the time-to-kill still remaining). Packet-sourced; it can run ahead of or behind the "
+                        "HP bar when the fight starts slow or finishes fast.")
 
 
 class MiniBar(HpBar):
@@ -487,6 +533,7 @@ class PlayerPanel(QFrame):
         super().__init__(parent)
         self.reading: dict = {}
         self.columns = 0
+        self.value_colour = "#ffffff"             # the tiles' values, in the rate's colour (``.ovdtile b``)
         box = QVBoxLayout(self)
         box.setContentsMargins(10, 8, 10, 9)
         box.setSpacing(3)
@@ -566,7 +613,7 @@ class PlayerPanel(QFrame):
                 tile.hide()
                 continue
             label, value, title = reading["tiles"][index]
-            tile.setText(f"<div style='font-size:{round(px * 1.05)}px; font-weight:700; color:#ffffff'>"
+            tile.setText(f"<div style='font-size:{round(px * 1.05)}px; font-weight:700; color:{self.value_colour}'>"
                          f"{html.escape(value)}</div><div style='font-size:{round(px * 0.78)}px; color:#9aa8bb'>"
                          f"{html.escape(label.upper())}</div>")
             tile.setToolTip(title)
@@ -606,6 +653,79 @@ class PlayerPanel(QFrame):
         painter.fillPath(path, QColor(27, 32, 42, 235))
         painter.setPen(QColor(233, 203, 128, 90))
         painter.drawPath(path)
+
+
+class FlowLayout(QLayout):
+    """Widgets in a row that goes on to another line where the row is too narrow, each line to the right: the web
+    overlay's toolbar (``flex-wrap: wrap; justify-content: flex-end``), which keeps its buttons whole in a narrow
+    overlay or a large font."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._items: list = []
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        return self._items[index] if 0 <= index < len(self._items) else None
+
+    def takeAt(self, index):
+        return self._items.pop(index) if 0 <= index < len(self._items) else None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._arrange(QRect(0, 0, width, 0), False)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._arrange(rect, True)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        return size + QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+
+    def _arrange(self, rect: QRect, place: bool) -> int:
+        """Lay the items out in lines within ``rect`` (when ``place``) and answer the height they take."""
+        margins, gap = self.contentsMargins(), self.spacing()
+        area = rect.adjusted(margins.left(), margins.top(), -margins.right(), -margins.bottom())
+        lines, line, used = [], [], 0
+        for item in self._items:
+            if item.isEmpty():
+                continue
+            hint = item.sizeHint()
+            if line and used + gap + hint.width() > area.width():
+                lines.append((line, used))
+                line, used = [], 0
+            used += (gap if line else 0) + hint.width()
+            line.append((item, hint))
+        if line:
+            lines.append((line, used))
+        y = area.y()
+        for line, used in lines:
+            tall = max(hint.height() for _item, hint in line)
+            x = area.x() + max(0, area.width() - used)
+            for item, hint in line:
+                if place:
+                    item.setGeometry(QRect(QPoint(x, y + (tall - hint.height()) // 2), hint))
+                x += hint.width() + gap
+            y += tall + gap
+        bottom = y - gap if lines else area.y()
+        return bottom - rect.y() + margins.bottom()
 
 
 class _Pill(QWidget):
@@ -719,6 +839,8 @@ class PlayerRow(QWidget):
         self.key, self.open = "", False           # the player's row key, and whether their panel is open
         self.actor, self.crank = "", ""           # "#id" beside a name two players share; the community standing
         self.target, self.amount = 0.0, 0.0       # the reading's rate and amount, for the live tick
+        self.text_look = TextLook({})             # the overlay's fonts, colours and effects
+        self.seconds: float | None = None         # how far the colour cycle and the sheen are; None held still
         self.color = QColor(theme.FALLBACK_CLASS_COLOR)
         self.setFixedHeight(22)
         self.setCursor(Qt.PointingHandCursor)     # a click opens the player's panel
@@ -737,6 +859,10 @@ class PlayerRow(QWidget):
         self.index, self.dead, self.cp, self.look, self.open = index, dead, cp, look, open_
         self.actor, self.crank = actor, crank
         self.color = QColor(theme.class_color(cls))
+        self.update()
+
+    def set_text_look(self, look: TextLook) -> None:
+        self.text_look, self._state = look, None
         self.update()
 
     def set_live(self, rate: str, fill: float) -> None:
@@ -792,37 +918,128 @@ class PlayerRow(QWidget):
         if self.mine and look.highlight_me:
             painter.setBrush(QColor(theme.COLORS["gold"]))
             painter.drawRect(QRectF(rect.x(), rect.y(), 3, rect.height()))
+        tl, seconds = self.text_look, self.seconds
+        cycle = tl.cycle and seconds is not None  # ``hue-rotate`` over the whole of the names' part (``.ovname``)
         left = rect.x() + 7
         if look.class_swatch:
-            painter.setBrush(self.color)
+            painter.setBrush(cycled(self.color, seconds) if cycle else self.color)
             side = min(10.0, rect.height() - 6)
             painter.drawRoundedRect(QRectF(left, rect.center().y() - side / 2, side, side), 2, 2)
             left += side + 5
-        font = QFont(self.font())
-        font.setBold(self.mine)
-        painter.setFont(font)
-        painter.setPen(QColor(theme.COLORS["text"]))
-        right = self.right()
-        painter.drawText(QRectF(left, rect.y(), rect.right() - 7 - left, rect.height()),
-                         Qt.AlignVCenter | Qt.AlignRight, right)
-        end = rect.right() - 7 - QFontMetricsF(font).horizontalAdvance(right) - 8   # the name stops short of the rate
-        small = QFont(font)
-        small.setBold(False)
-        small.setPixelSize(max(8, round((font.pixelSize() if font.pixelSize() > 0 else 12) * 0.78)))
-        colours = {"name": self.color.lighter(150) if look.class_names else QColor(theme.COLORS["text"]),
-                   "actor": QColor("#aab3c5"), "crank": QColor(theme.COLORS["gold"]), "cp": QColor("#63d3e6")}
-        for text, kind in self.segments():
+        px = self.font().pixelSize() if self.font().pixelSize() > 0 else 12
+        own = 700 if self.mine else 400           # the rows' own weights: yours in bold
+        text = theme.COLORS["text"]
+        x = rect.right() - 7
+        if not look.compact:                      # the share, in the total's font and colour
+            share_font = tl.font("total", px, own)
+            x -= draw_text(painter, QRectF(left, rect.y(), x - left, rect.height()), self.share, share_font,
+                           QColor(tl.colour("total", text)), Qt.AlignRight, tl)
+            x -= QFontMetricsF(share_font).horizontalAdvance("  ")
+        rate_font, rate_colour = tl.font("rate", px, own), QColor(tl.colour("rate", text))
+        x -= draw_text(painter, QRectF(left, rect.y(), x - left, rect.height()), self.rate, rate_font, rate_colour,
+                       Qt.AlignRight, tl)
+        if self.dead:
+            x -= QFontMetricsF(rate_font).horizontalAdvance("  ")
+            x -= draw_text(painter, QRectF(left, rect.y(), x - left, rect.height()), "DEAD", rate_font, rate_colour,
+                           Qt.AlignRight, tl)
+        end = x - 8                               # the name stops short of the rate
+        name_font = tl.font("name", px, own)
+        small = QFont(name_font)
+        small.setPixelSize(max(8, round(name_font.pixelSize() * 0.78)))
+        small.setWeight(QFont.Normal)
+        names = QColor(tl.colour("name", text))
+        colours = {"name": self.color.lighter(150) if look.class_names else names, "actor": QColor("#aab3c5"),
+                   "crank": QColor(theme.COLORS["gold"]), "cp": QColor("#63d3e6")}
+        if tl.retro:                              # the sheen fills every part in the names' own colour
+            colours = dict.fromkeys(colours, names)
+        if cycle:
+            colours = {kind: cycled(colour, seconds) for kind, colour in colours.items()}
+        shift = (lambda colour: cycled(colour, seconds)) if cycle else None   # their effects turn with them
+        brush = None
+        if tl.retro and seconds is not None:      # one band across the names' whole room, as over ``.ovname``
+            brush = sheen_brush(QRectF(rect.x(), rect.y(), max(1.0, end - rect.x()), rect.height()), colours["name"],
+                                seconds)
+        for part_text, kind in self.segments():
             if left >= end:
                 break
-            part = QFont(font if kind == "name" else small)
-            part.setBold(kind == "crank" or (kind == "name" and self.mine))
+            part = QFont(name_font if kind == "name" else small)
+            if kind == "crank":
+                part.setBold(True)
             part.setUnderline(kind == "name" and self.open)   # the row whose panel is open (``.ovrow-detail``)
             metrics = QFontMetricsF(part)
-            text = metrics.elidedText(text, Qt.ElideRight, end - left)
-            painter.setFont(part)
-            painter.setPen(colours[kind])
-            painter.drawText(QRectF(left, rect.y(), end - left, rect.height()), Qt.AlignVCenter | Qt.AlignLeft, text)
-            left += metrics.horizontalAdvance(text) + 5
+            part_text = metrics.elidedText(part_text, Qt.ElideRight, end - left)
+            draw_text(painter, QRectF(left, rect.y(), end - left, rect.height()), part_text, part, colours[kind],
+                      Qt.AlignLeft, tl, brush, shift)
+            left += metrics.horizontalAdvance(part_text) + 5
+
+
+class Grip(QWidget):
+    """A resize grip on the overlay's edge (overlay.css ``.ovgrip``, with ``overlay_resizable``): ``right`` drags its
+    width (260 to 800 px), ``bottom`` its height (70 to 800), ``corner`` both; on release the size is kept as
+    ``overlay_width`` and ``overlay_height``, as the web overlay keeps it."""
+
+    TIPS = {"right": "Drag to resize the overlay width", "bottom": "Drag to resize the overlay height",
+            "corner": "Drag to resize the overlay"}
+
+    def __init__(self, edge: str, parent=None):
+        super().__init__(parent)
+        self.edge = edge
+        self.setObjectName("ovgrip")               # WindowHost keeps it live through click-through
+        self.setToolTip(self.TIPS[edge])
+        self.setCursor({"right": Qt.SizeHorCursor, "bottom": Qt.SizeVerCursor}.get(edge, Qt.SizeFDiagCursor))
+        self.setAttribute(Qt.WA_Hover)
+        self._from: QPoint | None = None
+        self._size = (0, 0)
+
+    def event(self, event):
+        if event.type() in (QEvent.HoverEnter, QEvent.HoverLeave):
+            self.update()                          # brighter under the pointer
+        return super().event(event)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        hover = self.underMouse()
+        rect = QRectF(self.rect())
+        gold, clear = QColor(233, 203, 128), QColor(233, 203, 128, 0)
+        if self.edge == "corner":                 # 315°: from the corner inward, gone by 60%
+            gradient = QLinearGradient(rect.bottomRight(), rect.topLeft())
+            gold.setAlphaF(0.8 if hover else 0.5)
+            gradient.setColorAt(0, gold)
+            gradient.setColorAt(0.6, clear)
+            shape = rect.adjusted(-8, -8, 0, 0)    # rounded at its outer corner only
+        else:
+            gradient = QLinearGradient(rect.topRight() if self.edge == "right" else rect.bottomLeft(), rect.topLeft())
+            gold.setAlphaF(0.45 if hover else 0.18)
+            gradient.setColorAt(0, gold)
+            gradient.setColorAt(1, clear)
+            shape = rect.adjusted(-8, 0, 0, 0) if self.edge == "right" else rect.adjusted(0, -8, 0, 0)
+        path = QPainterPath()
+        path.addRoundedRect(shape, 8, 8)
+        painter.setClipRect(rect)
+        painter.fillPath(path, gradient)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            overlay = self.window()
+            self._from = event.globalPosition().toPoint()
+            self._size = (overlay.width(), overlay.card.height())
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self._from is None:
+            return
+        delta = event.globalPosition().toPoint() - self._from
+        width = max(260, min(800, self._size[0] + delta.x())) if self.edge in ("right", "corner") else None
+        height = max(70, min(800, self._size[1] + delta.y())) if self.edge in ("bottom", "corner") else None
+        self.window().resize_to(width, height)
+        event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if self._from is not None:
+            self._from = None
+            self.window().save_size(self.edge)
+            event.accept()
 
 
 class MeterOverlay(QWidget):
@@ -852,6 +1069,16 @@ class MeterOverlay(QWidget):
         self._press: QPoint | None = None        # where a press began, to tell a click from a move
         self._capture_busy = False
         self._seqs: dict = {}                    # the app's command counters as first read (the screenshot hotkey)
+        self.text_look = TextLook({})             # the fonts, the text colours and effects (look.py)
+        self._shown_look: dict | None = None      # the look as last handed out, to tell when it changes
+        self._effects: dict[QLabel, TextEffect] = {}   # the labels' effects, held here: a label does not hold its own
+        self._user_width: int | None = None       # a grip's drag, over the saved width and height
+        self._user_height: int | None = None
+        self._bg_image: QImage | None = None      # the background image (``/overlay-background``) as read
+        self._bg_pixmap: QPixmap | None = None
+        self._bg_wanted = self._bg_asking = self._bg_failed = False
+        self._contrast_key, self._contrast = None, None
+        self.target_text = self.extra_text = ""   # the target line and the extra line as plain text
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         self.card = _Card(self)
@@ -871,6 +1098,7 @@ class MeterOverlay(QWidget):
         self.metric_buttons = {}
         for key, label in METRICS:
             button = QPushButton(label)
+            button.setObjectName("ovmetric")
             button.setCheckable(True)
             button.setFlat(True)
             button.setCursor(Qt.PointingHandCursor)
@@ -880,9 +1108,14 @@ class MeterOverlay(QWidget):
         box.addLayout(head)
         self.target = QLabel("")
         self.target.setObjectName("ovtarget")
+        self.target.setTextFormat(Qt.RichText)   # its HP and time to kill in their own colours and fonts
+        self.target.setWordWrap(True)             # on to a second line between its parts, in a large font
         box.addWidget(self.target)
         self.hp = HpBar(self)
         box.addWidget(self.hp)
+        self.ttk_bar = TtkBar(self)
+        self.ttk_bar.hide()
+        box.addWidget(self.ttk_bar)
         self.gauge = GaugeBar(self)
         box.addWidget(self.gauge)
         self.lines = QLabel("")
@@ -891,6 +1124,7 @@ class MeterOverlay(QWidget):
         box.addWidget(self.lines)
         self.extra = QLabel("")                   # your contribution, or the training-dummy parse
         self.extra.setObjectName("ovextra")
+        self.extra.setTextFormat(Qt.RichText)
         box.addWidget(self.extra)
         self.box = box
         self.warning = QLabel("")                 # the meter's warning over the rows
@@ -938,10 +1172,9 @@ class MeterOverlay(QWidget):
         foot.addWidget(self.ping, 0, Qt.AlignRight | Qt.AlignTop)
         box.addLayout(foot)
         self.toolbar = _Pill(self.card)
-        tools = QHBoxLayout(self.toolbar)
+        tools = FlowLayout(self.toolbar)           # on to a second line when the buttons do not fit on one
         tools.setContentsMargins(3, 1, 3, 1)
         tools.setSpacing(2)
-        tools.addStretch(1)
         self.tools: dict[str, QPushButton] = {}
         actions = {"lock": self.toggle_lock, "split": self.new_fight, "copy": self.copy,
                    "options": self.toggle_options, "capture": self.toggle_capture, "hide": self.hide_overlay}
@@ -989,6 +1222,10 @@ class MeterOverlay(QWidget):
         options.addWidget(self.message)
         self.options.hide()
         box.addWidget(self.options)
+        box.addStretch(1)                         # a card taller than its readings (``overlay_height``) ends empty
+        self.grips = {edge: Grip(edge, self) for edge in ("right", "bottom", "corner")}   # ``overlay_resizable``
+        for grip in self.grips.values():
+            grip.hide()
         self.rows: list[PlayerRow] = []
         self.look = RowLook({})
         self._cooldowns_top = False
@@ -1004,6 +1241,10 @@ class MeterOverlay(QWidget):
         self._render_at, self._projecting, self._cur_max = time.monotonic(), False, 1.0
         self._tick_timer = QTimer(self)
         self._tick_timer.timeout.connect(self._live_tick)
+        self._anim_timer = QTimer(self)           # the colour cycle and the sheen
+        self._anim_timer.setInterval(ANIMATION_MS)
+        self._anim_timer.timeout.connect(self._animate)
+        self._anim_start = time.monotonic()
         self._pollers: list[Poller] = []
         self._meter_poller = self._settings_poller = None
         self._catalog: dict | None = None        # event-schedules.json, from the app
@@ -1063,31 +1304,38 @@ class MeterOverlay(QWidget):
             poller.stop()
         if self.requests is not None:
             self.requests.stop()
+        self._anim_timer.stop()
+        forget_pictures()
         super().closeEvent(event)
 
     # ------------------------------------------------------------------ look
+    def _px(self) -> int:
+        """The overlay's text size: 12 px at its font size (``overlay_font_scale``, 80% to 160%)."""
+        return max(8, round(12 * self.text_look.scale))
+
     def _style(self) -> None:
-        scale = max(50, min(200, int(self.ui.get("overlay_font_scale") or 100))) / 100
-        weight = int(self.ui.get("overlay_font_weight") or 600)
-        px = max(8, round(12 * scale))
-        font = QFont(theme.FONT_FAMILIES[0])
-        font.setFamilies(theme.FONT_FAMILIES)
-        font.setPixelSize(px)
-        font.setWeight(QFont.Weight(max(100, min(900, weight))))
-        if font != self.font():
-            self.setFont(font)
+        """The overlay's style sheet, from its look. Its font is the sheet's too: a font set on the window after a
+        sheet does not reach the widgets inside it, which keep the family they were first styled with."""
+        tl, px = self.text_look, self._px()
+        weight = tl.weight
+        families = ", ".join(f'"{family}"' for family in tl.families())
         c = theme.COLORS
+        header = tl.colour("header", c["gold"])
         sheet = (
+            f"QWidget {{ font-family: {families}; font-size: {px}px; font-weight: {weight}; }}"
             f"QLabel {{ color: {c['text']}; background: transparent; }}"
-            f"QLabel#ovstatus {{ color: {c['gold']}; font-weight: 700; }}"
-            f"QLabel#ovlines {{ color: #e9edf1; }}"
+            f"QLabel#ovstatus {{ {tl.css('header', px, 700, c['gold'])} }}"
+            f"QLabel#ovtarget {{ {tl.css('target', px, weight, c['text'])} }}"
+            f"QLabel#ovlines {{ {tl.css('ping', px, weight, '#e9edf1')} }}"
             f"QLabel#ovextra, QLabel#ovnote {{ color: {c['muted']}; }}"
-            f"QLabel#ovidentity {{ color: {c['gold']}; font-size: {round(px * 0.85)}px; }}"
-            f"QLabel#ovping {{ color: #c9d1db; font-weight: 600; font-size: {round(px * 0.9)}px; }}"
+            f"QLabel#ovidentity {{ {tl.css('identity', round(px * 0.85), weight, c['gold'])} }}"
+            f"QLabel#ovping {{ {tl.css('ping', round(px * 0.9), 600, '#c9d1db')} }}"
             f"QPushButton {{ color: {c['muted']}; background: transparent; border: none; padding: 0 3px; }}"
             f"QPushButton:checked {{ color: {c['gold']}; text-decoration: underline; }}"
-            f"QPushButton#ovtool {{ color: #c9d1db; background: rgba(255, 255, 255, 14); border-radius: 6px;"
-            f" padding: 2px 7px; }}"
+            f"QPushButton#ovmetric {{ {tl.css('header', px, weight)} }}"
+            f"QPushButton#ovmetric:checked {{ color: {header}; }}"
+            f"QPushButton#ovtool {{ {tl.css('header', px, weight, '#c9d1db')} background: rgba(255, 255, 255, 14);"
+            f" border-radius: 6px; padding: 2px 7px; }}"
             f"QPushButton#ovtool:hover {{ background: rgba(255, 255, 255, 30); color: #ffffff; }}"
             f"QPushButton#ovtool:checked {{ color: #39c2e0; text-decoration: none; }}"
             f"QPushButton#ovtool:disabled {{ color: #6b7385; }}"
@@ -1099,12 +1347,13 @@ class MeterOverlay(QWidget):
             f" background: {c['bg2']}; }}"
             f"QCheckBox::indicator:checked {{ background: {c['gold']}; border-color: {c['gold']}; }}"
             f"QScrollArea {{ background: transparent; }}"
-            f"QLabel#ovdname {{ color: #e9f7ff; font-weight: 800; font-size: {round(px * 1.15)}px; }}"
+            f"QLabel#ovdname {{ color: {tl.colour('name', '#e9f7ff')}; font-weight: 800;"
+            f" font-size: {round(px * 1.15)}px; }}"
             f"QLabel#ovdsub {{ color: #9aa8bb; font-size: {round(px * 0.9)}px; }}"
-            f"QLabel#ovdsec {{ color: {c['gold']}; font-weight: 700; font-size: {round(px * 0.85)}px; }}"
+            f"QLabel#ovdsec {{ color: {header}; font-weight: 700; font-size: {round(px * 0.85)}px; }}"
             f"QLabel#ovdtile {{ background: rgba(255, 255, 255, 15); border-radius: 6px; padding: 4px 6px; }}"
             f"QLabel#ovdicon {{ background: rgba(0, 0, 0, 102); border-radius: 4px; color: #cdd6e6; font-size: 9px; }}"
-            f"QLabel#ovdval {{ color: #9aa8bb; }}"
+            f"QLabel#ovdval {{ color: {tl.colour('total', '#9aa8bb')}; }}"
             f"QPushButton#ovdclose {{ color: #9aa8bb; font-size: {round(px * 1.15)}px; }}"
             f"QPushButton#ovdclose:hover {{ color: #ffffff; }}")
         if sheet != getattr(self, "_sheet", None):    # the settings come every 3 s: restyle only on a change
@@ -1112,21 +1361,190 @@ class MeterOverlay(QWidget):
             self.setStyleSheet(sheet)
             self.panel.reading = {}               # the tiles' sizes follow the font: draw the panel again
 
+    def _apply_look(self) -> None:
+        """Hand the look to all that draws text: the style sheet, the rows, the panel's tiles, the time-to-kill bar,
+        the labels' effects, and the colour cycle and the sheen."""
+        tl = self.text_look
+        changed = vars(tl) != self._shown_look    # the settings come every 3 s, mostly the same: nothing to redraw
+        self._shown_look = dict(vars(tl))
+        self._style()
+        self.ttk_bar.color = QColor(tl.ttk_colour)
+        self.ttk_bar.update()
+        value = tl.colour("rate", "#ffffff")
+        if value != self.panel.value_colour:
+            self.panel.value_colour, self.panel.reading = value, {}   # the tiles drawn again in it
+        if changed:
+            for row in self.rows:
+                row.set_text_look(tl)
+        # The cycle and the sheen move while either is on, held still in performance mode and when the system asks
+        # for less motion (the web overlay's ``ov-perf`` and ``prefers-reduced-motion``).
+        moving = (tl.cycle or tl.retro) and not self._perf and not reduced_motion()
+        if moving and not self._anim_timer.isActive():
+            self._anim_start = time.monotonic()
+            self._anim_timer.start()
+        elif not moving:
+            self._anim_timer.stop()
+        self._sync_effects(changed)
+        self._paint_moment(time.monotonic() - self._anim_start if moving else None)
+
+    def _text_labels(self) -> list[QLabel]:
+        return [self.status, self.target, self.lines, self.extra, self.warning, self.empty, self.events,
+                self.identity, self.ping]
+
+    def _sync_effects(self, changed: bool = True) -> None:
+        """Each text label's effect (``TextEffect``): with the outline, glow or halo, the blend, or for the header
+        the colour cycle; none otherwise, since drawn through one a label's text loses its sub-pixel smoothing."""
+        tl, moving = self.text_look, self._anim_timer.isActive()
+        for label in self._text_labels():
+            wanted = tl.painted or (label is self.status and tl.cycle and moving)
+            effect = self._effects.get(label)
+            if wanted and effect is None:
+                effect = TextEffect(tl, label)
+                label.setGraphicsEffect(effect)
+                self._effects[label] = effect
+            elif wanted:
+                if changed:
+                    effect.set_look(tl)
+            elif effect is not None:
+                label.setGraphicsEffect(None)    # Qt deletes it
+                del self._effects[label]
+
+    def _animate(self) -> None:
+        self._paint_moment(time.monotonic() - self._anim_start)
+
+    def _paint_moment(self, seconds: float | None) -> None:
+        """The colour cycle and the sheen ``seconds`` in (None: held still): the rows' names, and the header's
+        colour through its effect."""
+        for row in self.rows:
+            if row.seconds != seconds:
+                row.seconds = seconds
+                if not row.isHidden():
+                    row.update()
+        effect = self._effects.get(self.status)
+        if effect is not None:
+            tl = self.text_look
+            turning = tl.cycle and seconds is not None
+            if turning or effect.tint is not None:
+                effect.shift = (lambda colour: cycled(colour, seconds)) if turning else None   # its effects too
+                effect.tint = effect.shift(QColor(tl.colour("header", theme.COLORS["gold"]))) if turning else None
+                effect.update()
+
+    # ------------------------------------------------------------------ the background image
+    def _want_background(self, ui: dict) -> None:
+        """The background image's settings (overlay.js ``applyBackground``): with one set and its opacity above 0 it
+        is read from the app once, and again when it could not be read, with the next settings."""
+        card = self.card
+        card.bg_opacity = theme.clamp_int(ui.get("overlay_bg_opacity"), 0, 100, 100) / 100
+        card.bg_zoom = theme.clamp_int(ui.get("overlay_bg_zoom"), 50, 200, 100) / 100
+        card.bg_darken = theme.clamp_int(ui.get("overlay_bg_darken"), 0, 100, 20) / 100
+        wanted = ui.get("overlay_bg_set") is True and card.bg_opacity > 0
+        if not wanted:
+            self._bg_image = self._bg_pixmap = None
+            self._bg_failed = False
+        elif not self._bg_wanted or self._bg_failed:
+            self._fetch_background()
+        self._bg_wanted = wanted
+        self._show_background()
+
+    def _fetch_background(self) -> None:
+        if self.requests is None or self._bg_asking:
+            return
+        self._bg_asking, self._bg_failed = True, False
+        self.requests.get_bytes("background", f"/overlay-background?v={int(time.time() * 1000)}")
+
+    def _show_background(self) -> None:
+        """The image in the card but in the none mode, and the text's colour for it (overlay.js
+        ``applyAutoContrast``, with the image set in any mode): white and blended, or by its luminance; light text
+        when it could not be read, the user's own colours while it is read."""
+        tl, card = self.text_look, self.card
+        card.background = self._bg_pixmap if self._bg_wanted and card.mode != "none" else None
+        tl.contrast, tl.blend = None, False
+        if self._bg_wanted and tl.autocontrast == "blend":
+            tl.contrast, tl.blend = "#ffffff", True
+        elif self._bg_wanted and tl.autocontrast == "luminance":
+            if self._bg_image is not None:
+                key = (self._bg_image.cacheKey(), card.bg_darken)
+                if key != self._contrast_key:
+                    self._contrast_key, self._contrast = key, contrast_colour(self._bg_image, card.bg_darken)
+                tl.contrast = self._contrast
+            elif self._bg_failed:
+                tl.contrast = "#f4f1ea"
+        card.update()
+
+    def _background_read(self, data) -> None:
+        self._bg_asking = False
+        image = QImage.fromData(bytes(data)) if isinstance(data, (bytes, bytearray)) and data else QImage()
+        if image.isNull():
+            self._background_lost()
+            return
+        if max(image.width(), image.height()) > BACKGROUND_LIMIT:
+            image = image.scaled(BACKGROUND_LIMIT, BACKGROUND_LIMIT, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self._bg_image, self._bg_pixmap, self._bg_failed = image, QPixmap.fromImage(image), False
+        self._restyle()
+
+    def _background_lost(self) -> None:
+        """The image could not be read (none was uploaded, or the app is gone): none is shown, and it is asked for
+        again with the next settings."""
+        self._bg_asking, self._bg_failed = False, True
+        self._bg_image = self._bg_pixmap = None
+        self._restyle()
+
+    def _restyle(self) -> None:
+        self._show_background()
+        self._apply_look()
+        self.apply_meter(self.answer)
+
+    # ------------------------------------------------------------------ resizing
+    def resize_to(self, width: int | None, height: int | None) -> None:
+        """A grip's drag: the overlay's width, and its card's least height, kept over the saved settings from then
+        on (overlay.js ``userWidth`` and ``userHeight``)."""
+        if width is not None:
+            self._user_width = int(width)
+            self.setFixedWidth(self._user_width)
+        if height is not None:
+            self._user_height = int(height)
+            self.card.setMinimumHeight(self._user_height)
+        self._relayout()
+
+    def save_size(self, edge: str) -> None:
+        """A grip let go: the size it changed is saved, as the web overlay saves it."""
+        body = {}
+        if edge in ("right", "corner") and self._user_width is not None:
+            body["overlay_width"] = self._user_width
+        if edge in ("bottom", "corner") and self._user_height is not None:
+            body["overlay_height"] = self._user_height
+        if body and self.requests is not None:
+            self.requests.post("size", "/api/ui", body)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        width, height = self.width(), self.height()   # overlay.css ``#ovresize``, ``-b`` and ``-c``
+        self.grips["right"].setGeometry(width - 12, 4, 12, max(0, height - 20))
+        self.grips["bottom"].setGeometry(4, height - 12, max(0, width - 20), 12)
+        self.grips["corner"].setGeometry(width - 16, height - 16, 16, 16)
+        for grip in self.grips.values():
+            grip.raise_()
+
     def apply_ui(self, ui: dict) -> None:
         """Take the overlay's settings from the app's answer to ``/api/ui``."""
         if not isinstance(ui, dict):
             return
         first = not self.ui
         self.ui = ui
-        width = max(260, min(800, int(ui.get("overlay_width") or 340)))
-        self.setFixedWidth(width)
+        self.text_look = TextLook(ui)
+        self.setFixedWidth(self._user_width or theme.clamp_int(ui.get("overlay_width"), 260, 800, 340))
+        height = self._user_height
+        self.card.setMinimumHeight(theme.clamp_int(ui.get("overlay_height"), 0, 800, 0) if height is None else height)
+        for grip in self.grips.values():          # the edges drag the size (``overlay_resizable``)
+            grip.setVisible(ui.get("overlay_resizable") is True)
         row_height = max(16, min(48, int(ui.get("overlay_row_height") or 22)))
         for row in self.rows:
             row.setFixedHeight(row_height)
-        self.hp.color = QColor(ui.get("overlay_hp_color") or "#e05a5a")
+        self.hp.color = QColor(hex_colour(ui.get("overlay_hp_color")) or "#e05a5a")
         self.look = RowLook(ui)
         mode = ui.get("overlay_bg_mode")
         self.card.mode = mode if mode in ("card", "top", "none") else "card"
+        self._want_background(ui)
         for pill in (self.toolbar, self.options):
             pill.filled = self.card.mode != "card"
             pill.update()
@@ -1144,7 +1562,7 @@ class MeterOverlay(QWidget):
         self._perf = ui.get("performance_mode") is True
         self._interpolate = ui.get("overlay_dps_interpolate") is True and not self._perf
         if self._interpolate:
-            self._tick_timer.start(_setting(ui.get("overlay_interpolate_ms"), 50, 1000, 200))
+            self._tick_timer.start(theme.clamp_int(ui.get("overlay_interpolate_ms"), 50, 1000, 200))
         else:
             self._tick_timer.stop()
             self._shown_rates.clear()
@@ -1155,8 +1573,8 @@ class MeterOverlay(QWidget):
                 and self.requests is not None:
             self._catalog_asked = True            # the schedule the Timers page reads, once
             self.requests.get("catalog", "/static/event-schedules.json")
+        self._apply_look()
         self.render_events()
-        self._style()
         self.set_click_through(ui.get("overlay_click_through") is True)
         if first:                                 # where it was last put, if that is still on a monitor
             self.host.restore(ui)
@@ -1325,6 +1743,7 @@ class MeterOverlay(QWidget):
         while len(self.rows) < len(shown):
             row = PlayerRow(self.card)
             row.setFixedHeight(max(16, min(48, int(ui.get("overlay_row_height") or 22))))
+            row.set_text_look(self.text_look)
             self.rows_box.addWidget(row)
             self.rows.append(row)
         for index, row in enumerate(self.rows):
@@ -1414,15 +1833,24 @@ class MeterOverlay(QWidget):
             del self._shown_rates[key]
 
     def _show_target(self, target) -> None:
-        """The target line: its name, its HP when that is on, the time to kill with the enrage timer, and the break
-        gauge, with their bars."""
-        ui = self.ui
+        """The target line: its name with the others struck, its HP when that is on, the time to kill with the enrage
+        timer, and the break gauge, each in its own colour and font where the look sets one, with their bars."""
+        ui, tl, px = self.ui, self.text_look, self._px()
         if ui.get("overlay_show_target", True) is False or not isinstance(target, dict) or not target.get("name"):
-            for widget in (self.target, self.hp, self.gauge):
+            for widget in (self.target, self.hp, self.ttk_bar, self.gauge):
                 widget.hide()
+            self.target_text = ""
             return
         also = [str(name) for name in (target.get("also_targets") or [])]
-        parts = [str(target["name"]) + (f" +{len(also)}" if also else "")]   # the others struck in the same instant
+        name = str(target["name"])                # the others struck in the same instant
+        plain = [name + (f" +{len(also)}" if also else "")]
+        rich = [html.escape(name) + ("&nbsp;" + tl.inline("also", f"+{len(also)}", px) if also else "")]
+
+        def add(key, text):                       # a part is kept whole when the line wraps
+            plain.append(text)
+            whole = html.escape(text).replace(" ", "&nbsp;")
+            rich.append(tl.inline(key, whole, px) if key else whole)
+
         self.target.setToolTip("Most-hit enemy this encounter"
                                + (f" (and {len(also)} more struck in the same instant: {', '.join(also)})" if also else "")
                                + ", its remaining HP and time-to-kill from its observed HP-decline rate, and each "
@@ -1430,43 +1858,56 @@ class MeterOverlay(QWidget):
         hp = target.get("hp_pct")
         show_hp = ui.get("overlay_show_enemy_hp") is True and isinstance(hp, (int, float))
         if show_hp:
-            parts.append(f"{hp * 100:.0f}%")
-        if ui.get("overlay_show_ttk") is True:
+            add("hp", f"{hp * 100:.0f}%")
+        show_ttk = ui.get("overlay_show_ttk") is True
+        if show_ttk:
             ttk = target.get("ttk")
             if isinstance(ttk, (int, float)) and ttk > 0:
-                parts.append(f"TTK {_clock(ttk)}")
+                add("ttk", f"TTK {_clock(ttk)}")
             enrage = target.get("enrage")
             if isinstance(enrage, dict):
-                parts.append("ENRAGED" if enrage.get("enraged") else f"Enrage {_clock(enrage.get('enrage_in'))}")
+                add("ttk", "ENRAGED" if enrage.get("enraged") else f"Enrage {_clock(enrage.get('enrage_in'))}")
         gauge = target.get("break_gauge") if ui.get("overlay_show_break_gauge") is True else None
         pct = None
         if isinstance(gauge, dict):
             pct = max(0.0, min(100.0, float(gauge.get("pct") or 0)))
-            parts.append("BROKEN" if pct <= 5 else f"Break {pct:.0f}%")
-        self.target.setText("  ·  ".join(parts))
+            add(None, "BROKEN" if pct <= 5 else f"Break {pct:.0f}%")
+        self.target_text = "  ·  ".join(plain)
+        self.target.setText("&nbsp;&nbsp;·&nbsp; ".join(rich))   # the line may break after a dot
         self.target.show()
         self.hp.setVisible(show_hp)
         if show_hp:
             self.hp.set_fraction(hp)
+        # How far through the whole kill the fight is by time (``ttk_fraction``), with the time to kill on.
+        fraction = target.get("ttk_fraction")
+        timed = (show_ttk and isinstance(fraction, (int, float)) and not isinstance(fraction, bool)
+                 and math.isfinite(fraction))
+        self.ttk_bar.setVisible(timed)
+        if timed:
+            self.ttk_bar.set_fraction(fraction)
         self.gauge.setVisible(pct is not None)
         if pct is not None:
             self.gauge.set_fraction(pct / 100)
 
     def _show_extra(self, snap: dict, hidden: bool, metric: str) -> None:
         """Your contribution to the fight, or the training-dummy parse, under the target (DPS view only)."""
-        text = ""
+        text = rich = ""
         contribution, dummy = snap.get("contribution"), snap.get("dummy_parse")
         if not hidden and metric == "dps":
             if isinstance(dummy, dict) and self.ui.get("meter_show_dummy_parse", True) is not False:
                 you = f" · You {theme.kfmt(dummy['your_dps'])}/s" if dummy.get("your_dps") is not None else ""
-                text = (f"Dummy parse {round(float(dummy.get('duration') or 0))}s / "
+                body = (f" {round(float(dummy.get('duration') or 0))}s / "
                         f"{round(float(dummy.get('window_seconds') or 0))}s{' ✓' if dummy.get('window_reached') else ''}"
                         f"{you} · Total {theme.kfmt(dummy.get('target_dps'))}/s")
+                text = "Dummy parse" + body
+                rich = self.text_look.inline("label", "Dummy parse", self._px()) + html.escape(body)
             elif (isinstance(contribution, dict) and float(contribution.get("damage") or 0) > 0
                   and self.ui.get("overlay_show_contribution") is not False):
                 text = (f"Your contribution: {round(float(contribution.get('share') or 0) * 100)}% · "
                         f"{theme.kfmt(contribution.get('damage'))} ({theme.kfmt(contribution.get('dps'))}/s)")
-        self.extra.setText(text)
+                rich = html.escape(text)
+        self.extra_text = text
+        self.extra.setText(rich)
         self.extra.setVisible(bool(text))
 
     def _relayout(self) -> None:
@@ -1515,15 +1956,18 @@ class MeterOverlay(QWidget):
             self._show_events(False)
             return
         # One line, as the web overlay's (cut with an ellipsis): the events that fit whole, then "…".
+        tl, px = self.text_look, self._px()
         bold = QFont(self.events.font())
         bold.setBold(True)                        # measured bold throughout, so a fit is never too tight
         room, metrics = max(40, self.width() - 24), QFontMetricsF(bold)
+        lead = QFontMetricsF(tl.font("label", px, 700)).horizontalAdvance("Events ")
         count = len(shown)
-        while count > 1 and metrics.horizontalAdvance(
-                "Events " + " · ".join(event["text"] for event in shown[:count]) + (" …" if count < len(shown) else "")
+        while count > 1 and lead + metrics.horizontalAdvance(
+                " · ".join(event["text"] for event in shown[:count]) + (" …" if count < len(shown) else "")
         ) > room:
             count -= 1
-        self.events.setText(schedule.strip_html(shown[:count]) + (" …" if count < len(shown) else ""))
+        label = tl.inline("label", "Events", px, "#e8cf8e", 600)
+        self.events.setText(schedule.strip_html(shown[:count], label) + (" …" if count < len(shown) else ""))
         self.events.setToolTip("\n".join(event["tip"] for event in shown))
         self._show_events(True)
 
@@ -1728,6 +2172,9 @@ class MeterOverlay(QWidget):
                 self._catalog = answer
                 self.render_events()
             return
+        if name == "background":
+            self._background_read(answer)
+            return
         if name.startswith("detail:"):
             self._detail_answered(name[len("detail:"):], answer)
         elif name == "capture":
@@ -1753,6 +2200,9 @@ class MeterOverlay(QWidget):
     def _failed(self, name: str, why: str) -> None:
         if name == "catalog":
             self._catalog_asked = False           # asked again with the next settings
+            return
+        if name == "background":
+            self._background_lost()
             return
         if name.startswith("detail:"):
             key = name[len("detail:"):]
@@ -1807,6 +2257,8 @@ class MeterOverlay(QWidget):
     def refresh(self) -> None:
         self.show()
         self.raise_()
+        if self._bg_wanted:                       # a background image uploaded since is read afresh
+            self._fetch_background()
         if self._settings_poller is not None:
             self._settings_poller.poll()
         self._poll_meter()
