@@ -2821,6 +2821,189 @@ def test_the_review_events_and_timeline(qapp):
     assert view.summary is not None and view.timeline is None
 
 
+def _casting():
+    """The timed fight with its casts, summarised by the app's own analyzer (``encounter_insights``): the sorcerer's
+    Flame Burst twice on its cooldown (a follow-up record of the first the same press), two Sparks, a Blessing with no
+    target or cooldown (a proc), the cleric's Heal once before the pull, the pet's strike (a pet's casts are not the
+    party's), and the arena opponent's Arrows."""
+    from aion2calc.combat import insights
+    fight = _timed()
+    fight["segments"][0]["casts"] = [
+        {"source": "p1", "t": 0.4, "skill_id": 11010001, "skill": "Flame Burst", "target": "b1", "cooldown_ms": 8000, "cast_ms": 600},
+        {"source": "p1", "t": 0.45, "skill_id": 11010001, "skill": "Flame Burst", "target": "b1"},
+        {"source": "p1", "t": 8.6, "skill_id": 11010001, "skill": "Flame Burst", "target": "b1", "cooldown_ms": 8000, "cast_ms": 650},
+        {"source": "p1", "t": 2.0, "skill_id": 13100002, "skill": "Spark", "target": "b1"},
+        {"source": "p1", "t": 3.0, "skill_id": 13100002, "skill": "Spark", "target": "b1"},
+        {"source": "p1", "t": 5.0, "skill_id": 11700001, "skill": "Blessing"},
+        {"source": "p2", "t": -1.5, "skill_id": 17010001, "skill": "Heal", "target": "p2", "cooldown_ms": 3000},
+        {"source": "p2", "t": 3.4, "skill_id": 17010001, "skill": "Heal", "target": "p2", "cooldown_ms": 3000},
+        {"source": "pet1", "t": 1.1, "skill_id": 99990001, "skill": "Spirit Strike", "target": "b1"}]
+    fight["segments"][1]["casts"] = [
+        {"source": "e1", "t": 1.5, "skill_id": 12010001, "skill": "Arrow", "target": "p1", "cooldown_ms": 2000},
+        {"source": "e1", "t": 4.0, "skill_id": 12010001, "skill": "Arrow", "target": "p1", "cooldown_ms": 2000}]
+    fight["encounter_insights"] = insights.summarize(fight)
+    return fight
+
+
+def test_the_review_abilities_and_skills_words():
+    fight = _casting()
+    state = cw.fresh_state()
+    d = cw.data(fight, state)
+    events = cw.visible_events(d, state)
+    # the abilities by amount: the party's damage done in the Summary, a pet's its owner's
+    found = cw.abilities(d, d, events, state)
+    assert [(r["actor"], r["skill"], r["amount"], r["hits"]) for r in found["rows"]] == [
+        ("p1", "Flame Burst", 3300, 5), ("p1", "Spirit Strike", 500, 1), ("p1", "Spark", 40, 4)] and found["total"] == 3840
+    assert cw.ability_table(found, d, state, cw.duration(d))[0] == {"actor": "p1", "cells": [
+        "Flame Burst", "5", "3,300", "85.9%", "550", "660", "100", "1,500"]}          # per second on the active clock
+    bars = cw.contribution(found, d["r"], state)
+    assert bars["note"].startswith("Damage done by player and ability, the top 20 rows; <i>Abilities</i> lists every one.")
+    assert [(b["name"], b["value"], b["share"]) for b in bars["bars"]] == [
+        ("TestSorc ✓ · Zikel · Flame Burst", "3,300", 100.0), ("TestSorc ✓ · Zikel · Spirit Strike", "500", 15.15),
+        ("TestSorc ✓ · Zikel · Spark", "40", 1.21)]
+    taken = {**state, "metric": "taken"}
+    found = cw.abilities(d, d, cw.visible_events(d, taken), taken)
+    assert [(r["actor"], r["skill"]) for r in found["rows"]] == [("p2", "Frost Breath"), ("p2", "Spike")]
+    assert cw.ability_table(found, d, taken, cw.duration(d))[0]["cells"][4] == "7"     # damage taken over the encounter
+    healing = {**state, "metric": "healing"}
+    found = cw.abilities(d, d, cw.visible_events(d, healing), healing)
+    assert cw.ability_table(found, d, healing, cw.duration(d))[0]["cells"][:4] == ["Heal (heal)", "1", "600", "100.0%"]
+    assert cw.contribution(found, d["r"], healing)["note"].startswith("Healing by player")
+    assert cw.contribution({"rows": [], "total": 0}, d["r"], state) == {"note": cw.NO_ABILITIES, "bars": []}
+    assert cw.ability_table({"rows": [{"actor": "p1", "kind": "damage", "skill": "X", "amount": 0, "hits": 1, "min": 0, "max": 0}],
+                             "total": 0}, d, state, 120)[0]["cells"][3] == "0%"
+    # the words: a family, a moment before the pull, a cooldown, a share
+    assert (cw.family(11010001), cw.family(11000005), cw.family(None)) == (11010000, 11000005, None)
+    assert (cw.signed_clock(-1.5), cw.signed_clock(65)) == ("−0:01.50", "1:05.00")
+    assert (cw.cooldown_text(8000), cw.cooldown_text(12000), cw.cooldown_text(None), cw.percent(13.333), cw.percent(None)) == (
+        "8.0s", "12s", "—", "13.3%", "—")
+    # the presses: a follow-up record the same press, the cooldown's records counted, a skill with no target or cooldown
+    # a proc
+    pressed = cw.presses(fight["segments"][0]["casts"])
+    assert [(c["source"], c["skill"], c["t"], c["kind"]) for c in pressed] == [
+        ("p2", "Heal", -1.5, "skill"), ("p1", "Flame Burst", 0.4, "skill"), ("pet1", "Spirit Strike", 1.1, "skill"),
+        ("p1", "Spark", 2.0, "skill"), ("p1", "Spark", 3.0, "skill"), ("p2", "Heal", 3.4, "skill"),
+        ("p1", "Blessing", 5.0, "proc"), ("p1", "Flame Burst", 8.6, "skill")]
+    # the Skills table, from the analyzer's summary: the procs hidden, then shown; a player alone
+    assert cw.casts_missing(fight, d, state) == "" and cw.actions_of(fight, state)["rotation"]["totals"][0]["source"] == "p1"
+    rows = cw.skill_rows(fight, d, state)
+    assert [(r["source"], r["skill"], r["proc"]) for r in rows] == [("p1", "Flame Burst", False), ("p1", "Spark", False),
+                                                                    ("p2", "Heal", False)]
+    assert rows[0]["cells"] == ["2", "8.2s", "8.0s", "2 of 15 · 13.3%", "650 ms", "0:00.40 → 0:08.60"]
+    assert rows[2]["cells"] == ["2", "4.9s", "3.0s", "2 of 40 · 5.0%", "—", "−0:01.50 → 0:03.40"]
+    shown = cw.skill_rows(fight, d, {**state, "hide_procs": False})
+    assert ("Blessing", True, ["1", "—", "—", "—", "—", "0:05.00 → 0:05.00"]) in [(r["skill"], r["proc"], r["cells"]) for r in shown]
+    assert [r["skill"] for r in cw.skill_rows(fight, d, {**state, "actor": "p2"})] == ["Heal"]
+    # why the casts can't be shown: an older log, one without casts, a combined review
+    old = {k: v for k, v in fight.items() if k != "encounter_insights"}
+    assert cw.casts_missing(old, d, state) == ("Skill casts are not recorded for this encounter. The live meter records them "
+                                               "since 0.2.306; reopen the file with the updated app, or update the sharing "
+                                               "server, to see them.")
+    bare = cw.data(fight, state)
+    bare["segment"] = {**bare["segment"], "casts": []}
+    assert cw.casts_missing(fight, bare, state).endswith("since 0.2.306.")
+    combined = {**fight, "meta": {**fight["meta"], "reconstruction": {"omitted_actions": ["casts"]}}}
+    assert cw.casts_missing(combined, d, state) == cw.COMBINED_CASTS
+    # an opponent's own casts, summarised here as the analyzer summarises the party's
+    pvp = {**state, "segment": 1}
+    foe = cw.data(fight, pvp, "e1")
+    assert cw.casts_missing(fight, foe, pvp) == ""
+    rotation = cw.rotation_of(foe["segment"], "e1")
+    assert rotation["totals"] == [{"source": "e1", "casts": 2, "procs": 0, "per_minute": 2.0}]
+    arrow = rotation["skills"][0]
+    assert (arrow["skill"], arrow["casts"], arrow["average_gap"], arrow["cooldown_ms"], arrow["possible"]) == ("Arrow", 2, 2.5, 2000, 30)
+    assert cw.skill_rows(fight, foe, {**pvp, "actor": "e1"})[0]["cells"][3] == "2 of 30 · 6.7%"
+    silent = cw.data(fight, pvp, "e1")
+    silent["segment"] = {**silent["segment"], "casts": []}
+    assert cw.casts_missing(fight, silent, pvp) == cw.NO_FOE_CASTS
+    # the cast timeline: a lane per player who cast, every press on the fight's clock from before the pull
+    t = cw.cast_timeline(fight, d, state, {})
+    assert [lane["label"] for lane in t["lanes"]] == ["TestSorc ✓ · Zikel", "TestCleric"] and t["width"] == 4374.0
+    sorc, cleric = t["lanes"]
+    assert [m["detail"] for m in sorc["marks"]] == [
+        "0:00.40 · Flame Burst · → Ice Queen · cooldown 8.0s · cast 600 ms", "0:02.00 · Spark · → Ice Queen",
+        "0:03.00 · Spark · → Ice Queen", "0:08.60 · Flame Burst · → Ice Queen · cooldown 8.0s · cast 650 ms"]
+    assert round(sorc["marks"][0]["x"], 1) == 68.1 and round(sorc["marks"][0]["cast"], 1) == 21.5 and sorc["marks"][1]["cast"] is None
+    assert sorc["marks"][0]["icon"] == SKILL and sorc["marks"][0]["fill"] == cr.class_colour("sorcerer", {})
+    assert cleric["marks"][0]["x"] == 0.0 and cleric["marks"][0]["detail"].startswith("−0:01.50 · Heal")
+    assert [k["text"] for k in t["ticks"]][:3] == ["0:00", "0:10", "0:20"] and round(t["ticks"][0]["at"], 2) == 53.75   # 1.5 s in
+    procs = cw.cast_timeline(fight, d, {**state, "hide_procs": False}, {})
+    assert [(m["detail"], m["fill"]) for m in procs["lanes"][0]["marks"] if "proc" in m["detail"]] == [
+        ("0:05.00 · Blessing · proc or passive", cw.PROC)]
+    assert [lane["id"] for lane in cw.cast_timeline(fight, d, {**state, "actor": "p2"}, {})["lanes"]] == ["p2"]
+    assert cw.cast_timeline(fight, d, {**state, "actor": "pet1"}, {}) is None        # no one in view cast
+    crowded = json.loads(json.dumps(fight))
+    crowded["segments"][0]["casts"] += [{"source": "p1", "t": 30.0, "skill_id": 13000000 + i * 10000 + 1, "skill": f"Bolt {i}",
+                                         "target": "b1"} for i in range(4)]
+    assert cw.cast_timeline(crowded, cw.data(crowded, state), state, {})["lanes"][0]["omitted"] == 1
+
+
+def test_the_review_abilities_and_skills(qapp):
+    from PySide6.QtCore import QPoint, QPointF
+    from PySide6.QtTest import QTest
+    from aion2calc.gui.combat_review_views import ContributionBars, Timeline
+    app = FakeApp()
+    app.log_server.review_log = _casting()
+    page = _page(app)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: "Abilities and skills" in _labels(view) and view.ranks is not None and view.names is not None
+           and not view.awaiting)
+
+    def tab(name):
+        return _find(view, QPushButton, lambda b: b.accessibleName() == name)
+    # Ability contribution, first: the bars against the largest, their names and amounts on hover
+    assert tab("Ability contribution tab").objectName() == "primary"
+    bars = _find(view, ContributionBars, lambda w: True)
+    assert [b["value"] for b in bars.bars] == ["3,300", "500", "40"] and bars.row_at(bars.ROW + bars.GAP + 2) == 1
+    assert bars.height() == 3 * bars.ROW + 2 * bars.GAP and bars.grab() is not None
+    # Abilities: the table, and the metric's: damage taken, healing; none in the death recaps
+    tab("Abilities tab").click()
+    QCoreApplication.processEvents()
+    assert [view.ability_table.cell(1, c).text() for c in range(1, 9)] == ["Flame Burst", "5", "3,300", "85.9%", "550", "660",
+                                                                          "100", "1,500"]
+    _click(view, "Healing")
+    assert "Heal (heal)" in _cells(view)
+    _click(view, "Death recaps")
+    assert cw.DEATHS_ABILITIES in _labels(view) and view.ability_table is None
+    _click(view, "Summary")
+    # Skills: the analyzer's casts, the procs hidden then shown; a player alone
+    tab("Skills tab").click()
+    assert cw.SKILLS_NOTE in _labels(view) and "2 of 15 · 13.3%" in _cells(view) and "−0:01.50 → 0:03.40" in _cells(view)
+    settle(lambda: any(label.width() == 18 and not label.pixmap().isNull() for label in view.skills_table.findChildren(QLabel)
+                       if label.isVisibleTo(view)))                                  # Flame Burst's bundled icon
+    assert not any("Blessing" in t for t in _labels(view))
+    _find(view, QCheckBox, lambda c: c.text() == cw.HIDE_PROCS).setChecked(False)
+    assert any("Blessing" in t and ">proc<" in t for t in _labels(view)) and view.state["hide_procs"] is False
+    _choose(view, "Player", "p2")
+    assert not any("Flame Burst" in t for t in _labels(view)) and "−0:01.50 → 0:03.40" in _cells(view)
+    _choose(view, "Player", "")
+    # the cast timeline: a lane per player, a press inspected, the presses that had no room counted
+    tab("Cast timeline tab").click()
+    casts = view.casts
+    assert isinstance(casts, Timeline) and "<b>Cast timeline</b>" in _labels(view) and cw.CASTS_NOTE in _labels(view)
+    assert casts.corner.text() == "" and [lane["label"] for lane in view.casts_model["lanes"]] == ["TestSorc ✓ · Zikel", "TestCleric"]
+    assert any("proc or passive" in m["detail"] for m in view.casts_model["lanes"][0]["marks"])        # procs shown here too
+    first = view.casts_model["lanes"][0]["marks"][0]
+    assert casts.tracks.at(QPointF(first["x"] + 4, first["y"] + 4)) == (0, 0)
+    QTest.mouseClick(casts.tracks, Qt.LeftButton, Qt.NoModifier, QPoint(round(first["x"]) + 4, first["y"] + 4))
+    casts.tracks.grab()
+    # an opponent's own casts; an older log's none
+    _choose(view, "Encounter", 1)
+    settle(lambda: view.ranks is not None and not view.awaiting)
+    _choose(view, "Player", "e1")
+    tab("Skills tab").click()
+    assert "2 of 30 · 6.7%" in _cells(view)
+    tab("Hide tab").click()
+    assert view.skills_table is None and view.casts is None and view.ability_table is None
+    old = json.loads(json.dumps(app.log_server.review_log))
+    del old["encounter_insights"]
+    app.log_server.review_log = old
+    view.state.update(detail="skills", segment=0, actor="")
+    view.reload()
+    settle(lambda: any(t.startswith("Skill casts are not recorded for this encounter.") for t in _labels(view)))
+
+
 def _buttons(widget):
     """The buttons shown, once what was drawn last has shown."""
     _shown()

@@ -121,6 +121,15 @@ class Pictures(QObject):
             return True
         return str(code) in self.npcs
 
+    def has_address(self, url) -> bool:
+        """Whether the app bundles a picture for an address (``by_address`` may still be reading it); True until the
+        asset map is read, as any address may be in it (0.2.460)."""
+        if not isinstance(url, str) or not url:
+            return False
+        if self._map_state != "read":
+            return True
+        return url in self.files
+
     def _ask_map(self) -> None:
         state = self._map_state
         if self.requests is None or state in ("asking", "read"):

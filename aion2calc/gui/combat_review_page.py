@@ -13,9 +13,11 @@ Drawn here so far:
 - Since 0.2.459 the Table, Timeline and Events views: the events' list with a spreadsheet's column filters, a time and
   an amount range and its sort, a hundred at a time; and the recorded effect timeline, its window chosen, moved or
   scrubbed, its lanes shown, hidden or collapsed, and each effect inspected.
+- Since 0.2.460 the abilities and skills: each player's abilities as bars and as a table, their skills' casts with
+  cooldown usage, and the cast timeline.
 
-The rest of the review (its abilities, actions, death recaps, insights, rankings, reports, comparisons and movement
-replay) opens in the web interface for now, from a button on the page.
+The rest of the review (its actions, death recaps, insights, rankings, reports, comparisons and movement replay) opens
+in the web interface for now, from a button on the page.
 """
 from __future__ import annotations
 
@@ -37,7 +39,7 @@ from .api import AppApi, Requests
 from .combat_community import _note
 from .chrome import FlowLayout
 from .combat_review_charts import HP, LINE, PingChart, RateChart
-from .combat_review_views import FilterPopup, Placer, Timeline
+from .combat_review_views import ContributionBars, FilterPopup, Placer, Timeline
 from .combat_saved import TIMEOUT, Section, _button, _clear, _head, _label
 from .database_page import Window
 from .pictures import Pictures
@@ -347,6 +349,7 @@ class ReviewPage(QWidget):
             body.addWidget(self._events(d, events))
         if state["timeline"] and state["view"] == "timeline":
             body.addWidget(self._timeline(v, events))
+        body.addWidget(self._details(d, v, events))
         elsewhere = QFrame()
         elsewhere.setObjectName("note")
         line = QVBoxLayout(elsewhere)
@@ -735,6 +738,128 @@ class ReviewPage(QWidget):
         """The page before or after (``data-prev``, ``data-next``); the list keeps the page within its pages."""
         self.state["page"] = max(0, int(self.state.get("page") or 0) + step)
         self.draw()
+
+    # ---------------------------------------------------------------- the abilities and skills (0.2.460)
+    def _details(self, d: dict, v: dict, events: list[dict]) -> QWidget:
+        """The abilities and skills (``detailsHTML``): the tab chosen's, or nothing (**Hide**)."""
+        state = self.state
+        box, column = _plain(spacing=8)
+        self.details = box
+        column.addWidget(_head("Abilities and skills"))
+        tabs, line = _plain(QHBoxLayout, 6)
+        for key, words in cw.DETAILS:
+            tab = _button(words, lambda key=key: self._detail(key), "primary" if state["detail"] == key else "small")
+            tab.setAccessibleName(f"{words} tab")
+            line.addWidget(tab)
+        line.addStretch(1)
+        column.addWidget(tabs)
+        self.ability_table = self.skills_table = self.casts = None
+        detail = state["detail"]
+        if detail in ("contribution", "abilities"):
+            if state["metric"] == "deaths":
+                column.addWidget(_muted(cw.DEATHS_ABILITIES))
+                return box
+            found = cw.abilities(d, v, events, state)
+            if detail == "contribution":
+                bars = cw.contribution(found, d["r"], state)
+                column.addWidget(_label(bars["note"], "small", rich=True) if bars["bars"] else _muted(bars["note"]))
+                if bars["bars"]:
+                    r, colours = d["r"], self.colours
+                    column.addWidget(ContributionBars(bars["bars"], lambda actor: cr.class_colour(_dict(r.get(actor)).get("class"),
+                                                                                                 colours)))
+            else:
+                rows = cw.ability_table(found, v, state, cw.duration(d))
+                table = self._grid(cw.ABILITY_COLUMNS, [[self._name(d["r"].get(row["actor"]))] + row["cells"] for row in rows],
+                                   {0: 3, 1: 3, 2: 1, 3: 2, 4: 1, 5: 2, 6: 2, 7: 2, 8: 2})
+                table.setAccessibleName("Abilities")
+                self.ability_table = table
+                column.addWidget(table)
+        elif detail == "skills":
+            column.addWidget(self._skills(v))
+        elif detail == "casts":
+            column.addWidget(self._casts(v))
+        return box
+
+    def _detail(self, key: str) -> None:
+        """A tab of the abilities and skills chosen (``data-detail``)."""
+        self.state["detail"] = key
+        self.draw()
+
+    def _hide_procs(self) -> QCheckBox:
+        tick = QCheckBox(cw.HIDE_PROCS)
+        tick.setChecked(bool(self.state.get("hide_procs", True)))
+        tick.toggled.connect(lambda checked: self._option("hide_procs", checked))
+        return tick
+
+    def _skills(self, v: dict) -> QWidget:
+        """The skills' casts (``skillsHTML``): each skill's casts, gaps, cooldown and its usage, cast time and span."""
+        missing = cw.casts_missing(self.doc, v, self.state)
+        if missing:
+            return _label(missing, "small", rich=True)
+        box, column = _plain(spacing=6)
+        column.addWidget(_muted(cw.SKILLS_NOTE))
+        column.addWidget(self._hide_procs())
+        cells = [[self._actor(v["r"].get(row["source"])), self._skill_cell(row["skill_id"], row["skill"], row["proc"])]
+                 + row["cells"] for row in cw.skill_rows(self.doc, v, self.state)]
+        table = self._grid(cw.SKILL_COLUMNS, cells, {0: 3, 1: 4, 2: 1, 3: 2, 4: 2, 5: 3, 6: 2, 7: 3})
+        table.setAccessibleName("Skills")
+        self.skills_table = table
+        column.addWidget(table)
+        return box
+
+    def _skill_cell(self, skill_id, name: str, proc: bool) -> QWidget:
+        """A skill with its icon when the app bundles it (``skillCell``), a proc marked as one."""
+        cell, line = _plain(QHBoxLayout, 6)
+        address = cw.skill_icon(skill_id)
+        picture = self.pictures.by_address(address) if self.pictures is not None and address else None
+        if picture is None and self.pictures is not None and self.pictures.has_address(address):
+            self.awaiting = True                                   # drawn again once it comes
+        if picture is not None and not picture.isNull():
+            icon = QLabel()
+            icon.setFixedSize(18, 18)
+            icon.setScaledContents(True)
+            icon.setPixmap(picture)
+            line.addWidget(icon)
+        words = _label(html.escape(name) + (f" <span style='color: {C['muted']};'>proc</span>" if proc else ""), rich=True)
+        words.setWordWrap(False)
+        line.addWidget(words)
+        line.addStretch(1)
+        cell.setProperty("fill", True)
+        return cell
+
+    def _casts(self, v: dict) -> QWidget:
+        """Every press over the fight (``castsHTML``)."""
+        missing = cw.casts_missing(self.doc, v, self.state)
+        if missing:
+            return _label(missing, "small", rich=True)
+        model = cw.cast_timeline(self.doc, v, self.state, self.colours)
+        if model is None:
+            return _muted(cw.NO_PLAYER_CASTS)
+        box, column = _plain(spacing=6)
+        column.addWidget(_label("<b>Cast timeline</b>", rich=True))
+        column.addWidget(_muted(cw.CASTS_NOTE))
+        column.addWidget(self._hide_procs())
+        casts = Timeline(model, self._cast_lane_name, lambda lane: QWidget(), self._skill_picture)
+        casts.setAccessibleName("Cast timeline")
+        if self.pictures is not None:
+            self.pictures.changed.connect(casts.tracks.update)
+        self.casts, self.casts_model = casts, model
+        column.addWidget(casts)
+        return box
+
+    def _cast_lane_name(self, lane: dict) -> QWidget:
+        """A cast lane's name in its class's colour, with how many presses had no room (``.cr-lane-name``)."""
+        cell = QFrame()
+        cell.setObjectName("crLaneName")
+        layout = QVBoxLayout(cell)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(2)
+        layout.addStretch(1)
+        layout.addWidget(self._name(lane["actor"]))
+        if lane.get("omitted"):
+            layout.addWidget(_muted(f"{lane['omitted']} not drawn (overlap)"))
+        layout.addStretch(1)
+        return cell
 
     # ---------------------------------------------------------------- the timeline (0.2.459)
     def _timeline(self, v: dict, events: list[dict]) -> QWidget:

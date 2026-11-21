@@ -1,3 +1,14 @@
+## A combat log's own page in the native interface, part 4 (0.2.460)
+
+**A log's review in the app's window now has its Abilities and skills**, under the view chosen, with its tabs:
+- **Ability contribution:** each player's abilities as bars against the largest, in the player's class colour, the top twenty, with the amount; the name and amount show on hover;
+- **Abilities:** every ability's effects, amount, share, rate (damage done on the active clock), average, smallest and largest;
+- **Skills:** each skill's casts from the game's own cast records, the average gap, the cooldown the game sent, how many casts fit in the fight at that cooldown and the share used, the cast time, and the first and last cast. **Hide procs and passive effects** leaves out the effects no one cast. In PvP, an opponent's casts are read from the log too;
+- **Cast timeline:** every press over the fight, a lane per player, each press its skill's tile with the line of its cast time under it. Point at a press to see its time, target and cooldown;
+- **Hide** folds the section away.
+
+The review's other sections (actions, death recaps, insights, rankings, reports, comparisons and movement replay) still open in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 3 (0.2.459)
 
 **A log's review in the app's window now has its Table, Timeline and Events views**, chosen at the right of the metric tabs:
