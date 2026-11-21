@@ -1,3 +1,22 @@
+## The native overlay's arena mode (0.2.423)
+
+**Native overlay, tenth part.** The native interface's overlay (Settings → Native interface, a preview) now has the web overlay's arena mode. In the Arena of Solitude, the Arena of Cooperation and a battlefield:
+- **The card at the top** is your opponent's, or your current target's among the enemy players:
+  - its class's emblem, its name, server and faction, and an Opponent or Target tag;
+  - its HP (or Dead) and its HP bar;
+  - its combat power, gear score, class, level and arena rating;
+  - the round and the score, or the result and your new rating; in a team match, the share of the damage you took that it dealt, and its deaths.
+- **The rows** show your DPS, damage taken and HPS at once, in the layout picked in the overlay's options:
+  - *Compact* (the default): one row per fighter, the three figures side by side, each over a bar;
+  - *Stacked*: a section for each metric;
+  - *Versus*: you and your opponent face each other on the card, and each metric is a tug of war.
+
+  In a team match your own three come first, then the party in the metric chip's metric, or all three for everyone with *All 3 for party* on.
+- **The clock** names the match, with its score or the party's total.
+- **The options** hold *Arena mode*, *All 3 for party*, *Player cards window*, the arena layout and the player cards' style. They are saved as settings, as on the web overlay.
+
+Arena mode off, the overlay draws the meter as ever. The player cards window itself is still the web overlay's own window.
+
 ## The native overlay's clock, ping and toolbar (0.2.422)
 
 **Native overlay, ninth part.** The native interface's overlay (Settings → Native interface, a preview) now lays out the rest of its card as the web overlay's compact layout does:
