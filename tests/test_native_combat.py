@@ -3,7 +3,8 @@ file with its progress, the logs folder, the log server shared to, the encounter
 them; since 0.2.451 Saved Logs' recorded encounters by type (saved-logs.js) and its upload queue (archive-upload.js);
 since 0.2.452 My Uploads (log-ownership.js) and My Character Identities (identity.js); since 0.2.453 the community's
 views (logs-view.js); since 0.2.454 Personal records (community.js); since 0.2.455 the featured encounters (featured.js);
-since 0.2.456 an analyzed encounter's page with its parse card (pages/combat.js, parse.js).
+since 0.2.456 an analyzed encounter's page with its parse card (pages/combat.js, parse.js); since 0.2.457 a log's own
+page, its review's frame and summary (combat-review.js).
 Off screen over a fake app answering as the app does, a fake share server and a fake log server behind the app's
 community proxy (made-up logs, recordings, credentials, characters, teams and encounters).
 """
@@ -31,6 +32,7 @@ from aion2calc.gui import combat_records as cr  # noqa: E402
 from aion2calc.gui import combat_featured as cf  # noqa: E402
 from aion2calc.gui import combat_analysis as ca  # noqa: E402
 from aion2calc.gui.combat_analysis_page import Bar, DpsChart, Donut, ParseCard  # noqa: E402
+from aion2calc.gui import combat_review as cw  # noqa: E402
 from aion2calc.gui.combat_community import BossProgression, BuildPoints, CommunityLogs, RunSpeed  # noqa: E402
 from aion2calc.gui.combat_extras import BoxPlot, PersonalRecords, TrendChart  # noqa: E402
 from aion2calc.gui.combat_featured_page import _Closer, _Painted, _Segment, _Spread  # noqa: E402
@@ -205,6 +207,56 @@ ANALYSIS = {"id": 3, "file": "/data/logs/3.json",
 CLERIC_ANALYSIS = {**ANALYSIS, "id": 4, "meta": {**ANALYSIS["meta"], "player": "TestCleric", "class": "cleric"},
                    "vs_optimal": {"error": "no optimized build for cleric"}, "vs_top": {"error": "no top logs"}}
 
+# a recorded log (an a2log document): a PvE fight (a player, their spirit, a healer, the boss) and an arena match
+REVIEW_LOG = {
+    "meta": {"title": "Frost Spire night", "encounter_type": "pve_raid", "installed_build": "2.1.0.3",
+             "installed_build_source": "game files", "game_patch": "version:product:2.1",
+             "game_patch_source": "version:product:2.1.0.3", "region_source": "server list"},
+    "players": [{"id": "p1", "name": "TestSorc", "class": "sorcerer", "server": 2102, "verified": True},
+                {"id": "p2", "name": "TestCleric", "class": "cleric"}],
+    "run_analysis": {"note": "Runs from the recording.", "runs": [
+        {"id": "r1", "recorded_span_seconds": 754.3, "elapsed_seconds": 700, "combat_seconds": 120, "downtime_seconds": 65.04,
+         "speed_eligible": True, "progression": [
+             {"boss": "Ice Queen", "boss_key": "npc:2001", "attempts": 2, "kills": 1, "wipes": 1, "unknown": 0,
+              "attempts_to_first_clear": 2, "best_wipe_hp_pct": 12.34, "wipe_recovery_seconds": [45]},
+             {"boss": "Mau Totem", "boss_key": "npc:2300907", "attempts": 1, "kills": 1, "wipes": 0, "unknown": 0}],
+         "attempts": [{"attempt": 1, "boss": "Ice Queen", "boss_key": "npc:2001", "outcome": "wipe", "recorded_seconds": 90,
+                       "best_remaining_hp_pct": 12.34, "segments": [0]}]},
+        {"id": "r2", "recorded_span_seconds": 60, "elapsed_seconds": None, "combat_seconds": 55, "downtime_seconds": 5,
+         "speed_eligible": False, "speed_reasons": ["No instance entry."]}]},
+    "segments": [
+        {"label": "Ice Queen", "boss": "Ice Queen", "duration": 120, "run_id": "r1", "run_complete": True,
+         "run_end_reason": "boss killed", "zone": "Frost Spire", "zone_source": "map load", "difficulty": "Hard",
+         "difficulty_source": "instance",
+         "entities": [{"id": "pet1", "name": "Spirit", "owner": "p1"},
+                      {"id": "b1", "name": "Ice Queen", "kind": "enemy", "is_boss": True}],
+         "quality": {"eligible": True, "messages": ["Complete capture."], "note": "Checked against the boss's HP.",
+                     "driver_monitoring": {"sampled": True, "pcap_received": 1200, "pcap_dropped": 0, "pcap_if_dropped": 0,
+                                           "note": "No loss."}},
+         "heals_over_time": {"records": 2, "amount": 900, "rebuilt": 450, "skills": {"Renewal": 2}},
+         "events": [{"kind": "damage", "t": 0.5, "source": "p1", "target": "b1", "amount": 1000, "skill": "Flame Burst"},
+                    {"kind": "damage", "t": 1.2, "source": "pet1", "target": "b1", "amount": 500, "skill": "Spirit Strike"},
+                    {"kind": "damage", "t": 2.7, "source": "p1", "target": "b1", "amount": 1500, "skill": "Flame Burst"},
+                    {"kind": "damage", "t": 3.1, "source": "b1", "target": "p2", "amount": 800, "skill": "Frost Breath"},
+                    {"kind": "heal", "t": 3.5, "source": "p2", "target": "p2", "amount": 600, "skill": "Heal"},
+                    {"kind": "death", "t": 5.0, "target": "p2"}, {"kind": "death", "t": 5.0, "target": "p2"},
+                    {"kind": "revive", "t": 9.0, "target": "p2"}]},
+        {"label": "Arena", "duration": 60, "encounter_type": "pvp_arena", "run_id": "r2",
+         "entities": [{"id": "e1", "name": "Rival", "kind": "enemy", "is_player": True, "class": "ranger", "server": 2102}],
+         "casts": [{"source": "e1", "t": 1.5}],
+         "events": [{"kind": "damage", "t": 1.0, "source": "p1", "target": "e1", "amount": 2000, "skill": "Flame Burst"},
+                    {"kind": "damage", "t": 2.0, "source": "e1", "target": "p1", "amount": 900, "skill": "Arrow"},
+                    {"kind": "heal", "t": 3.0, "source": "p2", "target": "e1", "amount": 300, "skill": "Heal"},
+                    {"kind": "death", "t": 4.0, "target": "e1"}],
+         "arena": {"result": "win", "rounds_won": 1, "rounds_lost": 0, "rating": 1512,
+                   "fighters": [{"name": "TestSorc", "ref": "p1", "self": True, "class": "sorcerer", "server": 2102,
+                                 "faction": "elyos", "rating": 1500},
+                                {"name": "Rival", "ref": "e1", "class": "ranger", "server": 2102, "faction": "asmodian",
+                                 "rating": 1520}],
+                   "rounds": [{"round": 1, "t": 30.25, "winner": 0, "loser": 1}]}}]}
+REVIEW_RANKS = {"players": [{"id": "p1", "parse": 98.6, "parse_runs": 12, "parse_rank": 2}, {"id": "p2", "parse": None}],
+                "note": "Ranked against public runs."}
+
 
 class LogServer:
     """The log server's public routes behind the app's community proxy, as logs-view.js asks them."""
@@ -233,6 +285,7 @@ class LogServer:
             {"boss": "Ice Queen", "difficulty": "Hard", "region": "EU", "attempts": 5, "kills": 1, "wipes": 4,
              "observed_kill_rate": 0.2, "fastest_kill_seconds": 400}]}
         self.featured: list[dict] = []                       # none featured, unless a test features one
+        self.posted: list[tuple[str, dict]] = []               # what was sent to the server's routes
         self.points = {"observations": [
             {"class_name": "sorcerer", "skill": 100, "stigma": 20, "daevanion": 300, "ariel": None, "region": "NA"},
             {"class_name": "sorcerer", "skill": 110, "stigma": 20, "daevanion": 300, "ariel": 5, "region": "EU"},
@@ -266,6 +319,12 @@ class LogServer:
             return json.loads(json.dumps(RECORDS))
         if route == "/api/v1/consistency":
             return json.loads(json.dumps(CONSISTENCY))
+        if route.startswith("/api/v1/logs/") and route.endswith("/raw"):
+            if route != "/api/v1/logs/log0001/raw":
+                raise ValueError("RuntimeError: Community server (404): no such log")
+            return json.loads(json.dumps(REVIEW_LOG))
+        if route.startswith("/api/v1/logs/") and route.endswith("/rankings"):
+            return {**json.loads(json.dumps(REVIEW_RANKS)), "segment": int(q["segment"][0])}
         if route == "/api/v1/featured":
             return {"featured": json.loads(json.dumps(self.featured)), "note": "Featured by the operator."}
         if route.startswith("/api/v1/featured/"):
@@ -389,6 +448,15 @@ class FakeApp:
         page = self.recordings if offset == 0 else self.older if offset == limit else []
         return {"rows": json.loads(json.dumps(page)), "has_more": offset == 0 and bool(self.older)}
 
+    def community_post(self, body):
+        """What the log server answers to a route posted through the app's proxy (``communityAPI(path, body)``)."""
+        self.log_server.posted.append((body["path"], json.loads(json.dumps(body["body"]))))
+        if self.log_server.refusal:
+            raise ValueError(self.log_server.refusal)
+        if body["path"] == "/api/v1/rankings":
+            return {**json.loads(json.dumps(REVIEW_RANKS)), "segment": body["body"]["segment"]}
+        raise AssertionError(body["path"])
+
     def ownership(self, body):
         """The app's private credentials: imported, forgotten, or used with an upload's server."""
         if body.get("action") == "import":
@@ -452,6 +520,10 @@ class FakeApp:
             query = urllib.parse.parse_qs(path.split("?", 1)[1], keep_blank_values=True)
             if "fingerprint" in query:
                 return {"fingerprint": self.fingerprint(query["fingerprint"][0])}
+            if "file" in query:
+                if query["file"] != ["session-1.a2log.json"]:
+                    raise ValueError("No such recording")
+                return json.loads(json.dumps(REVIEW_LOG))
             return self.sessions(query)
         if path == "/api/jobs/imp":
             self.reads -= 1
@@ -479,6 +551,8 @@ class FakeApp:
         if path == "/api/upload-queue":
             self.queue_kept = json.loads(json.dumps(body))
             return {"ok": True}
+        if path == "/api/community":
+            return self.community_post(body)
         if path == "/api/log-ownership":
             return self.ownership(body)
         if path == "/api/identity-claims":
@@ -2124,6 +2198,228 @@ def test_the_window_opens_an_analysis_itself(qapp):
     assert window.pages.currentWidget() is combat and combat.analysis_page.identifier == "7"
     QCoreApplication.processEvents()
     assert combat.analysis_page.isVisibleTo(combat) and not combat.frame.isVisibleTo(combat)
+
+
+def test_the_review_words():
+    doc = json.loads(json.dumps(REVIEW_LOG))
+    assert cw.actor_label({"name": "TestSorc", "verified": True, "server": 2102}) == "TestSorc ✓ · Zikel"
+    assert cw.actor_label({"id": "x9", "pseudonym": True}) == "x9 (hidden by its player)"
+    assert cw.actor_label(None) == cw.actor_label({}) == cw.UNKNOWN
+    r = cw.segment_refs(doc, doc["segments"][0], True)
+    assert set(r) == {"p1", "p2", "pet1", "b1"} and r["pet1"]["class"] == "sorcerer"     # a pet takes its owner's class
+    assert set(cw.segment_refs(doc, {}, True)) == {"p1", "p2"} and cw.segment_refs(doc, {}, False) == {}
+    assert cw.root_owner("pet1", r) == "p1" and cw.root_owner("a", {"a": {"owner": "b"}, "b": {"owner": "a"}}) == "a"
+    # the players' totals: a pet's damage its owner's, one death marker recorded twice one death, the active clock
+    state = cw.fresh_state()
+    d = cw.data(doc, state)
+    rows = {p["id"]: p for p in d["rows"]}
+    assert (rows["p1"]["damage"], rows["p1"]["hits"], rows["p2"]["taken"], rows["p2"]["healing"]) == (3000, 3, 800, 600)
+    assert (rows["p2"]["deaths"], rows["p2"]["revives"], d["dps_duration"]) == (1, 1, 2)
+    assert {p["id"]: p["damage"] for p in cw.data(doc, {**state, "combine": False})["rows"]}["pet1"] == 500
+    assert all(p["damage"] == 0 for p in cw.data(doc, {**state, "enemy": "zz"})["rows"])
+    assert [(x["id"], x["damage"], x["dps"], x["taken"], x["healing"], x["hps"], x["deaths"]) for x in cw.summary_rows(d, d, state)] == [
+        ("p1", "3,000", "1,500", "0", "0", "0", "No markers"), ("p2", "0", "0", "800", "600", "5", "1 (revived 1)")]
+    assert [x["id"] for x in cw.summary_rows(d, d, {**state, "metric": "taken"})] == ["p2", "p1"]
+    assert [x["id"] for x in cw.summary_rows(d, d, {**state, "actor": "p2"})] == ["p2"]
+    note = cw.summary_note(d, d, "", True)
+    assert note.startswith("DPS uses shared active damage time (2s)") and note.endswith(cw.PARSE_NOTE)
+    assert cw.summary_columns(True)[1] == "Parse" and "Parse" not in cw.summary_columns(False)
+    # a PvP fight: the heals between the two sides nobody's, an opponent read from their side
+    pvp = {**state, "segment": 1}
+    d1 = cw.data(doc, pvp)
+    assert [e["id"] for e in cw.opponents_of(doc, d1)] == ["e1"] and cw.is_pvp(doc, d1) and not cw.opponents_of(doc, d)
+    assert d1["unattributed"] == {"count": 1, "amount": 300.0, "skills": {"Heal": 1}}
+    assert cw.unattributed_line(d1["unattributed"]).startswith(
+        "Left out of everyone's healing: 1 heal record between the two sides, 300 as recorded (Heal ×1).")
+    foe = cw.data(doc, pvp, "e1")
+    assert {p["id"]: (p["damage"], p["taken"], p["deaths"]) for p in foe["rows"]} == {"e1": (900, 2000, 1)}
+    o = cw.opponent(foe)
+    assert o["recorded"] == ("Recorded: 1 hit of theirs, 1 hit on them, 1 cast, 1 death marker. Not recorded: their healing, "
+                             "buffs and debuffs on or from them, their HP, their positions.")
+    assert [(x["id"], x["amount"], x["share"], x["rate"]) for x in o["dealt"]] == [("p1", "900", "100.0%", "900")]
+    assert [(x["id"], x["amount"], x["rate"]) for x in o["taken"]] == [("p1", "2,000", "33")]
+    assert cw.summary_note(d1, foe, "e1", False).startswith("An opponent's figures are the recording's records of them")
+    a = cw.arena(d1)
+    assert a["title"] == "Arena match · Win 1–0 · Rating 1500 → 1512 (+12)"
+    assert [(f["name"], f["self"], f["server"], f["faction"], f["rating"], f["won"]) for f in a["fighters"]] == [
+        ("TestSorc", True, "Zikel", "Elyos", "1500", "1"), ("Rival", False, "Zikel", "Asmodian", "1520", "0")]
+    assert [(x["round"], x["at"], x["winner"]["name"], x["loser"]["name"]) for x in a["rounds"]] == [("1", "0:30.25", "TestSorc", "Rival")]
+    assert cw.arena({"segment": {}, "r": {}}) is None
+    # the encounters, runs and notes
+    assert cw.segment_choices(doc, state) == [(0, "Ice Queen"), (1, "Arena")]
+    assert cw.segment_choices(doc, {**state, "mode": "pvp"}) == [(1, "Arena")]
+    assert cw.segment_choices(doc, {**state, "run": "r1"}) == [(0, "Ice Queen")]
+    assert cw.runs(doc, state) == ["r1", "r2"] and cw.first_of_run(doc, {**state, "run": "r2"}) == 1
+    assert cw.run_line(d) == "Run r1 · Finished · boss killed"
+    cut = {"segments": [{"label": "Boss"}, {"label": "Boss", "continued_in": 0, "fragment": "after_kill"}, {"boss": "Boss", "continued_in": 0}]}
+    assert [w for _i, w in cw.segment_choices(cut, state)] == ["Boss", "Boss (after the kill)", "Boss (piece of a cut fight)"]
+    assert cw.pieces(cut, state) == [2]
+    assert cw.source_line(doc, d) == ("Installed game version: 2.1.0.3 (game files). Version source: Product version 2.1.0.3. "
+                                      "Zone: Frost Spire · map load. Difficulty: Hard · instance. Region source: server list.")
+    assert cw.rebuilt_line(doc["segments"][0]["heals_over_time"]).startswith(
+        "Heals over time rebuilt: 2 heal records (Renewal ×2), 900 as recorded, now 450.")
+    assert cw.rebuilt_line(None) == "" and cw.unattributed_line(None) == ""
+    # the capture's quality, and how a cut fight was joined
+    q = cw.quality(None, d)
+    assert q["summary"] == "Capture quality · Eligible for community rankings" and q["messages"] == ["Complete capture."]
+    assert q["driver"] == "Capture driver: 1,200 received · 0 capture-buffer drops · 0 interface/driver drops. No loss."
+    assert q["processing"] == "" and q["note"] == "Checked against the boss's HP."
+    old = cw.quality({}, {"segment": {}})
+    assert old["summary"].endswith("Unranked / completeness unverified") and old["note"] == cw.OLD_QUALITY
+    ranked = cw.quality({"quality": {"eligible": False, "capture_processing": {"decoder_errors": 2}}}, d)
+    assert ranked["processing"].startswith("Capture processing: 2 decoder failures · not recorded recovered frame-skips")
+    lines = cw.stitched({"stitched": {"merged": {"duration": 180, "damage": 5000, "previous": {"log": "log0000"}}},
+                         "continued_in": {"part": 3, "log": "log0002"}}, d, doc)
+    assert lines[0]["words"].startswith("This fight was cut by a storage rollover: its first 1:00.0 are in the previous recording part.")
+    assert (lines[0]["log"], lines[1]["log"]) == ("log0000", "log0002")
+    assert lines[1]["words"] == ("This fight was cut by a storage rollover and continues in the next part of the recording (part 3), "
+                                 "where the whole fight is indexed and ranked.")
+    assert cw.stitched({"stitched": {"parts": [1, 3]}}, d, doc)[0]["words"].startswith("Part of a run stitched across recording parts 1–3")
+    piece = cw.stitched(None, {"segment": {"continued_in": 0, "fragment": "opening_blow"}}, doc)
+    assert [(x["segment"], x["action"]) for x in piece] == [(0, "Open the fight")]
+    runs = cw.run_tables(doc, d, state, None)
+    assert runs["kind"] == "pve" and runs["rows"][0] == ["r1", "12:34.3", "11:40.0", "2:00.0", "1:05.0", "Eligible"]
+    assert runs["rows"][1][2] == "Unavailable" and runs["rows"][1][-1] == "No instance entry."
+    assert [x[0] for x in runs["progression"]["rows"]] == ["Ice Queen"]          # the mini-boss left out
+    assert runs["progression"]["rows"][0][6:] == ["12.3%", "0:45.0"]
+    assert runs["progression"]["attempts"] == [["1", "Ice Queen", "wipe", "1:30.0", "12.3%", "0"]]
+    pvp_runs = cw.run_tables(doc, d1, state, None)
+    assert pvp_runs["kind"] == "pvp" and pvp_runs["note"].endswith("from the game's own records.")
+    assert cw.run_tables({"segments": [{}]}, {"segment": {}}, state, None)["note"] == cw.NO_RUNS
+    # parses
+    assert cw.parse_badge(None, "p1", "sorcerer")["tip"] == "Loading the community parse…"
+    badge = cw.parse_badge(REVIEW_RANKS, "p1", "sorcerer")
+    assert (badge["text"], badge["tier"], badge["provisional"]) == ("99", "orange", False)
+    assert badge["tip"] == "Parse 98.6 · rank 2 of 12 ranked sorcerer runs on this encounter"
+    assert cw.parse_badge(REVIEW_RANKS, "p2", "cleric")["tip"] == "No comparable public parses for this class on this encounter yet"
+    assert cw.parse_badge({"note": "Unranked: no boss."}, "p1", "x")["tip"] == "Unranked: no boss."
+    assert cw.parse_badge({"error": "busy"}, "p1", "x")["tip"] == "busy"
+    few = cw.parse_badge({"players": [{"id": "p1", "parse": 100, "parse_characters": 3}]}, "p1", "sorcerer")
+    assert (few["tier"], few["provisional"]) == ("gold", True) and few["tip"].startswith("Parse 100 among 3 ranked sorcerer runs")
+    # times, and the pages
+    assert [cw.clock(65.4), cw.clock(30.25, True), cw.seconds(None), cw.seconds(61.25)] == ["1:05", "0:30.25", "Unavailable", "1:01.3"]
+    assert cw.read_page("combat-log/shared/log0001?mode=pvp&segment=1") == {"kind": "shared", "value": "log0001", "mode": "pvp",
+                                                                             "segment": 1}
+    assert cw.read_page("combat-log/local/session%201.json") == {"kind": "local", "value": "session 1.json", "mode": "",
+                                                                 "segment": None}
+    assert cw.read_page("combat-log/analysis/3") is None and cw.read_page("combat") is None
+    assert cw.local_page("session 1.json", "pve", 2) == "combat-log/local/session%201.json?mode=pve&segment=2"
+    assert cw.log_path("local", "a b.json") == ("/api/sessions?file=a%20b.json", False)
+    assert cw.log_path("shared", "log0001") == ("/api/v1/logs/log0001/raw", True)
+    assert cw.rankings_question("shared", "log0001", 1, doc) == ("/api/v1/logs/log0001/rankings?segment=1", None)
+    assert cw.rankings_question("local", "x", 0, doc) == ("/api/v1/rankings", {"segment": 0, "log": doc})
+    assert not cw.reconstructed(doc) and cw.reconstructed({"meta": {"reconstruction": {"sources": []}}})
+
+
+def _summary_cell(view, row, column):
+    _shown()
+    return view.summary.cell(row, column)
+
+
+def test_a_shared_log_review(qapp):
+    from aion2calc.gui.combat_review_page import ReviewPage
+    opened, web = [], []
+    app = FakeApp()
+    page = _page(app, open_web=opened.append, open_in_web=web.append)
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    assert isinstance(view, ReviewPage)
+    settle(lambda: "FROST SPIRE NIGHT" in _labels(view) and "99" in _labels(view))
+    asked = app.log_server.asked
+    assert "/api/v1/logs/log0001/raw" in asked and "/api/v1/logs/log0001/rankings?segment=0" in asked
+    assert not page.frame.isVisibleTo(page) and view.isVisibleTo(page)
+    # the page's paint metrics are Qt's own (``QWidget.metric``): asking for them leaves the metric chosen as it was
+    assert view.logicalDpiY() > 0 and view.state["metric"] == "summary"
+    texts = _labels(view)
+    assert all(t in texts for t in ("120.0s", "Run r1 · Finished · boss killed", cw.ELSEWHERE, "No markers"))
+    assert any(t.startswith("Installed game version: 2.1.0.3") for t in texts)
+    assert any(t.startswith("Heals over time rebuilt: 2 heal records") for t in texts)
+    assert "<span style='color: #123456;'>TestSorc ✓ · Zikel</span>" in texts          # the user's sorcerer colour
+    assert f"1 <span style='color: {theme_colour('muted')};'>(revived 1)</span>" in texts
+    cells = _cells(view)
+    assert all(c in cells for c in ("sorcerer", "3,000", "1,500", "800", "600", "5"))
+    pill = _find(view, QLabel, lambda label: label.text() == "99")
+    assert pill.toolTip() == "Parse 98.6 · rank 2 of 12 ranked sorcerer runs on this encounter"
+    assert _find(view, QLabel, lambda label: label.text() == "·").toolTip() == (
+        "No comparable public parses for this class on this encounter yet")
+    # the capture's quality and the run timing, folded
+    view.quality_fold.button.click()
+    assert "• Complete capture." in _labels(view) and "Checked against the boss's HP." in _labels(view)
+    view.runs_fold.button.click()
+    assert "12:34.3" in _cells(view) and "Run r1 · boss attempts" in _labels(view)
+    # the metric sorts the summary; a player chosen alone
+    _click(view, "Damage Taken")
+    assert "TestCleric" in _summary_cell(view, 1, 0).text()
+    _choose(view, "Player", "p2")
+    assert "TestCleric" in _summary_cell(view, 1, 0).text() and view.summary.grid.rowCount() == 2
+    _choose(view, "Player", "")
+    # another encounter: the arena match, the heals left out, the opponent offered; its parses asked for
+    _choose(view, "Encounter", 1)
+    settle(lambda: "/api/v1/logs/log0001/rankings?segment=1" in asked and "Arena match · Win 1–0 · Rating 1500 → 1512 (+12)" in _labels(view))
+    texts = _labels(view)
+    assert cw.CHOOSE_OPPONENT in texts and any(t.startswith("Left out of everyone's healing") for t in texts)
+    assert "0:30.25" in _cells(view)
+    _choose(view, "Player", "e1")
+    texts = _labels(view)
+    assert any("Recorded: 1 hit of theirs" in t for t in texts) and "PARSE" not in _cells(view) + [
+        h.text() for h in view.summary.findChildren(QLabel) if h.objectName() == "thead"]
+    assert any(t.startswith("An opponent's figures") for t in texts)
+    # the full review in the web interface, at this encounter
+    _click(view, cw.OPEN_WEB)
+    assert web == ["combat-log/shared/log0001?mode=&segment=1"]
+    # the parses read again; another log the server links the fight to
+    count = asked.count("/api/v1/logs/log0001/rankings?segment=1")
+    _choose(view, "Player", "")
+    _click(view, cw.REFRESH)
+    settle(lambda: asked.count("/api/v1/logs/log0001/rankings?segment=1") == count + 1 and view.ranks is not None)
+    view.ranks = {**REVIEW_RANKS, "continued_in": {"log": "log0002"}}
+    view.draw()
+    view.quality_fold.button.click()
+    _click(view, "Open the whole fight")
+    assert opened[-1] == "combat-log/shared/log0002?mode="
+    # a log the server doesn't have; Back
+    page.open_review("shared", "nope")
+    settle(lambda: "RuntimeError: Community server (404): no such log" in _labels(view))
+    _click(page, cf.BACK)
+    assert page.frame.isVisibleTo(page)
+
+
+def test_a_recorded_log_review(qapp):
+    app = FakeApp()
+    page = _page(app)
+    page.open_review("local", "session-1.a2log.json", "pvp")
+    view = page.review_page
+    settle(lambda: "Arena match · Win 1–0 · Rating 1500 → 1512 (+12)" in _labels(view) and app.log_server.posted)
+    sent_path, sent = app.log_server.posted[-1]
+    assert sent_path == "/api/v1/rankings" and sent["segment"] == 1 and sent["log"]["meta"]["title"] == "Frost Spire night"
+    assert "/api/sessions?file=session-1.a2log.json" in app.calls
+    assert any("Showing only encounters recorded as PVP" in t for t in _labels(view))
+    _choose(view, "Combat mode", "")
+    settle(lambda: len(app.log_server.posted) == 2 and "Ice Queen" in [view.findChildren(QComboBox)[2].itemText(i)
+                                                                         for i in range(view.findChildren(QComboBox)[2].count())])
+    assert app.log_server.posted[-1][1]["segment"] == 0
+    # a mode without encounters: said so, and all of them shown again
+    view.doc = {"meta": {}, "players": [], "segments": [{"label": "Training", "duration": 5}]}
+    view.state["mode"] = "pvp"
+    view.draw()
+    settle(lambda: cw.NO_MODE_ENCOUNTERS in _labels(view))                # after the parses asked for before it
+    _click(view, cw.SHOW_ALL)
+    assert view.state["mode"] == "" and view.state["segment"] == 0
+    # a recording the app can't read
+    page.open_review("local", "nope.json")
+    settle(lambda: "No such recording" in _labels(view))
+
+
+def test_the_window_opens_a_log_review_itself(qapp):
+    window = MainWindow(None)
+    window.open_web("combat-log/shared/log0001?mode=pvp&segment=1")
+    combat = window.page("combat")
+    assert window.pages.currentWidget() is combat and combat.review_page.where == {"kind": "shared", "value": "log0001"}
+    assert (combat.review_page.state["mode"], combat.review_page.state["segment"]) == ("pvp", 1)
+    window.open_web("combat-log/local/session%201.json")
+    assert combat.review_page.where == {"kind": "local", "value": "session 1.json"}
+    QCoreApplication.processEvents()
+    assert combat.review_page.isVisibleTo(combat) and not combat.frame.isVisibleTo(combat)
 
 
 def test_the_window_draws_combat_logs_itself(qapp):

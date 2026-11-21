@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHBoxLayout, QHe
 
 from . import theme
 from .account_page import AccountPage
+from .combat_review import read_page
 from .api import AppApi, Poller
 from .news import NewsPage
 from .crafting_page import CraftingPage
@@ -258,7 +259,7 @@ class MainWindow(QMainWindow):
                 elif key == "account":
                     widget = AccountPage(api, self.open_web)
                 elif key == "combat":
-                    widget = CombatPage(api, self.open_web)
+                    widget = CombatPage(api, self.open_web, open_in_web=self.open_in_web)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)
@@ -285,10 +286,13 @@ class MainWindow(QMainWindow):
             self.pages.setCurrentIndex(self.page_index[key])
 
     def open_web(self, page: str) -> None:
-        """Open a page: here when this window draws it (an analyzed encounter, 0.2.456), else in the web interface, the
-        app's own window for it when Edge or Chrome is there."""
-        if self._open_here(page):
-            return
+        """Open a page: here when this window draws it (an analyzed encounter since 0.2.456, a log's review since
+        0.2.457), else in the web interface."""
+        if not self._open_here(page):
+            self.open_in_web(page)
+
+    def open_in_web(self, page: str) -> None:
+        """Open a page in the web interface, the app's own window for it when Edge or Chrome is there."""
         url = f"{self.web_base.rstrip('/')}/#/{page}"
         try:
             from ..launcher import open_window
@@ -297,12 +301,18 @@ class MainWindow(QMainWindow):
             webbrowser.open(url)
 
     def _open_here(self, page: str) -> bool:
-        """A page this window draws itself, shown: an analyzed encounter opens on Combat Logs."""
+        """A page this window draws itself, shown on Combat Logs: an analyzed encounter, or a recorded or shared log."""
+        if "combat" not in self.page_index:
+            return False
         match = re.fullmatch(r"combat-log/analysis/([^/?#]+)", page or "")
-        if match is None or "combat" not in self.page_index:
+        log = read_page(page)
+        if match is None and log is None:
             return False
         self.show_page("combat")
-        self.page("combat").open_analysis(urllib.parse.unquote(match.group(1)))
+        if match is not None:
+            self.page("combat").open_analysis(urllib.parse.unquote(match.group(1)))
+        else:
+            self.page("combat").open_review(log["kind"], log["value"], log["mode"], log["segment"])
         return True
 
     def start(self) -> None:

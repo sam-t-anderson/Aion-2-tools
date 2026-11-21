@@ -21,7 +21,9 @@
   with **← Back to combat logs**.
 - Since 0.2.456 an **analyzed encounter's page** too (combat_analysis_page.py), shown in place of the views likewise:
   opened from the encounters analyzed, after a fight is analyzed, and from any page that links to it.
-- A log's own page opens in the web interface for now.
+- Since 0.2.457 a **log's own page** too (combat_review_page.py), a recorded or shared log's review, shown in place of
+  the views likewise: its encounters, notes and summary with parses. Its other sections open in the web interface for
+  now, from a button on it.
 """
 from __future__ import annotations
 
@@ -42,6 +44,7 @@ from .combat_analysis_page import STYLE as ANALYSIS_STYLE, AnalysisPage
 from .combat_extras import PersonalRecords
 from .combat_featured_page import STYLE as FEATURED_STYLE, FeaturedPage, FeaturedSection
 from .combat_owned import Identities, OwnedUploads
+from .combat_review_page import ReviewPage
 from .combat_saved import RecordedEncounters, UploadQueue, _button, _clear, _head, _label, _row
 from .database_page import Window
 from .gathering_page import GatheringPage
@@ -56,12 +59,15 @@ class CombatPage(QWidget):
     ``choose_backup`` and ``save_file`` stand in for the file dialogs (a log to analyze, a recovery file or a private
     backup to import, where an export goes), ``confirm`` for the questions and ``open_link`` for the browser; ``store``
     keeps the choices the web page keeps in its browser; ``identity_call`` sends a request to the share server's
-    identity routes."""
+    identity routes; ``open_in_web`` opens a page in the web interface itself, even one drawn here (a log's full
+    review)."""
 
     def __init__(self, api: AppApi | None, open_web=None, choose_file=None, open_link=None, parent: QWidget | None = None,
-                 store=None, choose_recovery=None, save_file=None, choose_backup=None, confirm=None, identity_call=None):
+                 store=None, choose_recovery=None, save_file=None, choose_backup=None, confirm=None, identity_call=None,
+                 open_in_web=None):
         super().__init__(parent)
         self.api, self.open_web, self.store = api, open_web, store
+        self.open_in_web = open_in_web or open_web
         self.choose_file = choose_file or self._ask_file
         self.choose_recovery, self.save_file, self.choose_backup = choose_recovery, save_file, choose_backup
         self.confirm, self.identity_call = confirm, identity_call
@@ -122,6 +128,7 @@ class CombatPage(QWidget):
         layout.addWidget(self.featured_box)
         self.featured_page: FeaturedPage | None = None   # drawn when first opened and kept
         self.analysis_page: AnalysisPage | None = None   # likewise
+        self.review_page: ReviewPage | None = None       # likewise
         self.frame = Window("Combat logs", cb.SUBTITLE)
         layout.addWidget(self.frame)
         layout.addStretch(1)
@@ -249,8 +256,16 @@ class CombatPage(QWidget):
         self.analysis_page.show_encounter(identifier)
         self._in_place(self.analysis_page)
 
+    def open_review(self, kind: str, value: str, mode=None, segment=None) -> None:
+        """A log's own page in place of the views (``#/combat-log/local/<file>``, ``#/combat-log/shared/<id>``)."""
+        if self.review_page is None:
+            self.review_page = ReviewPage(self.api, self.open_web, self.open_in_web)
+            self.featured_line.addWidget(self.review_page)
+        self.review_page.show_log(kind, value, mode, segment)
+        self._in_place(self.review_page)
+
     def _in_place(self, shown: QWidget) -> None:
-        for page in (self.featured_page, self.analysis_page):
+        for page in (self.featured_page, self.analysis_page, self.review_page):
             if page is not None:
                 page.setVisible(page is shown)
         self.frame.setVisible(False)
@@ -338,6 +353,8 @@ class CombatPage(QWidget):
                 self.featured_page.reload()
             if self.analysis_page is not None and self.analysis_page.isVisibleTo(self):
                 self.analysis_page.show_encounter(self.analysis_page.identifier)
+            if self.review_page is not None and self.review_page.isVisibleTo(self):
+                self.review_page.reload()
         self.seen = True
 
     def _replied(self, name: str, answer) -> None:
@@ -468,7 +485,7 @@ class CombatPage(QWidget):
     def closeEvent(self, event) -> None:
         for worker in (self.requests, self.job, self.recorded, self.queue, self.owned, self.identities,
                        self.community_logs, self.speed, self.progression, self.points, self.records, self.featured,
-                       self.featured_page, self.analysis_page, self.pictures):
+                       self.featured_page, self.analysis_page, self.review_page, self.pictures):
             if worker is not None:
                 worker.stop()
         super().closeEvent(event)
