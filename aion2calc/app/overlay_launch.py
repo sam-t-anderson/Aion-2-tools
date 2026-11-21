@@ -88,7 +88,12 @@ def _spawn(url: str) -> subprocess.Popen:
     from .. import gui
     native = gui.enabled()
     if "view=" not in url and native:
-        return gui.spawn("overlay", url)
+        proc = gui.spawn("overlay", url)
+        try:
+            proc.native = True                    # watched for a failure as it starts (``_watch``, 0.2.426)
+        except AttributeError:                    # a test's stand-in
+            pass
+        return proc
     if native and not _webview():
         # The native interface made the overlay available without pywebview (``available``), but not this window.
         raise OSError("this window needs pywebview, which is not installed")
@@ -187,6 +192,7 @@ def _watch(proc: subprocess.Popen, url: str, party="meter") -> None:
     wait = getattr(proc, "wait", None)
     if wait is None:                 # not a process (a test's stand-in): nothing to supervise
         return
+    started = time.time()
     code = wait()
     with _LOCK:
         if _get(kind) is not proc:
@@ -196,6 +202,13 @@ def _watch(proc: subprocess.Popen, url: str, party="meter") -> None:
             return
         which = {"meter": "overlay", "party": "party overlay", "radar": "radar overlay", "pets": "Pet Tracker overlay",
                  "players": "player cards overlay"}[kind]
+        from .. import gui
+        if getattr(proc, "native", False) and time.time() - started < gui.FAILS_WITHIN:
+            # The native overlay failed as it started (0.2.426): the native interface is given up on until the app
+            # starts again, so the overlay started below, and any after it, is the overlay page in pywebview.
+            gui.mark_failed(f"the native overlay ended with code {code} as it started")
+            _log(f"the native overlay ended with code {code} as it started; the overlay opens in pywebview until "
+                 "the app starts again")
         if code == UNAVAILABLE_EXIT_CODE:
             # It could not open its window at all: starting it again would fail again (0.2.390).
             _UNAVAILABLE.update(at=time.time(), reason=f"the {which} could not open its window (see logs/overlay.log)")

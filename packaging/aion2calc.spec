@@ -157,7 +157,9 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
-    excludes=["tkinter", "pytest", "IPython", "PyQt5", "PySide6"],
+    # PySide6 draws the native interface (the default since 0.2.426) and is bundled with its Qt (PyInstaller's own
+    # hooks); until 0.2.426 it was left out here, so the installed app could not open the native interface at all.
+    excludes=["tkinter", "pytest", "IPython", "PyQt5"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

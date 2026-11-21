@@ -374,6 +374,7 @@ def test_the_overlay_process_is_told_which_app_started_it(monkeypatch):
         return _Popen()
 
     monkeypatch.setattr(overlay_launch.subprocess, "Popen", popen)
+    monkeypatch.setattr("aion2calc.gui.enabled", lambda ui=None: False)   # the overlay page in pywebview
     overlay_launch._spawn("http://127.0.0.1:1/overlay?view=radar")
     env = seen["env"]
     assert env["AION2CALC_OVERLAY"] == "1" and env["AION2CALC_OVERLAY_URL"].endswith("view=radar")

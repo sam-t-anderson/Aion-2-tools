@@ -12,9 +12,13 @@ Download the file for your computer from the
 | macOS | `aion2calc-<version>-macos.zip` | Unzip, move `aion2calc.app` to Applications, open it |
 | Linux | `aion2calc-<version>-linux.tar.gz` | `tar xzf aion2calc-*-linux.tar.gz && ./aion2calc/aion2calc` |
 
-No Python and no command line are needed. The app opens in its own window (Edge or Chrome in app
-mode; without either, your default browser) and follows your computer's light or dark mode. You
-can also pick a theme with the ◐ button in the top bar or on the **Settings** page.
+No Python and no command line are needed. The app opens in its own window, drawn by the app itself:
+the native interface, the default since 0.2.426. The Live Meter page and Settings are drawn there so
+far, and the meter overlay over the game; every other page opens from that window in the web
+interface, a window of its own (Edge or Chrome in app mode; without either, your default browser)
+that follows your computer's light or dark mode. You can also pick a theme with the ◐ button in its
+top bar or on its **Settings** page. **Settings → Native interface** turns the native interface off,
+and the app and the overlay then open in the web interface alone, as before 0.2.426.
 
 ![Dark theme](screenshots/app_dark.png)
 ![Light theme](screenshots/app_light.png)
