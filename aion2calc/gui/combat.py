@@ -39,7 +39,6 @@ SERVER_HINT = "https://logs.example.com"
 NO_ENCOUNTERS = "No encounters yet."
 ENCOUNTER_COLUMNS = ["#", "Player", "Class", "Target", "Source", "Duration", "DPS", ""]
 ON_THE_WEB_VIEW = "This view opens in the web interface for now."
-ON_THE_WEB_LIST = "This list opens in the web interface for now."
 
 
 def list_page(key: str) -> str:

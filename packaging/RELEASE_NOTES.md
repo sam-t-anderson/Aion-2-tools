@@ -1,3 +1,13 @@
+## Combat Logs' community views in the native interface (0.2.453)
+
+**The community's combat logs open in the app's window too**, read from your log server as the web page reads them:
+- **Community Combat Logs:** every public fight, newest first, fifty to a page (**← Prev**, **Next →**). Each row shows the boss and its portrait (when the app bundles it), the difficulty, the party with its classes (a **?** when the game's party list was not captured), the time, who uploaded it, when, and the product. **view** opens the fight's log. Choose PvE or PvP: a PvP fight is named by its zone and its kind. Filter by boss, difficulty, encounter, region, product and party size. Mini-bosses stay hidden unless **show** is ticked, a choice shared with your recorded encounters;
+- **Completed-run speed:** completed runs ranked by time among runs of the same instance, route, difficulty and party size, under the same filters;
+- **Boss progression:** each boss's attempts, kills, wipes, kill rate and fastest kill, by difficulty, region and product;
+- **Highest observed build points:** each class's highest reported skill, stigma, Daevanion and Ariel points.
+
+The view shown is read again when you come back to the page. **Personal records** and a log's own page still open in the web interface.
+
 ## Combat Logs' My Uploads and My Character Identities in the native interface (0.2.452)
 
 **My Uploads and My Character Identities open in the app's window too**, as the web page draws them:
