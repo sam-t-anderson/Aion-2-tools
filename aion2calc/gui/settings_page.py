@@ -23,7 +23,8 @@
   in your data folder or imported from one.
 - Since 0.2.484 the **Theme** and the **Accent colour**, the web pages' own choice (``theme``, ``accent``), the window
   drawn again in a theme or accent chosen.
-- **The other row** (the customization profiles) is still on the web Settings page, which the row opens.
+- Since 0.2.485 the **Customization profiles** (settings_profiles.py has their words and rules), saved, applied,
+  deleted and shared as the web page does, kept where the web page keeps them: every row of the web page is here.
 
 Each control saves its setting through the app's ``/api/ui`` the moment it changes, as the web page's does, and says
 so where the web page says it; the page reads the app's settings, its state and its log server each time it is shown,
@@ -36,13 +37,14 @@ import json
 import os
 
 from PySide6.QtCore import QEvent, QSize, QStandardPaths, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QColor, QDesktopServices
-from PySide6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QComboBox, QDialog, QFileDialog, QFrame,
+from PySide6.QtGui import QColor, QDesktopServices, QPixmap
+from PySide6.QtWidgets import (QAbstractButton, QApplication, QCheckBox, QColorDialog, QComboBox, QDialog, QFileDialog, QFrame,
                                QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea,
                                QSlider, QSpinBox, QTextBrowser, QVBoxLayout, QWidget)
 
 from . import image_health
 from . import settings_looks as looks
+from . import settings_profiles as cp
 from . import settings_words as sw
 from . import theme
 from .pets_page import seg_style
@@ -235,6 +237,71 @@ class ColourPick(QPushButton):
         if colour != self.value:
             self.set_value(colour)
             self.picked.emit(colour)
+
+
+class ProfileTile(QAbstractButton):
+    """A profile carrying a background, as a square to apply it in a click (``.custtile``): the picture covering it,
+    its name along the foot over a shade, the frame's colour around it (frame-hi under the pointer)."""
+
+    SIDE = 104
+
+    def __init__(self, name: str, image: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.name = name
+        self.setFixedSize(self.SIDE, self.SIDE)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setToolTip(f"Apply {name}")
+        self.setAccessibleName(name)
+        self.picture = QPixmap()
+        _head, _comma, data = image.partition(",")
+        try:
+            self.picture.loadFromData(base64.b64decode(data))
+        except (ValueError, TypeError):
+            pass
+
+    def enterEvent(self, event) -> None:
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self, _event) -> None:
+        from PySide6.QtCore import QRectF
+        from PySide6.QtGui import QFont, QLinearGradient, QPainter, QPainterPath, QPen
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        box = QRectF(0.5, 0.5, self.width() - 1, self.height() - 1)
+        shape = QPainterPath()
+        shape.addRoundedRect(box, 8, 8)
+        painter.fillPath(shape, theme.qcolor("inset"))
+        painter.save()
+        painter.setClipPath(shape)
+        if not self.picture.isNull():                    # ``background-size: cover; background-position: center``
+            shown = self.picture.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            painter.drawPixmap((self.width() - shown.width()) // 2, (self.height() - shown.height()) // 2, shown)
+        font = QFont(self.font())
+        font.setWeight(QFont.DemiBold)
+        painter.setFont(font)
+        line = painter.fontMetrics().height() + 8
+        foot = QRectF(0, self.height() - line, self.width(), line)
+        shade = QLinearGradient(foot.topLeft(), foot.bottomLeft())
+        shade.setColorAt(0, QColor(0, 0, 0, 0))
+        shade.setColorAt(1, QColor(0, 0, 0, 199))
+        painter.fillRect(foot, shade)
+        words = painter.fontMetrics().elidedText(self.name, Qt.ElideRight, self.width() - 12)
+        text = foot.adjusted(6, 4, -6, -4)
+        painter.setPen(QColor(0, 0, 0, 230))                   # ``text-shadow: 0 1px 2px rgba(0,0,0,.9)``
+        painter.drawText(text.translated(0, 1), Qt.AlignLeft | Qt.AlignVCenter, words)
+        painter.setPen(QColor("#ffffff"))
+        painter.drawText(text, Qt.AlignLeft | Qt.AlignVCenter, words)
+        painter.restore()
+        painter.setPen(QPen(theme.qcolor("frame_hi") if self.underMouse() else theme.qcolor("frame"), 1))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawPath(shape)
+        painter.end()
 
 
 class SetRow(QFrame):
@@ -438,7 +505,8 @@ class SettingsPage(QWidget):
                       ("overlay", "Overlay look presets"): self._look_presets,
                       ("backup", "Settings backup"): self._backup,
                       ("appearance", "Combat class colors"): self._class_colours,
-                      ("appearance", "Theme"): self._theme, ("appearance", "Accent colour"): self._accent})
+                      ("appearance", "Theme"): self._theme, ("appearance", "Accent colour"): self._accent,
+                      ("backup", "Customization profiles"): self._profiles})
         on_the_web = {(row.group, row.title) for row in ROWS}
         for group, title in sw.ROW_ORDER:
             row = SetRow(group, title, top=title == "Author")
@@ -506,6 +574,191 @@ class SettingsPage(QWidget):
         row.body.addWidget(_flow(self.accent_seg))
         row.body.addWidget(_note(sw.ACCENT_NOTE))
 
+    # ------------------------------------------------------------------ the customization profiles (0.2.485)
+    def _profiles(self, row: SetRow) -> None:
+        """The profiles (``#cust-profile``) with Apply, Save current as…, Delete, Copy share code and Paste a shared
+        code…, those carrying a background as squares to apply in a click, and the note."""
+        self.profile_box = QComboBox()
+        self.profile_box.setAccessibleName(cp.LABEL)
+        self.profile_box.setMinimumWidth(229)
+        self.profile_message = _words("", "setnote")
+        self.profile_message.setAccessibleName("Customization profiles status")
+        row.body.addWidget(_flow(self.profile_box, _button(cp.APPLY, self.apply_profile),
+                                 _button(cp.SAVE_AS, self.save_profile), _button(cp.DELETE, self.delete_profile),
+                                 _button(cp.COPY, self.copy_profile), _button(cp.PASTE, self.paste_profile),
+                                 self.profile_message, gap=(14, 10)))
+        self.profile_tiles = QWidget()
+        self.profile_tiles_flow = FlowLayout(self.profile_tiles, align=Qt.AlignLeft, gap=(10, 10))
+        row.body.addWidget(self.profile_tiles)
+        note = _note(cp.NOTE)
+        note.setTextFormat(Qt.RichText)
+        row.body.addWidget(note)
+        self._list_profiles()
+
+    def _list_profiles(self) -> None:
+        """The list and the squares as the kept profiles are now, the list on its first line, as a page just drawn
+        has them (``customProfileOptions``, ``customProfileGallery``)."""
+        kept = cp.profiles(self.store)
+        box = self.profile_box
+        box.blockSignals(True)
+        try:
+            box.clear()
+            for value, words in cp.options(kept):
+                box.addItem(words, value)
+            box.setCurrentIndex(0)
+        finally:
+            box.blockSignals(False)
+        while self.profile_tiles_flow.count():
+            item = self.profile_tiles_flow.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        shown = cp.with_images(kept)
+        for profile in shown:
+            name = cp.name_of(profile)
+            tile = ProfileTile(name, profile["bg"])
+            tile.clicked.connect(lambda _checked=False, name=name: self.apply_tile(name))
+            self.profile_tiles_flow.addWidget(tile)
+        self.profile_tiles.setVisible(bool(shown))
+
+    def save_profile(self) -> None:
+        """The whole look as it is now, saved under a name asked for (``#cust-save``); one of the same name, whatever
+        its case, replaced. The app's settings are read first, then its overlay background, as the web page reads
+        them."""
+        name = looks.js_trim(self.ask_text(cp.NAME_IT, ""))
+        if not name:
+            return
+        if looks.js_units(name) > cp.NAME_LIMIT:
+            self.profile_message.setText(cp.NAME_TOO_LONG)
+            return
+        self.profile_message.setText(cp.SAVING)
+        if self.requests is not None:
+            self.requests.get(f"profile-save:{name}", "/api/ui")
+
+    def _profile_read(self, name: str, fresh) -> None:
+        fresh = _dict(fresh)
+        self.profile_look = cp.look_of(fresh)
+        if _truthy(fresh.get("overlay_bg_set")):              # the background, bundled at a reduced size
+            import time
+            self.requests.get_bytes(f"profile-image:{name}", f"/overlay-background?{int(time.time() * 1000)}")
+        else:
+            self._keep_profile(name, "")
+
+    def _keep_profile(self, name: str, image: str) -> None:
+        kept = cp.without(cp.profiles(self.store), name)
+        kept.append({"name": name, "theme": theme.chosen_theme(self.store), "accent": theme.look_of(self.store)[1],
+                     "ui": self.profile_look, "bg": image})
+        cp.save(self.store, kept)
+        again = next((p for p in cp.profiles(self.store) if cp.name_of(p).lower() == name.lower()), None)
+        with_image = bool(image) and again is not None and _truthy(again.get("bg"))
+        self.toast.say(cp.SAVED_WITH_IMAGE if with_image else cp.SAVED)
+        if image and not with_image:
+            self.profile_message.setText(cp.IMAGE_TOO_BIG)
+        self.rerender()
+
+    def apply_profile(self) -> None:
+        """The chosen profile applied (``#cust-apply``)."""
+        chosen = self.profile_box.currentData() or ""
+        if not chosen:
+            self.profile_message.setText(cp.PICK_TO_APPLY)
+            return
+        profile = cp.find(cp.profiles(self.store), chosen)
+        if profile is None:
+            self.profile_message.setText(cp.NOT_FOUND)
+            return
+        self._apply_profile(profile)
+
+    def apply_tile(self, name: str) -> None:
+        """A profile's square clicked (``[data-cust-tile]``): that profile applied."""
+        profile = cp.find(cp.profiles(self.store), name)
+        if profile is not None:
+            self._apply_profile(profile)
+
+    def _apply_profile(self, profile: dict) -> None:
+        """``applyCustomProfile``: its theme and accent kept as the web pages keep them, its class colours where the
+        web log review reads them, its look saved to the app, then its background put in place or taken away; then
+        said, and the window drawn again in its look."""
+        self.profile_message.setText(cp.APPLYING)
+        chosen = profile.get("theme")
+        self.store.setValue("theme", cp._text(chosen) if _truthy(chosen) else "system")
+        accent = profile.get("accent")
+        self.store.setValue("accent", accent if accent in theme.ACCENTS else "gold")
+        look = profile.get("ui") if isinstance(profile.get("ui"), dict) else {}
+        if "combat_colors" in look:
+            self.store.setValue("a2-combat-colors", looks.js_json(look["combat_colors"]))
+        self.profile_image = profile.get("bg")
+        if self.requests is None:
+            return
+        if look:
+            self.requests.post("profile-apply", "/api/ui", look)
+        else:
+            self._profile_look_saved()
+
+    def _profile_look_saved(self) -> None:
+        image = self.profile_image
+        if isinstance(image, str):
+            self.requests.post("profile-image-set", "/api/overlay/background",
+                               {"data": image} if image else {"clear": True})
+        else:
+            self._profile_applied()
+
+    def _profile_applied(self, why: str | None = None) -> None:
+        """Applied (said, and the page drawn again), or stopped at a step the app refused (said, the page left as it
+        is), as the web page does; where the profile's theme or accent is another, the window is drawn again in it and
+        that page says it."""
+        if theme.look_of(self.store) != (theme.LOOK["theme"], theme.LOOK["accent"]):
+            self.change_look((lambda page: page.toast.say(cp.APPLIED)) if why is None else
+                             (lambda page: page.profile_message.setText(why)))
+        elif why is None:
+            self.toast.say(cp.APPLIED)
+            self.rerender()
+        else:
+            self.profile_message.setText(why)
+
+    def delete_profile(self) -> None:
+        """The chosen profile deleted (``#cust-delete``)."""
+        chosen = self.profile_box.currentData() or ""
+        if not chosen:
+            self.profile_message.setText(cp.PICK_TO_DELETE)
+            return
+        cp.save(self.store, [p for p in cp.profiles(self.store) if not (isinstance(p, dict) and p.get("name") == chosen)])
+        self.toast.say(cp.DELETED)
+        self.rerender()
+
+    def copy_profile(self) -> None:
+        """The chosen profile's share code copied, without its background (``#cust-copy``)."""
+        chosen = self.profile_box.currentData() or ""
+        if not chosen:
+            self.profile_message.setText(cp.PICK_TO_COPY)
+            return
+        profile = cp.find(cp.profiles(self.store), chosen)
+        if profile is None:
+            self.profile_message.setText(cp.NOT_FOUND)
+            return
+        QApplication.clipboard().setText(cp.encode(profile))
+        self.profile_message.setText(cp.COPIED)
+
+    def paste_profile(self) -> None:
+        """A shared code pasted (``#cust-import``), then saved under the name asked for, its own offered."""
+        code = looks.js_trim(self.ask_text(cp.PASTE_IT, ""))
+        if not code:
+            return
+        try:
+            shared = cp.decode(code)
+        except ValueError:
+            self.profile_message.setText(cp.NOT_A_CODE)
+            return
+        name = looks.js_trim(self.ask_text(cp.SAVE_SHARED_AS, shared["name"]))
+        if not name:
+            return
+        if looks.js_units(name) > cp.NAME_LIMIT:
+            self.profile_message.setText(cp.NAME_TOO_LONG)
+            return
+        kept = cp.without(cp.profiles(self.store), name)
+        kept.append({"name": name, "theme": shared["theme"], "accent": shared["accent"], "ui": shared["ui"]})
+        cp.save(self.store, kept)
+        self.toast.say(cp.SHARED_SAVED)
+        self.rerender()
+
     def _choose_look(self, theme: str | None = None, accent: str | None = None) -> None:
         """app.js ``setTheme`` and ``setAccent``: the choice kept as the web pages keep it (``theme``, ``accent``, in
         the app's interface data), then the window drawn again in it, as the web page draws itself again."""
@@ -513,13 +766,17 @@ class SettingsPage(QWidget):
             self.store.setValue("theme", theme)
         if accent is not None:
             self.store.setValue("accent", accent)
-        self.change_look()
+        self.change_look(None)
 
-    def _look_kept(self) -> None:
-        """A look chosen with no window to draw again (a test): shown from then on, and on the buttons."""
+    def _look_kept(self, then=None) -> None:
+        """A look chosen with no window to draw again (a test): shown from then on, on the buttons, and the page drawn
+        again; ``then`` is given the page, to say what was done."""
         theme.apply_look(*theme.look_of(self.store))
         self.theme_seg.set(dict(sw.THEME_BUTTONS).get(theme.chosen_theme(self.store)), True)
         self.accent_seg.set(dict(sw.ACCENT_BUTTONS)[theme.LOOK["accent"]], True)
+        if then is not None:
+            self.rerender()
+            then(self)
 
     def _language_kept(self, code: str) -> None:
         """A language chosen with no window to draw again (a test): kept with the web pages' choice, and shown from
@@ -1601,10 +1858,11 @@ class SettingsPage(QWidget):
         version) is said again once read."""
         for words in (self.asset_message, self.storage_message, self.notes_message, self.records_message,
                       self.log_cache_message, self.server_message, self.pet_note, self.pet_folder_message,
-                      self.stream_message, self.hotkeys_message, self.backup_message, *self.number_messages.values(),
-                      *self.look_messages.values()):
+                      self.stream_message, self.hotkeys_message, self.backup_message, self.profile_message,
+                      *self.number_messages.values(), *self.look_messages.values()):
             words.setText("")
         self._clear(self.maintenance_box)
+        self._list_profiles()
 
     def _replied(self, name: str, answer) -> None:
         kind, _, key = name.partition(":")
@@ -1640,6 +1898,17 @@ class SettingsPage(QWidget):
             self.look_messages["background"].setText(looks.BG_REMOVED)
         elif kind.startswith("preset-"):
             self._preset_replied(kind, key, answer)
+        elif kind == "profile-save":
+            self._profile_read(key, answer)
+        elif kind == "profile-image":
+            self._keep_profile(key, cp.image_url(answer) if isinstance(answer, (bytes, bytearray)) else "")
+        elif kind in ("profile-apply", "profile-image-set"):
+            if _truthy(_dict(answer).get("error")):                              # ``api()``: an error is a failure
+                return self._failed(name, js_text(answer["error"]))
+            if kind == "profile-apply":
+                self._profile_look_saved()
+            else:
+                self._profile_applied()
         elif kind == "backup-export":
             self.backup_export.setEnabled(True)
             self.backup_message.setText(sw.exported(answer))
@@ -1736,6 +2005,12 @@ class SettingsPage(QWidget):
             self.look_messages["background"].setText(why)
         elif kind in ("preset-share", "preset-shared"):
             self.look_messages["preset"].setText(looks.could_not_save(why))
+        elif kind == "profile-save":
+            self.profile_message.setText(why)
+        elif kind == "profile-image":                    # ``captureOverlayBackground``: no picture, saved without
+            self._keep_profile(key, "")
+        elif kind in ("profile-apply", "profile-image-set"):
+            self._profile_applied(why)
         elif kind.startswith("preset-"):
             self.look_messages["preset"].setText(why)
         elif kind == "backup-export":
