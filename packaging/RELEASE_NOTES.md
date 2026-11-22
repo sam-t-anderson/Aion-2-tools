@@ -1,3 +1,10 @@
+## The PvP player cards window in the native interface (0.2.499)
+
+**The player cards window of an arena or battlefield match is now the app's own window, as the meter overlay is.** Until now it was a web page in a window of its own; it looks as it did. With it, every overlay window is drawn by the app.
+- Its head names the match and how many players each side has.
+- The allies, then the enemies, most DPS first, as a list or side by side (**Player cards: Grid** in the overlay's options): each card with the class's emblem, the name, the server and *you* on your own, the combat power, gear score and arena rating, *dead*, the HP bar and the damage dealt.
+- **Lock** and **Hide** (which closes this window alone), its own place, and the overlay's look and opacity.
+
 ## The Pet Tracker window in the native interface (0.2.498)
 
 **The Pet Tracker window is now the app's own window, as the meter overlay is.** Until now it was a web page in a window of its own; it looks as it did.

@@ -17,8 +17,8 @@ Two companion windows open beside the meter overlay while their settings are on:
 ``overlay_players_enabled``). They follow their settings while the meter overlay is open
 (:func:`sync_companions`), and each one's Hide closes that window alone (:func:`close_view`). While the native
 interface is on, the meter overlay is its Qt window (0.2.413), and since 0.2.497 so are the Party-DPS and radar
-windows (``aion2calc.gui.companions``, ``NATIVE_VIEWS``), since 0.2.498 the Pet Tracker window; the player cards
-window stays an overlay page in pywebview.
+windows (``aion2calc.gui.companions``, ``NATIVE_VIEWS``), since 0.2.498 the Pet Tracker window and since 0.2.499
+the player cards window: every overlay window.
 
 The Pet Tracker window (``view=pets``, Settings → Pet Tracker) is separate from those: it opens and closes with
 its own setting whether or not the meter overlay is open (:func:`sync_pets`), and closes with the app.
@@ -54,8 +54,8 @@ _URL = ""                       # the overlay URL of the last launch, for the co
 _HIDDEN: set[str] = set()       # companions closed with their own Hide, until Open overlay or their setting flips
 COMPANIONS = ("party", "radar", "players")
 #: The overlay windows the native interface draws itself (0.2.413; the Party-DPS and radar windows since 0.2.497, the
-#: Pet Tracker window since 0.2.498).
-NATIVE_VIEWS = ("meter", "party", "radar", "pets")
+#: Pet Tracker window since 0.2.498, the player cards window since 0.2.499: all of them).
+NATIVE_VIEWS = ("meter", "party", "radar", "pets", "players")
 #: When an overlay process last said it cannot open its window (``UNAVAILABLE_EXIT_CODE``, 0.2.390), and why. For
 #: ``UNAVAILABLE_FOR`` seconds after, Open overlay answers ``native: false`` and the page opens its own small window,
 #: instead of starting a process that would fail again (or, before 0.2.390, open a browser window of its own).
@@ -98,8 +98,8 @@ def _view(url: str) -> str:
 
 def _spawn(url: str) -> subprocess.Popen:
     # While the native interface is on, the meter's overlay is its Qt window (0.2.413), and so since 0.2.497 are the
-    # Party-DPS window and the radar's (``aion2calc.gui.companions``) and since 0.2.498 the Pet Tracker window
-    # (``aion2calc.gui.pets_window``); the PvP player cards' window is still an overlay page in pywebview.
+    # Party-DPS window and the radar's (``aion2calc.gui.companions``), since 0.2.498 the Pet Tracker window
+    # (``aion2calc.gui.pets_window``) and since 0.2.499 the player cards window (``aion2calc.gui.players_window``).
     from .. import gui
     native = gui.enabled()
     if native and _view(url) in NATIVE_VIEWS:

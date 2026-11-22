@@ -209,8 +209,6 @@ def test_the_app_opens_the_pet_tracker_window_natively(monkeypatch):
     monkeypatch.setattr(overlay_launch, "_webview", lambda: False)
     overlay_launch._spawn("http://127.0.0.1:8765/overlay?view=pets")
     assert spawned[-1] == ("overlay", "http://127.0.0.1:8765/overlay?view=pets")
-    with pytest.raises(OSError):                                           # the player cards window is still a page
-        overlay_launch._spawn("http://127.0.0.1:8765/overlay?view=players")
     assert cp.view_of("http://x/overlay?view=pets") == "pets" and cp.window_class("pets") is pw.PetsWindow
-    assert cp.window_class("players") is None
+    assert cp.window_class("meter") is None
     assert QPushButton is not None
