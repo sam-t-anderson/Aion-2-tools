@@ -13,6 +13,8 @@
   the app, its overlay and the folder of a copy unpacked by hand.
 - Since 0.2.478 the first half of **Overlay**: the live meter overlay (with the event sound), In-game (RTSS) with its
   state, the streaming address to copy, and the overlay's layout.
+- Since 0.2.479 the **Hidden Cube radar** (its learn steps, its sensitivity, what it hears and its samples, read twice
+  a second while shown) and the **Hotkeys**, each action's keys pressed in its field and saved together.
 - **The other tabs' rows** are still the early ones, drawn from ``settings_schema``: each control saves its one
   setting, and a row the native page does not draw in full yet opens the web Settings page for the rest.
 
@@ -25,11 +27,11 @@ from __future__ import annotations
 import json
 import os
 
-from PySide6.QtCore import QSize, QStandardPaths, Qt, QTimer, QUrl
+from PySide6.QtCore import QEvent, QSize, QStandardPaths, Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QFileDialog, QFrame, QHBoxLayout, QLabel,
-                               QLineEdit, QMessageBox, QPushButton, QScrollArea, QSpinBox, QTextBrowser, QVBoxLayout,
-                               QWidget)
+                               QLineEdit, QMessageBox, QPushButton, QScrollArea, QSlider, QSpinBox, QTextBrowser,
+                               QVBoxLayout, QWidget)
 
 from . import image_health
 from . import settings_words as sw
@@ -136,6 +138,54 @@ def _flow(*widgets: QWidget, gap=(14, 10)) -> QWidget:
     for widget in widgets:
         flow.addWidget(widget)
     return holder
+
+
+#: Keys named as the web page names them (``comboFromEvent``'s ``NAMED``).
+_KEY_NAMES = {Qt.Key_Space: "Space", Qt.Key_Escape: "Esc", Qt.Key_Up: "Up", Qt.Key_Down: "Down", Qt.Key_Left: "Left",
+              Qt.Key_Right: "Right", Qt.Key_Return: "Enter", Qt.Key_Enter: "Enter", Qt.Key_Tab: "Tab",
+              Qt.Key_Backtab: "Tab", Qt.Key_Backspace: "Backspace", Qt.Key_Delete: "Delete", Qt.Key_Insert: "Insert",
+              Qt.Key_Home: "Home", Qt.Key_End: "End", Qt.Key_PageUp: "PageUp", Qt.Key_PageDown: "PageDown"}
+_MODIFIER_KEYS = (Qt.Key_Control, Qt.Key_Alt, Qt.Key_Shift, Qt.Key_Meta, Qt.Key_Super_L, Qt.Key_Super_R, Qt.Key_AltGr)
+
+
+def key_combo(key: int, modifiers, text: str = "") -> str | None:
+    """A key press as the web page writes it (``comboFromEvent``): Ctrl, Alt, Shift and Win, then the key; None for a
+    modifier alone or a key it does not name."""
+    if key in _MODIFIER_KEYS:
+        return None
+    mods = [name for flag, name in ((Qt.ControlModifier, "Ctrl"), (Qt.AltModifier, "Alt"), (Qt.ShiftModifier, "Shift"),
+                                    (Qt.MetaModifier, "Win")) if modifiers & flag]
+    if key in _KEY_NAMES:
+        name = _KEY_NAMES[key]
+    elif Qt.Key_F1 <= key <= Qt.Key_F24:
+        name = f"F{key - Qt.Key_F1 + 1}"
+    elif len(text) == 1 and text.isprintable() and text != " ":
+        name = text.upper()
+    elif 0x21 <= key <= 0x7E:                          # with Ctrl the event's text is a control character
+        name = chr(key).upper()
+    else:
+        return None
+    return "+".join(mods + [name])
+
+
+class HotkeyEdit(QLineEdit):
+    """A hotkey's capture field (``hotkey-input``): it shows the keys pressed in it, Tab and Esc too."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setReadOnly(True)
+
+    def event(self, event) -> bool:
+        if event.type() == QEvent.KeyPress and event.key() in (Qt.Key_Tab, Qt.Key_Backtab):
+            self.keyPressEvent(event)                  # the web page keeps Tab for the field too
+            return True
+        return super().event(event)
+
+    def keyPressEvent(self, event) -> None:
+        combo = key_combo(event.key(), event.modifiers(), event.text())
+        if combo:
+            self.setText(combo)
+        event.accept()
 
 
 class SetRow(QFrame):
@@ -314,7 +364,8 @@ class SettingsPage(QWidget):
                       ("overlay", "Live meter overlay"): lambda row: self._items(row, sw.LIVE_OVERLAY),
                       ("overlay", "In-game (RTSS)"): lambda row: self._items(row, sw.RTSS),
                       ("overlay", "Streaming (OBS / Discord)"): self._streaming,
-                      ("overlay", "Overlay layout"): lambda row: self._items(row, sw.LAYOUT)})
+                      ("overlay", "Overlay layout"): lambda row: self._items(row, sw.LAYOUT),
+                      ("overlay", "Hidden Cube radar"): self._radar, ("overlay", "Hotkeys (Windows)"): self._hotkeys})
         schema = {(row.group, row.title): row for row in ROWS}
         for group, title in sw.ROW_ORDER:
             row = SetRow(group, title, top=title == "Author")
@@ -855,6 +906,117 @@ class SettingsPage(QWidget):
         self.stream_message.setText(sw.STREAM_COPIED)
         self._stream_clear.start(2000)
 
+    # ---------------------------------------------------------------- Overlay: the Hidden Cube radar (0.2.479)
+    def _radar(self, row: SetRow) -> None:
+        """The radar: on or off, its learn steps, its sensitivity, what it is doing and its samples, read twice a second
+        while the tab shows it (``radarStatus``)."""
+        self._check(row, "radar_enabled", sw.RADAR_ON, sw.WINDOWS_OFF)
+        note = _note(sw.RADAR_NOTE, indent=22)
+        note.setTextFormat(Qt.RichText)
+        row.body.addWidget(note)
+        buttons = [_button(words, lambda body=body: self.radar_control(body)) for words, body in sw.RADAR_LEARN]
+        self.radar_cancel = _button(sw.RADAR_CANCEL, lambda: self.radar_control({"action": "cancel"}))
+        self.radar_cancel.setVisible(False)
+        clear = _button(sw.RADAR_CLEAR, self.radar_clear)
+        self.radar_slider = QSlider(Qt.Horizontal)
+        self.radar_slider.setRange(1, 10)
+        self.radar_slider.setTracking(False)            # ``change``: once let go, or at each step
+        self.radar_slider.setFixedWidth(110)
+        self.radar_slider.setAccessibleName(sw.RADAR_SENSITIVITY)
+        self.radar_slider.valueChanged.connect(lambda value: self.save("radar_sensitivity", sw.clamped(value, 1, 10, 5)))
+        self.controls["radar_sensitivity"] = self.radar_slider
+        line = _flow(*buttons, self.radar_cancel, clear, _flow(_words(sw.RADAR_SENSITIVITY), self.radar_slider, gap=(4, 4)),
+                     gap=(6, 6))
+        line.setContentsMargins(22, 0, 0, 0)
+        row.body.addWidget(line)
+        self.radar_message = _note(sw.RADAR_UNKNOWN, indent=22)
+        self.radar_message.setAccessibleName("Radar status")
+        row.body.addWidget(self.radar_message)
+        holder = QWidget()
+        holder.setAccessibleName(sw.RADAR_SAMPLES)
+        self.radar_samples = QVBoxLayout(holder)
+        self.radar_samples.setContentsMargins(40, 0, 0, 0)
+        self.radar_samples.setSpacing(2)
+        self.radar_samples_box = holder
+        holder.setVisible(False)
+        row.body.addWidget(holder)
+        self.radar_shown_samples = None                 # the samples drawn, rebuilt only when they change
+        self.radar_notes = _note("", indent=22)
+        self.radar_notes.setTextFormat(Qt.RichText)
+        row.body.addWidget(self.radar_notes)
+        self.radar_timer = QTimer(self)
+        self.radar_timer.setSingleShot(True)
+        self.radar_timer.timeout.connect(self.read_radar)
+        self.radar_poll = QTimer(self)
+        self.radar_poll.setInterval(sw.RADAR_POLL_MS)
+        self.radar_poll.timeout.connect(lambda: self.read_radar() if self.radar_message.isVisible() else None)
+
+    def read_radar(self) -> None:
+        self.radar_timer.stop()
+        if self.requests is not None:
+            self.requests.get("radar", "/api/radar")
+
+    def radar_control(self, body: dict) -> None:
+        """A learn step, Cancel, Forget every sample or a sample's Forget (``radarControl``), then the radar read again."""
+        if self.requests is not None:
+            self.requests.post("radar-control", "/api/radar", body)
+
+    def radar_clear(self) -> None:
+        if self.confirm(sw.RADAR_ASK_CLEAR):
+            self.radar_control({"action": "clear"})
+
+    def _radar_shown(self, state) -> None:
+        r = _dict(state)
+        self.radar_cancel.setVisible(_truthy(r.get("learning")))
+        self.radar_message.setText(sw.radar_status(r))
+        samples = r.get("samples") if isinstance(r.get("samples"), list) else []
+        key = json.dumps(samples, sort_keys=True, default=str)
+        if key == self.radar_shown_samples:
+            return                                      # kept as they are, so a Forget button keeps its focus
+        self.radar_shown_samples = key
+        self._clear(self.radar_samples)
+        for sample in samples:
+            forget = _button(sw.RADAR_FORGET, lambda sample=sample: self.radar_control(
+                {"action": "forget", "sample": _dict(sample).get("id")}))
+            forget.setAccessibleName("Forget this sample")
+            self.radar_samples.addWidget(_flow(_words("• " + sw.radar_sample(sample)), forget, gap=(6, 2)))
+        self.radar_samples_box.setVisible(bool(samples))
+
+    # ---------------------------------------------------------------- Overlay: Hotkeys (0.2.479)
+    def _hotkeys(self, row: SetRow) -> None:
+        """A capture field per action (``hotkey-rows``): its keys pressed, cleared, then all saved together."""
+        self.hotkey_fields: dict[str, HotkeyEdit] = {}
+        for action, words in sw.HOTKEY_ACTIONS:
+            label = _words(words)
+            label.setMinimumWidth(230)
+            field = HotkeyEdit()
+            field.setPlaceholderText(sw.HOTKEY_HINT)
+            field.setAccessibleName(words)
+            field.setFixedWidth(206)
+            self.hotkey_fields[action] = field
+            clear = _button(sw.HOTKEY_CLEAR, field.clear)
+            row.body.addWidget(_flow(label, field, clear, gap=(8, 2)))
+        row.body.addWidget(_note(sw.HOTKEYS_RADAR_NOTE))
+        self.hotkeys_message = _words("", "setnote")
+        self.hotkeys_message.setAccessibleName("Hotkeys status")
+        row.body.addWidget(_flow(_button(sw.HOTKEYS_SAVE, self.save_hotkeys), self.hotkeys_message, gap=(14, 6)))
+        note = _note(sw.HOTKEYS_NOTE)
+        note.setTextFormat(Qt.RichText)
+        row.body.addWidget(note)
+
+    def save_hotkeys(self) -> None:
+        """Every action's keys saved together (``#hotkeys-save``), once no combo is bound twice."""
+        hotkeys, clash = sw.hotkeys_to_save({action: field.text() for action, field in self.hotkey_fields.items()})
+        if clash:
+            self.hotkeys_message.setText(clash)
+            return
+        self.hotkeys_message.setText(sw.HOTKEYS_SAVING)
+        self.saved.append(("hotkeys", hotkeys))
+        if self.requests is None:
+            self.hotkeys_message.setText(sw.SAVED)
+            return
+        self.requests.post("hotkeys", "/api/ui", {"hotkeys": hotkeys})
+
     # the rows of the tabs not drawn as the web page draws them yet (settings_schema)
     def _schema_row(self, row: SetRow, spec) -> None:
         for control in spec.controls:
@@ -919,6 +1081,8 @@ class SettingsPage(QWidget):
             self.requests.get(name, path)
         self.read_pets()
         self.read_rtss()
+        self.read_radar()
+        self.radar_poll.start()
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -943,6 +1107,14 @@ class SettingsPage(QWidget):
             self.sound_message.setText(sw.SOUND_CLEARED)
         elif kind == "rtss":
             self.rtss_message.setText(sw.rtss_status(answer))
+        elif kind == "radar":
+            self._radar_shown(answer)
+        elif kind == "radar-control":
+            if _truthy(_dict(answer).get("error")):                              # ``api()``: an error is a failure
+                return self._failed(name, js_text(answer["error"]))
+            self.read_radar()
+        elif kind == "hotkeys":
+            self.hotkeys_message.setText(sw.SAVED)
         elif kind == "cache":
             self._log_cache_said(int(key))
         elif kind == "server-save":
@@ -962,6 +1134,8 @@ class SettingsPage(QWidget):
                 self.pet_timer.start(sw.PET_ENABLED_READ_MS)
             elif setting == "rtss_enabled":                                      # RTSS drawing or not
                 self.rtss_timer.start(sw.RTSS_READ_MS)
+            elif setting == "radar_enabled":                                     # the radar listening or not
+                self.radar_timer.start(sw.RADAR_ENABLED_READ_MS)
         elif kind == "pets":
             self._pets_shown(answer)
         elif kind == "pet":
@@ -1019,6 +1193,12 @@ class SettingsPage(QWidget):
             self.sound_message.setText(why)
         elif kind == "rtss":
             self.rtss_message.setText(sw.RTSS_UNAVAILABLE)
+        elif kind == "radar":
+            self.radar_message.setText(sw.RADAR_UNAVAILABLE)
+        elif kind == "radar-control":
+            self.toast.say(why)
+        elif kind == "hotkeys":
+            self.hotkeys_message.setText(why)
         elif kind == "number":
             self.records_message.setText(why)
         elif kind in ("cache", "server-save"):                     # the web page says nothing; the page says why
@@ -1121,6 +1301,11 @@ class SettingsPage(QWidget):
             for key, fallback in self.data_selects:
                 self._choose(self.controls[key], ui.get(key) if _truthy(ui.get(key)) else fallback)
             self.sound_message.setText(sw.SOUND_SET if _truthy(ui.get("overlay_events_sound_set")) else sw.SOUND_BUILT_IN)
+            self.controls["radar_enabled"].box.setChecked(ui.get("radar_enabled") is True)
+            self.radar_slider.setValue(sw.radar_sensitivity(ui))
+            self.radar_notes.setText(sw.radar_notes(ui))
+            for action, field in self.hotkey_fields.items():
+                field.setText(sw.hotkey_shown(ui, action))
             self.pet_folder.setText(js_text(ui.get("pettracker_path")) if _truthy(ui.get("pettracker_path")) else "")
             self.controls["meter_log_cache_mb"].setValue(sw.log_cache(ui))
             for spec in ROWS:

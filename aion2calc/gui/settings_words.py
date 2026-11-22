@@ -2,7 +2,8 @@
 App & data with their notes, the game database's line, the storage maintenance's table, the version and its update,
 and the patch notes; since 0.2.476 the Meter tab's Combat records and the Server tab's log server and community stats;
 since 0.2.477 the Pet Tracker tab; since 0.2.478 the Overlay tab's first half, described as the rows' controls in their
-order (``LIVE_OVERLAY``, ``RTSS``, ``LAYOUT``). The page (settings_page.py) draws them.
+order (``LIVE_OVERLAY``, ``RTSS``, ``LAYOUT``); since 0.2.479 the Hidden Cube radar's words and the hotkeys' actions.
+The page (settings_page.py) draws them.
 """
 from __future__ import annotations
 
@@ -777,3 +778,225 @@ def stream_url(base: str) -> str:
     import urllib.parse
     parts = urllib.parse.urlsplit(base)
     return f"{parts.scheme}://{parts.netloc}/overlay"
+
+
+# ------------------------------------------------------------------ Overlay: the Hidden Cube radar (0.2.479)
+RADAR_ON = "Show where a Hidden Cube is around you and how near, from the jingle it plays"
+RADAR_NOTE = ("The radar is its own small overlay window, opened beside the meter overlay while it is on, with its own "
+              "opacity slider, Lock and Hide; it remembers where you drag it. After Hide, <b>Open overlay</b> or the "
+              "radar's on/off hotkey brings it back.")
+#: The learn steps' buttons and what each asks the app (``/api/radar``).
+RADAR_LEARN = (("1. Learn the background", {"action": "learn", "kind": "background"}),
+               ("2. Learn the cube, facing it", {"action": "learn", "kind": "cube"}),
+               ("3. Learn the cube behind you", {"action": "learn", "kind": "cube", "facing": "behind"}),
+               ("Learn a sound that is not a cube", {"action": "learn", "kind": "other"}))
+RADAR_CANCEL = "Cancel"
+RADAR_CLEAR = "Forget every sample"
+RADAR_ASK_CLEAR = "Forget every learned sample: the backgrounds, the cube's sound and the sounds that are not a cube?"
+RADAR_SENSITIVITY = "Sensitivity"
+RADAR_UNKNOWN = "Radar status unknown."
+RADAR_UNAVAILABLE = "Radar status unavailable."
+RADAR_FORGET = "Forget"
+RADAR_SAMPLES = "Learned sound samples"
+RADAR_POLL_MS = 500                                  # read again while the Overlay tab shows it
+RADAR_ENABLED_READ_MS = 400                          # after the radar is turned on or off
+#: The radar's learn steps and their keys (hotkeys.py ``RADAR_DEFAULTS``) unless Settings → Hotkeys changed them.
+RADAR_STEPS = {"radar_learn_background": "Ctrl+1", "radar_learn_cube": "Ctrl+2", "radar_learn_cube_behind": "Ctrl+3",
+               "radar_learn_other": "Ctrl+4"}
+RADAR_NEAR = ((0.8, "right here"), (0.5, "close"), (0.25, "nearby"), (0, "far"))
+LAYOUTS = {4: "quad", 6: "5.1", 8: "7.1"}
+FRONT_BACK = {
+    "learned": "It tells ahead from behind.",
+    "alike": "Ahead and behind sound alike to it: turn on the game's 3D audio, then learn both again a few steps from "
+             "the cube.",
+    "need_ahead": "Learn it facing the cube too (step 2) to tell ahead from behind.",
+    "need_more": "Too little of the jingle was heard to tell ahead from behind: learn both again a little closer.",
+}
+
+
+def radar_sensitivity(ui) -> int:
+    """The slider's value (``Number.isInteger(+v) && 1 <= v <= 10 ? +v : 5``)."""
+    x = _js_number_or_nan(_dict(ui).get("radar_sensitivity")) if "radar_sensitivity" in _dict(ui) else math.nan
+    return int(x) if math.isfinite(x) and float(x).is_integer() and 1 <= x <= 10 else 5
+
+
+def radar_key(ui, action: str) -> str:
+    """A learn step's key (``radarKey``): the one Settings → Hotkeys saved ("" when cleared), else its default."""
+    saved = _dict(_dict(ui).get("hotkeys"))
+    return js_text(saved[action]) if action in saved and _truthy(saved[action]) else "" if action in saved else RADAR_STEPS[action]
+
+
+def radar_notes(ui) -> str:
+    """How to teach the radar (``radarNotes``), naming each step's key or button."""
+    import html as _html
+
+    def key(action, button):
+        bound = radar_key(ui, action)
+        return f"<b>{_html.escape(bound)}</b>" if bound else button
+    return ("<p>Put headphones on and, in the game's sound settings, turn 3D audio on and mute the music, ambient, monster "
+            "and your own character's sounds, keeping the effect volume up (what the cube guides advise). Then teach the "
+            "radar the game's sound in samples. In the game, while the radar is on, each step's key listens at once; its "
+            "button here waits 5 seconds first, so you can switch back to the game.</p>"
+            f"<ol><li>{key('radar_learn_background', 'Button 1')} where no cube or feather can be heard, for the "
+            "background (it listens 4 seconds). Take one in each kind of place you search: the radar takes off what it "
+            "learned of each before it listens for the jingle.</li>"
+            f"<li>{key('radar_learn_cube', 'Button 2')} facing a Hidden Cube while it jingles (8 seconds): first beside "
+            "it, then a few steps away, then as far off as you can still hear it. The farther samples teach it the jingle "
+            "at a distance and set how far its rings reach.</li>"
+            f"<li>{key('radar_learn_cube_behind', 'Button 3')} from where you took one, with your back to the cube: it "
+            "learns how the game's 3D audio changes the jingle behind you, and then shows whether the cube is ahead of "
+            "you or behind.</li></ol>"
+            f"<p>{key('radar_learn_other', 'The “not a cube” button')} while a sound the radar takes for a cube plays (an "
+            "Empyrean Trace feather, a voice in voice chat; 6 seconds): it no longer takes that sound for one, unless it "
+            "sounds the same as the cube's.</p>"
+            "<p>The overlay then shows the cube on a circle around you, ahead of you at the top: louder is closer. Without "
+            "the game's 3D audio or a surround output, stereo cannot tell ahead from behind: the radar shows both places "
+            "the cube can be, and turning towards it tells which (a cube ahead moves to the middle, one behind further "
+            "out), as does walking forward (one ahead grows louder). Raise the sensitivity to hear a cube farther away, "
+            "lower it if voice chat sets it off. Settings → Hotkeys changes the keys. The app reads what Windows plays, in "
+            "memory, and keeps only the samples' levels in 40 frequency bands and the jingle's peak frequencies: nothing "
+            "is recorded or uploaded.</p>")
+
+
+def _plural(n, one: str, many: str = "") -> str:
+    return f"{js_text(n)} {one if n == 1 else many or one + 's'}"
+
+
+def _what(learning) -> str:
+    learning = _dict(learning)
+    if learning.get("kind") == "background":
+        return "the background"
+    if learning.get("kind") == "other":
+        return "a sound that is not a cube"
+    return "the cube's sound behind you" if learning.get("facing") == "behind" else "the cube's sound"
+
+
+def _near(r) -> str:
+    p = _js_number(_dict(r).get("proximity")) or 0
+    return next((words for limit, words in RADAR_NEAR if p >= limit), RADAR_NEAR[3][1])
+
+
+def radar_learned(r) -> str:
+    """What the radar has learned (``learnedText``)."""
+    r = _dict(r)
+    m = _dict(r.get("model"))
+    if not _truthy(r.get("ready")):
+        if _truthy(m.get("backgrounds")):
+            return f"{_plural(m['backgrounds'], 'background sample')} learned: now learn the cube's sound (step 2)."
+        return "Nothing learned yet: step 1, then step 2."
+    cubes = _plural(m.get("cubes"), "cube sample")
+    if _truthy(m.get("behind")):
+        cubes += f" ({js_text(m.get('ahead'))} facing it, {js_text(m['behind'])} behind you)"
+    bits = [cubes, _plural(m["backgrounds"], "background sample") if _truthy(m.get("backgrounds"))
+            else "no background (step 1 improves it)"]
+    if _truthy(m.get("others")):
+        bits.append(_plural(m["others"], "sound that is not a cube", "sounds that are not a cube"))
+    facing = FRONT_BACK.get(m.get("front_back")) if isinstance(m.get("front_back"), str) else None
+    if not facing:
+        channels = _js_number(r.get("channels")) or 0
+        facing = "" if channels >= 4 else "Learn it behind you too (step 3) to tell ahead from behind."
+    return f"Learned {', '.join(bits)}{', with the jingle' + chr(39) + 's notes' if _truthy(m.get('notes')) else ''}. {facing}".strip()
+
+
+def radar_status(r) -> str:
+    """The radar's line (``radarStatus``): where it runs, a step under way, what it learned and what it hears."""
+    r = _dict(r)
+    learning, last = r.get("learning"), r.get("last_learn")
+    if not _truthy(r.get("supported")):
+        return "The radar listens to Windows' sound output; it runs on Windows only."
+    if _truthy(learning):
+        seconds = js_text(math.ceil(_js_number(_dict(learning).get("seconds")) or 0))
+        if _dict(learning).get("phase") == "countdown":
+            return f"Learning {_what(learning)} in {seconds} s: switch to the game."
+        return f"Listening to {_what(learning)}… {seconds} s left."
+    parts = []
+    if _truthy(last):
+        parts.append(js_text(_dict(last).get("message")))
+    parts.append(radar_learned(r))
+    if _truthy(r.get("error")):
+        parts.append(f"Not listening: {js_text(r['error'])}.")
+    elif _truthy(r.get("enabled")) and _truthy(r.get("listening")):
+        if _truthy(r.get("heard")):
+            match = theme.js_round((_js_number(r.get("match")) or 0) * 100)
+            parts.append(f"Hearing a cube {js_text(r.get('direction'))}, {_near(r)} (match {match} %).")
+        else:
+            device = f" to {js_text(r['device'])}" if _truthy(r.get("device")) else ""
+            channels = _js_number(r.get("channels")) or 0
+            rear = (f" ({LAYOUTS.get(int(channels), js_text(r.get('channels')) + ' channels')}: it hears the rear channels)"
+                    if channels >= 4 else "")
+            parts.append(f"Listening{device}{rear}: no cube heard.")
+    elif not _truthy(r.get("setting")):
+        parts.append("Off.")
+    return " ".join(parts)
+
+
+def radar_sample(s) -> str:
+    """A learned sample's line (``sampleRow``)."""
+    s = _dict(s)
+    kind = s.get("kind")
+    bits = ["Cube, behind you" if kind == "cube" and s.get("facing") == "behind" else "Cube, facing it" if kind == "cube"
+            else "Not a cube" if kind == "other" else "Background"]
+    if kind == "cube" and s.get("level_db") is not None:
+        level = _js_number(s["level_db"])
+        bits.append("the loudest" if level is not None and level >= -1 else f"{js_text(-level if level is not None else s['level_db'])} dB below the loudest")
+    if kind != "background" and _truthy(s.get("notes")):
+        bits.append("with its notes")
+    if _truthy(s.get("alike")):
+        bits.append("sounds the same as the cube, so it is not used")
+    if _truthy(s.get("at")):
+        bits.append(js_text(s["at"]).replace("T", " ", 1))
+    return " · ".join(bits)
+
+
+# ------------------------------------------------------------------ Overlay: Hotkeys (0.2.479)
+#: The actions a global hotkey can do (hotkeys.py ``ACTIONS``), in the web page's order.
+HOTKEY_ACTIONS = (
+    ("toggle_overlay", "Show / hide the overlay"), ("toggle_meter", "Start / stop the meter"),
+    ("clear_meter", "Clear the meter (battle reset)"),
+    ("mark_moment", "Mark this moment for the diagnostics (label it on the Live Meter page)"),
+    ("toggle_click_through", "Toggle click-through"), ("toggle_party_overlay", "Show / hide the Party-DPS overlay"),
+    ("open_app", "Open the app window"), ("open_settings", "Open the Settings page"),
+    ("toggle_events", "Show / hide overlay event notifications"),
+    ("toggle_field_bosses", "Show / hide field-boss timers on the overlay"),
+    ("toggle_combat_assist", "Show / hide combat assist (skill cooldowns, break gauge)"),
+    ("toggle_cube_radar", "Turn the Hidden Cube radar on / off"),
+    ("toggle_pet_tracker", "Show / hide the Pet Tracker overlay"),
+    ("radar_learn_background", "Hidden Cube radar: learn the background (step 1)"),
+    ("radar_learn_cube", "Hidden Cube radar: learn the cube's sound, facing it (step 2)"),
+    ("radar_learn_cube_behind", "Hidden Cube radar: learn the cube's sound with it behind you (step 3)"),
+    ("radar_learn_other", "Hidden Cube radar: learn a sound that is not a cube"),
+    ("read_screen", "Read the game screen into the app (Genus Insight, Title window)"),
+    ("screenshot_lock", "Screenshot lock (freeze the overlay)"), ("quit", "Exit Aion 2 Calc"))
+HOTKEY_HINT = "Click, then press keys"
+HOTKEY_CLEAR = "Clear"
+HOTKEYS_SAVE = "Save hotkeys"
+HOTKEYS_SAVING = "Saving…"
+HOTKEYS_RADAR_NOTE = ("The Hidden Cube radar's learn steps work only while the radar is on, and are Ctrl+1 to Ctrl+4 "
+                      "unless you change them. While they are bound, Windows gives those keys to this app instead of the "
+                      "game: clear them or pick other keys if the game uses them.")
+HOTKEYS_NOTE = ("Global shortcuts that work even while the game is focused (Windows only). Click a field and press the key "
+                "combo (e.g. Ctrl+Shift+M), then <strong>Save hotkeys</strong>; <strong>Clear</strong> unbinds. Changes "
+                "take effect within a couple of seconds. Leave all blank for no hotkeys (the default). Ride the settings "
+                "backup.")
+
+
+def hotkey_shown(ui, action: str) -> str:
+    """An action's keys as the row shows them: a learn step's default until one is saved, else what was saved."""
+    saved = _dict(_dict(ui).get("hotkeys"))
+    if action in RADAR_STEPS and action not in saved:
+        return RADAR_STEPS[action]
+    return js_text(saved[action]) if _truthy(saved.get(action)) else ""
+
+
+def hotkeys_to_save(values: dict) -> tuple[dict, str]:
+    """The hotkeys to save from the fields (``#hotkeys-save``): those set, and the learn steps even when cleared (kept
+    cleared), or the words saying a combo is bound twice."""
+    saved = {action: value.strip() for action, value in values.items()
+             if value.strip() or action in RADAR_STEPS}
+    used: dict[str, int] = {}
+    for _action, value in saved.items():
+        if value:
+            used[value.lower()] = used.get(value.lower(), 0) + 1
+            if used[value.lower()] > 1:
+                return saved, f"{value} is bound to two actions; give each action its own keys."
+    return saved, ""
