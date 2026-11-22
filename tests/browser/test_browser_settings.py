@@ -228,3 +228,26 @@ def test_each_accent_recolours_the_app_and_is_kept(app_page, app_url):
     assert len(set(colours.values())) == len(ACCENTS)                                # each its own colour
     page.goto(app_url + "#/meter")                                                   # applied as the next launch opens
     assert page.evaluate("document.documentElement.dataset.accent") == ACCENTS[-1]
+
+
+def test_an_imported_file_is_said_once_settings_are_drawn_again(app_page, app_url, tmp_path):
+    # its words went with the row the page drew again, an instant after the import, before anyone could read them
+    page = app_page
+    imported = []
+
+    def importing(route):                                       # taken without changing the app the tests share
+        imported.append(json.loads(route.request.post_data))
+        route.fulfill(json={"settings": {}, "imported": ["overlay_glow", "tray_on_close"]})
+    page.route("**/api/ui/import", importing)
+    backup = tmp_path / "backup.json"
+    backup.write_text(json.dumps({"format": "a backup", "settings": {"overlay_glow": True, "tray_on_close": False}}),
+                      encoding="utf-8")
+    open_settings(page, app_url, "backup")
+    page.evaluate("document.querySelector('#settings-backup-msg').dataset.before = 'yes'")
+    page.set_input_files("#settings-import-file", str(backup))
+    page.wait_for_function("() => { const m = document.querySelector('#settings-backup-msg');"
+                           " return m && !m.dataset.before; }")                  # Settings drawn again
+    page.wait_for_function("() => document.querySelector('#settings-backup-msg').textContent.startsWith('Imported:')")
+    assert page.text_content("#settings-backup-msg") == ("Imported: overlay_glow, tray_on_close. Reopen the overlay "
+                                                          "to apply.")
+    assert imported == [{"document": {"format": "a backup", "settings": {"overlay_glow": True, "tray_on_close": False}}}]

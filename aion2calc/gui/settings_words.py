@@ -982,6 +982,32 @@ HOTKEYS_NOTE = ("Global shortcuts that work even while the game is focused (Wind
                 "backup.")
 
 
+# ------------------------------------------------------------------ Appearance and Profiles & backup (0.2.481)
+BACKUP_EXPORT = "Export settings"
+BACKUP_IMPORT = "Import settings"
+BACKUP_NOTE = ("Save the overlay and app settings to a file you can restore or share, then import it back. What belongs to "
+               "this computer stays out of it: the Pet Tracker folder, the overlay's background image and event sound, raw "
+               "traffic recording, and the Timers region and group.")
+EXPORTING = "Exporting…"
+IMPORTING = "Importing…"
+BACKUP_FILES = "JSON (*.json);;All files (*)"
+
+
+def exported(r) -> str:
+    """Where the settings were saved (``#settings-export``)."""
+    return "Saved to " + js_text(_dict(r).get("file"))
+
+
+def imported(r) -> str:
+    """What an import took (``#settings-import-file``)."""
+    return ("Imported: " + ", ".join(js_text(key) for key in _list(_dict(r).get("imported")))
+            + ". Reopen the overlay to apply.")
+
+
+def could_not_import(why: str) -> str:
+    return "Could not import: " + why
+
+
 def hotkey_shown(ui, action: str) -> str:
     """An action's keys as the row shows them: a learn step's default until one is saved, else what was saved."""
     saved = _dict(_dict(ui).get("hotkeys"))

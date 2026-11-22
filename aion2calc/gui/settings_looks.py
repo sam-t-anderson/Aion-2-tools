@@ -408,8 +408,8 @@ def without_preset(ui, name: str) -> list:
 # ------------------------------------------------------------------ the share codes
 _SURROGATE = re.compile("[\ud800-\udfff]")
 #: What JavaScript's ``trim`` takes off a text's ends.
-_JS_SPACE = ("\t\n\v\f\r                "
-             "  　﻿")
+_JS_SPACE = ("\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029"
+             "\u202f\u205f\u3000\ufeff")
 
 
 def js_trim(text) -> str:
@@ -477,15 +477,22 @@ def _no_constant(name: str):
     raise ValueError(f"{name} is not JSON")
 
 
+def js_parse(raw: bytes):
+    """A file's or a code's bytes read as a browser reads them (``TextDecoder``, a byte-order mark taken off), then
+    ``JSON.parse``d: no NaN or Infinity, and a number with a fraction or an exponent whole when it is (since 0.2.481,
+    for a settings file too). ValueError when it is not JSON."""
+    text = raw.decode("utf-8", "replace")
+    text = text[1:] if text.startswith("\ufeff") else text
+    return json.loads(text, parse_float=_js_float, parse_constant=_no_constant)
+
+
 def decode_preset(code: str) -> dict:
     """A shared code read (``decodePreset``): its name (cut to 40, or "Shared preset") and the look settings it
     carries; ValueError when it is not a preset's code."""
     raw = js_trim(code)
     data = raw[len(CODE_PREFIX):] if raw.startswith(CODE_PREFIX) else raw
     try:
-        text = _atob(data).decode("utf-8", "replace")
-        text = text[1:] if text.startswith("﻿") else text            # ``TextDecoder`` takes a BOM off
-        doc = json.loads(text, parse_float=_js_float, parse_constant=_no_constant)
+        doc = js_parse(_atob(data))
     except (ValueError, RecursionError) as problem:
         raise ValueError("not a preset") from problem
     if (not isinstance(doc, dict) or not isinstance(doc.get("name"), str)

@@ -2192,8 +2192,11 @@ async function pageSettings() {
     try {
       const document = JSON.parse(await file.text());
       const r = await api("/api/ui/import", { document });
-      msg.textContent = "Imported: " + (r.imported || []).join(", ") + ". Reopen the overlay to apply.";
-      pageSettings();
+      const said = "Imported: " + (r.imported || []).join(", ") + ". Reopen the overlay to apply.";
+      msg.textContent = said;
+      // the page drawn again with what was imported replaces this row, so the new one says it too
+      await pageSettings().catch(() => {});
+      if ($("#settings-backup-msg")) $("#settings-backup-msg").textContent = said;
     } catch (e) {
       msg.textContent = "Could not import: " + e.message;
     } finally {

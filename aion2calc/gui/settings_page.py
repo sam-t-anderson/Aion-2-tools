@@ -18,7 +18,10 @@
 - Since 0.2.480 the rest of **Overlay** (settings_looks.py has its words): the text's colours and the fonts, the text
   effects and each element's own font, the background image with its sliders and auto-contrast, and the look presets,
   the web page's starter presets and your own, applied, saved, deleted, and copied or pasted as share codes.
-- **The other rows** (Appearance and Profiles & backup) are still on the web Settings page, which the row opens.
+- Since 0.2.481 the **Combat class colors** (the log review's own panel) and the **Settings backup**, exported to a file
+  in your data folder or imported from one.
+- **The other rows** (the theme, the accent colour and the customization profiles) are still on the web Settings page,
+  which the row opens.
 
 Each control saves its setting through the app's ``/api/ui`` the moment it changes, as the web page's does, and says
 so where the web page says it; the page reads the app's settings, its state and its log server each time it is shown,
@@ -325,6 +328,7 @@ class SettingsPage(QWidget):
         self.save_file = save_file or self._ask_where
         self.choose_sound = self._ask_sound                # where the event sound's file is (a test hands one over)
         self.choose_image = self._ask_image                # where the overlay background's image is
+        self.choose_backup = self._ask_backup              # a settings file to import
         self.ask_text = self._ask_text                     # a name or a share code asked for (``prompt``)
         self.ask_colour = lambda start, words: QColorDialog.getColor(QColor(start), self, words)
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
@@ -419,7 +423,9 @@ class SettingsPage(QWidget):
                       ("overlay", "Overlay colors & fonts"): self._look_colours,
                       ("overlay", "Overlay text effects & per-element fonts"): self._look_effects,
                       ("overlay", "Overlay background"): self._look_background,
-                      ("overlay", "Overlay look presets"): self._look_presets})
+                      ("overlay", "Overlay look presets"): self._look_presets,
+                      ("backup", "Settings backup"): self._backup,
+                      ("appearance", "Combat class colors"): self._class_colours})
         on_the_web = {(row.group, row.title) for row in ROWS}
         for group, title in sw.ROW_ORDER:
             row = SetRow(group, title, top=title == "Author")
@@ -1438,6 +1444,59 @@ class SettingsPage(QWidget):
         """The page drawn again from the app's (``pageSettings()``, after a preset is applied, saved or deleted)."""
         self.start()
 
+    # ---------------------------------------------------------------- Appearance and Profiles & backup (0.2.481)
+    def _class_colours(self, row: SetRow) -> None:
+        """The class colours' panel, the log review's own (``A2CombatReview.settings``): saved to the app as they change,
+        as the review pages read them."""
+        from .class_colours import ClassColours
+        self.class_colours = ClassColours({}, ask_colour=lambda start, words: self.ask_colour(start, words))
+        self.class_colours.saved.connect(self._save_class_colours)
+        row.body.addWidget(self.class_colours)
+
+    def _save_class_colours(self, preference: dict) -> None:
+        """The class colours kept by the app (``/api/ui``'s ``combat_colors``); the web page says nothing of it."""
+        self.saved.append(("combat_colors", preference))
+        self.ui["combat_colors"] = preference
+        if self.requests is not None:
+            self.requests.post("classes", "/api/ui", {"combat_colors": preference})
+
+    def _backup(self, row: SetRow) -> None:
+        """The settings saved to a file in your data folder, or a file of them imported (``Settings backup``)."""
+        self.backup_export = _button(sw.BACKUP_EXPORT, self.export_settings)
+        self.backup_message = _words("", "setnote")
+        self.backup_message.setAccessibleName("Settings backup status")
+        row.body.addWidget(_flow(self.backup_export, _button(sw.BACKUP_IMPORT, self.import_settings), self.backup_message,
+                                 gap=(14, 10)))
+        row.body.addWidget(_note(sw.BACKUP_NOTE))
+
+    def export_settings(self) -> None:
+        """The settings written to a file by the app (``#settings-export``): the button waits until it is."""
+        if self.requests is None:
+            return
+        self.backup_export.setEnabled(False)
+        self.backup_message.setText(sw.EXPORTING)
+        self.requests.post("backup-export", "/api/ui/export", {})
+
+    def import_settings(self) -> None:
+        """A settings file read as the web page reads it (``file.text()``, ``JSON.parse``) and imported; then the page
+        is drawn again, and says what was imported."""
+        path = self.choose_backup()
+        if not path:
+            return
+        self.backup_message.setText(sw.IMPORTING)
+        try:
+            with open(path, "rb") as file:
+                document = looks.js_parse(file.read())
+        except (OSError, ValueError, RecursionError) as problem:
+            self.backup_message.setText(sw.could_not_import(str(problem)))
+            return
+        if self.requests is not None:
+            self.requests.post("backup-import", "/api/ui/import", {"document": document})
+
+    def _ask_backup(self) -> str:
+        path, _kind = QFileDialog.getOpenFileName(self, sw.BACKUP_IMPORT, "", sw.BACKUP_FILES)
+        return path
+
     # the rows not drawn as the web page draws them yet (settings_schema): each opens the web Settings page
     def _on_the_web(self, row: SetRow) -> None:
         row.body.addWidget(_flow(_words("This setting is on the web Settings page for now.", "muted"),
@@ -1485,7 +1544,7 @@ class SettingsPage(QWidget):
         version) is said again once read."""
         for words in (self.asset_message, self.storage_message, self.notes_message, self.records_message,
                       self.log_cache_message, self.server_message, self.pet_note, self.pet_folder_message,
-                      self.stream_message, self.hotkeys_message, *self.number_messages.values(),
+                      self.stream_message, self.hotkeys_message, self.backup_message, *self.number_messages.values(),
                       *self.look_messages.values()):
             words.setText("")
         self._clear(self.maintenance_box)
@@ -1524,6 +1583,12 @@ class SettingsPage(QWidget):
             self.look_messages["background"].setText(looks.BG_REMOVED)
         elif kind.startswith("preset-"):
             self._preset_replied(kind, key, answer)
+        elif kind == "backup-export":
+            self.backup_export.setEnabled(True)
+            self.backup_message.setText(sw.exported(answer))
+        elif kind == "backup-import":                  # the page drawn again, saying what was imported
+            self.rerender()
+            self.backup_message.setText(sw.imported(answer))
         elif kind == "cache":
             self._log_cache_said(int(key))
         elif kind == "server-save":
@@ -1616,6 +1681,13 @@ class SettingsPage(QWidget):
             self.look_messages["preset"].setText(looks.could_not_save(why))
         elif kind.startswith("preset-"):
             self.look_messages["preset"].setText(why)
+        elif kind == "backup-export":
+            self.backup_export.setEnabled(True)
+            self.backup_message.setText(why)
+        elif kind == "backup-import":
+            self.backup_message.setText(sw.could_not_import(why))
+        elif kind == "classes":                        # the web page says nothing; the page says why
+            self.toast.say(f"Could not save it: {why}")
         elif kind == "number":
             self.records_message.setText(why)
         elif kind in ("cache", "server-save"):                     # the web page says nothing; the page says why
@@ -1745,6 +1817,8 @@ class SettingsPage(QWidget):
             self.pet_folder.setText(js_text(ui.get("pettracker_path")) if _truthy(ui.get("pettracker_path")) else "")
             self.controls["meter_log_cache_mb"].setValue(sw.log_cache(ui))
             self._apply_look(ui)
+            self.class_colours.show_preference(_dict(ui.get("combat_colors")))
+            self.class_colours.palette.setCurrentIndex(0)
         finally:
             self._loading = False
 
