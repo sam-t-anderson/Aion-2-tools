@@ -6,8 +6,9 @@ full yet (``web``: the log server, profiles and backups, hotkeys, colours and fo
 what it can and opens the web Settings page for the rest. Generated from ``pages/settings.js``'s controls and the
 keys their handlers save, then kept by hand; ``tests/test_native_settings.py`` checks every key is a setting.
 
-Since 0.2.475 the page draws App & data as the web page does (settings_page.py, settings_words.py), and since 0.2.476
-the Meter and Server tabs, so their rows are no longer here; the others follow, a tab at a time.
+Since 0.2.475 the page draws App & data as the web page does (settings_page.py, settings_words.py), since 0.2.476
+the Meter and Server tabs and since 0.2.477 Pet Tracker, so their rows are no longer here; the others follow, a tab at
+a time.
 """
 from __future__ import annotations
 
@@ -77,11 +78,6 @@ ROWS = (
          Number('overlay_cooldowns_max', 'Icons', 1, 16, '')), web=False),
     Row('overlay', 'Hidden Cube radar', (Bool('radar_enabled', 'Show where a Hidden Cube is around you and how near, from the jingle it plays (Windows; off by default)'),
          Number('radar_sensitivity', 'Sensitivity', 1, 10, '')), web=False),
-    Row('pettracker', 'Pet Tracker', (), web=True),
-    Row('pettracker', 'Use Pet Tracker', (Bool('pettracker_enabled', "Run Pet Tracker's capture with Aion 2 Calc (Windows; off by default)"),), web=False),
-    Row('pettracker', 'Pet Tracker overlay', (Bool('pettracker_overlay', 'Show the Pet Tracker overlay while the game runs'),
-         Choice('pettracker_overlay_style', 'Style', (('app', "in Aion 2 Calc's own window"), ('pettracker', "as Pet Tracker's own window")), str)), web=False),
-    Row('pettracker', 'Pet Tracker folder', (), web=True),
     Row('overlay', 'In-game (RTSS)', (Bool('rtss_enabled', 'Draw the meter inside the game through RivaTuner Statistics Server (Windows; off by default; needs RTSS running with its on-screen display enabled)'),
          Choice('rtss_metric', 'Metric', (('dps', 'DPS'), ('hps', 'HPS'), ('dtps', 'Damage taken')), str),
          Choice('rtss_style', 'Style', (('plain', 'Plain text'), ('colored', 'Class colours (RTSS colour tags)')), str),

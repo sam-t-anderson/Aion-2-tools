@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
                 if key == "meter":
                     widget = MeterPage(api, open_page=self.show_page, open_in_web=self.open_in_web, open_web=self.open_web)
                 elif key == "settings":
-                    widget = SettingsPage(api, self.open_web)
+                    widget = SettingsPage(api, self.open_web, open_page=self.show_page)
                 elif key == "news":
                     widget = NewsPage(api)
                 elif key == "timers":

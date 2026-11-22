@@ -35,7 +35,9 @@ SYSTEM_KEYS = ("interface_native", "app_window", "app_text_scale", "performance_
                "character_auto_open", "character_auto_refresh", "tray_on_close", "auto_update", "update_on_close")
 RECORD_KEYS = tuple(key for key, *_rest in sw.RECORD_CHECKS) + tuple(sw.RECORD_NUMBERS) + ("meter_log_cache_mb",)
 SERVER_KEYS = ("community_heartbeat", "community_contribute_character")
-DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS
+PET_KEYS = ("pettracker_enabled", "pettracker_overlay", "pettracker_overlay_style", "pettracker_path")
+DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS + PET_KEYS
+DRAWN_GROUPS = ("system", "meter", "server", "pettracker")
 T0 = 1700000000
 STATUS = {"home": "/data/aion2calc", "version": "0.2.475", "db": {"items": 12345, "last_sync": {"at": T0}},
           "update": None, "update_state": {"checked_at": T0}, "update_download": {}}
@@ -158,7 +160,7 @@ def _row(page, title):
 # ------------------------------------------------------------------ the rows still drawn from the schema
 def test_every_control_saves_one_of_the_apps_settings_and_its_default_fits(home):
     defaults = server.ui_settings()
-    assert len(ROWS) == 19 and len(CONTROLS) == 69                     # App & data's, Meter's and Server's drawn here
+    assert len(ROWS) == 15 and len(CONTROLS) == 66           # App & data's, Meter's, Server's and Pet Tracker's drawn here
     assert len({control.key for control in CONTROLS}) == len(CONTROLS)                 # one control per setting
     assert not {control.key for control in CONTROLS} & set(DRAWN_KEYS)
     for control in CONTROLS:
@@ -170,13 +172,13 @@ def test_every_control_saves_one_of_the_apps_settings_and_its_default_fits(home)
             assert control.cast(value) in [option for option, _text in control.options], control.key
         else:
             assert control.minimum <= value <= control.maximum, control.key
-    assert {row.group for row in ROWS} <= {key for key, _title in GROUPS} - {"system", "meter", "server"}
+    assert {row.group for row in ROWS} <= {key for key, _title in GROUPS} - set(DRAWN_GROUPS)
     assert [key for key, _title in GROUPS] == [key for key, _title in sw.TABS]
     for key in DRAWN_KEYS:                                                             # the drawn rows' saves too
         assert key in defaults, key
     for key, (_words, _unit, low, high, shown) in {**sw.RECORD_NUMBERS, "meter_log_cache_mb": sw.LOG_CACHE}.items():
         assert low <= defaults[key] <= high and low <= shown <= high, key
-    drawn = {r for r in sw.ROW_ORDER if r[0] in ("system", "meter", "server")}
+    drawn = {r for r in sw.ROW_ORDER if r[0] in DRAWN_GROUPS}
     assert {(row.group, row.title) for row in ROWS} | drawn == set(sw.ROW_ORDER) and len(sw.ROW_ORDER) == 39
 
 
@@ -257,7 +259,8 @@ def test_app_and_data_as_the_web_page_draws_it(qapp, home):
     settle(lambda: page.home.text() == "/data/aion2calc" and page.ui)
     assert [r.title for r in page.rows if r.isVisibleTo(page)] == [title for group, title in sw.ROW_ORDER
                                                                    if group == "system"]
-    assert {(m, p) for m, p, _b in app.calls} == {("GET", "/api/status"), ("GET", "/api/logserver"), ("GET", "/api/ui")}
+    assert {(m, p) for m, p, _b in app.calls} == {("GET", "/api/status"), ("GET", "/api/logserver"), ("GET", "/api/ui"),
+                                                   ("GET", "/api/pettracker")}            # Pet Tracker's too (0.2.477)
     texts = _texts(page)
     for words in (sw.NATIVE, sw.NATIVE_NOTE, sw.APP_WINDOW, sw.APP_WINDOW_NOTE, sw.TEXT_LABEL, sw.TEXT_NOTE,
                   sw.TEXT_NATIVE, sw.PERFORMANCE_NOTE, sw.LANGUAGE_WEB, sw.LAUNCH_LABEL, sw.LAUNCH_NOTE,
@@ -554,6 +557,81 @@ def test_the_log_server_and_community_stats(qapp, home):
     settle(lambda: app.sent("POST", "/api/ui") and app.sent("POST", "/api/ui")[-1][2] == {"community_contribute_character": False})
 
 
+# ------------------------------------------------------------------ Pet Tracker (0.2.477)
+PT_INSTALLING = {"supported": True, "installed": None, "setup": {"status": "downloading", "version": "2.0"}}
+PT_INSTALLED = {"supported": True, "installed": {"version": "1.9", "folder": "C:/Pet Tracker"}, "enabled": True,
+                "connected": True, "status": "Live", "character": "TestSorc",
+                "update": {"available": True, "latest": "2.0", "installed": "1.9"}}
+
+
+def test_the_pet_tracker_tab(qapp, home):
+    opened = []
+    app = FakeApp(_answers({("GET", "/api/ui", None): {**server.ui_settings(), "pettracker_overlay": True,
+                                                        "pettracker_overlay_style": "pettracker",
+                                                        "pettracker_path": "D:/PT portable"},
+                            ("GET", "/api/pettracker", None): [PT_INSTALLING, PT_INSTALLED],
+                            ("POST", "/api/pettracker", "update"): [{**PT_INSTALLED, "message": "Pet Tracker is updating."},
+                                                                    {"error": "Pet Tracker did not answer"}],
+                            ("POST", "/api/pettracker", "install"): _refused("/api/pettracker", 400, "No signed release")}))
+    page = _page(home, app, open_page=opened.append)
+    page.show_tab("pettracker")
+    assert [r.title for r in page.rows if r.isVisibleTo(page)] == ["Pet Tracker", "Use Pet Tracker", "Pet Tracker overlay",
+                                                                  "Pet Tracker folder"]
+    # not installed, its install under way: the button waits, the install says what it does, read again in 2 s
+    settle(lambda: sw.NOT_INSTALLED in _texts(page))
+    texts = _texts(page)
+    assert "Downloading Pet Tracker 2.0…" in texts and sw.PET_INSTALL_NOTE in texts
+    assert not _button(page, sw.INSTALL_PETS).isEnabled() and page.pet_timer.isActive()
+    assert page.pet_timer.interval() == 2000
+    page.pet_timer.timeout.emit()
+    settle(lambda: any(t.startswith("Installed: version 1.9") for t in _texts(page)))
+    assert "Installed: version 1.9, in C:/Pet Tracker. TestSorc · Live" in _texts(page) and not page.pet_timer.isActive()
+    assert "Pet Tracker 2.0 is available (you have 1.9)." in _texts(page)
+    # the update: Pet Tracker's words, then its state read again; a refusal said
+    _button(page, "Update Pet Tracker").click()
+    settle(lambda: page.pet_note.text() == "Pet Tracker is updating.")
+    settle(lambda: len(app.sent("GET", "/api/pettracker")) == 3)
+    _button(page, "Update Pet Tracker").click()
+    settle(lambda: page.pet_note.text() == "Pet Tracker did not answer")
+    # the intro's link: the Pet Tracker page, in the window
+    intro = next(label for label in _shown(page) if label.text().startswith(sw.PET_INTRO.replace("'", "&#x27;")) or
+                 sw.PET_PAGE in label.text())
+    intro.linkActivated.emit("pets")
+    assert opened == ["pets"]
+    # the settings shown as the web page reads them, and saved
+    assert not page.controls["pettracker_enabled"].box.isChecked() and page.controls["pettracker_overlay"].box.isChecked()
+    assert page.controls["pettracker_overlay_style"].currentData() == "pettracker"
+    assert page.pet_folder.text() == "D:/PT portable" and page.pet_folder.placeholderText() == sw.PET_FOLDER_HINT
+    for words in (sw.USE_PETS_NOTE, sw.PET_OVERLAY_NOTE, sw.PET_FOLDER_NOTE):
+        assert words in _texts(page), words
+    page.controls["pettracker_enabled"].box.setChecked(True)                           # saved, then Pet Tracker read again
+    settle(lambda: page.toast.text() == "Saved" and page.pet_timer.isActive())
+    assert page.pet_timer.interval() == sw.PET_ENABLED_READ_MS
+    page.controls["pettracker_overlay_style"].setCurrentIndex(0)
+    settle(lambda: app.sent("POST", "/api/ui")[-1][2] == {"pettracker_overlay_style": "app"})
+    page.pet_folder.setText("  E:/PT  ")
+    _button(page, sw.SAVE).click()
+    settle(lambda: page.pet_folder_message.text() == "Saved")
+    assert app.sent("POST", "/api/ui")[-1][2] == {"pettracker_path": "E:/PT"}
+    app.answers[("POST", "/api/ui", None)] = _refused("/api/ui", 400, "ValueError: no such folder")
+    _button(page, sw.SAVE).click()
+    settle(lambda: page.pet_folder_message.text() == "ValueError: no such folder")
+
+
+def test_pet_tracker_elsewhere_and_not_installed(qapp, home):
+    app = FakeApp(_answers({("GET", "/api/pettracker", None): [{"supported": False},
+                                                              {"supported": True, "installed": None, "setup": {}}],
+                            ("POST", "/api/pettracker", "install"): _refused("/api/pettracker", 400, "No signed release")}))
+    page = _page(home, app)
+    page.show_tab("pettracker")
+    settle(lambda: sw.PETS_UNSUPPORTED in _texts(page))
+    page.read_pets()
+    settle(lambda: sw.NOT_INSTALLED in _texts(page))
+    assert _button(page, sw.INSTALL_PETS).isEnabled() and not page.pet_timer.isActive()
+    _button(page, sw.INSTALL_PETS).click()                                             # refused: said in its place
+    settle(lambda: "No signed release" in _texts(page))
+
+
 def test_the_settings_words():
     assert sw.chosen_tab("pettracker") == "pettracker" and sw.chosen_tab(None) == "appearance"
     assert sw.text_scale({"app_text_scale": "120abc"}) == 120 and sw.text_scale({}) == 100
@@ -577,6 +655,11 @@ def test_the_settings_words():
     assert sw.server_versions({"software": {"analyzer": "2"}}) == " · server not reported · analyzer 2"
     assert sw.saved_check({"ok": True}) == "saved · server reachable · runtime versions not reported by this server"
     assert sw.server_check({"ok": False, "detail": "refused"}) == "Check failed: refused"
+    # Pet Tracker (0.2.477)
+    assert sw.pet_status({})["text"] == sw.PETS_UNSUPPORTED
+    started = sw.pet_status({"supported": True, "setup": {"status": "started"}})
+    assert started["install"] is True and started["busy"] and started["setup"].startswith("Pet Tracker's installer is running")
+    assert sw.pet_status({"supported": True, "installed": {"folder": "X"}})["text"].startswith("Installed, in X. ")
 
 
 def test_the_image_failures_kept_as_the_web_page_keeps_them():
