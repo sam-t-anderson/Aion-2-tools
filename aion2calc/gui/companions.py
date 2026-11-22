@@ -1427,6 +1427,8 @@ def main(argv=None) -> int:
         return meter(argv)
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setQuitOnLastWindowClosed(True)
+    from .app_icon import apply as apply_icon
+    apply_icon(app)                               # the app's icon, not Qt's placeholder (0.2.501)
     from . import interface
     base = _app_base(url.split("?")[0])
     interface.connect(AppApi(base))

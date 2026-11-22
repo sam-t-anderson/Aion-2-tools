@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import contextlib
 import math
-import pathlib
 import webbrowser
 from decimal import Decimal
 
@@ -24,11 +23,10 @@ from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLayout, QLayoutItem
                                QScrollArea, QWidget)
 
 from . import i18n, theme
+from .app_icon import LOGO                       # the app's logo, its icon too (0.2.501)
 from .character import js_number, js_string
 from .live_meter import shot_scale
 from .results import _dict, _truthy
-
-LOGO = pathlib.Path(__file__).resolve().parents[1] / "app" / "static" / "logo.png"
 
 # ------------------------------------------------------------------ index.html's, app.js's and account-view.js's words
 BRAND, TAGLINE = "Aion 2 Calc", "AION 2 build planner & combat analyzer"

@@ -3633,6 +3633,8 @@ def main(argv=None) -> int:
         return companion(["--url", url])
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setQuitOnLastWindowClosed(True)
+    from .app_icon import apply as apply_icon
+    apply_icon(app)                               # the app's icon, not Qt's placeholder (0.2.501)
     from . import interface
     interface.connect(AppApi(_app_base(url)))
     window = MeterOverlay(AppApi(_app_base(url)), _ParentProcess(os.environ.get("AION2CALC_PARENT_PID")),

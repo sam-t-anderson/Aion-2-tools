@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, Q
 
 from . import i18n, theme
 from . import live_meter as lm
+from .app_icon import app_icon, apply as apply_icon
 from .account_page import AccountPage
 from .builds_page import BuildsPage
 from .combat_review import read_page
@@ -127,6 +128,7 @@ class MainWindow(QMainWindow):
         self.api, self.web_base, self.parent_process = api, web_base, parent_process
         self.shown_look = theme.LOOK["shown"]              # the theme drawn: the computer's, while it follows it
         self.setWindowTitle("Aion 2 Calc")
+        self.setWindowIcon(app_icon())                   # the app's own icon, not Qt's placeholder (0.2.501)
         self.resize(1280, 820)
         self.leave_app = QApplication.quit                 # once the app has stopped (Quit)
         self.confirm = self._confirm
@@ -595,6 +597,7 @@ def main(argv=None) -> int:
     if QApplication.instance() is None:
         scale_text(AppApi(base), ui)
     app = QApplication.instance() or QApplication(sys.argv[:1])
+    apply_icon(app)                                  # the app's icon on its windows and dialogs (0.2.501)
     from . import interface
     interface.connect(AppApi(base))                  # the window's choices, kept by the app with the web pages' (0.2.482)
     i18n.install(i18n.language())                    # in the language the web pages show (0.2.483)
