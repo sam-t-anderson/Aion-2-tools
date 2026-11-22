@@ -144,9 +144,10 @@ def _clear(layout) -> None:
 
 
 class AccountPage(QWidget):
-    """Account. ``open_web`` opens a page of the web interface; ``ask(question, text)`` and ``confirm(question)`` stand
-    in for the web page's prompt and confirm, ``alert(words)`` for its alert. ``status_read(status)`` is each account
-    status the page reads (the window's header shows the account from it, 0.2.494)."""
+    """Account. ``open_web`` opens a page of the app (in the window); ``ask(question, text)`` and
+    ``confirm(question)`` stand in for the web page's prompt and confirm, ``alert(words)`` for its alert.
+    ``status_read(status)`` is each account status the page reads (the window's header shows the account from it,
+    0.2.494)."""
 
     status_read = Signal(object)
 
@@ -436,12 +437,13 @@ class AccountPage(QWidget):
         self.legion = None
         self.render()
 
-    def open(self, tab: str | None) -> None:
-        """The page opened afresh from the header's menu (``#/account/<tab>``, mounted anew): on ``tab`` (My logs for
-        the sign-in), the lists' filters and pages, the legion opened and what was said let go (Top parses at the page
-        size kept). Drawn again here while it is shown; the window shows it otherwise, which draws it."""
+    def open(self, tab: str | None, legion: str | None = None) -> None:
+        """The page opened afresh from the header's menu or an address (``#/account/<tab>``, mounted anew): on ``tab``
+        (My logs for the sign-in) and, on Legions, the ``legion`` the address names (``#/account/legions/<id>``); the
+        lists' filters and pages, any other legion opened and what was said let go (Top parses at the page size kept).
+        Drawn again here while it is shown; the window shows it otherwise, which draws it."""
         self.tab = tab if tab in {key for key, _words in ac.TABS} else "logs"
-        self.legion = None
+        self.legion = legion if self.tab == "legions" and legion else None
         self.mine, self.shared = ac.fresh_filter(), ac.fresh_filter()
         self.parses = ac.fresh_parses(self._per_page())
         self.parses_all = None

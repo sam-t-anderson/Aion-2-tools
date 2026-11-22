@@ -22,8 +22,8 @@
 - Since 0.2.456 an **analyzed encounter's page** too (combat_analysis_page.py), shown in place of the views likewise:
   opened from the encounters analyzed, after a fight is analyzed, and from any page that links to it.
 - Since 0.2.457 a **log's own page** too (combat_review_page.py), a recorded or shared log's review, shown in place of
-  the views likewise: its encounters, notes and summary with parses. Its other sections open in the web interface for
-  now, from a button on it.
+  the views likewise: its encounters, notes and summary with parses, and since 0.2.458 to 0.2.492 its other sections
+  (combat_review_page.py).
 - Since 0.2.474 an upload's log too, read with its credential from My Uploads' **Review**, as the web page opens it
   (``#/combat-log/opened``).
 """
@@ -87,7 +87,7 @@ def stylesheet() -> str:
 
 
 class CombatPage(QWidget):
-    """Combat Logs. ``open_web`` opens a page of the web interface; ``choose_file``, ``choose_recovery``,
+    """Combat Logs. ``open_web`` opens a page of the app (in the window); ``choose_file``, ``choose_recovery``,
     ``choose_backup`` and ``save_file`` stand in for the file dialogs (a log to analyze, a recovery file or a private
     backup to import, where an export goes), ``confirm`` for the questions and ``open_link`` for the browser; ``store``
     keeps the choices the web page keeps in its browser; ``identity_call`` sends a request to the share server's

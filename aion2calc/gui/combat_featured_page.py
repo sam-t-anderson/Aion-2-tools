@@ -11,9 +11,9 @@ encounters the log server's operator puts at the top of Combat Logs.
   - rankings: the characters by DPS or healing, or the teams by speed;
   - statistics: each class's spread.
 
-Everything is read from the log server through the app's proxy, as the web page reads it. A log opens in the web
-interface for now. A name is drawn in its class's colour: the user's palette from Settings when one is set, else the
-log review's own.
+Everything is read from the log server through the app's proxy, as the web page reads it. A log opens in its review
+on Combat Logs (0.2.457). A name is drawn in its class's colour: the user's palette from Settings when one is set, else
+the log review's own.
 """
 from __future__ import annotations
 
@@ -506,8 +506,8 @@ def _medal(rank: int) -> QLabel:
 
 # ---------------------------------------------------------------------- one encounter's page
 class FeaturedPage(_Featured):
-    """One featured encounter's page (``page``): its head and pages, then the view chosen. ``open_web`` opens a log in
-    the web interface; ``opened(id, view, metric)`` opens another of its pages (``show_page`` when not given)."""
+    """One featured encounter's page (``page``): its head and pages, then the view chosen. ``open_web`` opens a log's
+    review; ``opened(id, view, metric)`` opens another of its pages (``show_page`` when not given)."""
 
     def __init__(self, api: AppApi | None, open_web=None, pictures: Pictures | None = None, parent: QWidget | None = None,
                  opened=None):

@@ -1,3 +1,15 @@
+## Links open in the app's window, and community comparisons generated there (0.2.500)
+
+**A link on one of the window's pages to another page of the app now opens that page in the window**, at the place the web interface would open it. Until now only a log's review and an analyzed encounter did; every other such link opened the web interface, though the window draws every page.
+- Timers' **Browse combat logs →**, and the claim on the Account page, which opens Combat Logs on **My Character Identities**.
+- The Pet Genus window's **My Character** and **Gear & Advice**.
+- A featured encounter's page, a tab of the Account page and the legion it opens, and any other page, each where the web interface opens it.
+
+**A result's community comparison is generated in the window too.** Under the Overview's **Contribute a community comparison**, **Generate community comparison** calculates a separate example of the result's class and mode with common gear and the server's published point budgets, and submits its anonymous allocations, as on the web page:
+- the calculation's progress as it goes, then the comparison saved, its modeled DPS and what the server made of it;
+- **Resubmit saved comparison** once one is saved;
+- it goes on while another page or result is shown, and each result of the same class and mode shows it.
+
 ## The PvP player cards window in the native interface (0.2.499)
 
 **The player cards window of an arena or battlefield match is now the app's own window, as the meter overlay is.** Until now it was a web page in a window of its own; it looks as it did. With it, every overlay window is drawn by the app.

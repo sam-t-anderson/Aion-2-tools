@@ -63,8 +63,9 @@ def _plain() -> QWidget:
 
 
 class CharacterPage(QWidget):
-    """Character → My Character. ``open_web`` opens a page of the web interface; ``store`` keeps what the web page keeps
-    in its browser (the totals typed for each character, the game version, the objective, the Genus choice)."""
+    """Character → My Character. ``open_web`` opens a page of the app (in the window); ``store`` keeps what the web
+    page keeps in its browser (the totals typed for each character, the game version, the objective, the Genus
+    choice)."""
 
     def __init__(self, api: AppApi | None, open_web=None, store: QSettings | None = None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -120,7 +121,7 @@ class CharacterPage(QWidget):
         self.cview.setContentsMargins(0, 0, 0, 0)
         self.cview.setSpacing(14)
         self.layout_.addWidget(holder)
-        self.windows = ResultWindows(api, open_web, "character")
+        self.windows = ResultWindows(api, open_web)
         self.windows.hide()
         self.layout_.addWidget(self.windows)
         self.layout_.addStretch(1)

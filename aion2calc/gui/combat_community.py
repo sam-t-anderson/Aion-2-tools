@@ -1,7 +1,7 @@
 """The community's combat log views in the native Combat Logs page (0.2.453), as logs-view.js draws them: Community
 Combat Logs (Browse logs' first list), Completed-run speed, Boss progression and Highest observed build points. Each
-reads the log server through the app's proxy (``/api/community``), as the web page does; a fight's log opens in the web
-interface for now.
+reads the log server through the app's proxy (``/api/community``), as the web page does; a fight's log opens in its
+review on this page (0.2.457).
 
 The views share the server's facets, read once, and whether mini-bosses are shown (kept as the web page keeps it). A view
 answers only its latest question: an answer to one asked before a filter changed is let go.

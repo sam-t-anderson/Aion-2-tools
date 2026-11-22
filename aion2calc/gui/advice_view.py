@@ -322,7 +322,7 @@ QPushButton#dslot:hover, QPushButton#dslot:checked, QPushButton#dmini:hover, QPu
 
 
 class AdviceView(QWidget):
-    """An advice's windows. ``open_web`` opens the web page (for the parts not drawn here yet), ``clipboard`` takes
+    """An advice's windows. ``open_web`` opens a page of the app (a fight's analysis), ``clipboard`` takes
     the words a window's "Copy as text" copies and ``open_link`` an item's page; both default to the system's."""
 
     def __init__(self, api, advice: dict, open_web=None, clipboard=None, open_link=None, parent: QWidget | None = None,
@@ -1171,7 +1171,7 @@ class AdviceView(QWidget):
         return pair
 
     def _fight(self, fight: dict) -> QLabel:
-        """A recent fight's name, a link to its analysis on Combat Logs (on the web page for now)."""
+        """A recent fight's name, a link to its analysis on Combat Logs."""
         if not fight["page"]:
             return _label(fight["boss"])
         label = _label(f"<a href='web:{html.escape(fight['page'])}' style='color: {theme.COLORS['accent']};'>"

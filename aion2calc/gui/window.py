@@ -4,8 +4,9 @@ pages drawn by Qt.
 The navigation lists the web interface's sections and pages in its order (``SECTIONS``, after index.html). The
 pages are moved over one at a time: the Live Meter page first (as the web page draws it since 0.2.471,
 ``meter_page``), then Settings (0.2.414), then News (0.2.427), Timers (0.2.428), Database (0.2.429) and Gathering
-(0.2.430). A page the native window does not draw yet says so and opens in the web interface, so every page stays a
-click away while the move goes on.
+(0.2.430), and so on until every page was drawn here (the Raid Planner last, 0.2.490). A page the native window does
+not draw says so and opens in the web interface. Since 0.2.500 a link to any page of the app opens it here, as the web
+interface shows it at that address (``web_route``).
 """
 from __future__ import annotations
 
@@ -60,6 +61,37 @@ SECTIONS = (
     ("", (("settings", "Settings"), ("account", "Account"))),
 )
 PAGE_TITLES = {page: title for _section, pages in SECTIONS for page, title in pages}
+#: The lists of Combat Logs an address can open (``#/combat/<list>``, pages/combat.js), and the Account page's tabs
+#: (``#/account/<tab>``, pages/account.js).
+COMBAT_LISTS = ("community", "owned", "saved", "identities")
+ACCOUNT_TABS = ("logs", "parses", "legions", "security")
+
+
+def web_route(page: str, pages=None) -> dict:
+    """A page of the web interface read as app.js's ``route`` reads its address (``#/<page>``): the page shown (the
+    Live Meter for none, the Build Planner for one not among ``pages``, the navigation's by default), and what that
+    page reads after it: the list of Combat Logs asked for (``combat/<list>``), a featured encounter and its page
+    (``featured/<id>/<view>?metric=``), or the Account page's tab and the legion opened on it
+    (``account/<tab>/<legion>``)."""
+    page = page if isinstance(page, str) else ""
+    pages = PAGE_TITLES if pages is None else pages
+    first = (page or "meter").split("/")[0]
+    if first == "combat":
+        asked = (re.split(r"[/?]", page) + [""])[1]
+        return {"page": "combat", "list": asked if asked in COMBAT_LISTS else None}
+    if first == "featured":
+        pieces = page.split("?")
+        parts = pieces[0].split("/")
+        query = urllib.parse.parse_qs(pieces[1] if len(pieces) > 1 else "", keep_blank_values=True)
+        return {"page": "featured", "id": urllib.parse.unquote(parts[1] if len(parts) > 1 else ""),
+                "view": (parts[2] if len(parts) > 2 else "") or "race", "metric": (query.get("metric") or [None])[0]}
+    if first == "account":
+        parts = page.split("?")[0].split("/")
+        tab = parts[1] if len(parts) > 1 and parts[1] in ACCOUNT_TABS else "logs"
+        legion = parts[2] if len(parts) > 2 and re.fullmatch(r"lg_[0-9a-f]{12}", parts[2]) else None
+        legion = legion if tab == "legions" else None
+        return {"page": "account", "tab": tab, "legion": legion}
+    return {"page": first if first in pages or first == "combat-log" else "planner"}
 
 
 class WebPage(QWidget):
@@ -139,7 +171,7 @@ class MainWindow(QMainWindow):
                     widget = MeterPage(api, open_page=self.show_page, open_web=self.open_web, open_builds=self.open_builds,
                                        open_replay=self.open_replay)
                 elif key == "settings":
-                    widget = SettingsPage(api, self.open_web, open_page=self.show_page,
+                    widget = SettingsPage(api, self.open_in_web, open_page=self.show_page,
                                           change_language=self.change_language, change_look=self.change_look)
                 elif key == "news":
                     widget = NewsPage(api)
@@ -172,7 +204,7 @@ class MainWindow(QMainWindow):
                 elif key == "raid":
                     widget = RaidPage(api)
                 else:
-                    widget = WebPage(key, title, self.open_web)
+                    widget = WebPage(key, title, self.open_in_web)
                 self.page_index[key] = self.pages.addWidget(widget)
         self.nav.currentItemChanged.connect(self._navigate)
         layout.addWidget(side)
@@ -292,8 +324,8 @@ class MainWindow(QMainWindow):
                 left.leave()                  # a page that starts afresh each time it is opened (Builds, 0.2.486)
 
     def open_web(self, page: str) -> None:
-        """Open a page: here when this window draws it (an analyzed encounter since 0.2.456, a log's review since
-        0.2.457), else in the web interface."""
+        """Open a page of the app: here when this window draws it (every page since 0.2.500, an analyzed encounter
+        since 0.2.456 and a log's review since 0.2.457), else in the web interface."""
         if not self._open_here(page):
             self.open_in_web(page)
 
@@ -307,7 +339,32 @@ class MainWindow(QMainWindow):
             webbrowser.open(url)
 
     def _open_here(self, page: str) -> bool:
-        """A page this window draws itself, shown on Combat Logs: an analyzed encounter, or a recorded or shared log."""
+        """A page this window draws, shown as the web interface shows it at that address (``web_route``): an analyzed
+        encounter, or a recorded or shared log, on Combat Logs; since 0.2.500 Combat Logs at the list asked for, back
+        from a page shown in place of its views; a featured encounter's page there; the Account page on its tab, and
+        any other page. A log's address this window cannot read opens in the web interface."""
+        route = web_route(page, self.page_index)
+        key = route["page"]
+        if key == "combat-log":
+            return self._open_log(page)
+        shown = "combat" if key == "featured" else key
+        if shown not in self.page_index:
+            return False
+        if key == "combat":
+            combat = self.page("combat")
+            combat.close_featured()
+            if route["list"] is not None:
+                combat.show_list(route["list"])
+        elif key == "featured":
+            self.page("combat").open_featured(route["id"], route["view"], route["metric"])
+        elif key == "account":
+            self.open_account(route["tab"], route["legion"])
+            return True
+        self.show_page(shown)
+        return True
+
+    def _open_log(self, page: str) -> bool:
+        """An analyzed encounter, or a recorded or shared log, shown on Combat Logs (0.2.456, 0.2.457)."""
         if "combat" not in self.page_index:
             return False
         match = re.fullmatch(r"combat-log/analysis/([^/?#]+)", page or "")
@@ -354,9 +411,10 @@ class MainWindow(QMainWindow):
     def _account_read(self, s) -> None:
         self.header.show_account(account_name(s))
 
-    def open_account(self, tab) -> None:
-        """A tab of the Account page from the header's menu, opened afresh (``None``: Sign in, the page's sign-in)."""
-        self.page("account").open(tab)
+    def open_account(self, tab, legion=None) -> None:
+        """A tab of the Account page from the header's menu, opened afresh (``None``: Sign in, the page's sign-in), or
+        from an address (``#/account/<tab>``), with the legion it opens on its Legions tab."""
+        self.page("account").open(tab, legion)
         self.show_page("account")
 
     def change_theme(self, chosen: str) -> None:

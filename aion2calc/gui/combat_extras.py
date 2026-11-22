@@ -2,7 +2,7 @@
 its filters (mode, metric, encounter type, game version, boss, difficulty, region, party size), the recorded boss
 defeats (read once opened), each class's performance as a distribution per encounter, and a character's best records,
 every matching attempt, and its consistency and trends. Everything is read from the log server through the app's
-proxy; a log opens in the web interface for now.
+proxy; a log opens in its review on this page (0.2.457).
 """
 from __future__ import annotations
 
@@ -94,7 +94,7 @@ class TrendChart(QWidget):
 
 class PersonalRecords(QWidget):
     """Personal records (community.js with its boss defeats, class performance and records). ``open_web`` opens a
-    page of the web interface; ``shared`` holds the server's facets the community views read too."""
+    page of the app (a log's review); ``shared`` holds the server's facets the community views read too."""
 
     def __init__(self, api: AppApi | None, shared: Community, open_web=None, parent: QWidget | None = None):
         super().__init__(parent)

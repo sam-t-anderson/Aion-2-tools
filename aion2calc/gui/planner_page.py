@@ -47,8 +47,8 @@ def interface_store():
 
 
 class PlannerPage(QWidget):
-    """Character → Build Planner. ``show_page`` opens another page of the window, ``open_web`` a page of the web
-    interface, ``open_link`` an address in the browser; ``store`` keeps whether the welcome card is hidden."""
+    """Character → Build Planner. ``show_page`` opens another page of the window, ``open_web`` a page of the app
+    (in the window), ``open_link`` an address in the browser; ``store`` keeps whether the welcome card is hidden."""
 
     def __init__(self, api: AppApi | None, show_page=None, open_web=None, open_link=None, store: QSettings | None = None,
                  parent: QWidget | None = None):
@@ -108,7 +108,7 @@ class PlannerPage(QWidget):
         holder.setObjectName("plain")
         self.wins = QVBoxLayout(holder)
         self.wins.setContentsMargins(0, 0, 0, 0)
-        self.windows = ResultWindows(api, open_web, "planner")
+        self.windows = ResultWindows(api, open_web)
         self.windows.hide()
         self.wins.addWidget(self.windows)
         self.note = _label("", "empty")
