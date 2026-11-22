@@ -36,7 +36,6 @@ from .combat import js_string
 from .results import _dict, _truthy
 
 GROUND = QColor(136, 136, 136, 34)       # ``background: #8882``
-TEXT = QColor(theme.COLORS["text"])      # ``currentColor``
 HEIGHT = 320                             # ``.cr-arena { height: 320px }``
 SCRUB_MOST = 500                         # ``[data-scrub] { width: min(50%, 500px) }``
 GOLD_MARK = QColor("#f0c050")            # a cast's ring, aim and facing
@@ -47,6 +46,11 @@ NARROW = 535                             # ``@media (max-width: 760px)``: the li
                                          # narrower than in a 760 px window (534 px, the review zoomed 1.25)
 EVENTS_LEAST, EVENTS_SHARE = 260, 0.34   # ``grid-template-columns: minmax(0, 1fr) minmax(260px, 34%)``
 SMALL_PX = 12                            # the Combat Logs page's small text (``QLabel#small``)
+
+
+def _text_colour() -> QColor:
+    """``currentColor``: the page's text colour, as the look shows it now."""
+    return QColor(theme.COLORS["text"])
 
 
 def _with(colour: QColor | str, alpha: float) -> QColor:
@@ -114,7 +118,7 @@ def mark_drawing(mark: dict) -> list[tuple[QPainterPath, QPen | None, QColor | N
     if kind == "spawn":                                          # ``.cr-spawn``
         return [(_circle(mark["x"], mark["y"], mark["r"]), _pen(_with(GREEN_MARK, a), 0.6, [1.2, 0.8]), None, 1.0)]
     if kind == "revive":                                         # ``.cr-revive``
-        return [(_circle(mark["x"], mark["y"], mark["r"]), _pen(_with(TEXT, a), 0.5, [1, 0.6]), None, 1.0)]
+        return [(_circle(mark["x"], mark["y"], mark["r"]), _pen(_with(_text_colour(), a), 0.5, [1, 0.6]), None, 1.0)]
     if kind == "hit":                                            # ``.cr-hit``: a fading ring, and a dot whose edge stays
         return [(_circle(mark["x"], mark["y"], mark["r"]), _pen(_with(RED_MARK, a), 0.6), None, 1.0),
                 (_circle(mark["x"], mark["y"], 1.1), _pen(RED_MARK, 0.6), _with(RED_MARK, a), 1.0)]
@@ -181,8 +185,8 @@ class Arena(QWidget):
         painter.scale(unit, unit)
         a = self.room
         if a is not None:                                            # ``.cr-room``
-            painter.setPen(self._pen(_with(TEXT, 0.6), 0.6))
-            painter.setBrush(_with(TEXT, 0.06))
+            painter.setPen(self._pen(_with(_text_colour(), 0.6), 0.6))
+            painter.setBrush(_with(_text_colour(), 0.06))
             if a["shape"] == "circle":
                 painter.drawEllipse(QPointF(a["x"], a["y"]), a["r"], a["r"])
             else:
@@ -233,7 +237,7 @@ class Arena(QWidget):
         painter.setBrush(Qt.NoBrush)
         painter.drawPath(path)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(TEXT)
+        painter.setBrush(_text_colour())
         painter.drawPath(path)
         painter.restore()
 
@@ -462,9 +466,9 @@ class EventDelegate(QStyledItemDelegate):
         layout = self._words(row, self._words_width(row, option.rect.width()))[0]
         font = self.view.font()
         painter.setFont(font)
-        painter.setPen(_with(TEXT, 0.75))                            # ``.cr-ev time { opacity: .75 }``
+        painter.setPen(_with(_text_colour(), 0.75))                            # ``.cr-ev time { opacity: .75 }``
         painter.drawText(QPointF(rect.x() + 13, rect.y() + 4 + QFontMetricsF(font).ascent()), time)
-        painter.setPen(TEXT)
+        painter.setPen(_text_colour())
         layout.draw(painter, QPointF(rect.x() + 13 + time_width + 10, rect.y() + 4))
         painter.restore()
 
@@ -622,7 +626,7 @@ class TickedSlider(QSlider):
             self._lines = [QLineF(left + x, bottom - 3, left + x, bottom) for x in sorted(places)]
             self._drawn = key
         painter = QPainter(self)
-        painter.setPen(QPen(_with(TEXT, 0.6), 1))
+        painter.setPen(QPen(_with(_text_colour(), 0.6), 1))
         painter.drawLines(self._lines)
         painter.end()
 
@@ -651,14 +655,14 @@ def swatch_pixmap(swatch: tuple, shape: str = "circle") -> QPixmap:
     if kind == "dot":
         _kind, fill, radius, ring, alpha = swatch
         painter.setPen(_pen(QColor("#ffffff"), 0.75, [1, 1]) if ring else Qt.NoPen)
-        painter.setBrush(_with(QColor(fill) if fill else TEXT, alpha))
+        painter.setBrush(_with(QColor(fill) if fill else _text_colour(), alpha))
         painter.drawEllipse(QPointF(5, 5), radius, radius)
     elif kind == "trail":
-        stroke(TEXT, 1.2, 0.6)
+        stroke(_text_colour(), 1.2, 0.6)
         painter.drawPath(_polyline([(1, 8), (4, 4), (6.5, 6), (9, 2)]))
     elif kind == "room":                                             # ``.cr-room``, in the arena's shape
-        painter.setPen(_pen(_with(TEXT, 0.6), 0.6))
-        painter.setBrush(_with(TEXT, 0.06))
+        painter.setPen(_pen(_with(_text_colour(), 0.6), 0.6))
+        painter.setBrush(_with(_text_colour(), 0.06))
         if shape == "circle":
             painter.drawEllipse(QPointF(5, 5), 4, 4)
         else:
@@ -687,7 +691,7 @@ def swatch_pixmap(swatch: tuple, shape: str = "circle") -> QPixmap:
         stroke(GREEN_MARK, 0.9, dashes=[1.2, 0.8])
         painter.drawEllipse(QPointF(5, 5), 3.6, 3.6)
     elif kind == "death":
-        stroke(TEXT, 1.4, round_ends=True)
+        stroke(_text_colour(), 1.4, round_ends=True)
         painter.drawLine(QPointF(2.6, 2.6), QPointF(7.4, 7.4))
         painter.drawLine(QPointF(7.4, 2.6), QPointF(2.6, 7.4))
     elif kind == "hit":

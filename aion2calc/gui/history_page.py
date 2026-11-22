@@ -61,9 +61,9 @@ class HistoryPage(QWidget):
             self.requests.failed.connect(self._failed)
         self.setStyleSheet(GatheringPage._stylesheet() + result_windows.STYLE + f"""
             QLabel#runHead {{ color: {theme.COLORS['gold_dim']}; font-weight: 600; }}
-            QFrame#runRow {{ background: transparent; border: none; border-bottom: 1px solid #1d2539; }}
+            QFrame#runRow {{ background: transparent; border: none; border-bottom: 1px solid {theme.COLORS['line_soft']}; }}
             QFrame#runRow QLabel {{ background: transparent; }}
-            QPlainTextEdit#diff {{ background: rgba(6, 9, 15, 0.65); border: 1px solid {theme.COLORS['line']}; border-radius: 6px;
+            QPlainTextEdit#diff {{ background: {theme.css('inset')}; border: 1px solid {theme.COLORS['line']}; border-radius: 6px;
                                    padding: 10px; }}
             """ + ADVICE_STYLE)
 

@@ -21,8 +21,9 @@
   the web page's starter presets and your own, applied, saved, deleted, and copied or pasted as share codes.
 - Since 0.2.481 the **Combat class colors** (the log review's own panel) and the **Settings backup**, exported to a file
   in your data folder or imported from one.
-- **The other rows** (the theme, the accent colour and the customization profiles) are still on the web Settings page,
-  which the row opens.
+- Since 0.2.484 the **Theme** and the **Accent colour**, the web pages' own choice (``theme``, ``accent``), the window
+  drawn again in a theme or accent chosen.
+- **The other row** (the customization profiles) is still on the web Settings page, which the row opens.
 
 Each control saves its setting through the app's ``/api/ui`` the moment it changes, as the web page's does, and says
 so where the web page says it; the page reads the app's settings, its state and its log server each time it is shown,
@@ -44,6 +45,7 @@ from . import image_health
 from . import settings_looks as looks
 from . import settings_words as sw
 from . import theme
+from .pets_page import seg_style
 from .api import AppApi, Job, Requests
 from .chrome import FlowLayout
 from .combat import js_text
@@ -56,7 +58,7 @@ from .settings_schema import ROWS
 #: What the page reads as it is shown (``pageSettings``): the app's state, its log server and its settings.
 READINGS = (("status", "/api/status"), ("server", "/api/logserver"), ("ui", "/api/ui"))
 #: How the rows look (app.css ``.settabs``, ``.setrow``): a pill per tab, the chosen one gold.
-STYLE = f"""
+STYLE = theme.Sheet(lambda: f"""
     QPushButton#settab {{ background: {theme.COLORS['bg2']}; color: {theme.COLORS['muted']};
         border: 1px solid {theme.COLORS['line2']}; border-radius: 15px; padding: 6px 14px; font-weight: 600;
         font-size: 15px; }}
@@ -64,13 +66,14 @@ STYLE = f"""
     QPushButton#settab[on="true"] {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ecd79f, stop:1 #b9984f);
         color: #10131a; border-color: {theme.COLORS['gold_dim']}; }}
     QFrame#setrow {{ border: none; border-bottom: 1px solid {theme.COLORS['line']}; background: transparent; }}
+    {seg_style("QFrame#setrow ")}
     QFrame#setrow[top="true"] {{ border-top: 1px solid {theme.COLORS['line']}; }}
     QFrame#setrow QWidget {{ background: transparent; }}
     QLabel#setlbl {{ color: {theme.COLORS['muted']}; font-weight: 600; }}
     QLabel#setnote {{ color: {theme.COLORS['muted']}; font-size: 12px; }}
     QLabel#setcode {{ font-family: "Consolas", "DejaVu Sans Mono", monospace; color: {theme.COLORS['gold']}; }}
     QPushButton#small {{ padding: 3px 10px; }}
-""" + Toast.STYLE
+""" + Toast.STYLE)
 NARROW = 900                                       # below this width a row's name goes above it (``@media``)
 READ_TIMEOUT = 30                                  # the page's readings and saves may take this long (a browser waits)
 SLOW_TIMEOUT = 900                                 # an update's download, a scan of the cache: as long as they take
@@ -325,12 +328,13 @@ class SettingsPage(QWidget):
     once the app has stopped."""
 
     def __init__(self, api: AppApi | None, open_web, parent=None, store=None, confirm=None, save_file=None,
-                 open_link=None, quit_app=None, open_page=None, change_language=None):
+                 open_link=None, quit_app=None, open_page=None, change_language=None, change_look=None):
         super().__init__(parent)
         from .planner_page import interface_store
         self.api, self.open_web = api, open_web
         self.open_page = open_page or open_web           # another page of the window (the Pet Tracker page)
         self.change_language = change_language or self._language_kept   # the window draws itself again in it
+        self.change_look = change_look or self._look_kept                 # and in another theme or accent
         self.store = store if store is not None else interface_store()
         self.confirm = confirm or self._ask
         self.save_file = save_file or self._ask_where
@@ -375,7 +379,7 @@ class SettingsPage(QWidget):
         self.shared_settings: dict = {}
         self._loading = False
         self.tab = sw.chosen_tab(self.store.value(sw.TAB_KEY))
-        self.setStyleSheet(STYLE)
+        self.setStyleSheet(str(STYLE))
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         self.scroll = QScrollArea()
@@ -433,7 +437,8 @@ class SettingsPage(QWidget):
                       ("overlay", "Overlay background"): self._look_background,
                       ("overlay", "Overlay look presets"): self._look_presets,
                       ("backup", "Settings backup"): self._backup,
-                      ("appearance", "Combat class colors"): self._class_colours})
+                      ("appearance", "Combat class colors"): self._class_colours,
+                      ("appearance", "Theme"): self._theme, ("appearance", "Accent colour"): self._accent})
         on_the_web = {(row.group, row.title) for row in ROWS}
         for group, title in sw.ROW_ORDER:
             row = SetRow(group, title, top=title == "Author")
@@ -481,6 +486,40 @@ class SettingsPage(QWidget):
         self.language = i18n.picker(lambda code: self.change_language(code))
         row.body.addWidget(_flow(self.language))
         row.body.addWidget(_note(sw.LANGUAGE_NOTE))
+
+    def _theme(self, row: SetRow) -> None:
+        """The theme (``data-th``): the computer's, light or dark, the one shown chosen."""
+        from .pets_page import Seg
+        words = dict(sw.THEME_BUTTONS)
+        keys = {w: k for k, w in sw.THEME_BUTTONS}
+        self.theme_seg = Seg(tuple(words.values()), lambda w: self._choose_look(theme=keys[w]))
+        self.theme_seg.set(words.get(theme.chosen_theme(self.store)), True)
+        row.body.addWidget(_flow(self.theme_seg))
+
+    def _accent(self, row: SetRow) -> None:
+        """The accent colour (``data-accent-btn``), on top of the theme, the one shown chosen."""
+        from .pets_page import Seg
+        words = dict(sw.ACCENT_BUTTONS)
+        keys = {w: k for k, w in sw.ACCENT_BUTTONS}
+        self.accent_seg = Seg(tuple(words.values()), lambda w: self._choose_look(accent=keys[w]))
+        self.accent_seg.set(words[theme.LOOK["accent"]], True)
+        row.body.addWidget(_flow(self.accent_seg))
+        row.body.addWidget(_note(sw.ACCENT_NOTE))
+
+    def _choose_look(self, theme: str | None = None, accent: str | None = None) -> None:
+        """app.js ``setTheme`` and ``setAccent``: the choice kept as the web pages keep it (``theme``, ``accent``, in
+        the app's interface data), then the window drawn again in it, as the web page draws itself again."""
+        if theme is not None:
+            self.store.setValue("theme", theme)
+        if accent is not None:
+            self.store.setValue("accent", accent)
+        self.change_look()
+
+    def _look_kept(self) -> None:
+        """A look chosen with no window to draw again (a test): shown from then on, and on the buttons."""
+        theme.apply_look(*theme.look_of(self.store))
+        self.theme_seg.set(dict(sw.THEME_BUTTONS).get(theme.chosen_theme(self.store)), True)
+        self.accent_seg.set(dict(sw.ACCENT_BUTTONS)[theme.LOOK["accent"]], True)
 
     def _language_kept(self, code: str) -> None:
         """A language chosen with no window to draw again (a test): kept with the web pages' choice, and shown from

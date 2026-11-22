@@ -337,9 +337,9 @@ class MapsPage(QWidget):
                        padding: 9px 12px; }}
         QFrame#note QLabel, QFrame#note QToolButton, QFrame#note QWidget#foldBody, QFrame#note QWidget#plain {{
             background: transparent; border: none; padding: 0; }}
-        QFrame#note QLabel {{ color: #f1d4a3; }}
+        QFrame#note QLabel {{ color: {theme.COLORS['note_fg']}; }}
         QFrame#note QLabel#muted {{ color: {cl['muted']}; }}
-        QFrame#note QToolButton#fold {{ color: #f1d4a3; font-weight: 600; }}
+        QFrame#note QToolButton#fold {{ color: {theme.COLORS['note_fg']}; font-weight: 600; }}
         QWidget#foldBody {{ background: transparent; }}
         QToolButton#fold {{ border: none; padding: 2px 0; color: {cl['text']}; }}
         QFrame#heatFrame {{ background: {m.SURFACE}; border: 1px solid {cl['line']}; border-radius: 6px; }}

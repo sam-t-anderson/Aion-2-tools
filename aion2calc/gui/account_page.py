@@ -185,7 +185,7 @@ class AccountPage(QWidget):
             self.requests.failed.connect(self._failed)
         self.setStyleSheet(GatheringPage._stylesheet() + RESULT_STYLE + f"""
             QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
-                border: 1px solid rgba(233, 203, 128, 0.65); color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
+                border: 1px solid {theme.css('frame_hi')}; color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
             QPushButton#primary:disabled, QPushButton#small:disabled {{ color: {theme.COLORS['faint']}; }}
             QLabel#acctName {{ color: {theme.COLORS['gold']}; font-size: 22px; font-weight: 700; }}
             QLabel#acctHead {{ color: {theme.COLORS['gold']}; font-weight: 700; letter-spacing: 0.6px; }}
@@ -193,13 +193,13 @@ class AccountPage(QWidget):
             QWidget#acctBody QLabel {{ background: transparent; }}
             QWidget#acctBody QLabel#thead {{ color: {theme.COLORS['gold_dim']}; font-weight: 600; padding: 6px 8px;
                 border: none; border-bottom: 1px solid {theme.COLORS['line']}; }}
-            QWidget#acctBody QLabel#tcell {{ padding: 5px 8px; border: none; border-bottom: 1px solid #1d2539; }}
-            QWidget#acctBody QFrame#tcellBox {{ background: transparent; border: none; border-bottom: 1px solid #1d2539; }}
+            QWidget#acctBody QLabel#tcell {{ padding: 5px 8px; border: none; border-bottom: 1px solid {theme.COLORS['line_soft']}; }}
+            QWidget#acctBody QFrame#tcellBox {{ background: transparent; border: none; border-bottom: 1px solid {theme.COLORS['line_soft']}; }}
             QWidget#acctBody QLabel#chipGold {{ padding: 1px 6px; border-radius: 3px; background: rgba(233, 203, 128, 0.12);
-                color: {theme.COLORS['gold']}; border: 1px solid rgba(206, 182, 122, 0.28); }}
-            QFrame#note QToolButton#fold {{ color: #f1d4a3; font-weight: 700; }}
+                color: {theme.COLORS['gold']}; border: 1px solid {theme.css('frame')}; }}
+            QFrame#note QToolButton#fold {{ color: {theme.COLORS['note_fg']}; font-weight: 700; }}
             QWidget#acctBody QLabel#chip {{ padding: 1px 6px; border-radius: 3px; background: rgba(57, 194, 224, 0.12);
-                color: #9fe3f2; border: 1px solid rgba(57, 194, 224, 0.25); }}
+                color: {theme.COLORS['chip_fg']}; border: 1px solid rgba(57, 194, 224, 0.25); }}
             QPushButton#sortHead, QPushButton#sortHeadOn {{ background: transparent; border: none; padding: 6px 8px;
                 text-align: left; font-weight: 600; color: {theme.COLORS['gold_dim']}; }}
             QPushButton#sortHeadOn {{ color: {theme.COLORS['gold']}; }}

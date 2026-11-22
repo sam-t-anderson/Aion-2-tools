@@ -37,9 +37,8 @@ COMPARISON_NOTE = "Generating a comparison is on the web page for now."
 #: ``.daev``, ``.paperdoll`` and ``.grid2`` stack, less the page's margins and the windows' menu).
 NARROW = 780
 MACRO_NARROW = 730                                       # .macro-layout stacks under 1050 px
-ICON_BG = "#0b0f18"                                      # --icon-bg: a node's words, a picture's ground
-BOARD_LIGHT, BOARD_DARK = "#18233a", "#0a0f19"           # --board-a, --board-b
-INSET = QColor(6, 9, 15, 166)                            # --inset
+ICON_BG = theme.Shade("icon_bg")                         # --icon-bg: a node's words, a picture's ground
+BOARD_LIGHT, BOARD_DARK = theme.Shade("board_a"), theme.Shade("board_b")   # --board-a, --board-b
 
 
 def _label(text: str = "", name: str = "", rich: bool = False, wrap: bool = True) -> QLabel:
@@ -99,7 +98,7 @@ class Bar(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         track = QPainterPath()
         track.addRoundedRect(QRectF(self.rect()), 3, 3)
-        painter.fillPath(track, QColor(6, 9, 15, 166))
+        painter.fillPath(track, theme.qcolor("inset"))
         width = self.width() * self.share / 100
         if width > 0:
             painter.setClipPath(track)
@@ -337,7 +336,7 @@ class NodeBoard(QWidget):
             painter.save()
             painter.setClipPath(_shape(inner, shape, 3))
             painter.setFont(font)
-            painter.setPen(QColor(ICON_BG))
+            painter.setPen(QColor(str(ICON_BG)))
             wide = QFontMetricsF(font).horizontalAdvance(text) > inner.width()   # wider: from its left, cut at its right
             painter.drawText(inner, int((Qt.AlignLeft if wide else Qt.AlignHCenter) | Qt.AlignVCenter), text)
             painter.restore()
@@ -392,8 +391,8 @@ class BoardFrame(QFrame):
         outline = QPainterPath()
         outline.addRoundedRect(rect, 6, 6)
         light = QRadialGradient(rect.center(), max(1.0, 0.7 * math.hypot(self.width() / 2, self.height() / 2)))
-        light.setColorAt(0, QColor(BOARD_LIGHT))
-        light.setColorAt(1, QColor(BOARD_DARK))
+        light.setColorAt(0, QColor(str(BOARD_LIGHT)))
+        light.setColorAt(1, QColor(str(BOARD_DARK)))
         painter.fillPath(outline, light)
         painter.setPen(QPen(QColor(theme.COLORS["line"]), 1))
         painter.drawPath(outline)
@@ -583,7 +582,7 @@ def _faint(text: str) -> str:
 
 def _gain(text: str) -> str:
     """A gain (``.gain.up``): bold, in the gain's green."""
-    return f"<b style='color: #8fe08f;'>{html.escape(text)}</b>"
+    return f"<b style='color: {theme.COLORS['gain']};'>{html.escape(text)}</b>"
 
 
 def _css_colour(text: str) -> QColor:
@@ -618,7 +617,7 @@ class Doll(QFrame):
         rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
         outline = QPainterPath()
         outline.addRoundedRect(rect, 6, 6)
-        painter.fillPath(outline, INSET)
+        painter.fillPath(outline, theme.qcolor("inset"))
         middle = QPointF(self.width() * 0.5, self.height() * 0.4)
         reach = math.hypot(max(middle.x(), self.width() - middle.x()), max(middle.y(), self.height() - middle.y()))
         glow = QRadialGradient(middle, max(1.0, 0.6 * reach))   # circle at 50% 40%, gone at 60% of its farthest corner
@@ -708,7 +707,7 @@ class HotbarIcon(QWidget):
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
         frame = QPainterPath()
         frame.addRoundedRect(QRectF(0.5, 0.5, self.width() - 1, self.height() - 1), 3, 3)
-        painter.fillPath(frame, QColor(ICON_BG))
+        painter.fillPath(frame, QColor(str(ICON_BG)))
         if self.pixmap is not None and not self.pixmap.isNull():
             painter.save()
             painter.setClipPath(frame)
@@ -924,9 +923,9 @@ class GenusRing(QWidget):
         gold, muted = QColor(theme.COLORS["gold"]), QColor(theme.COLORS["muted"])
         middle = QPointF(160, 160)
         painter.setBrush(Qt.NoBrush)
-        painter.setPen(QPen(QColor(206, 182, 122, 71), 8))                     # the track, in the frame's colour
+        painter.setPen(QPen(theme.qcolor("frame"), 8))                     # the track, in the frame's colour
         painter.drawEllipse(middle, 124, 124)
-        painter.setBrush(INSET)
+        painter.setBrush(theme.qcolor("inset"))
         painter.setPen(QPen(gold, 2))
         painter.drawEllipse(middle, 87, 87)
         painter.setBrush(Qt.NoBrush)
@@ -953,7 +952,7 @@ class GenusRing(QWidget):
             painter.setOpacity(0.4 if state == "locked" else 1.0)
             filled = state == "filled"
             painter.setBrush(gold if filled else QColor(theme.COLORS["panel2"]))
-            painter.setPen(QPen(QColor(233, 203, 128, 166) if filled else muted, 2))
+            painter.setPen(QPen(theme.qcolor("frame_hi") if filled else muted, 2))
             painter.drawEllipse(spot, 18, 18)
             words(str(index + 1), spot.y() + 5, 16, QColor(6, 9, 15) if filled else QColor(theme.COLORS["text"]), bold=True,
                   x=spot.x())
@@ -1730,7 +1729,7 @@ class ResultWindows(QWidget):
         for place in range(1, 13):
             grid.setColumnStretch(place, 1)
         window.body.addWidget(Across(rows))
-        window.body.addWidget(_label(r.HOTBAR_MANUAL, rich=True))
+        window.body.addWidget(_label(str(r.HOTBAR_MANUAL), rich=True))
         window.body.addWidget(_label(r.hotbar_reserve(v), rich=True))
         return window
 
@@ -1927,22 +1926,22 @@ class ResultWindows(QWidget):
         self.icons.stop()
 
 
-STYLE = f"""
+STYLE = theme.Sheet(lambda: f"""
 QPushButton#sideItem, QPushButton#sideItemOn {{ text-align: left; padding: 9px 10px; border-radius: 4px; font-weight: 600;
     background: transparent; border: 1px solid transparent; color: {theme.COLORS['muted']}; }}
 QPushButton#sideItemOn, QPushButton#sideItem:hover {{ color: {theme.COLORS['gold']}; background: rgba(232, 207, 142, 0.07);
-    border-color: rgba(206, 182, 122, 0.28); }}
-QLabel#counter, QFrame#win QLabel#counter {{ padding: 4px 10px; border: 1px solid rgba(206, 182, 122, 0.28);
-    border-radius: 4px; background: rgba(6, 9, 15, 0.65); font-weight: 700; }}
-QPushButton#tab, QPushButton#tabOn {{ border: 1px solid {theme.COLORS['line']}; background: rgba(6, 9, 15, 0.65);
+    border-color: {theme.css('frame')}; }}
+QLabel#counter, QFrame#win QLabel#counter {{ padding: 4px 10px; border: 1px solid {theme.css('frame')};
+    border-radius: 4px; background: {theme.css('inset')}; font-weight: 700; }}
+QPushButton#tab, QPushButton#tabOn {{ border: 1px solid {theme.COLORS['line']}; background: {theme.css('inset')};
     color: {theme.COLORS['muted']}; padding: 7px 14px; border-radius: 4px; font-weight: 600; }}
 QPushButton#tabOn {{ color: #10131a; background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ecd79f, stop:1 #b9984f);
-    border-color: rgba(233, 203, 128, 0.65); }}
+    border-color: {theme.css('frame_hi')}; }}
 QFrame#skill, QFrame#stigma {{ background: {theme.COLORS['panel2']}; border: 1px solid {theme.COLORS['line']}; border-radius: 5px; }}
 QFrame#skill QLabel, QFrame#stigma QLabel, QFrame#specs {{ background: transparent; }}
 QFrame#specs {{ border: none; border-left: 1px solid {theme.COLORS['line']}; }}
 QFrame#skill QLabel#spec, QFrame#skill QLabel#specAv, QFrame#skill QLabel#specOn {{ border: 1px solid {theme.COLORS['line2']};
-    border-radius: 4px; font-weight: 700; background: rgba(6, 9, 15, 0.65); color: {theme.COLORS['faint']}; }}
+    border-radius: 4px; font-weight: 700; background: {theme.css('inset')}; color: {theme.COLORS['faint']}; }}
 QFrame#skill QLabel#specAv {{ color: {theme.COLORS['muted']}; }}
 QFrame#skill QLabel#specOn {{ color: #1b1404; background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #f1dc9f,
     stop:1 #c39c45); border-color: #f5dfa0; }}
@@ -1951,18 +1950,18 @@ QLabel#stigmaName {{ color: {theme.COLORS['gold']}; font-weight: 700; }}
 QLabel#stigmaEffect {{ border: none; border-top: 1px dashed {theme.COLORS['line']}; padding: 3px 0; }}
 QLabel#goldHead {{ color: {theme.COLORS['gold']}; font-weight: 700; }}
 QLabel#statTitle {{ color: {theme.COLORS['gold']}; font-weight: 700; letter-spacing: 1px; }}
-QFrame#statsum {{ background: transparent; border: none; border-top: 1px solid rgba(206, 182, 122, 0.28); }}
-QFrame#barRow {{ background: transparent; border: none; border-bottom: 1px solid #1d2539; }}
+QFrame#statsum {{ background: transparent; border: none; border-top: 1px solid {theme.css('frame')}; }}
+QFrame#barRow {{ background: transparent; border: none; border-bottom: 1px solid {theme.COLORS['line_soft']}; }}
 QFrame#barRow QLabel {{ background: transparent; }}
 QLabel#figure {{ font-weight: 600; }}
 QFrame#note {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35); border-radius: 5px;
     padding: 9px 12px; }}
 QFrame#note QLabel, QFrame#note QToolButton, QFrame#note QWidget#foldBody {{ background: transparent; border: none; }}
-QFrame#note QLabel {{ color: #f1d4a3; }}
+QFrame#note QLabel {{ color: {theme.COLORS['note_fg']}; }}
 QFrame#note QLabel#muted {{ color: {theme.COLORS['muted']}; }}
 QWidget#foldBody, QWidget#plain {{ background: transparent; }}
 QToolButton#fold {{ border: none; padding: 2px 0; color: {theme.COLORS['text']}; }}
-QFrame#daevside {{ background: rgba(6, 9, 15, 0.65); border: 1px solid {theme.COLORS['line']}; border-radius: 6px; }}
+QFrame#daevside {{ background: {theme.css('inset')}; border: 1px solid {theme.COLORS['line']}; border-radius: 6px; }}
 QFrame#win QLabel#daevHead {{ color: {theme.COLORS['gold']}; font-weight: 700; }}
 QScrollArea#boardScroll, QWidget#boardView {{ background: transparent; border: none; }}
 QFrame#win QLabel#empty {{ color: {theme.COLORS['faint']}; padding: 18px; }}
@@ -1974,19 +1973,19 @@ QFrame#win QLabel#slotName {{ color: {theme.COLORS['faint']}; }}
 QFrame#win QLabel#gname {{ color: {theme.COLORS['text']}; font-weight: 600; }}
 QFrame#win QLabel#slotStats {{ color: {theme.COLORS['muted']}; }}
 QFrame#win QLabel#chip, QFrame#win QLabel#chipGold, QFrame#win QLabel#chipSkill {{ padding: 1px 6px; border-radius: 3px;
-    background: rgba(57, 194, 224, 0.12); color: #9fe3f2; border: 1px solid rgba(57, 194, 224, 0.25); }}
+    background: rgba(57, 194, 224, 0.12); color: {theme.COLORS['chip_fg']}; border: 1px solid rgba(57, 194, 224, 0.25); }}
 QFrame#win QLabel#chipGold {{ background: rgba(233, 203, 128, 0.12); color: {theme.COLORS['gold']};
-    border-color: rgba(206, 182, 122, 0.28); }}
+    border-color: {theme.css('frame')}; }}
 QFrame#win QLabel#chipSkill {{ color: {theme.COLORS['gold']}; }}
 QFrame#win QLabel#dollClass {{ color: {theme.COLORS['gold']}; font-size: 18px; font-weight: 700; }}
 QFrame#win QLabel#dollWho {{ color: {theme.COLORS['muted']}; }}
 QFrame#win QLabel#dollPower {{ color: {theme.COLORS['gold']}; }}
 QFrame#arcanaCard {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {theme.COLORS['card_a']},
-    stop:1 {theme.COLORS['card_b']}); border: 1px solid rgba(206, 182, 122, 0.28); border-radius: 8px; }}
+    stop:1 {theme.COLORS['card_b']}); border: 1px solid {theme.css('frame')}; border-radius: 8px; }}
 QFrame#win QLabel#gold {{ color: {theme.COLORS['gold']}; }}
 QFrame#win QLabel#cardSlot {{ color: {theme.COLORS['gold']}; font-weight: 700; }}
 QFrame#win QLabel#cardPick {{ font-weight: 700; }}
-QFrame#hotbarSlot, QFrame#hotbarManual, QFrame#hotbarEmpty {{ background: rgba(6, 9, 15, 0.65);
+QFrame#hotbarSlot, QFrame#hotbarManual, QFrame#hotbarEmpty {{ background: {theme.css('inset')};
     border: 1px solid {theme.COLORS['line']}; }}
 QFrame#hotbarManual {{ border-color: {theme.COLORS['gold']}; }}
 QFrame#win QLabel#hotbarNote {{ color: {theme.COLORS['muted']}; }}
@@ -1994,16 +1993,16 @@ QFrame#win QLabel#hotbarNoteGold {{ color: {theme.COLORS['gold']}; }}
 QFrame#win QLabel#hotbarPlus {{ color: rgba(132, 139, 154, 0.45); font-size: 16px; }}
 QFrame#win QLabel#hotbarRow {{ color: {theme.COLORS['muted']}; font-size: 19px; }}
 QScrollArea#across, QWidget#acrossView {{ background: transparent; border: none; }}
-QFrame#macroEditor {{ background: rgba(6, 9, 15, 0.65); border: 1px solid {theme.COLORS['line']}; }}
+QFrame#macroEditor {{ background: {theme.css('inset')}; border: 1px solid {theme.COLORS['line']}; }}
 QFrame#win QLabel#macroTitle {{ color: {theme.COLORS['gold']}; font-size: 15px; font-weight: 700; }}
 QFrame#win QLabel#macroNumber {{ color: {theme.COLORS['gold']}; font-size: 22px; }}
 QFrame#win QLabel#macroDelay {{ background: {theme.COLORS['panel2']}; padding: 3px 14px; font-weight: 700; }}
 QFrame#macroRule {{ background: {theme.COLORS['line']}; border: none; }}
 QFrame#win QLabel#macroSave {{ border: 1px solid {theme.COLORS['gold']}; padding: 10px; color: {theme.COLORS['gold']}; }}
 QPushButton#genus, QPushButton#genusOn {{ text-align: left; border-radius: 4px; padding: 0;
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2b3550, stop:1 #1c2438); border: 1px solid rgba(206, 182, 122, 0.28); }}
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {theme.COLORS['btn_a']}, stop:1 {theme.COLORS['btn_b']}); border: 1px solid {theme.css('frame')}; }}
 QPushButton#genusOn {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
-    border-color: rgba(233, 203, 128, 0.65); }}
+    border-color: {theme.css('frame_hi')}; }}
 QPushButton#genus QLabel, QPushButton#genusOn QLabel {{ background: transparent; }}
 QPushButton#genus QLabel#genusName {{ font-weight: 700; }}
 QPushButton#genusOn QLabel#genusName, QPushButton#genusOn QLabel#genusLevel {{ color: #fff3cf; }}
@@ -2011,8 +2010,8 @@ QPushButton#genusOn QLabel#genusName {{ font-weight: 700; }}
 QFrame#win QLabel#genusHead {{ font-size: 15px; font-weight: 700; }}
 QFrame#note QLabel#noteHead {{ font-weight: 700; }}
 QFrame#win QLabel#thead {{ color: {theme.COLORS['gold_dim']}; font-weight: 600; padding: 6px 8px;
-    border: none; border-bottom: 1px solid rgba(206, 182, 122, 0.28); }}
-QFrame#win QLabel#tcell {{ padding: 5px 8px; border: none; border-bottom: 1px solid #1d2539; }}
-QFrame#win QFrame#tcellBox {{ background: transparent; border: none; border-bottom: 1px solid #1d2539; }}
+    border: none; border-bottom: 1px solid {theme.css('frame')}; }}
+QFrame#win QLabel#tcell {{ padding: 5px 8px; border: none; border-bottom: 1px solid {theme.COLORS['line_soft']}; }}
+QFrame#win QFrame#tcellBox {{ background: transparent; border: none; border-bottom: 1px solid {theme.COLORS['line_soft']}; }}
 """ + "".join(
-    f"QFrame#win QLabel#gname{grade} {{ color: {colour}; font-weight: 600; }}\n" for grade, colour in r.GRADES.items())
+    f"QFrame#win QLabel#gname{grade} {{ color: {colour}; font-weight: 600; }}\n" for grade, colour in r.GRADES.items()))

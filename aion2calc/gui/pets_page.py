@@ -43,9 +43,9 @@ ACCENTS = {"Gold": "#d9b24c", "Blue": "#60b1ec", "Teal": "#53c9b5"}     # Pet Tr
 ACCENT_NAMES = {colour: name for name, colour in ACCENTS.items()}
 #: The families' colours: Pet Tracker's crystals' (pet-tracker.css ``--pt-*``).
 FAMILIES = {"Cogni": "#6fb4f0", "Fera": "#f08a7a", "Natura": "#7fd38a", "Varian": "#c39af0", "Special": "#e8cf8e"}
-TONES = {"ok": "#76c59d", "off": "#e9a4b6", "wait": theme.COLORS["muted"]}
+TONES = {"ok": "#76c59d", "off": "#e9a4b6", "wait": theme.Shade("muted")}
 PAUSED = "#747d8a"                       # a bar while the totals wait to sync
-TRACK = "#1d2539"                        # a bar's track: app.css ``--line-soft``
+TRACK = theme.Shade("line_soft")          # a bar's track: app.css ``--line-soft``
 SETUP = {"finding": "Checking Pet Tracker's signed release…", "downloading": "Downloading Pet Tracker…",
          "installing": "Pet Tracker's installer is running…",
          "started": "Pet Tracker's installer is running; this page notices when it finishes.",
@@ -57,10 +57,10 @@ INSTALL_NOTE = ("Downloads Pet Tracker's official installer from its GitHub rele
                 "the release its publisher signed. Pet Tracker needs Npcap, as the Live Meter does.")
 SYNC_NOTE = "Totals paused. Return to character selection, then log back in; pet rewards still appear meanwhile."
 SOURCE = "https://github.com/0Fox2Give/PetTracker"
-ATTRIBUTION = ("Pet Tracker is a separate program by 0Fox2Give, open source under GPL-3.0 "
+ATTRIBUTION = (theme.Sheet(lambda: "Pet Tracker is a separate program by 0Fox2Give, open source under GPL-3.0 "
                f"(<a href='{SOURCE}' style='color: {theme.COLORS['accent']};'>its source and releases</a>), used here "
                "with its author's permission. Aion 2 Calc runs its capture and shows its data. Like any third-party tool, "
-               "it is unofficial, and using it can put your game account at risk.")
+               "it is unofficial, and using it can put your game account at risk."))
 RUNNING_TIP = "Pet Tracker is running: its paw icon in the Windows tray opens Find a pet, its settings and more"
 OPEN_TIP = "Starts Pet Tracker: its overlay, and its paw icon in the Windows tray with Find a pet, its settings and more"
 MANAGE = "Open Pet Tracker's Settings → Account → Manage accounts to link it."
@@ -364,7 +364,7 @@ class Bar(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(TRACK))
+        painter.setBrush(QColor(str(TRACK)))
         painter.drawRoundedRect(self.rect(), 2, 2)
         if self.ratio > 0:
             painter.setBrush(QColor(self.colour))
@@ -524,6 +524,25 @@ class PetGrid(QWidget):
             self.grid.setColumnStretch(column, 1)
 
 
+def seg_style(within: str = "") -> str:
+    """``.seg``'s rules (app.css): the buttons in one frame, the chosen one in gold, in the look shown; ``within``
+    names what they sit in where a rule of the page's would outweigh them (Settings' rows: ``QFrame#setrow``)."""
+    c = theme.COLORS
+    box = f"{within}QFrame#segBox"
+
+    def buttons(*names):
+        return ", ".join(f"{box} QPushButton#{name}" for name in names)
+    return f"""
+        {box} {{ background: {theme.css('inset')}; border: 1px solid {theme.css('frame')}; border-radius: 5px; }}
+        {buttons('segFirst', 'segLast', 'segButton', 'segFirstOn', 'segLastOn', 'segButtonOn')} {{ border: none;
+            border-radius: 0; background: transparent; color: {c['muted']}; padding: 6px 14px; font-weight: 600; }}
+        {buttons('segFirst', 'segFirstOn')} {{ border-top-left-radius: 4px; border-bottom-left-radius: 4px; }}
+        {buttons('segLast', 'segLastOn')} {{ border-top-right-radius: 4px; border-bottom-right-radius: 4px; }}
+        {buttons('segFirstOn', 'segLastOn', 'segButtonOn')} {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ecd79f, stop:1 #b9984f); color: #10131a; }}
+"""
+
+
 class Seg(QFrame):
     """Buttons side by side in one frame, the chosen one in gold (``.seg``, ``button.on``). The choice moves only when
     ``set`` says so (Pet Tracker's answer), as on the web page, not as a button is pressed."""
@@ -591,8 +610,8 @@ class Toast(QLabel):
     """The app's short message at the foot of the page for four seconds (app.js ``toast``). A page that shows one
     adds ``STYLE`` to its stylesheet."""
 
-    STYLE = (f"QLabel#toast {{ background: #1c2438; border: 1px solid rgba(233, 203, 128, 0.6); border-radius: 6px; "
-             f"padding: 8px 16px; color: {theme.COLORS['gold']}; }}")
+    STYLE = (theme.Sheet(lambda: f"QLabel#toast {{ background: {theme.COLORS['btn_b']}; border: 1px solid rgba(233, 203, 128, 0.6); border-radius: 6px; "
+             f"padding: 8px 16px; color: {theme.COLORS['gold']}; }}"))
 
     def __init__(self, parent: QWidget):
         super().__init__(parent)
@@ -743,7 +762,7 @@ class PetsPage(QWidget):
         row.cell.addWidget(self.empty)
         body.addWidget(row)
 
-        attribution = _label(ATTRIBUTION, "muted", rich=True)
+        attribution = _label(str(ATTRIBUTION), "muted", rich=True)
         attribution.setContentsMargins(0, 10, 0, 0)
         attribution.linkActivated.connect(self.open_link)
         body.addWidget(attribution)
@@ -758,19 +777,12 @@ class PetsPage(QWidget):
         QFrame#setrowLast {{ background: transparent; border: none; }}
         QLabel#lbl {{ color: {c['muted']}; font-weight: 600; }}
         QFrame#note {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35); border-radius: 5px;
-                       color: #f1d4a3; padding: 9px 12px; }}
-        QFrame#note QLabel {{ background: transparent; border: none; padding: 0; color: #f1d4a3; }}
+                       color: {theme.COLORS['note_fg']}; padding: 9px 12px; }}
+        QFrame#note QLabel {{ background: transparent; border: none; padding: 0; color: {theme.COLORS['note_fg']}; }}
         QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
-                              border: 1px solid rgba(233, 203, 128, 0.65); color: #fff3cf; }}
+                              border: 1px solid {theme.css('frame_hi')}; color: #fff3cf; }}
         QPushButton#primary:disabled {{ color: rgba(255, 243, 207, 0.5); border-color: rgba(233, 203, 128, 0.3); }}
-        QFrame#segBox {{ background: rgba(6, 9, 15, 0.65); border: 1px solid rgba(206, 182, 122, 0.28); border-radius: 5px; }}
-        QPushButton#segFirst, QPushButton#segLast, QPushButton#segButton, QPushButton#segFirstOn, QPushButton#segLastOn,
-        QPushButton#segButtonOn {{ border: none; border-radius: 0; background: transparent; color: {c['muted']};
-            padding: 6px 14px; font-weight: 600; }}
-        QPushButton#segFirst, QPushButton#segFirstOn {{ border-top-left-radius: 4px; border-bottom-left-radius: 4px; }}
-        QPushButton#segLast, QPushButton#segLastOn {{ border-top-right-radius: 4px; border-bottom-right-radius: 4px; }}
-        QPushButton#segFirstOn, QPushButton#segLastOn, QPushButton#segButtonOn {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ecd79f, stop:1 #b9984f); color: #10131a; }}
+        {seg_style()}
         QFrame#ptrow {{ background: {c['panel2']}; border: 1px solid {c['line']}; border-radius: 8px; }}
         QFrame#ptrow QLabel {{ background: transparent; }}
         QLabel#ptname {{ color: {c['text']}; font-weight: 700; }}

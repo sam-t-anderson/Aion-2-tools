@@ -5,8 +5,8 @@ Until 0.2.475 every row was here, its controls each saving one setting through t
 page draws App & data as the web page does (settings_page.py, settings_words.py), since 0.2.476 the Meter and Server
 tabs, since 0.2.477 Pet Tracker, since 0.2.478 the first half of Overlay, since 0.2.479 the radar and the hotkeys,
 since 0.2.480 the rest of Overlay (settings_looks.py) and since 0.2.481 the class colours and the settings backup, so
-their rows are no longer here. The theme, the accent colour and the customization profiles are kept by the browser the
-web page runs in, so they stay on the web Settings page for now.
+their rows are no longer here, and since 0.2.484 the theme and the accent colour. The customization profiles stay on the
+web Settings page for now.
 """
 from __future__ import annotations
 
@@ -23,7 +23,5 @@ class Row:
 GROUPS = [('appearance', 'Appearance'), ('overlay', 'Overlay'), ('pettracker', 'Pet Tracker'), ('meter', 'Meter'), ('server', 'Server'), ('backup', 'Profiles & backup'), ('system', 'App & data')]
 
 ROWS = (
-    Row('appearance', 'Theme'),
-    Row('appearance', 'Accent colour'),
     Row('backup', 'Customization profiles'),
 )

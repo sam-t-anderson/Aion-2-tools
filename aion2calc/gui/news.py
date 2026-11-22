@@ -394,7 +394,7 @@ class NewsPage(QWidget):
     def _stylesheet() -> str:
         c = theme.COLORS
         return f"""
-        QFrame#newsCard {{ background: {c['panel2']}; border: 1px solid rgba(206, 182, 122, 0.28); border-radius: 8px; }}
+        QFrame#newsCard {{ background: {c['panel2']}; border: 1px solid {theme.css('frame')}; border-radius: 8px; }}
         QFrame#newsCard QLabel {{ background: transparent; }}
         QLabel#chip {{ background: rgba(57, 194, 224, 0.12); color: {c['accent']}; border: 1px solid rgba(57, 194, 224, 0.25);
                        border-radius: 3px; padding: 1px 6px; }}

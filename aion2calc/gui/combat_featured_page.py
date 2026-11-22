@@ -35,17 +35,17 @@ from .result_windows import GridTable
 from .results import _dict, _truthy, cap, js_text
 
 C = theme.COLORS
-LINE2 = C["line2"]
-STYLE = f"""
+LINE2 = theme.Shade("line2")
+STYLE = theme.Sheet(lambda: f"""
     QLabel#feHeading {{ color: {C['gold']}; font-family: serif; font-size: 19px; font-weight: 700; letter-spacing: 1px; }}
-    QFrame#feZone, QFrame#fePage {{ background: rgba(16, 22, 35, 0.94); border: 1px solid {LINE2}; border-radius: 6px; }}
+    QFrame#feZone, QFrame#fePage {{ background: {theme.css('panel')}; border: 1px solid {LINE2}; border-radius: 6px; }}
     QFrame#feZone QLabel, QFrame#fePage QLabel {{ background: transparent; }}
     QFrame#feZoneHead {{ background: transparent; border: none; border-bottom: 1px solid {LINE2}; }}
     QLabel#feTitle {{ color: {C['gold']}; font-family: serif; font-size: 17px; font-weight: 700; }}
     QLabel#feTitleBig {{ color: {C['gold']}; font-family: serif; font-size: 21px; font-weight: 700; }}
     QLabel#feSub {{ color: {C['muted']}; font-size: 12px; }}
-    QFrame#feZone QLabel#fePortrait, QFrame#fePage QLabel#fePortrait {{ border: 1px solid rgba(206, 182, 122, 0.28);
-        border-radius: 6px; background: #0b0f18; }}
+    QFrame#feZone QLabel#fePortrait, QFrame#fePage QLabel#fePortrait {{ border: 1px solid {theme.css('frame')};
+        border-radius: 6px; background: {theme.COLORS['icon_bg']}; }}
     QPushButton#feNav {{ color: {C['text']}; background: transparent; border: none; border-bottom: 2px solid transparent;
         border-radius: 0px; padding: 4px 2px; }}
     QPushButton#feNav:hover, QPushButton#feNav[current="true"] {{ color: {C['gold']}; border-bottom-color: {C['gold']}; }}
@@ -65,21 +65,21 @@ STYLE = f"""
     QLabel#feTeam {{ color: {C['accent']}; font-weight: 600; }}
     QLabel#feLegion {{ color: {C['gold']}; font-weight: 600; }}
     QLabel#feCaption {{ color: {C['gold']}; font-weight: 600; padding: 6px 0px; }}
-    QFrame#feRaceWrap {{ border: 1px solid {LINE2}; border-radius: 6px; background: rgba(24, 32, 50, 0.9); }}
+    QFrame#feRaceWrap {{ border: 1px solid {LINE2}; border-radius: 6px; background: {theme.css('panel2')}; }}
     QLabel#feDone {{ color: {C['gold']}; font-size: 16px; font-weight: 700; }}
     QLabel#feCloserTeam {{ color: {C['accent']}; font-size: 19px; font-weight: 700; letter-spacing: 1px; }}
     QLabel#feCloserLegion {{ color: {C['gold']}; font-size: 19px; font-weight: 700; letter-spacing: 1px; }}
     QLabel#feCloserSub {{ color: {C['muted']}; font-size: 16px; font-weight: 700; letter-spacing: 1px; }}
-    QFrame#feCloser QLabel#feRank {{ border: 2px solid rgba(233, 203, 128, 0.65); background: rgba(6, 9, 15, 0.65);
+    QFrame#feCloser QLabel#feRank {{ border: 2px solid {theme.css('frame_hi')}; background: {theme.css('inset')};
         color: {C['gold']}; font-family: serif; font-size: 18px; border-radius: 20px; }}
     QLabel#feCloserLabel {{ color: {C['muted']}; font-size: 12px; letter-spacing: 1px; }}
     QLabel#feBig {{ font-size: 21px; font-weight: 700; }}
     QLabel#feState {{ font-weight: 700; letter-spacing: 1px; }}
     QFrame#fePage QLabel#thead {{ color: {C['gold_dim']}; font-weight: 600; padding: 6px 8px; border: none;
-        border-bottom: 1px solid rgba(206, 182, 122, 0.28); }}
-    QFrame#fePage QLabel#tcell {{ padding: 5px 8px; border: none; border-bottom: 1px solid #1d2539; }}
-    QFrame#fePage QFrame#tcellBox {{ background: transparent; border: none; border-bottom: 1px solid #1d2539; }}
-    """
+        border-bottom: 1px solid {theme.css('frame')}; }}
+    QFrame#fePage QLabel#tcell {{ padding: 5px 8px; border: none; border-bottom: 1px solid {theme.COLORS['line_soft']}; }}
+    QFrame#fePage QFrame#tcellBox {{ background: transparent; border: none; border-bottom: 1px solid {theme.COLORS['line_soft']}; }}
+    """)
 ZONE_WIDTH = 820            # an encounter's least width side by side with another (``.fe-zones``)
 ZONE_GAP = 16
 
@@ -150,7 +150,7 @@ class _Segment(QWidget):
         shape = QPainterPath()
         shape.addRoundedRect(QRectF(left, 0, right - left, h), r, r)
         painter.setClipPath(shape)
-        painter.fillRect(QRectF(0, 0, w, h), QColor(6, 9, 15, 166))
+        painter.fillRect(QRectF(0, 0, w, h), theme.qcolor("inset"))
         painter.fillRect(QRectF(0, 0, w * self.fill / 100.0, h), QColor(C["gold"]))
         painter.end()
 
@@ -172,7 +172,7 @@ class _Spread(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         w = float(self.width())
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(6, 9, 15, 166))
+        painter.setBrush(theme.qcolor("inset"))
         painter.drawRoundedRect(QRectF(0, 2, w, 12), 6, 6)
         if self.box is not None:
             left, width = self.box

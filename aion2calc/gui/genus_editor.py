@@ -258,8 +258,8 @@ class EditorLayout(QWidget):
 def style() -> str:
     colors = theme.COLORS
     return f"""
-    QFrame#gslot {{ background: rgba(6, 9, 15, 0.65); border: 1px solid {colors['line']}; border-radius: 6px; }}
-    QFrame#gslot[sp="true"] {{ border-color: rgba(233, 203, 128, 0.65); background: rgba(233, 203, 128, 0.05); }}
+    QFrame#gslot {{ background: {theme.css('inset')}; border: 1px solid {colors['line']}; border-radius: 6px; }}
+    QFrame#gslot[sp="true"] {{ border-color: {theme.css('frame_hi')}; background: rgba(233, 203, 128, 0.05); }}
     QFrame#gslot[gflag="true"] {{ border: 2px solid {colors['warn']}; }}
     QFrame#gslot QLabel {{ background: transparent; }}
     QFrame#gslot[locked="true"] QLabel {{ color: {colors['faint']}; }}

@@ -31,8 +31,9 @@ from .news import when
 
 SUBTITLE = "updates itself on every launch from the live sources — no code changes needed for new items, skills or classes"
 #: app.css's grade colours in the dark theme (``--g-*``).
-GRADE_COLORS = {"Common": "rgba(255, 255, 255, 0.88)", "Rare": "#52b35c", "Legend": "#3d94d8", "Unique": "#e9a43a",
-                "Epic": "#ee6c2a", "Mythic": "#d33939", "Special": "#34b798"}
+GRADE_COLORS = theme.Shades({grade: theme.Shade("g_" + key, whole=True) for grade, key in (
+    ("Common", "common"), ("Rare", "rare"), ("Legend", "legend"), ("Unique", "unique"), ("Epic", "epic"),
+    ("Mythic", "mythic"), ("Special", "special"))})                    # app.css --g-*, as the look has them
 RUNNING_MS, RESTING_MS = 2000, 15000              # how often the database's state is read, an update under way or not
 ICON_SIZE = 22
 
@@ -335,13 +336,13 @@ class DatabasePage(QWidget):
     def _stylesheet() -> str:
         c = theme.COLORS
         return f"""
-        QFrame#win {{ background: rgba(16, 22, 35, 0.94); border: 1px solid rgba(206, 182, 122, 0.28); border-radius: 8px; }}
-        QFrame#winHead {{ background: rgba(232, 207, 142, 0.06); border: none; border-bottom: 1px solid rgba(206, 182, 122, 0.28);
+        QFrame#win {{ background: {theme.css('panel')}; border: 1px solid {theme.css('frame')}; border-radius: 8px; }}
+        QFrame#winHead {{ background: rgba(232, 207, 142, 0.06); border: none; border-bottom: 1px solid {theme.css('frame')};
                           border-top-left-radius: 8px; border-top-right-radius: 8px; }}
         QWidget#winBody, QWidget#statgrid {{ background: transparent; }}
         QFrame#win QLabel {{ background: transparent; }}
         QLabel#winTitle {{ color: {c['gold']}; font-size: 15px; font-weight: 700; letter-spacing: 1.4px; }}
-        QFrame#kpi {{ background: rgba(6, 9, 15, 0.65); border: 1px solid {c['line']}; border-radius: 6px; }}
+        QFrame#kpi {{ background: {theme.css('inset')}; border: 1px solid {c['line']}; border-radius: 6px; }}
         QLabel#kpiName {{ color: {c['muted']}; letter-spacing: 0.6px; }}
         QLabel#kpiValue {{ font-size: 19px; font-weight: 700; }}
         QLabel#phase {{ color: {c['gold']}; font-weight: 700; }}
@@ -349,7 +350,7 @@ class DatabasePage(QWidget):
         QLabel#bad {{ color: {c['bad']}; }}
         QLabel#section {{ color: {c['gold']}; font-weight: 700; }}
         QFrame#statrow {{ background: transparent; border: none; border-bottom: 1px dotted {c['line']}; }}
-        QProgressBar {{ background: rgba(6, 9, 15, 0.65); border: none; border-radius: 4px; }}
+        QProgressBar {{ background: {theme.css('inset')}; border: none; border-radius: 4px; }}
         QProgressBar::chunk {{ border-radius: 4px; background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2a8fb0, stop:1 #39c2e0); }}
         """
 

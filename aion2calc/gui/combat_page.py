@@ -61,7 +61,7 @@ def stylesheet() -> str:
     drawn elsewhere (the Live Meter's live review, 0.2.473) takes it too."""
     return GatheringPage._stylesheet() + RESULT_STYLE + f"""
             QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
-                border: 1px solid rgba(233, 203, 128, 0.65); color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
+                border: 1px solid {theme.css('frame_hi')}; color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
             QPushButton#primary:disabled {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(107, 85, 35, 0.5),
                 stop:1 rgba(63, 50, 21, 0.5)); border-color: rgba(233, 203, 128, 0.33); color: rgba(255, 243, 207, 0.5); }}
             QPushButton#small[chosen="true"] {{ font-weight: 700; text-decoration: underline; }}
@@ -76,13 +76,13 @@ def stylesheet() -> str:
                 padding: 2px 0px; }}
             QFrame#note {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
                 border-radius: 5px; padding: 9px 12px; }}
-            QFrame#note QLabel, QFrame#note QCheckBox {{ background: transparent; color: #f1d4a3; }}
+            QFrame#note QLabel, QFrame#note QCheckBox {{ background: transparent; color: {theme.COLORS['note_fg']}; }}
             QFrame#note QWidget#plain {{ background: transparent; }}
-            QFrame#note QLabel#queueHead {{ color: #f1d4a3; font-size: 15px; font-weight: 700; }}
+            QFrame#note QLabel#queueHead {{ color: {theme.COLORS['note_fg']}; font-size: 15px; font-weight: 700; }}
             QLabel#bucketHead {{ font-weight: 700; margin-top: 4px; }}
             QFrame#rowNote {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
                 border-radius: 5px; padding: 6px 9px; }}
-            QFrame#note QToolButton#fold {{ color: #f1d4a3; }}
+            QFrame#note QToolButton#fold {{ color: {theme.COLORS['note_fg']}; }}
             """ + FEATURED_STYLE + ANALYSIS_STYLE + Toast.STYLE
 
 
@@ -322,7 +322,7 @@ class CombatPage(QWidget):
         self.message = _label("", "combatMessage", wrap=False)
         layout.addWidget(_row(self.ref, self.player, self.analyze, _label("or", "muted", wrap=False),
                               _button("Choose a file…", self.import_file), self.message))
-        note = _label(cb.IMPORT_NOTE, "faint", rich=True)
+        note = _label(cb.import_note(), "faint", rich=True)
         note.linkActivated.connect(self.open_link)
         layout.addWidget(note)
         self.folder = _row()

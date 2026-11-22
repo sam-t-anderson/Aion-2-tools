@@ -83,6 +83,7 @@ class MainWindow(QMainWindow):
     def __init__(self, api: AppApi | None, web_base: str = "", page: str = "meter", parent_process=None):
         super().__init__()
         self.api, self.web_base, self.parent_process = api, web_base, parent_process
+        self.shown_look = theme.LOOK["shown"]              # the theme drawn: the computer's, while it follows it
         self.setWindowTitle("Aion 2 Calc")
         self.resize(1280, 820)
         central = QWidget()
@@ -118,7 +119,7 @@ class MainWindow(QMainWindow):
                     widget = MeterPage(api, open_page=self.show_page, open_in_web=self.open_in_web, open_web=self.open_web)
                 elif key == "settings":
                     widget = SettingsPage(api, self.open_web, open_page=self.show_page,
-                                          change_language=self.change_language)
+                                          change_language=self.change_language, change_look=self.change_look)
                 elif key == "news":
                     widget = NewsPage(api)
                 elif key == "timers":
@@ -175,6 +176,22 @@ class MainWindow(QMainWindow):
         from . import interface
         interface.store().setValue(i18n.KEY, lang)
         i18n.install(lang)
+        self.redraw()
+
+    def change_look(self) -> None:
+        """Another theme or accent chosen (kept with the web pages' choice by Settings): the window drawn again in it,
+        as the web page draws itself again (0.2.484)."""
+        from . import interface
+        theme.apply_look(*theme.look_of(interface.store()))
+        self.redraw()
+
+    def computer_look_changed(self) -> None:
+        """The computer turned light or dark: the window drawn again where the theme follows it."""
+        if theme.LOOK["theme"] == "system" and theme.apply_look("system", theme.LOOK["accent"]) != self.shown_look:
+            self.redraw()
+
+    def redraw(self) -> "MainWindow":
+        """The window drawn again, on the page shown, in the language and the look chosen now."""
         again = MainWindow(self.api, self.web_base, self.current_page(), self.parent_process)
         again.setGeometry(self.geometry())
         again.setWindowState(self.windowState())
@@ -183,6 +200,7 @@ class MainWindow(QMainWindow):
         again.start()
         self.close()
         self.deleteLater()
+        return again
 
     def show_page(self, key: str) -> None:
         self.nav.setCurrentRow(self.page_rows[key])
@@ -242,6 +260,19 @@ class MainWindow(QMainWindow):
             self.notes_dialog = show_patch_notes(self.api, self, notes, webbrowser.open, seen=True)
 
 
+def _follow_the_computer(app) -> None:
+    """The computer turning light or dark redraws the window shown, where its theme follows the computer's."""
+    def changed(*_args):
+        for widget in QApplication.topLevelWidgets():
+            if isinstance(widget, MainWindow) and widget.isVisible():
+                widget.computer_look_changed()
+                return
+    try:
+        app.styleHints().colorSchemeChanged.connect(changed)
+    except AttributeError:                          # a Qt without it: the theme read as the window opens
+        pass
+
+
 def scale_text(api: AppApi) -> None:
     """The window at the app's text size (Settings → Text size, ``app_text_scale``), every word and the layout with it
     as a browser's zoom scales them (0.2.475). Qt takes it as the window opens (``QT_SCALE_FACTOR``), so a new size
@@ -270,7 +301,9 @@ def main(argv=None) -> int:
     from . import interface
     interface.connect(AppApi(base))                  # the window's choices, kept by the app with the web pages' (0.2.482)
     i18n.install(i18n.language())                    # in the language the web pages show (0.2.483)
+    theme.apply_look(*theme.look_of(interface.store()))   # and their theme and accent (0.2.484)
     window = MainWindow(AppApi(base), base, page, _ParentProcess(os.environ.get("AION2CALC_PARENT_PID")))
+    _follow_the_computer(app)
     window.show()
     window.start()
     return app.exec()

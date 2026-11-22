@@ -16,8 +16,6 @@ from . import combat_records as cr
 from . import theme
 
 C = theme.COLORS
-BAR = QColor(57, 194, 224, 71)                 # --chart-bar
-LINE = QColor(C["gold"])                       # --chart-line
 HP = QColor("#ef6262")
 PING = QColor("#6bd7ef")
 
@@ -91,11 +89,11 @@ class RateChart(QWidget):
                                                 for i, v in enumerate(s["values"])]))
         else:
             painter.setPen(Qt.NoPen)
-            painter.setBrush(BAR)
+            painter.setBrush(theme.qcolor("chart_bar"))                   # --chart-bar
             for i, v in enumerate(m["total"]):
                 width = max(0.5, 880 * min(step, duration - i * step) / duration - 1)
                 painter.drawRect(QRectF(self._x(i * step), self._y(v), width, 180 - self._y(v)))
-            painter.setPen(QPen(LINE, 2))
+            painter.setPen(QPen(QColor(C["chart_line"]), 2))              # --chart-line
             painter.setBrush(Qt.NoBrush)
             painter.drawPolyline(QPolygonF([QPointF(self._x(min(duration, (i + 0.5) * step)), self._y(v))
                                             for i, v in enumerate(m["roll"])]))

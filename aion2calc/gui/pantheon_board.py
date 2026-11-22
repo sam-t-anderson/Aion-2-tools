@@ -15,10 +15,6 @@ from . import theme
 
 VIEW = 460.0                      # the board's viewBox, scaled to the widget
 CENTRE, INNER, OUTER = 230.0, 108.0, 190.0
-FRAME = QColor(206, 182, 122, 71)           # app.css's --frame, --frame-hi, --inset and --board-a
-FRAME_HI = QColor(233, 203, 128, 166)
-INSET = QColor(6, 9, 15, 166)
-BOARD_A = QColor("#18233a")
 
 
 def hexagon(x: float, y: float, r: float) -> QPolygonF:
@@ -143,7 +139,7 @@ class PantheonBoard(QWidget):
         scale, left, top = self._scale()
         painter.translate(left, top)
         painter.scale(scale, scale)
-        ring = QPen(FRAME, 1.5)
+        ring = QPen(theme.qcolor("frame"), 1.5)                       # app.css --frame
         ring.setDashPattern([4 / 1.5, 6 / 1.5])
         painter.setPen(ring)
         painter.setBrush(Qt.NoBrush)
@@ -157,8 +153,9 @@ class PantheonBoard(QWidget):
         stand, kind = self.stand(place), place["kind"]
         x, y, r = place["x"], place["y"], place["r"]
         colossus = kind == "colossus"
-        fill = (BOARD_A if colossus else QColor(theme.COLORS["panel2"])) if stand["set"] else INSET
-        edge = QPen(QColor(theme.COLORS["gold"]) if colossus and stand["set"] else FRAME_HI if stand["set"]
+        fill = ((QColor(theme.COLORS["board_a"]) if colossus else QColor(theme.COLORS["panel2"])) if stand["set"]
+                else theme.qcolor("inset"))
+        edge = QPen(QColor(theme.COLORS["gold"]) if colossus and stand["set"] else theme.qcolor("frame_hi") if stand["set"]
                     else QColor(theme.COLORS["line2"]), 2.5 if colossus and stand["set"] else 1.5)
         if index == self.hovered:
             edge = QPen(QColor(theme.COLORS["accent"]), 2.5)

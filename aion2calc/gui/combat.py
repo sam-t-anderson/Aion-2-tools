@@ -29,10 +29,15 @@ LISTS = (("community", "Community Combat Logs"), ("owned", "My Uploads"), ("save
 REF_HINT = "AbyssLogs link (abysslogs.com/e/…) or A2DIL link"
 PLAYER_HINT = "player (party logs)"
 ABYSSLOGS = "https://abysslogs.com"
-IMPORT_NOTE = ("Record a fight with the free <a href='https://abysslogs.com' style='color: " + theme.COLORS["accent"] + ";'>"
+IMPORT_NOTE = ("Record a fight with the free <a href='https://abysslogs.com' style='color: {accent};'>"
                "AbyssLogs meter</a>, press Share, and paste the "
                "link here. A party log shows the recorder's damage unless you name a player. Files: AbyssLogs segment (.json / "
                ".json.gz), aion2calc JSON (see docs), or CSV with columns t, skill, damage, crit, double, perfect, multi, dot.")
+
+
+def import_note() -> str:
+    """The import's note, its link in the accent of the look shown."""
+    return IMPORT_NOTE.replace("{accent}", theme.COLORS["accent"])
 FILE_KINDS = "Combat logs (*.json *.gz *.csv)"
 VISIBILITY = (("public", "public"), ("unlisted", "unlisted"), ("legion", "legion only"), ("private", "private"))
 SERVER_HINT = "https://logs.example.com"

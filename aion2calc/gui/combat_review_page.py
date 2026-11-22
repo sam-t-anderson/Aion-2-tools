@@ -73,7 +73,7 @@ from .class_colours import ClassColours
 from .combat import safe_link
 from .combat_community import _note
 from .chrome import FlowLayout
-from .combat_review_charts import HP, LINE, PingChart, RateChart
+from .combat_review_charts import HP, PingChart, RateChart
 from .combat_replay_view import ReplayPanel, merge_row
 from .combat_review_views import ContributionBars, FilterPopup, GaugeChart, Placer, Timeline
 from .combat_saved import TIMEOUT, Section, _button, _clear, _head, _label
@@ -898,8 +898,8 @@ class ReviewPage(QWidget):
             line.addWidget(_label("Class-colored lines: player rates · solid: damage done · dashed: damage taken · dotted: "
                                   "healing", "small"))
         else:
-            line.addWidget(self._key(f"Bars: total {model['primary'].lower()} per second", "rgba(57, 194, 224, 0.28)", bar=True))
-            line.addWidget(self._key("Gold line: trailing 10-second average", LINE.name()))
+            line.addWidget(self._key(f"Bars: total {model['primary'].lower()} per second", theme.css("chart_bar"), bar=True))
+            line.addWidget(self._key("Gold line: trailing 10-second average", C["chart_line"]))     # --chart-line
         if model["health"]:
             line.addWidget(self._key(f"Red line: {model['hp_of']} (right axis)", HP.name()))
         line.addStretch(1)

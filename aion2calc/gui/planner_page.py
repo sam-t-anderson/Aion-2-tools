@@ -79,14 +79,14 @@ class PlannerPage(QWidget):
         self.weights.setInterval(1200)
         self.weights.timeout.connect(self._read_weights)
         self.setStyleSheet(GatheringPage._stylesheet() + result_windows.STYLE + f"""
-            QFrame#wstep {{ border: 1px solid rgba(206, 182, 122, 0.28); border-radius: 8px;
+            QFrame#wstep {{ border: 1px solid {theme.css('frame')}; border-radius: 8px;
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {theme.COLORS['card_a']}, stop:1 {theme.COLORS['card_b']}); }}
             QFrame#wstep QLabel {{ background: transparent; }}
             QLabel#stepNumber {{ color: {theme.COLORS['gold']}; font-family: serif; font-size: 19px; font-weight: 700; }}
             QLabel#stepTitle {{ font-family: serif; font-weight: 700; letter-spacing: 0.8px; }}
             QLabel#heroTitle {{ color: {theme.COLORS['gold']}; font-family: serif; font-size: 22px; letter-spacing: 2px; }}
             QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
-                border: 1px solid rgba(233, 203, 128, 0.65); color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
+                border: 1px solid {theme.css('frame_hi')}; color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
             QPushButton#primary:disabled {{ color: {theme.COLORS['faint']}; }}
             """)
         self.scroll = QScrollArea()

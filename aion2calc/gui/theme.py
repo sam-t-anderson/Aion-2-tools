@@ -1,21 +1,216 @@
 """The native interface's colours, fonts and number formats: the web interface's own (0.2.413).
 
-The colours are ``app.css``'s dark theme and the overlay's class colours (``OVERLAY_CLASS_COLORS`` in
-``overlay.js``); ``kfmt`` and ``sfmt`` write numbers as the overlay does, so a reading looks the same in both.
+The colours are ``app.css``'s, read from it: its dark theme, its light one and its accent colours (since 0.2.484;
+until then the dark theme alone), and the overlay's class colours (``OVERLAY_CLASS_COLORS`` in ``overlay.js``);
+``kfmt`` and ``sfmt`` write numbers as the overlay does, so a reading looks the same in both.
+
+``COLORS`` holds the look shown, each of app.css's custom properties under its name with "_" for "-"
+(``--gold-dim`` is ``gold_dim``), as a colour Qt reads: a translucent one (``--panel``, ``--frame``) as the colour
+it is drawn with, without its transparency, where ``CSS`` keeps it whole, as app.css writes it. ``apply_look``
+puts another theme or accent in them, in place, before the window is drawn (again).
 """
 from __future__ import annotations
 
 from decimal import ROUND_HALF_UP, Decimal
 import functools
 import math
+import pathlib
+import re
 
-#: app.css's dark theme (``:root``).
-COLORS = {
-    "bg0": "#070a10", "bg1": "#0d1320", "bg2": "#121a2a", "panel": "#101623", "panel2": "#182032",
-    "card_a": "#1c2236", "card_b": "#121726", "hover": "#1b2337", "line": "#263048", "line2": "#3a4562",
-    "gold": "#e8cf8e", "gold_dim": "#b49a5c", "text": "#e9e6df", "muted": "#9aa3b5", "faint": "#848b9a",
-    "accent": "#39c2e0", "good": "#6fcf7a", "bad": "#e66a5a", "warn": "#e9a43a",
-}
+APP_CSS = pathlib.Path(__file__).resolve().parents[1] / "app" / "static" / "app.css"
+#: app.js ``THEMES`` and ``ACCENTS``: the themes (the computer's, or one chosen) and the accent colours.
+THEMES = ("system", "light", "dark")
+ACCENTS = ("gold", "crimson", "emerald", "azure", "amethyst", "rose")
+
+
+def _rules(css: str) -> dict[str, dict[str, str]]:
+    """app.css's ``:root`` rules that start a line, each selector's custom properties (the ones inside its
+    ``prefers-color-scheme`` block, indented, say the same as these)."""
+    rules = {}
+    for m in re.finditer(r"^(:root[^{]*)\{([^}]*)\}", css, re.M):
+        rules[m.group(1).strip()] = {name: value.strip() for name, value in
+                                     re.findall(r"--([\w-]+)\s*:\s*([^;]+);", m.group(2))}
+    return rules
+
+
+def opaque(value: str) -> str:
+    """A colour as Qt reads it: ``#rrggbb`` as it is, ``rgba(r, g, b, a)`` without its transparency."""
+    m = re.fullmatch(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)", value.strip())
+    return "#%02x%02x%02x" % tuple(int(x) for x in m.groups()) if m else value.strip()
+
+
+@functools.lru_cache(maxsize=None)
+def palette(shown: str = "dark", accent: str = "gold") -> dict[str, str]:
+    """app.css's custom properties for a theme shown ("dark" or "light") and an accent, by their names here."""
+    rules = _rules(APP_CSS.read_text(encoding="utf-8"))
+    values = dict(rules.get(":root", {}))
+    if shown == "light":
+        values.update(rules.get(":root[data-theme=light]", {}))
+    if accent != "gold":
+        values.update(rules.get(f":root[data-accent={accent}]", {}))
+        if shown == "light":
+            values.update(rules.get(f":root[data-accent={accent}][data-theme=light]", {}))
+    return {name.replace("-", "_"): value for name, value in values.items()}
+
+
+#: The look shown: the theme chosen, the accent, and the theme drawn ("system" is the computer's).
+LOOK = {"theme": "system", "accent": "gold", "shown": "dark"}
+CSS: dict[str, str] = {}
+COLORS: dict[str, str] = {}
+
+
+def apply_look(theme: str = "system", accent: str = "gold", computer_light: bool | None = None) -> str:
+    """Show ``theme`` (one of ``THEMES``) with ``accent`` (one of ``ACCENTS``): app.js ``setTheme`` and
+    ``setAccent``. "system" follows the computer's light or dark (``computer_light``, else Qt's reading of it).
+    Returns the theme drawn. What is drawn after this has the colours; the window draws itself again for them."""
+    theme = theme if theme in THEMES else "system"
+    accent = accent if accent in ACCENTS else "gold"
+    if theme == "system":
+        light = computer_light if computer_light is not None else _computer_light()
+        shown = "light" if light else "dark"
+    else:
+        shown = theme
+    values = palette(shown, accent)
+    CSS.clear()
+    CSS.update(values)
+    COLORS.clear()
+    COLORS.update({name: opaque(value) for name, value in values.items()})
+    LOOK.update(theme=theme, accent=accent, shown=shown)
+    return shown
+
+
+def _computer_light() -> bool:
+    """Whether the computer's own look is light (``prefers-color-scheme: light``)."""
+    try:
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QGuiApplication
+        if QGuiApplication.instance() is None:
+            return False
+        return QGuiApplication.styleHints().colorScheme() == Qt.ColorScheme.Light
+    except (ImportError, AttributeError, RuntimeError):
+        return False
+
+
+def look_of(store) -> tuple[str, str]:
+    """The theme and accent the web pages keep (app.js ``getTheme`` and ``getAccent``): "system" and "gold" where
+    there is none, or one that is not theirs."""
+    try:
+        chosen, accent = store.value("theme"), store.value("accent")
+    except Exception:
+        chosen = accent = None
+    return chosen if chosen in THEMES else "system", accent if accent in ACCENTS else "gold"
+
+
+_RGBA = re.compile(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)")
+
+
+def chosen_theme(store) -> str:
+    """The theme as the web page's Settings shows it chosen (app.js ``getTheme``): what the web pages keep, unchecked,
+    "system" where there is none. One that is none of ``THEMES`` shows no button chosen, and the computer's look."""
+    try:
+        return store.value("theme") or "system"
+    except Exception:
+        return "system"
+
+
+def css(name: str) -> str:
+    """A custom property for a Qt style sheet: as app.css writes it, an alpha with its leading zero
+    (``rgba(206, 182, 122, 0.28)``)."""
+    value = CSS[name]
+    m = _RGBA.fullmatch(value)
+    if m is None or m.group(4) is None:
+        return value
+    r, g, b, a = m.groups()
+    return f"rgba({r}, {g}, {b}, {float(a):g})" if float(a) >= 1 else f"rgba({r}, {g}, {b}, {float(a):.4g})".replace(
+        ", .", ", 0.")
+
+
+def qcolor(name: str):
+    """A custom property as a QColor, with its transparency (``--inset``'s .65 is 166 of 255)."""
+    from PySide6.QtGui import QColor
+    m = _RGBA.fullmatch(CSS[name])
+    if m is None:
+        return QColor(CSS[name])
+    r, g, b, a = m.groups()
+    return QColor(int(r), int(g), int(b), round(float(a) * 255) if a is not None else 255)
+
+
+class Shade:
+    """A colour of the look shown, read each time it is written (``f"color: {GAIN}"``), so a page drawn after the
+    look changes writes the new one; ``whole`` keeps a translucent colour's transparency (``css``)."""
+
+    __slots__ = ("name", "whole")
+
+    def __init__(self, name: str, whole: bool = False):
+        self.name, self.whole = name, whole
+
+    def __str__(self) -> str:
+        return css(self.name) if self.whole else COLORS[self.name]
+
+    def __format__(self, spec: str) -> str:
+        return format(str(self), spec)
+
+    def __add__(self, other):
+        return str(self) + other
+
+    def __radd__(self, other):
+        return other + str(self)
+
+    def __eq__(self, other) -> bool:
+        return str(self) == str(other)
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+    def __repr__(self) -> str:
+        return f"Shade({self.name!r}: {str(self)!r})"
+
+
+class Sheet:
+    """A style sheet written in the look shown each time it is used (a page's ``STYLE``): ``str(sheet)``, or added
+    to another style sheet, as a text is."""
+
+    __slots__ = ("write",)
+
+    def __init__(self, write):
+        self.write = write
+
+    def __str__(self) -> str:
+        return self.write()
+
+    def __format__(self, spec: str) -> str:
+        return format(self.write(), spec)
+
+    def __add__(self, other):
+        return self.write() + str(other)
+
+    def __radd__(self, other):
+        return str(other) + self.write()
+
+    def __eq__(self, other) -> bool:
+        return self.write() == str(other)
+
+    def __hash__(self) -> int:
+        return id(self)
+
+
+class Shades(dict):
+    """A table of colours of the look shown by name (the grades'): each value read as the look has it now."""
+
+    def __getitem__(self, key):
+        return str(super().__getitem__(key))
+
+    def get(self, key, default=None):
+        return self[key] if key in self else default
+
+    def values(self):
+        return [self[key] for key in self]
+
+    def items(self):
+        return [(key, self[key]) for key in self]
+
+
+apply_look("dark")                                # the dark theme until the window applies the one chosen
 #: The overlay card's background (overlay.css ``--nm-card``, the compact layout's): rgb(12, 14, 17) at the overlay's
 #: opacity.
 OVERLAY_CARD = (12, 14, 17)
@@ -135,7 +330,7 @@ def short_count(regular, bonus=0) -> str:
 
 
 def app_stylesheet() -> str:
-    """The main window's Qt style sheet, from the dark theme."""
+    """The main window's Qt style sheet, in the look shown."""
     c = COLORS
     return f"""
     QWidget {{ background: {c['bg1']}; color: {c['text']}; font-family: "Noto Sans", "Segoe UI", sans-serif; font-size: 13px; }}
