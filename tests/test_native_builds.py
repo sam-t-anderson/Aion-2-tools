@@ -413,7 +413,7 @@ def test_the_other_tabs_open_the_web_page(made):
     page, *_rest = made
     opened = []
     page.open_web = opened.append
-    page.tab_buttons["equipment"].click()
+    page.tab_buttons["pantheon"].click()
     texts = [w.text() for w in page.findChildren(bp.QLabel)]
     assert bp.ON_THE_WEB in texts
     next(btn for btn in page.findChildren(bp.QPushButton) if btn.text() == bp.OPEN_WEB).click()
@@ -433,3 +433,160 @@ def test_the_window_draws_builds_and_lets_it_go_when_left(qapp, monkeypatch, tmp
     window.show_page("timers")
     assert not page.mounted
     window.close()
+
+
+# ------------------------------------------------------------------ equipment and arcana cards (0.2.487)
+def test_the_slots_and_items_for_a_slot():
+    d = b.fresh(CATALOG, "gladiator", "pve", 45)
+    assert b.slots_for(CATALOG, "equipment")[:3] == ["MainHand", "SubHand", "Helmet"] and len(b.slots_for(CATALOG, "equipment")) == 20
+    assert b.slots_for(CATALOG, "arcana") == ["Arcana Chalice", "Arcana Parchment", "Arcana Compass", "Arcana Bell", "Arcana Mirror"]
+    swords = b.available(CATALOG, d, "MainHand", "")
+    assert swords and {c["category"] for c in swords} == {"Greatsword"} and all(c["required_level"] <= 45 for c in swords)
+    assert [c["slug"] for c in b.available(CATALOG, d, "MainHand", "ABYSS")] == ["abyssal-claymore"]
+    low = dict(d, level=20)
+    assert all(c["required_level"] <= 20 for c in b.available(CATALOG, low, "MainHand", ""))
+    assert [b.component_kind({"slot": s}) for s in ("Arcana Bell", "Pantheon", "Deity points", "Helmet", None)] == [
+        "arcana", "pantheon", "pantheon", "equipment", "equipment"]
+    assert b.stats_line({"stats": {"a": 1.5, "b": None, "c": [1, 2]}}) == "a: 1.5 · b:  · c: 1,2" and b.stats_line({}) == ""
+
+
+def test_an_item_applied_with_its_rolls_and_card_levels():
+    d = b.fresh(CATALOG, "gladiator", "pve", 45)
+    sword = next(it for it in CATALOG["items"] if it["slug"] == "abyssal-claymore")
+    comps = b.with_item(CATALOG, d, "MainHand", sword, 3, [{"stat": "Critical Attack", "value": 90}, {"stat": "HP", "value": 350}])
+    # build-workspace.js's own answer: the fixed stats at +3, the modelled roll added through its unit, HP kept unscored
+    assert comps == [{"slot": "MainHand", "item": "Abyssal Claymore +3", "icon": sword["icon"], "grade": "Unique", "enchant": 3,
+                      "catalog_slug": "abyssal-claymore", "source": b.ITEM_SOURCE,
+                      "rolls": [{"stat": "Critical Attack", "value": 90}, {"stat": "HP", "value": 350}], "arcana_skills": {},
+                      "stats": {"weapon_min": 403, "weapon_max": 535, "accuracy": 100, "crit": 150, "block": 150, "crit_atk": 90}}]
+    helm = next(it for it in CATALOG["items"] if it["slug"] == "abyssal-helm")
+    assert b.with_item(CATALOG, d, "Helmet", helm, 0, [{"stat": "Natural MP Regen", "value": 25}])[0]["stats"] == {"mp_regen": 8.333333333333332}
+    chalice = next(it for it in CATALOG["items"] if it["slug"] == "chalice-of-magic")
+    card = b.with_item(CATALOG, d, "Arcana Chalice", chalice, 1, None, {KEEN: 3, "11010000": 2})[0]
+    assert card["arcana_skills"] == {"11010000": 2, KEEN: 3} and b.stringify(card["arcana_skills"]) == '{"11010000":2,"11020000":3}'
+    d["loadout"]["components"] = [{"slot": "MainHand", "item": "old", "stats": {}}, {"slot": "Other", "item": "x", "stats": {}}]
+    assert [c["slot"] for c in b.with_item(CATALOG, d, "MainHand", sword, 0)] == ["Other", "MainHand"]   # put last
+    assert b.without_slot(d, "MainHand") == [{"slot": "Other", "item": "x", "stats": {}}]
+    for args, said in (((chalice, 0, None, {KEEN: 3, "11010000": 2}), b.OVER_CARD),
+                       ((chalice, 0, None, {"999": 1}), b.OVER_CARD),
+                       ((sword, 0, [{"stat": "Critical Attack", "value": 1}] * 5), b.MANY_ROLLS),
+                       ((sword, 0, [5]), b.BAD_ROLL),
+                       ((sword, 0, [{"stat": "Critical Attack", "value": 999}]), b.OUT_OF_RANGE),
+                       ((sword, 0, [{"stat": "Critical Attack", "value": 90}, {"stat": "Critical Attack", "value": 90}]), b.OUT_OF_RANGE),
+                       ((sword, 0, [{"stat": "Critical Attack"}]), b.OUT_OF_RANGE)):
+        slot = "Arcana Chalice" if args[0] is chalice else "MainHand"
+        with pytest.raises(b.BuildError) as raised:
+            b.with_item(CATALOG, d, slot, *args)
+        assert str(raised.value) == said
+    d["loadout"]["components"] = [{"slot": f"Custom{i}", "stats": {}} for i in range(64)]
+    with pytest.raises(b.BuildError, match="already has 64 components"):
+        b.with_item(CATALOG, d, "MainHand", sword, 0)
+    assert b.card_note(CATALOG, chalice, 1) == ("Each enhancement step adds one skill option: 5 at +1, 9 at +5. The bundled "
+                                                "catalog lists no stat change per step.")
+
+
+def _gladiator(page):
+    page.class_box.setCurrentIndex(page.class_box.findData("gladiator"))
+    page.class_box.activated.emit(page.class_box.findData("gladiator"))
+    assert settle(lambda: page.draft["budgets"]["skill"] == 230)
+
+
+def test_the_equipment_doll_and_an_items_options(made):
+    page, *_rest = made
+    _gladiator(page)
+    page.tab_buttons["equipment"].click()
+    assert list(page.tiles) == b.slots_for(CATALOG, "equipment") and page.tiles["MainHand"].isChecked()
+    assert page.picker_words["chosen"] == bp.NO_DRAFT_ITEM and page.component_words["centre"] == [
+        "GLADIATOR", "gladiator_45_PVE", bp.DOLL_NOTE]
+    count = len(b.available(CATALOG, page.draft, "MainHand", ""))
+    assert page.picker_words["count"] == bp.matching(count) and len(page.item_buttons) == min(80, count)
+    page.gear_search_edit.setText("abyss")
+    page.gear_search_edit.textEdited.emit("abyss")
+    assert list(page.item_buttons) == ["abyssal-claymore"] and page.picker_words["count"] == "1 matching items"
+    page.item_buttons["abyssal-claymore"].click()
+    assert page.message_label.text() == bp.ITEM_APPLIED and page.tiles["MainHand"].name == "Abyssal Claymore +0"
+    assert page.tiles["MainHand"].property("grade") == "Unique" and page.dirty
+    page.enchant_box.setCurrentIndex(3)
+    page.enchant_box.activated.emit(3)
+    assert page.draft["loadout"]["components"][0]["enchant"] == 3
+    assert page.picker_words["chosen"][1].startswith("weapon_min: 403 · weapon_max: 535")
+    box, field, _options = page.roll_lines[0]
+    box.setCurrentIndex(box.findData("Critical Attack"))
+    box.activated.emit(box.findData("Critical Attack"))
+    assert field.text() == "78" and field.isEnabled() and page.component_buffer
+    field.setText("90")
+    field.textEdited.emit("90")
+    page.tiles["Helmet"].click()
+    assert page.message_label.text() == bp.PENDING_ROLLS and page.gear_slot == "MainHand"
+    page.gear_search_edit.setText("x")
+    page.gear_search_edit.textEdited.emit("x")
+    assert page.message_label.text() == bp.PENDING_SEARCH and page.gear_search_edit.text() == "abyss"
+    page.tab_buttons["active"].click()
+    assert page.message_label.text() == bp.APPLY_FIRST_TAB and page.tab == "equipment"
+    page.save()
+    assert page.message_label.text() == bp.APPLY_FIRST_SAVE
+    page.option_buttons[0].click()
+    comp = page.draft["loadout"]["components"][0]
+    assert comp["rolls"] == [{"stat": "Critical Attack", "value": 90}] and comp["stats"]["crit_atk"] == 90
+    assert not page.component_buffer and page.message_label.text() == bp.ITEM_APPLIED
+    box = page.roll_lines[1][0]
+    box.setCurrentIndex(box.findData("Accuracy"))
+    box.activated.emit(box.findData("Accuracy"))
+    page.roll_lines[1][1].setText("")
+    page.option_buttons[0].click()
+    assert page.message_label.text() == bp.NEED_VALUE
+    page.option_buttons[1].click()
+    assert page.message_label.text() == bp.EDITS_DISCARDED and not page.component_buffer
+    assert page.roll_lines[1][0].currentData() == ""
+    page.clear_button.click()
+    assert page.draft["loadout"]["components"] == [] and page.tiles["MainHand"].name == bp.EMPTY_SLOT
+
+
+def test_the_arcana_cards_and_their_skill_levels(made):
+    page, *_rest = made
+    _gladiator(page)
+    page.tab_buttons["arcana"].click()
+    assert page.gear_slot == "Arcana Chalice" and list(page.tiles) == b.slots_for(CATALOG, "arcana")
+    page.item_buttons["chalice-of-magic"].click()
+    assert page.picker_words["enchant_note"] == ("Each enhancement step adds one skill option: 4 at +0, 9 at +5. The bundled "
+                                                 "catalog lists no stat change per step.")
+    assert page.picker_words["panels"] == [[bp.CARD_HEAD, bp.cards_note(4, 4)]]
+    for key, n in ((KEEN, 3), ("11010000", 2)):
+        page.card_selects[key].setCurrentIndex(n)
+        page.card_selects[key].activated.emit(n)
+    page.option_buttons[0].click()
+    assert page.message_label.text() == b.OVER_CARD and page.component_buffer
+    page.option_buttons[1].click()
+    page.card_selects[KEEN].setCurrentIndex(3)
+    page.card_selects[KEEN].activated.emit(3)
+    page.option_buttons[0].click()
+    assert page.draft["loadout"]["components"][0]["arcana_skills"] == {KEEN: 3}
+    assert page.card_selects[KEEN].currentData() == 3
+    page.tab_buttons["active"].click()
+    assert page.skill_widgets[KEEN]["words"][2] == "Effective level 4 · 3 card levels · 0 supporting slots"
+
+
+def test_imported_contributions_and_recorded_equipment(made, tmp_path):
+    page, _fake, _store, _asked, chosen = made
+    _gladiator(page)
+    page.mode_box.setCurrentIndex(1)
+    page.mode_box.activated.emit(1)
+    page.preset_button.click()
+    assert settle(lambda: page.message_label.text() == bp.PRESET_LOADED)
+    page.tab_buttons["equipment"].click()
+    extra = page.component_words["extra"]
+    assert extra[:2] == [["Main hand", "Spiritforged Greatsword +9"], ["Off-hand", "Spiritforged Guard +9"]]
+    before = len(page.draft["loadout"]["components"])
+    page.extra_buttons[0].click()
+    assert len(page.draft["loadout"]["components"]) == before - 1 and page.component_words["extra"][0][0] == "Off-hand"
+    profile = tmp_path / "profile.json"
+    profile.write_text(json.dumps({"data": {"profile": {"characterName": "A"}, "equipment": {"equipmentList": [
+        {"slotPosName": "MainHand", "name": "Recorded Sword", "enchantLevel": 5, "grade": "Unique"},
+        {"slotPosName": "ArcanaChalice", "id": 99, "grade": "Epic"}, {"slotPosName": "Helmet", "itemName": "Helm"}]}}}),
+        encoding="utf-8")
+    chosen["file"] = str(profile)
+    page.import_file()
+    page.tab_buttons["equipment"].click()
+    assert page.component_words["source"] == [["MainHand", "Recorded Sword", "+5 · Unique"], ["Helmet", "Helm", "+0 · "]]
+    page.tab_buttons["arcana"].click()
+    assert page.component_words["source"] == [["ArcanaChalice", "99", "+0 · Epic"]]

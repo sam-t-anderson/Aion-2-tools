@@ -10,8 +10,12 @@
   levels and supporting effects, searched by name; **Daevanion:** each board's nodes to take from its centre, and the
   separate budget of a board that is not a crystal board. Each with its budget, what it uses, the class's highest
   server-reported budgets (``/api/v1/progression``) and the catalog's checks; then the draft's notes.
-- Equipment, Arcana cards, Pantheon, Genus Insight, Evaluation / advanced inputs and Source character are still
-  drawn on the web Builds page: a saved draft opens there.
+- **Equipment and Arcana cards** (0.2.487): the doll's twenty slots or the five cards, each with its draft item; the
+  slot chosen's catalog items, searched by name; its item's enhancement, entered random rolls from the item's source
+  pool and a card's skill levels from the class's pool, held until applied or discarded; the draft's other imported
+  contributions to remove; the source profile's recorded equipment, read only.
+- Pantheon, Genus Insight, Evaluation / advanced inputs and Source character are still drawn on the web Builds page:
+  a saved draft opens there.
 
 The page starts afresh each time it is opened, as the web page does (its unsaved edits are not kept on leaving);
 the catalog is read once.
@@ -26,12 +30,13 @@ import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 
 from PySide6.QtCore import QObject, QRectF, QRegularExpression, QStandardPaths, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPen, QPixmap, QRegularExpressionValidator
+from PySide6.QtGui import (QColor, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient,
+                           QRegularExpressionValidator)
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
                                QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget)
 
 from . import builds as b
-from . import image_health, theme
+from . import advice_view, image_health, theme
 from .api import AppApi, Requests
 from .character import field_value, js_number, js_string
 from .chrome import FlowLayout
@@ -112,6 +117,35 @@ ASK_NEW = "Replace the unsaved draft with an empty draft?"
 ASK_LOAD = "Replace the unsaved draft with this saved draft?"
 ASK_IMPORT = "Replace the unsaved draft with this import?"
 ASK_PRESET = "Replace the unsaved allocation with the current community preset?"
+# Equipment and Arcana cards (0.2.487)
+EQUIPMENT_HEAD = "Equipment"
+ARCANA_HEAD = "Arcana cards"
+ARCANA_NOTE = ("Select a card to enter its skill levels from the bundled class/slot pool. Manual bonus levels are additional "
+               "contributions; remove overlapping imported bonuses before entering card options.")
+DOLL_NOTE = "Select a slot, then choose a catalog item below."
+EMPTY_SLOT = "Empty draft slot"
+NO_DRAFT_ITEM = "No draft item selected."
+ENHANCEMENT = "Enhancement"
+CLEAR_SLOT = "Clear draft slot"
+SEARCH_CATALOG = "Search catalog"
+ITEM_NAME = "Item name"
+NO_ITEMS = "No compatible items in the bundled catalog."
+ROLLS_HEAD = "Entered random rolls"
+NO_ROLL = "No roll entered"
+APPLY_OPTIONS = "Apply item options"
+DISCARD_OPTIONS = "Discard item edits"
+CARD_HEAD = "Card skill levels"
+EXTRA_HEAD = "Additional imported contributions"
+EXTRA_NOTE = ("These aggregate or custom components are preserved. Remove overlapping contributions before adding "
+              "individual items.")
+REMOVE_CONTRIBUTION = "Remove contribution"
+SOURCE_HEAD = "Recorded source equipment (read-only)"
+RECORDED_SLOT = "Recorded slot"
+PENDING_ROLLS = "Apply or discard pending roll edits first."
+PENDING_SEARCH = "Apply or discard pending roll edits before searching."
+ITEM_APPLIED = "Draft item applied. Save or evaluate to update results."
+EDITS_DISCARDED = "Unapplied item edits discarded."
+NEED_VALUE = "Enter a value for every selected roll."
 #: A picture the page shows (``icon``): one on these hosts, else the catalog's ◇.
 ICON = re.compile(r"https://(?:metabot\.gg/web/aion2/|assets\.playnccdn\.com/|profileimg\.plaync\.com/"
                   r"|gamers4\.life/aion-2/database/icons/)")
@@ -163,6 +197,35 @@ def effect_words(index: int, e: dict, level, stigma: bool) -> tuple[str, str]:
     locked = number_less(level, e.get("unlock"))
     return (f"{index + 1} · {js_string(e.get('text'))}",
             f"(effect Lv {js_string(e.get('unlock'))}{' · locked' if locked else ''}{' · automatic' if stigma else ''})")
+
+
+def matching(count: int) -> str:
+    """How many items match the search (``p.small.muted``)."""
+    return f"{count} matching items" + (" · showing first 80; narrow the search" if count > b.SHOWN_ITEMS else "")
+
+
+def rolls_note(count) -> str:
+    return (f"Up to {js_string(count)} distinct lines from the bundled source pool. Blank lines add nothing. These ranges do "
+            "not verify current-build legality or ownership. Effects without a damage coefficient are retained but not "
+            "scored.")
+
+
+def roll_option(o: dict) -> str:
+    """A roll's line in its list: its stat and range, and whether the model scores it."""
+    unit = o.get("unit")
+    return f"{js_string(o.get('stat'))} ({js_string(o.get('range'))})" + ("" if b.truthy(unit) and len(unit) else " · unmodeled")
+
+
+def cards_note(total, most) -> str:
+    return (f"{js_string(total)} total options at this grade/enhancement, up to {js_string(most)} per skill according to the "
+            "bundled source. Ownership and current-build applicability remain unverified. Card levels add to separately "
+            "entered manual bonuses.")
+
+
+def source_line(c: dict) -> str:
+    """A recorded item's line (``+enchant · grade``)."""
+    enchant = c.get("enchantLevel")
+    return f"+{'0' if enchant is None else js_string(enchant)} · {js_string(b._or(c.get('grade'), ''))}"
 
 
 def number_less(a, b_) -> bool:
@@ -438,9 +501,149 @@ class Node(QPushButton):
         self.face.hide()
 
 
+class IconBox(QFrame):
+    """An item's square (``.icon``): its picture, or the gold ◇ of an empty slot (``.asset-placeholder``)."""
+
+    def __init__(self, picture: QWidget | None, size: int, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("bwIcon")
+        self.setFixedSize(size, size)
+        line = QHBoxLayout(self)
+        line.setContentsMargins(1, 1, 1, 1)
+        if picture is None:
+            picture = _label("◇", "bwPlaceholder", wrap=False)
+            picture.setAlignment(Qt.AlignCenter)
+        line.addWidget(picture)
+
+
+class Elided(QLabel):
+    """A line of words cut with "…" where it is too long for its room (``white-space: nowrap; text-overflow:
+    ellipsis``)."""
+
+    def __init__(self, text: str, name: str = "", parent: QWidget | None = None):
+        super().__init__(text, parent)
+        self.setTextFormat(Qt.PlainText)
+        if name:
+            self.setObjectName(name)
+        self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.setMinimumWidth(10)
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setPen(self.palette().color(self.foregroundRole()))
+        rect = self.contentsRect()
+        painter.drawText(rect, int(Qt.AlignLeft | Qt.AlignVCenter),
+                         self.fontMetrics().elidedText(self.text(), Qt.ElideRight, rect.width()))
+        painter.end()
+
+
+class Tile(QPushButton):
+    """A slot of the doll or an arcana card (``.dslot``): its item's square, the slot and the item's name; its left edge
+    in the item's grade's colour; the slot chosen lit."""
+
+    def __init__(self, slot: str, component, picture: QWidget | None, chosen: bool, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.slot = slot
+        self.setObjectName("dslot")
+        self.setProperty("grade", js_string(b._or(b.get(component, "grade"), "")))
+        self.setCheckable(True)
+        self.setChecked(chosen)
+        self.setMinimumHeight(46)
+        self.name = js_string(b._or(b.get(component, "item"), EMPTY_SLOT))
+        self.setAccessibleName(f"{slot}: {self.name}")
+        line = QHBoxLayout(self)
+        line.setContentsMargins(8, 5, 8, 5)
+        line.setSpacing(8)
+        line.addWidget(IconBox(picture, 34))
+        words, column = _plain(spacing=0)
+        column.addWidget(Elided(slot.upper(), "dsl"))
+        column.addWidget(Elided(self.name, "bwGname"))
+        line.addWidget(words, 1)
+        for child in self.findChildren(QWidget):
+            child.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
+
+    def sizeHint(self):
+        return self.layout().sizeHint()
+
+
+class Centre(QFrame):
+    """The doll's middle (``.dcenter``): the class and the draft's name over the inset, a gold light above its middle."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setObjectName("bwCentre")
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        outline = QPainterPath()
+        outline.addRoundedRect(QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5), 6, 6)
+        painter.fillPath(outline, theme.qcolor("inset"))
+        light = QRadialGradient(self.width() * 0.5, self.height() * 0.35, max(self.width(), self.height()) * 0.6)
+        light.setColorAt(0, QColor(232, 207, 142, 36))
+        light.setColorAt(1, QColor(232, 207, 142, 0))
+        painter.fillPath(outline, light)
+        painter.setPen(QPen(QColor(theme.COLORS["line"]), 1))
+        painter.drawPath(outline)
+        painter.end()
+
+
+class Capped(QScrollArea):
+    """Its content as tall as it is up to ``most`` pixels, scrolled within beyond (``max-height; overflow: auto``)."""
+
+    def __init__(self, content: QWidget, most: int, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.content, self.most = content, most
+        self.setObjectName("bwPicker")
+        holder, column = _plain(spacing=0)
+        column.addWidget(content)
+        column.addStretch(1)                              # what is left below the items, not stretched into them
+        self.setWidget(holder)
+        self.setWidgetResizable(True)
+        self.setFrameShape(QFrame.NoFrame)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        width = self.viewport().width()
+        tall = self.content.heightForWidth(width) if self.content.hasHeightForWidth() else -1
+        tall = tall if tall > 0 else self.content.sizeHint().height()
+        self.setFixedHeight(min(self.most, tall) + 2 * self.frameWidth())
+
+
+class ItemChoice(QPushButton):
+    """An item to put in the slot (``.bw-item-choice``): its picture, its name, its grade and level."""
+
+    def __init__(self, item: dict, picture: QWidget, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.slug = item.get("slug")
+        self.setObjectName("bwChoice")
+        name = js_string(item.get("name"))
+        line_words = f"{js_string(item.get('grade'))} · Lv {js_string(item.get('required_level'))}"
+        self.setAccessibleName(f"{name} {line_words}")
+        line = QHBoxLayout(self)
+        line.setContentsMargins(10, 10, 10, 10)
+        line.setSpacing(10)
+        line.addWidget(picture)
+        words, column = _plain(spacing=4)
+        column.addWidget(_label(name, "bwName"))
+        column.addWidget(_label(line_words, "bwLine"))
+        line.addWidget(words, 1)
+        for child in self.findChildren(QWidget):
+            child.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)   # its column's width, its words wrapped in it
+
+    def sizeHint(self):
+        return self.layout().sizeHint()
+
+    def minimumSizeHint(self):
+        return self.layout().minimumSize()
+
+
 def stylesheet() -> str:
     c = theme.COLORS
-    return combat_stylesheet() + f"""
+    return combat_stylesheet() + str(advice_view.STYLE) + f"""
         QFrame#bwSkill {{ background: {theme.css('panel')}; border: 1px solid {c['line']}; border-radius: 6px; }}
         QFrame#bwSkill QLabel, QFrame#bwSkill QCheckBox {{ background: transparent; }}
         QFrame#bwCard {{ background: {theme.css('panel')}; border: 1px solid {c['line']}; border-radius: 6px; }}
@@ -455,6 +658,21 @@ def stylesheet() -> str:
         QLabel#bwNodeMark {{ background: {c['bg1']}; padding: 0px 2px; font-size: 11px; }}
         QWidget#bwBoard, QScrollArea#bwBoardScroll {{ background: transparent; border: none; }}
         QPlainTextEdit#bwNotes {{ background: {c['bg2']}; border: 1px solid {c['line2']}; border-radius: 5px; }}
+        QFrame#bwIcon {{ border: 1px solid {c['line2']}; border-radius: 5px; background: {c['icon_bg']}; }}
+        QLabel#bwPlaceholder {{ color: {c['gold']}; font-size: 16px; background: transparent; }}
+        QLabel#bwGname {{ color: {c['text']}; }}
+        QFrame#bwCentre QLabel {{ background: transparent; }}
+        QLabel#bwCls {{ color: {c['gold']}; font-size: 22px; font-weight: 700; letter-spacing: 1px; }}
+        QPushButton#bwChoice {{ background: {theme.css('panel')}; color: {c['text']}; border: 1px solid {c['line']};
+            border-radius: 5px; text-align: left; padding: 0px; }}
+        QPushButton#bwChoice:hover {{ border-color: {c['gold']}; }}
+        QPushButton#bwChoice QLabel {{ background: transparent; }}
+        QFrame#bwRolls {{ border: 1px solid {c['line']}; border-radius: 5px; background: transparent; }}
+        QFrame#bwRolls QLabel, QFrame#bwRolls QWidget#plain {{ background: transparent; }}
+        QLabel#bwH4 {{ font-weight: 700; }}
+        QFrame#bwDinfo {{ background: transparent; border: none; border-top: 1px dashed {c['line']}; }}
+        QFrame#bwDinfo QWidget#plain {{ background: transparent; }}
+        QScrollArea#bwPicker {{ background: transparent; border: none; }}
         """
 
 
@@ -528,6 +746,9 @@ class BuildsPage(QWidget):
         self.component_buffer = None
         self.genus_dirty = False
         self.input_buffer = None
+        self.evaluation = None
+        self.gear_slot = ""                       # the slot chosen on Equipment or Arcana cards (``gearSlot``)
+        self.gear_search = ""                     # its catalog search (``gearSearch``)
 
     # ---------------------------------------------------------------- opening and leaving
     def showEvent(self, event) -> None:
@@ -968,6 +1189,9 @@ class BuildsPage(QWidget):
             return
         _clear(self.body)
         self.shown_pictures = [p for p in self.shown_pictures if _alive(p)]
+        if self.tab in ("equipment", "arcana"):
+            self.draw_components(self.tab)
+            return
         if self.tab not in ("active", "passive", "stigma", "daevanion"):
             self.body.addWidget(_note(_label(ON_THE_WEB)))
             self.body.addWidget(_row(_button(OPEN_WEB, lambda: self.open_web("builds"))))
@@ -1225,6 +1449,367 @@ class BuildsPage(QWidget):
         self.draft["budgets"]["boards"][board.get("name")] = int(n)
         self._changed()
         self.draw_body()
+
+    # ---------------------------------------------------------------- equipment and arcana cards (``components``)
+    def _component_changed(self) -> None:
+        """``changed``: the draft edited, its evaluation and advanced inputs let go."""
+        self.input_buffer = None
+        self.evaluation = None
+        self._changed()
+
+    def draw_components(self, kind: str) -> None:
+        """Equipment's doll or the arcana cards, the slot chosen's items, the draft's other contributions and the
+        source's recorded equipment."""
+        if self.body is None:
+            return
+        _clear(self.body)
+        catalog, draft = self.catalog or {}, self.draft
+        components = draft["loadout"]["components"]
+        selected = [c for c in components if b.component_kind(c) == kind]
+        slots = b.slots_for(catalog, kind)
+        if self.gear_slot not in slots:
+            self.gear_slot = slots[0] if slots else ""
+        data = b.get(b.get(self.reference, "snapshot"), "data")
+        recorded = b.get(b.get(data, "equipment"), "equipmentList")
+        source_items = [c for c in (recorded if isinstance(recorded, list) else []) if isinstance(c, dict)
+                        and bool(re.match("arcana", js_string(b._or(c.get("slotPosName"), "")), re.I)) == (kind == "arcana")]
+        self.body.addWidget(_head(ARCANA_HEAD if kind == "arcana" else EQUIPMENT_HEAD))
+        item_note = js_string(b._or(catalog.get("item_note"), b.NO_ITEM_RULES))
+        self.body.addWidget(_label(item_note, "small"))
+        self.tiles: dict[str, Tile] = {}
+        words = self.component_words = {"head": ARCANA_HEAD if kind == "arcana" else EQUIPMENT_HEAD, "item_note": item_note}
+
+        def tile(slot: str) -> Tile:
+            c = next((c for c in selected if b.same(b.get(c, "slot", b._MISSING), slot)), None)
+            picture = self._picture(icon_url(c), 32) if c is not None else None
+            button = Tile(slot, c, picture, slot == self.gear_slot)
+            button.clicked.connect(lambda _checked=False, slot=slot: self._gear_slot_chosen(kind, slot))
+            self.tiles[slot] = button
+            return button
+        if kind == "arcana":
+            self.body.addWidget(AutoGrid([tile(slot) for slot in slots], 180, 10))
+            self.body.addWidget(_label(ARCANA_NOTE, "small"))
+        else:
+            doll, grid = _plain(QGridLayout, 0)
+            grid.setHorizontalSpacing(12)
+            grid.setVerticalSpacing(5)
+            left, right = slots[:10], slots[10:]
+            for index, slot in enumerate(left):
+                grid.addWidget(tile(slot), index, 0)
+            for index, slot in enumerate(right):
+                grid.addWidget(tile(slot), index, 2)
+            middle = Centre()
+            middle.setFixedWidth(240)
+            column = QVBoxLayout(middle)
+            column.setContentsMargins(14, 14, 14, 14)
+            column.setSpacing(8)
+            column.addStretch(1)
+            centre = ((js_string(draft["class"]).upper(), "bwCls"), (js_string(draft["name"]), ""), (DOLL_NOTE, "small"))
+            for text, name in centre:
+                label = _label(text, name)
+                label.setAlignment(Qt.AlignHCenter)
+                column.addWidget(label)
+            words["centre"] = [text for text, _name in centre]
+            column.addStretch(1)
+            grid.addWidget(middle, 0, 1, max(1, len(left), len(right)), 1)
+            grid.setColumnStretch(0, 1)
+            grid.setColumnStretch(2, 1)
+            self.body.addWidget(doll)
+        picker = QFrame()
+        picker.setObjectName("bwDinfo")                      # ``.dinfo``: under a dashed line
+        holder = QVBoxLayout(picker)
+        holder.setContentsMargins(0, 10, 0, 0)
+        holder.setSpacing(10)
+        self.picker_box = holder
+        self.body.addWidget(picker)
+        self.draw_picker(kind)
+        extra = [c for c in selected if b.get(c, "slot", b._MISSING) not in slots]
+        self.extra_buttons: list[QPushButton] = []
+        if extra:
+            fold = Fold(EXTRA_HEAD, opened=True)
+            fold.add(_label(EXTRA_NOTE, "small"))
+            cards = []
+            for c in extra:
+                index = next(i for i, x in enumerate(components) if x is c)
+                remove = _button(REMOVE_CONTRIBUTION, lambda index=index: self._remove_component(kind, index))
+                self.extra_buttons.append(remove)
+                cards.append(self._card(c, js_string(b.get(c, "slot")), js_string(b.get(c, "item")), None, remove))
+                words.setdefault("extra", []).append([js_string(b.get(c, "slot")), js_string(b.get(c, "item"))])
+            fold.add(AutoGrid(cards, 240, 10))
+            self.body.addWidget(fold)
+        if source_items:
+            fold = Fold(SOURCE_HEAD)
+            rows = [[js_string(b._or(c.get("slotPosName"), RECORDED_SLOT)),
+                     js_string(b._or(c.get("name"), b._or(c.get("itemName"), c.get("id")))), source_line(c)] for c in source_items]
+            words["source"] = rows
+            cards = [self._card(c, *row) for c, row in zip(source_items, rows)]
+            fold.add(AutoGrid(cards, 240, 10))
+            self.body.addWidget(fold)
+        self.body.addStretch(1)
+
+    def _card(self, c: dict, small: str, strong: str, line: str | None, button: QPushButton | None = None) -> QFrame:
+        """A card (``.cr-profile-card``): its picture, then its slot, name, line or button; its edge its grade's."""
+        from .combat_review_page import GRADE_EDGES
+        frame = QFrame()
+        frame.setObjectName("bwCard")
+        edge = GRADE_EDGES.get(js_string(b._or(c.get("grade"), "")), theme.COLORS["line"])
+        frame.setStyleSheet(f"QFrame#bwCard {{ border-color: {edge}; }}")
+        row = QHBoxLayout(frame)
+        row.setContentsMargins(12, 12, 12, 12)
+        row.setSpacing(12)
+        row.addWidget(self._picture(icon_url(c), 48))
+        words, column = _plain(spacing=1)
+        if small is not None:
+            column.addWidget(_label(small, "bwKind"))
+        column.addWidget(_label(strong, "bwName"))
+        if line is not None:
+            column.addWidget(_label(line, "bwLine"))
+        if button is not None:
+            column.addWidget(button, 0, Qt.AlignLeft)
+        row.addWidget(words, 1)
+        return frame
+
+    def draw_picker(self, kind: str) -> None:
+        """The slot chosen (``gearPicker``): its draft item with its enhancement, rolls and card levels, then the
+        catalog's items for it."""
+        _clear(self.picker_box)
+        catalog, draft = self.catalog or {}, self.draft
+        chosen = b.chosen_in(draft, self.gear_slot)
+        item = b.catalog_item(catalog, draft, self.gear_slot, chosen)
+        self.roll_lines: list[tuple[QComboBox, NumberField, list]] = []
+        self.card_selects: dict[str, QComboBox] = {}
+        self.enchant_box: QComboBox | None = None
+        self.clear_button: QPushButton | None = None
+        self.picker_box.addWidget(_label(self.gear_slot, "bwH4"))
+        words = self.picker_words = {"slot": self.gear_slot}
+        if chosen is not None:
+            self.picker_box.addWidget(self._card(chosen, None, js_string(b.get(chosen, "item")), b.stats_line(chosen)))
+            words["chosen"] = [js_string(b.get(chosen, "item")), b.stats_line(chosen), js_string(b._or(b.get(chosen, "grade"), ""))]
+            parts = []
+            if item is not None:
+                box = self.enchant_box = QComboBox()
+                box.setAccessibleName(ENHANCEMENT)
+                for level in range(len(item.get("levels") or [])):
+                    box.addItem(f"+{level}", level)
+                at = box.findData(chosen.get("enchant")) if b.integer(chosen.get("enchant"), 0, 10 ** 6) else -1
+                box.setCurrentIndex(max(0, at))
+                box.shown = box.currentIndex()               # the value it shows, as a select's ``change`` compares
+                box.activated.connect(lambda index, kind=kind, item=item: self._enchant(kind, item, index))
+                parts.append(_field(ENHANCEMENT, box))
+                if kind == "arcana":
+                    words["enchant_note"] = b.card_note(catalog, item, chosen.get("enchant"))
+                    parts.append(_label(words["enchant_note"], "small"))
+            self.clear_button = _button(CLEAR_SLOT, lambda: self._clear_slot(kind))
+            parts.append(self.clear_button)
+            self.picker_box.addWidget(_row(*parts))
+        else:
+            self.picker_box.addWidget(_label(NO_DRAFT_ITEM))
+            words["chosen"] = NO_DRAFT_ITEM
+        if item is not None and b.truthy(item.get("roll_count")):
+            self.picker_box.addWidget(self._rolls_panel(kind, item, chosen))
+        pool = b.get(b.get(catalog.get("arcana_pools"), draft["class"]), self.gear_slot)
+        base = b.get(catalog.get("arcana_base_rolls"), item.get("grade")) if item is not None else None
+        if kind == "arcana" and item is not None and b.truthy(pool) and base is not None:
+            self.picker_box.addWidget(self._cards_panel(kind, item, chosen, pool, base))
+        search = self.gear_search_edit = QLineEdit(self.gear_search)
+        search.setPlaceholderText(ITEM_NAME)
+        search.setAccessibleName(SEARCH_CATALOG)
+        search.setMinimumWidth(220)
+        search.textEdited.connect(lambda text, kind=kind: self._gear_search_changed(kind, text))
+        self.picker_box.addWidget(_row(_field(SEARCH_CATALOG, search)))
+        holder, self.items_box = _plain(spacing=8)
+        self.picker_box.addWidget(holder)
+        self.draw_items(kind)
+
+    def draw_items(self, kind: str) -> None:
+        """The catalog's items for the slot, the first 80, with how many match."""
+        _clear(self.items_box)
+        shown = b.available(self.catalog or {}, self.draft, self.gear_slot, self.gear_search)
+        self.items_label = _label(matching(len(shown)), "small")
+        self.picker_words["count"] = matching(len(shown))
+        self.picker_words["items"] = [[js_string(c.get("slug")), js_string(c.get("name")),
+                                       f"{js_string(c.get('grade'))} · Lv {js_string(c.get('required_level'))}", js_string(c.get("grade"))]
+                                      for c in shown[:b.SHOWN_ITEMS]]
+        self.items_box.addWidget(self.items_label)
+        self.item_buttons: dict[str, ItemChoice] = {}
+        if not shown:
+            self.items_box.addWidget(_label(NO_ITEMS))
+            return
+        choices = []
+        for c in shown[:b.SHOWN_ITEMS]:
+            choice = ItemChoice(c, self._picture(icon_url(c), 48))
+            choice.clicked.connect(lambda _checked=False, slug=c.get("slug"), kind=kind: self._pick_item(kind, slug))
+            self.item_buttons.setdefault(js_string(c.get("slug")), choice)
+            choices.append(choice)
+        self.items_box.addWidget(Capped(AutoGrid(choices, 210, 8), 480))
+
+    def _rolls_panel(self, kind: str, item: dict, chosen: dict) -> QFrame:
+        """Entered random rolls (``.bw-rolls``): a line for each roll the item has, from its source pool."""
+        frame, column = self._panel(ROLLS_HEAD, rolls_note(item.get("roll_count")))
+        options = item.get("roll_options") or []
+        given = chosen.get("rolls") if isinstance(chosen.get("rolls"), list) else []
+        for i in range(int(js_number(item.get("roll_count")))):
+            line = given[i] if i < len(given) and isinstance(given[i], dict) else None
+            box = QComboBox()
+            box.setAccessibleName(f"Line {i + 1}")
+            box.addItem(NO_ROLL, "")
+            for o in options:
+                box.addItem(roll_option(o), o.get("stat"))
+            at = next((n + 1 for n, o in enumerate(options) if line is not None and b.same(o.get("stat", b._MISSING),
+                                                                                             line.get("stat", b._MISSING))), 0)
+            box.setCurrentIndex(at)
+            option = options[at - 1] if at else None
+            value = line.get("value") if line is not None else None
+            field = NumberField(value, 100)
+            field.setAccessibleName(f"Value {i + 1}")
+            field.setEnabled(option is not None)
+            box.activated.connect(lambda index, box=box, field=field, options=options: self._roll_chosen(box, field, options))
+            field.textEdited.connect(lambda _text: self._buffer())
+            self.roll_lines.append((box, field, options))
+            column.addWidget(_row(_field(f"Line {i + 1}", box), _field("Value", field)))
+        self.option_buttons = (_button(APPLY_OPTIONS, lambda: self._apply_edits(kind)),
+                               _button(DISCARD_OPTIONS, lambda: self._discard_edits(kind)))
+        column.addWidget(_row(*self.option_buttons))
+        return frame
+
+    def _cards_panel(self, kind: str, item: dict, chosen: dict, pool: dict, base) -> QFrame:
+        """Card skill levels (``.bw-rolls``): each skill of the class's pool for the card, +0 to its most."""
+        frame, column = self._panel(CARD_HEAD, cards_note(base + chosen.get("enchant", 0), pool.get("max_level")))
+        cards = []
+        levels = chosen.get("arcana_skills") if isinstance(chosen.get("arcana_skills"), dict) else {}
+        for sk in pool.get("skills") or []:
+            key = js_string(sk.get("id"))
+            box = QComboBox()
+            box.setAccessibleName(js_string(sk.get("name")))
+            for n in range(int(pool.get("max_level") or 0) + 1):
+                box.addItem(f"+{n}", n)
+            at = levels.get(key)
+            box.setCurrentIndex(box.findData(at) if b.integer(at, 0, 10 ** 6) and box.findData(at) >= 0 else 0)
+            box.activated.connect(lambda _index: self._buffer())
+            self.card_selects[key] = box
+            self.picker_words.setdefault("card_names", {})[key] = js_string(sk.get("name"))
+            card = QFrame()
+            card.setObjectName("bwCard")
+            row = QHBoxLayout(card)
+            row.setContentsMargins(12, 12, 12, 12)
+            row.setSpacing(12)
+            row.addWidget(self._picture(icon_url(sk), 48))
+            words, lines = _plain(spacing=4)
+            lines.addWidget(_label(js_string(sk.get("name"))))
+            lines.addWidget(box, 0, Qt.AlignLeft)
+            row.addWidget(words, 1)
+            cards.append(card)
+        column.addWidget(AutoGrid(cards, 240, 10))
+        self.option_buttons = (_button(APPLY_OPTIONS, lambda: self._apply_edits(kind)),
+                               _button(DISCARD_OPTIONS, lambda: self._discard_edits(kind)))
+        column.addWidget(_row(*self.option_buttons))
+        return frame
+
+    def _panel(self, title: str, note: str) -> tuple[QFrame, QVBoxLayout]:
+        self.picker_words.setdefault("panels", []).append([title, note])
+        frame = QFrame()
+        frame.setObjectName("bwRolls")
+        column = QVBoxLayout(frame)
+        column.setContentsMargins(12, 12, 12, 12)
+        column.setSpacing(8)
+        column.addWidget(_label(title, "bwH4"))
+        column.addWidget(_label(note, "small"))
+        return frame, column
+
+    def _buffer(self) -> None:
+        """An item option edited, not applied yet (``componentBuffer``)."""
+        self.component_buffer = True
+        self.dirty = True
+
+    def _roll_chosen(self, box: QComboBox, field: "NumberField", options: list) -> None:
+        self._buffer()
+        stat = box.currentData()
+        option = next((o for o in options if b.same(o.get("stat", b._MISSING), stat)), None) if stat else None
+        field.setEnabled(option is not None)
+        field.setText(js_string(option.get("min")) if option is not None else "")
+
+    def _gear_slot_chosen(self, kind: str, slot: str) -> None:
+        if self.component_buffer:
+            self.message(PENDING_ROLLS)
+            self.tiles[slot].setChecked(slot == self.gear_slot)
+            return
+        self.gear_slot, self.gear_search = slot, ""
+        self.draw_components(kind)
+
+    def _gear_search_changed(self, kind: str, text: str) -> None:
+        if self.component_buffer:
+            self.gear_search_edit.setText(self.gear_search)
+            self.message(PENDING_SEARCH)
+            return
+        self.gear_search = text
+        self.draw_items(kind)
+
+    def _pick_item(self, kind: str, slug) -> None:
+        if self.component_buffer:
+            self.message(PENDING_ROLLS)
+            return
+        item = next((c for c in b.available(self.catalog or {}, self.draft, self.gear_slot, self.gear_search)
+                     if b.same(c.get("slug", b._MISSING), slug)), None)
+        if item is not None:
+            self._apply(kind, item, 0)
+
+    def _enchant(self, kind: str, item: dict, index: int) -> None:
+        box = self.enchant_box
+        if index == box.shown:
+            return
+        chosen = b.chosen_in(self.draft, self.gear_slot)
+        if self.component_buffer:
+            box.setCurrentIndex(box.shown)
+            self.message(PENDING_ROLLS)
+            return
+        box.shown = index
+        self._apply(kind, item, box.itemData(index), b._or(chosen.get("rolls"), []), b._or(chosen.get("arcana_skills"), {}))
+
+    def _apply_edits(self, kind: str) -> None:
+        """Apply item options (``applyEdits``): the rolls and card levels entered, at the item's enhancement."""
+        chosen = b.chosen_in(self.draft, self.gear_slot)
+        item = b.catalog_item(self.catalog or {}, self.draft, self.gear_slot, chosen)
+        rolls, values = [], {}
+        for box, field, _options in self.roll_lines:
+            if not box.currentData():
+                continue
+            if field.value() == "":
+                self.message(NEED_VALUE)
+                return
+            rolls.append({"stat": box.currentData(), "value": js_number(field.value())})
+        for key, box in self.card_selects.items():
+            if box.currentData():
+                values[key] = box.currentData()
+        self._apply(kind, item, chosen.get("enchant"), rolls if self.roll_lines else b._or(chosen.get("rolls"), []),
+                    values if self.card_selects else b._or(chosen.get("arcana_skills"), {}))
+
+    def _apply(self, kind: str, item: dict, level, rolls=None, skills=None) -> None:
+        try:
+            components = b.with_item(self.catalog or {}, self.draft, self.gear_slot, item, level, rolls, skills)
+        except b.BuildError as problem:
+            self.message(str(problem))
+            return
+        self.draft["loadout"]["components"] = components
+        self.component_buffer = None
+        self._component_changed()
+        self.draw_components(kind)
+        self.message(ITEM_APPLIED)
+
+    def _discard_edits(self, kind: str) -> None:
+        self.component_buffer = None
+        self.draw_picker(kind)
+        self.message(EDITS_DISCARDED)
+
+    def _clear_slot(self, kind: str) -> None:
+        self.component_buffer = None
+        self.draft["loadout"]["components"] = b.without_slot(self.draft, self.gear_slot)
+        self._component_changed()
+        self.draw_components(kind)
+
+    def _remove_component(self, kind: str, index: int) -> None:
+        del self.draft["loadout"]["components"][index]
+        self._component_changed()
+        self.draw_components(kind)
 
     # ---------------------------------------------------------------- pictures
     def _picture(self, url: str, size: int) -> Picture:
