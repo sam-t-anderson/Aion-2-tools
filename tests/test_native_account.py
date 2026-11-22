@@ -363,7 +363,8 @@ def test_signed_in_and_security(qapp):
 def test_the_window_draws_account_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("account"), AccountPage) and not isinstance(window.page("account"), WebPage)
-    assert isinstance(window.page("raid"), WebPage)                      # not moved over yet
+    from aion2calc.gui.raid_page import RaidPage
+    assert isinstance(window.page("raid"), RaidPage)                     # the last page moved over (0.2.490)
 
 
 def test_the_logs_and_parses_words():

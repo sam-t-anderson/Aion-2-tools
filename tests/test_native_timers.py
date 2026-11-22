@@ -445,7 +445,7 @@ def test_a_schedule_that_cannot_be_read_says_why(qapp):
 def test_the_window_draws_the_timers_page_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("timers"), TimersPage) and not isinstance(window.page("timers"), WebPage)
-    assert isinstance(window.page("raid"), WebPage)                                # not moved over yet
+    assert not isinstance(window.page("raid"), WebPage)                                # every page native (0.2.490)
 
 
 def test_a_card_shows_no_window_of_its_own(qapp):

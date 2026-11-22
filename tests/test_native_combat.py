@@ -4419,4 +4419,4 @@ def _pytest_approx(x):
 def test_the_window_draws_combat_logs_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("combat"), CombatPage) and not isinstance(window.page("combat"), WebPage)
-    assert isinstance(window.page("raid"), WebPage)                      # not moved over yet
+    assert not isinstance(window.page("raid"), WebPage)                      # every page native (0.2.490)

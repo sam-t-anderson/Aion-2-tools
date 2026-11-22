@@ -304,4 +304,4 @@ def test_copy_refused_and_a_route_catalog_missing(qapp):
 def test_the_window_draws_maps_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("maps"), MapsPage) and not isinstance(window.page("maps"), WebPage)
-    assert isinstance(window.page("raid"), WebPage)                                        # not moved over yet
+    assert not isinstance(window.page("raid"), WebPage)                                        # every page native (0.2.490)
