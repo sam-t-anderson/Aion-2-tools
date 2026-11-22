@@ -52,9 +52,11 @@ def _described(items):
 
 
 OVERLAY_KEYS = _described(sw.LIVE_OVERLAY) + _described(sw.RTSS) + _described(sw.LAYOUT)
-DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS + PET_KEYS + OVERLAY_KEYS
+RADAR_KEYS = ("radar_enabled", "radar_sensitivity", "hotkeys")
+DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS + PET_KEYS + OVERLAY_KEYS + RADAR_KEYS
 DRAWN_GROUPS = ("system", "meter", "server", "pettracker")
-DRAWN_OVERLAY = ("Live meter overlay", "In-game (RTSS)", "Streaming (OBS / Discord)", "Overlay layout")
+DRAWN_OVERLAY = ("Live meter overlay", "In-game (RTSS)", "Streaming (OBS / Discord)", "Overlay layout",
+                 "Hidden Cube radar", "Hotkeys (Windows)")
 T0 = 1700000000
 STATUS = {"home": "/data/aion2calc", "version": "0.2.475", "db": {"items": 12345, "last_sync": {"at": T0}},
           "update": None, "update_state": {"checked_at": T0}, "update_download": {}}
@@ -177,7 +179,7 @@ def _row(page, title):
 # ------------------------------------------------------------------ the rows still drawn from the schema
 def test_every_control_saves_one_of_the_apps_settings_and_its_default_fits(home):
     defaults = server.ui_settings()
-    assert len(ROWS) == 11 and len(CONTROLS) == 4     # App & data, Meter, Server, Pet Tracker and half of Overlay drawn here
+    assert len(ROWS) == 9 and len(CONTROLS) == 2   # App & data, Meter, Server, Pet Tracker and most of Overlay drawn here
     assert len({control.key for control in CONTROLS}) == len(CONTROLS)                 # one control per setting
     assert not {control.key for control in CONTROLS} & set(DRAWN_KEYS)
     for control in CONTROLS:
@@ -252,7 +254,7 @@ def test_the_tabs_and_the_rows_on_the_web(qapp, home):
     store.setValue(sw.TAB_KEY, "nowhere")
     assert _page(home, store=store).tab == "appearance"
     web = [row for row in ROWS if row.web]
-    assert {row.title for row in web} >= {"Hotkeys (Windows)", "Settings backup", "Overlay colors & fonts"}
+    assert {row.title for row in web} >= {"Settings backup", "Overlay colors & fonts", "Overlay look presets"}
     buttons = [b for b in page.findChildren(QPushButton) if b.text() == "Open the web Settings page"]
     assert len(buttons) == len(web) + 1                                               # and Language's
     buttons[0].click()
@@ -279,7 +281,8 @@ def test_app_and_data_as_the_web_page_draws_it(qapp, home):
                                                                    if group == "system"]
     assert {(m, p) for m, p, _b in app.calls} == {("GET", "/api/status"), ("GET", "/api/logserver"), ("GET", "/api/ui"),
                                                    ("GET", "/api/pettracker"),           # Pet Tracker's (0.2.477)
-                                                   ("GET", "/api/rtss")}                 # and RTSS's (0.2.478)
+                                                   ("GET", "/api/rtss"),                 # RTSS's (0.2.478)
+                                                   ("GET", "/api/radar")}                # the radar's (0.2.479)
     texts = _texts(page)
     for words in (sw.NATIVE, sw.NATIVE_NOTE, sw.APP_WINDOW, sw.APP_WINDOW_NOTE, sw.TEXT_LABEL, sw.TEXT_NOTE,
                   sw.TEXT_NATIVE, sw.PERFORMANCE_NOTE, sw.LANGUAGE_WEB, sw.LAUNCH_LABEL, sw.LAUNCH_NOTE,
@@ -764,6 +767,120 @@ def test_the_streaming_address_and_the_overlay_layout(qapp, home):
     settle(lambda: app.sent("POST", "/api/ui")[-1][2] == {"overlay_bar_style": "gradient"})
 
 
+# ------------------------------------------------------------------ Overlay: the radar and the hotkeys (0.2.479)
+RADAR_READY = {"supported": True, "setting": True, "enabled": True, "listening": True, "ready": True, "heard": True,
+               "direction": "ahead", "proximity": 0.9, "match": 0.5,
+               "model": {"cubes": 2, "backgrounds": 1, "front_back": "learned"},
+               "samples": [{"id": "s1", "kind": "background", "at": "2026-11-22T01:02:03"},
+                           {"id": "s2", "kind": "cube", "level_db": 0, "notes": True}]}
+
+
+def test_the_hidden_cube_radar(qapp, home):
+    asked, answers = [], [False, True]
+    app = FakeApp(_answers({("GET", "/api/ui", None): {**server.ui_settings(), "radar_sensitivity": 11,
+                                                        "hotkeys": {"radar_learn_cube": "Alt+F2", "radar_learn_other": ""}},
+                            ("GET", "/api/radar", None): [{"supported": True, "setting": False, "model": {}},
+                                                          {"supported": True, "learning": {"kind": "background",
+                                                                                           "phase": "countdown", "seconds": 4.2}},
+                                                          RADAR_READY],
+                            ("POST", "/api/radar", "learn"): {"ok": True},
+                            ("POST", "/api/radar", "clear"): {"error": "The radar is learning"},
+                            ("POST", "/api/radar", "forget"): {"ok": True}}))
+    page = _page(home, app, confirm=lambda words: (asked.append(words), answers.pop(0))[1])
+    # read twice a second while the tab shows it: the test takes the poll's turns itself, so that a slow run (CI's, with
+    # coverage) is not read again between its steps by the page's own timer
+    assert page.radar_poll.isActive() and page.radar_poll.interval() == 500
+    page.radar_poll.stop()
+    page.show_tab("overlay")
+    settle(lambda: page.ui and page.radar_message.text().startswith("Nothing learned yet"))
+    assert page.radar_message.text() == "Nothing learned yet: step 1, then step 2. Off."
+    assert page.radar_slider.value() == 5 and not page.controls["radar_enabled"].box.isChecked()   # 11: none of 1 to 10
+    # the notes name each step's key: a default, one changed, one cleared (its button then)
+    notes = page.radar_notes.text()
+    assert "<b>Ctrl+1</b> where no cube" in notes and "<b>Alt+F2</b> facing a Hidden Cube" in notes
+    assert "<b>Ctrl+3</b> from where" in notes and "The “not a cube” button while" in notes
+    page.radar_poll.timeout.emit()                                                      # the poll's turn
+    settle(lambda: page.radar_message.text() == "Learning the background in 5 s: switch to the game.")
+    assert page.radar_cancel.isVisibleTo(page)
+    page.show_tab("system")                                                             # not shown: not read
+    reads = len(app.sent("GET", "/api/radar"))
+    page.radar_poll.timeout.emit()
+    QCoreApplication.processEvents()
+    assert len(app.sent("GET", "/api/radar")) == reads
+    page.show_tab("overlay")
+    page.radar_poll.timeout.emit()
+    settle(lambda: page.radar_message.text().startswith("Learned 2 cube samples"))
+    assert page.radar_message.text() == ("Learned 2 cube samples, 1 background sample. It tells ahead from behind. Hearing "
+                                         "a cube ahead, right here (match 50 %).")
+    assert not page.radar_cancel.isVisibleTo(page) and page.radar_samples_box.isVisibleTo(page)
+    assert "• Background · 2026-11-22 01:02:03" in _texts(page) and "• Cube, facing it · the loudest · with its notes" in _texts(page)
+    forget = [b for b in _shown(page, QPushButton) if b.text() == sw.RADAR_FORGET]
+    page.radar_poll.timeout.emit()                                                      # the same samples: kept as drawn
+    settle(lambda: len(app.sent("GET", "/api/radar")) == reads + 2)
+    assert [b for b in _shown(page, QPushButton) if b.text() == sw.RADAR_FORGET] == forget
+    forget[1].click()
+    settle(lambda: app.sent("POST", "/api/radar"))
+    assert app.sent("POST", "/api/radar")[0][2] == {"action": "forget", "sample": "s2"}
+    # a learn step asked, then read again; Forget every sample once asked, and the app's refusal said
+    _button(page, "3. Learn the cube behind you").click()
+    settle(lambda: len(app.sent("POST", "/api/radar")) == 2)
+    assert app.sent("POST", "/api/radar")[1][2] == {"action": "learn", "kind": "cube", "facing": "behind"}
+    _button(page, sw.RADAR_CLEAR).click()
+    assert asked == [sw.RADAR_ASK_CLEAR] and len(app.sent("POST", "/api/radar")) == 2
+    _button(page, sw.RADAR_CLEAR).click()
+    settle(lambda: page.toast.text() == "The radar is learning")
+    # the radar on, then read again 400 ms later; the sensitivity once let go
+    page.controls["radar_enabled"].box.setChecked(True)
+    settle(lambda: page.radar_timer.isActive())
+    assert page.radar_timer.interval() == sw.RADAR_ENABLED_READ_MS
+    page.radar_slider.setValue(8)
+    settle(lambda: app.sent("POST", "/api/ui")[-1][2] == {"radar_sensitivity": 8})
+    page.radar_poll.stop()
+
+
+def test_the_hotkeys(qapp, home):
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QKeyEvent
+    from aion2calc.gui.settings_page import key_combo
+    app = FakeApp(_answers({("GET", "/api/ui", None): {**server.ui_settings(), "hotkeys": {"toggle_overlay": "Ctrl+Shift+O",
+                                                                                           "radar_learn_cube": ""}}}))
+    page = _page(home, app)
+    page.show_tab("overlay")
+    settle(lambda: page.ui)
+    fields = page.hotkey_fields
+    assert list(fields) == [action for action, _words in sw.HOTKEY_ACTIONS] and len(fields) == 20
+    assert fields["toggle_overlay"].text() == "Ctrl+Shift+O" and fields["radar_learn_background"].text() == "Ctrl+1"
+    assert fields["radar_learn_cube"].text() == "" and fields["quit"].placeholderText() == sw.HOTKEY_HINT
+    assert sw.HOTKEYS_RADAR_NOTE in _texts(page) and any("<strong>Save hotkeys</strong>" in t for t in _texts(page))
+    # keys pressed in a field, named as the web page names them
+    field = fields["clear_meter"]
+    for key, mods, text in ((Qt.Key_Control, Qt.ControlModifier, ""), (Qt.Key_M, Qt.ControlModifier | Qt.ShiftModifier, "\r")):
+        field.keyPressEvent(QKeyEvent(QEvent.KeyPress, key, mods, text))
+    assert field.text() == "Ctrl+Shift+M"
+    field.event(QKeyEvent(QEvent.KeyPress, Qt.Key_Tab, Qt.AltModifier, "\t"))
+    assert field.text() == "Alt+Tab"
+    assert key_combo(Qt.Key_F13, Qt.NoModifier) == "F13" and key_combo(Qt.Key_Escape, Qt.MetaModifier) == "Win+Esc"
+    assert key_combo(Qt.Key_Exclam, Qt.ShiftModifier, "!") == "Shift+!" and key_combo(Qt.Key_1, Qt.ControlModifier) == "Ctrl+1"
+    assert key_combo(Qt.Key_Shift, Qt.ShiftModifier) is None and key_combo(Qt.Key_VolumeUp, Qt.NoModifier) is None
+    # Clear, then saved together: the learn steps even when cleared; a combo bound twice said, nothing sent
+    _button(page, sw.HOTKEY_CLEAR, 0).click()
+    assert fields["toggle_overlay"].text() == ""
+    fields["toggle_meter"].setText("Ctrl+1")
+    _button(page, sw.HOTKEYS_SAVE).click()
+    assert page.hotkeys_message.text() == "Ctrl+1 is bound to two actions; give each action its own keys."
+    assert not app.sent("POST", "/api/ui")
+    fields["toggle_meter"].setText("F9")
+    _button(page, sw.HOTKEYS_SAVE).click()
+    settle(lambda: page.hotkeys_message.text() == "Saved")
+    assert app.sent("POST", "/api/ui")[-1][2] == {"hotkeys": {
+        "toggle_meter": "F9", "clear_meter": "Alt+Tab", "radar_learn_background": "Ctrl+1", "radar_learn_cube": "",
+        "radar_learn_cube_behind": "Ctrl+3", "radar_learn_other": "Ctrl+4"}}
+    app.answers[("POST", "/api/ui", None)] = _refused("/api/ui", 400, "ValueError: Unknown hotkey action")
+    _button(page, sw.HOTKEYS_SAVE).click()
+    settle(lambda: page.hotkeys_message.text() == "ValueError: Unknown hotkey action")
+    page.radar_poll.stop()
+
+
 def test_the_settings_words():
     assert sw.chosen_tab("pettracker") == "pettracker" and sw.chosen_tab(None) == "appearance"
     assert sw.text_scale({"app_text_scale": "120abc"}) == 120 and sw.text_scale({}) == 100
@@ -799,6 +916,16 @@ def test_the_settings_words():
     assert sw.rtss_status({"supported": True, "enabled": True, "error": "RTSS is not running"}) == "RTSS is not running"
     assert sw.rtss_status({"supported": True, "enabled": True}) == "Waiting for RTSS…" and sw.rtss_status({}).endswith("Windows only.")
     assert sw.stream_url("https://host.example:8443/x/") == "https://host.example:8443/overlay"
+    # the radar and the hotkeys (0.2.479)
+    assert sw.radar_sensitivity({"radar_sensitivity": "7"}) == 7 and sw.radar_sensitivity({"radar_sensitivity": 2.5}) == 5
+    assert sw.radar_status({"supported": True, "error": "no audio device", "model": {}}).endswith("Not listening: no audio device.")
+    assert sw.radar_status({"supported": True, "learning": {"kind": "other", "seconds": 2.1}}) == (
+        "Listening to a sound that is not a cube… 3 s left.")
+    stereo = {"supported": True, "ready": True, "model": {"cubes": 1}, "channels": 2}
+    assert sw.radar_learned(stereo) == ("Learned 1 cube sample, no background (step 1 improves it). Learn it behind you too "
+                                        "(step 3) to tell ahead from behind.")
+    assert sw.radar_sample({"kind": "other", "alike": True}) == "Not a cube · sounds the same as the cube, so it is not used"
+    assert sw.hotkeys_to_save({"quit": " ", "radar_learn_other": " "}) == ({"radar_learn_other": ""}, "")
 
 
 def test_the_image_failures_kept_as_the_web_page_keeps_them():

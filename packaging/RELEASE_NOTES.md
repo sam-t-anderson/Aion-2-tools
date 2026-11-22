@@ -1,3 +1,14 @@
+## The Settings page in the native interface, part 5 (0.2.479)
+
+**Settings in the app's window now has the Overlay tab's Hidden Cube radar and Hotkeys as the web page draws them.**
+- **Hidden Cube radar:**
+  - turn it on or off, and set its sensitivity;
+  - the learn steps: the background, the cube facing it and behind you, and a sound that is not a cube. Each step's button waits 5 seconds, and **Cancel** stops a step under way;
+  - what the radar is doing, read twice a second while the tab shows it: a step's countdown or how long it still listens, what it has learned, and whether it hears a cube, where and how near;
+  - the learned samples, each with **Forget**, and **Forget every sample** (asked first);
+  - how to teach it, naming each step's key as Settings → Hotkeys has it.
+- **Hotkeys:** a field for each action. Click it and press the keys (Ctrl, Alt, Shift and Win, then a key, F-keys, Tab and Esc too), **Clear** one, then **Save hotkeys**. A combination given to two actions is said and not saved. The radar's learn steps keep Ctrl+1 to Ctrl+4 until you change or clear them.
+
 ## The Settings page in the native interface, part 4 (0.2.478)
 
 **Settings in the app's window now has the first half of the Overlay tab as the web page draws it.**

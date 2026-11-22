@@ -7,8 +7,8 @@ what it can and opens the web Settings page for the rest. Generated from ``pages
 keys their handlers save, then kept by hand; ``tests/test_native_settings.py`` checks every key is a setting.
 
 Since 0.2.475 the page draws App & data as the web page does (settings_page.py, settings_words.py), since 0.2.476
-the Meter and Server tabs, since 0.2.477 Pet Tracker and since 0.2.478 the first half of Overlay, so their rows are no
-longer here; the others follow.
+the Meter and Server tabs, since 0.2.477 Pet Tracker, since 0.2.478 the first half of Overlay and since 0.2.479 the
+radar and the hotkeys, so their rows are no longer here; the others follow.
 """
 from __future__ import annotations
 
@@ -52,8 +52,6 @@ GROUPS = [('appearance', 'Appearance'), ('overlay', 'Overlay'), ('pettracker', '
 ROWS = (
     Row('appearance', 'Theme', (), web=True),
     Row('appearance', 'Accent colour', (), web=True),
-    Row('overlay', 'Hidden Cube radar', (Bool('radar_enabled', 'Show where a Hidden Cube is around you and how near, from the jingle it plays (Windows; off by default)'),
-         Number('radar_sensitivity', 'Sensitivity', 1, 10, '')), web=False),
     Row('backup', 'Customization profiles', (), web=True),
     Row('backup', 'Settings backup', (), web=True),
     Row('overlay', 'Overlay colors & fonts', (Bool('overlay_glow', 'Text glow'),
@@ -61,6 +59,5 @@ ROWS = (
     Row('overlay', 'Overlay text effects & per-element fonts', (), web=True),
     Row('overlay', 'Overlay background', (), web=True),
     Row('overlay', 'Overlay look presets', (), web=True),
-    Row('overlay', 'Hotkeys (Windows)', (), web=True),
     Row('appearance', 'Combat class colors', (), web=True),
 )
