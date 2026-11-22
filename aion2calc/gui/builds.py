@@ -625,3 +625,123 @@ def without(kept_text, key: str) -> list:
 def find_row(kept_text, key: str):
     """The kept draft whose id its button carries (``data-load``), or none."""
     return next((x for x in saved(kept_text) if same(row_id(x), key)), None)
+
+
+# ------------------------------------------------------------------ equipment and arcana cards (0.2.487)
+NO_ITEM_RULES = "Catalog rules unavailable."
+MOST_COMPONENTS = 64
+SHOWN_ITEMS = 80
+ITEM_SOURCE = "Bundled catalog fixed stats, enhancement and entered source-pool rolls"
+FULL = "The draft already has 64 components. Remove an imported contribution first."
+OVER_CARD = ("Arcana skill options exceed the source pool or grade/enhancement budget. Adjust options before lowering "
+             "enhancement.")
+MANY_ROLLS = "Too many random rolls for the bundled item rule."
+BAD_ROLL = "Invalid imported roll metadata. Reselect the catalog item."
+OUT_OF_RANGE = "Choose distinct source-pool rolls with values inside their listed ranges."
+
+
+def component_kind(c) -> str:
+    """Where a component shows (``componentKind``): an arcana card, a deity's points, or equipment, by its slot."""
+    slot = js_string(_or(get(c, "slot"), ""))
+    if re.search("arcana", slot, re.I):
+        return "arcana"
+    return "pantheon" if re.search("pantheon|deity", slot, re.I) else "equipment"
+
+
+def slots_for(catalog: dict, kind: str) -> list:
+    """The catalog's slots for the tab: the arcana cards', or the equipment's, in the catalog's order."""
+    slots = catalog.get("equipment_slots") if isinstance(catalog.get("equipment_slots"), dict) else {}
+    return [s for s in slots if s.startswith("Arcana ") == (kind == "arcana")]
+
+
+def chosen_in(draft: dict, slot):
+    """The draft's component in a slot (``find(c => c.slot === gearSlot)``), or none."""
+    return next((c for c in draft["loadout"]["components"] if same(get(c, "slot", _MISSING), slot)), None)
+
+
+def _fits(catalog: dict, draft: dict, slot, item: dict) -> bool:
+    allowed = get(catalog.get("equipment_slots"), slot)
+    allowed = allowed if isinstance(allowed, list) else []
+    weapon = get(catalog.get("class_weapons"), draft["class"])
+    category = item.get("category", _MISSING)
+    return ((any(same(a, category) for a in allowed) or ("weapon" in allowed and same(category, weapon)))
+            and item.get("required_level", 0) <= draft["level"])
+
+
+def available(catalog: dict, draft: dict, slot, search: str) -> list:
+    """The catalog's items for a slot (``available``): its categories (a weapon slot the class's weapon), the level,
+    the name searched for."""
+    wanted = search.lower()
+    return [c for c in catalog.get("items") or [] if _fits(catalog, draft, slot, c)
+            and (not search or wanted in js_string(c.get("name")).lower())]
+
+
+def catalog_item(catalog: dict, draft: dict, slot, chosen):
+    """The chosen component's catalog item, when it fits the slot and level and its enhancement is one of the
+    item's (``catalogItem``); else none."""
+    if not isinstance(chosen, dict):
+        return None
+    slug = chosen.get("catalog_slug", _MISSING)
+    return next((c for c in catalog.get("items") or [] if same(c.get("slug", _MISSING), slug) and _fits(catalog, draft, slot, c)
+                 and integer(chosen.get("enchant"), 0, len(c.get("levels") or []) - 1)), None)
+
+
+def stats_line(c) -> str:
+    """A component's stats (``key: value · …``)."""
+    stats = get(c, "stats")
+    return " · ".join(f"{js_string(k)}: {'' if v is None else js_string(v)}" for k, v in entries(stats if truthy(stats) else {}))
+
+
+def card_note(catalog: dict, item: dict, enchant) -> str:
+    """What each enhancement step adds to a card."""
+    base = get(catalog.get("arcana_base_rolls"), item.get("grade"))
+    base = 0 if base is None else base
+    top = len(item.get("levels") or []) - 1
+    return (f"Each enhancement step adds one skill option: {js_string(base + enchant)} at +{js_string(enchant)}, "
+            f"{js_string(base + top)} at +{js_string(top)}. The bundled catalog lists no stat change per step.")
+
+
+def with_item(catalog: dict, draft: dict, slot, item: dict, level, rolls=None, arcana_skills=None) -> list:
+    """The draft's components with a catalog item in the slot (``apply``): its fixed stats at the enhancement, the
+    entered rolls added through their units, the card's skill levels; at the end of the list, as the web page puts
+    it. BuildError says what does not fit."""
+    components = draft["loadout"]["components"]
+    rolls = [] if rolls is None else rolls
+    arcana_skills = {} if arcana_skills is None else arcana_skills
+    if len(components) >= MOST_COMPONENTS and not any(same(get(c, "slot", _MISSING), slot) for c in components):
+        raise BuildError(FULL)
+    comp = {"slot": slot, "item": f"{js_string(item.get('name'))} +{js_string(level)}"}
+    for key in ("icon", "grade"):
+        if key in item:
+            comp[key] = item[key]
+    comp.update(enchant=level, catalog_slug=item.get("slug"), source=ITEM_SOURCE, rolls=[], arcana_skills=copy(arcana_skills),
+                stats=copy(item["levels"][int(level)]))
+    pool = get(get(catalog.get("arcana_pools"), draft["class"]), slot)
+    base = get(catalog.get("arcana_base_rolls"), item["grade"]) if "grade" in item else None
+    if not is_object(arcana_skills) or any(
+            not (is_object(pool) and any(js_string(s.get("id")) == key for s in pool.get("skills") or []))
+            or not integer(n, 0, pool.get("max_level")) for key, n in entries(arcana_skills)) \
+            or sum(n for _key, n in entries(arcana_skills)) > (0 if base is None else base) + level:
+        raise BuildError(OVER_CARD)
+    if not isinstance(rolls, list) or len(rolls) > _or(item.get("roll_count"), 0):
+        raise BuildError(MANY_ROLLS)
+    used: list = []
+    for roll in rolls:
+        if not is_object(roll):
+            raise BuildError(BAD_ROLL)
+        stat = roll.get("stat", _MISSING)
+        option = next((o for o in item.get("roll_options") or [] if same(o.get("stat", _MISSING), stat)), None)
+        value = js_number(roll["value"]) if "value" in roll else math.nan
+        if (option is None or any(same(u, stat) for u in used) or not math.isfinite(value)
+                or value < option.get("min") or value > option.get("max")):
+            raise BuildError(OUT_OF_RANGE)
+        used.append(stat)
+        comp["rolls"].append({"stat": stat, "value": value})
+        for key, scale in entries(option.get("unit") or {}):
+            comp["stats"][key] = _or(comp["stats"].get(key), 0) + value * scale
+    return [c for c in components if not same(get(c, "slot", _MISSING), slot)] + [comp]
+
+
+def without_slot(draft: dict, slot) -> list:
+    """The draft's components with the slot cleared (``data-unequip``)."""
+    return [c for c in draft["loadout"]["components"] if not same(get(c, "slot", _MISSING), slot)]

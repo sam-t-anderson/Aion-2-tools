@@ -1,3 +1,11 @@
+## Builds in the native interface, second part (0.2.487)
+
+**The app's window now draws the Builds page's Equipment and Arcana cards tabs too.**
+- **Equipment:** the doll's twenty slots around your class and draft, each with its draft item; choose a slot, then an item from the bundled catalog (searched by name, for your class's weapon and your level); its enhancement; and up to its number of random rolls from the item's source pool, each with its value.
+- **Arcana cards:** the five cards, each with its item, its enhancement, and its skill levels from your class's pool for that card, within the options its grade and enhancement give. The card levels count in the skills' effective levels.
+- Roll and card edits wait until **Apply item options** or **Discard item edits**, as on the web page; the draft's other imported contributions can be removed, and a source profile's recorded equipment shows, read only.
+- Pantheon, Genus Insight, Evaluation and the source character are still drawn on the web Builds page.
+
 ## Builds in the native interface, first part (0.2.486)
 
 **The app's window now draws the Builds page itself: your draft, its skills, passives, stigmas and Daevanion boards.**

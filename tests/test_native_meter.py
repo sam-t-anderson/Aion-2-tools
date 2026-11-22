@@ -897,7 +897,8 @@ def test_the_meter_is_read_while_the_page_is_shown_at_the_web_pages_pace(qapp, t
     _shown()
     assert not app.calls                                                          # not before the window starts it
     page.start()
-    settle(lambda: page.message.text().startswith("Recording"))
+    # the meter's state and the app's settings, which may come in either order
+    settle(lambda: page.message.text().startswith("Recording") and not page.overlay_on_start.isChecked())
     assert {p for _m, p, _b in app.sent()} >= {"/api/ui", "/api/npcap", "/api/meter/interfaces", "/api/meter"}
     assert not page.overlay_on_start.isChecked() and page.light
     assert page.poller.timeout == 8 and page.poller._timer.isActive()
