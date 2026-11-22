@@ -14,6 +14,7 @@ A source log opens in the web interface; the schedule's sources open in the brow
 from __future__ import annotations
 
 import html
+import json
 import time
 import urllib.parse
 import webbrowser
@@ -24,6 +25,8 @@ from PySide6.QtWidgets import (QComboBox, QFrame, QGridLayout, QHBoxLayout, QLab
 
 from . import theme, timers
 from .api import AppApi, Requests
+from .character import js_string
+from .results import _truthy
 
 CARD_WIDTH, CARD_GAP = 280, 14                    # app.css .news-cards, which the event cards are too
 
@@ -151,14 +154,48 @@ class EventCard(QFrame):
         self.upcoming.setText(state["upcoming"])
 
 
+#: Where the web page keeps its region, group and field-boss server and faction (timers.js), with the app's interface
+#: data since 0.2.482: the native page keeps them there too since 0.2.496, so the two show the same choices.
+CHOICES_KEY = "a2-event-region"
+FACTIONS = ("mine", "elyos", "asmodian", "all")
+
+
+def kept_choices(text) -> dict | None:
+    """The choices the web page keeps (timers.js's ``pref``): the region, the group, the server and the faction, as it
+    reads them; None where none are kept. Kept choices it cannot read are its first ones."""
+    if not isinstance(text, str):
+        return None
+    try:
+        pref = json.loads(text or "{}")
+    except ValueError:
+        pref = {}
+    pref = pref if isinstance(pref, dict) else {}
+
+    def words(value) -> str:
+        return value if isinstance(value, str) else ""
+    server = pref.get("killServer")
+    return {"region": words(pref.get("region")), "group": words(pref.get("group")),
+            "server": js_string(server) if _truthy(server) else "",              # ``String(pref.killServer || '')``
+            "faction": pref.get("killFaction") if pref.get("killFaction") in FACTIONS else "mine"}
+
+
+def choices_text(region: str, group: str, server: str, faction: str) -> str:
+    """``JSON.stringify({region, group, killServer, killFaction})``."""
+    return json.dumps({"region": region, "group": group, "killServer": server, "killFaction": faction},
+                      separators=(",", ":"), ensure_ascii=False)
+
+
 class TimersPage(QWidget):
-    """Game → Timers. It reads the app's region, the schedules and the respawn reference the first time it is
-    shown, and your server and faction from the live meter each time; its clocks move while it is shown."""
+    """Game → Timers. It reads its choices (the web page's, in ``store``, else the region the app keeps), the
+    schedules and the respawn reference the first time it is shown, and your server and faction from the live meter
+    each time; its clocks move while it is shown."""
 
     def __init__(self, api: AppApi | None, open_web=None, open_link=webbrowser.open, now=_now,
-                 parent: QWidget | None = None):
+                 parent: QWidget | None = None, store=None):
         super().__init__(parent)
+        from .planner_page import interface_store
         self.api, self.open_web, self.open_link, self.now = api, open_web, open_link, now
+        self.store = store if store is not None else interface_store()
         self.catalog: dict | None = None
         self.field_catalog: dict | None = None
         self.region, self.group = "", ""
@@ -167,6 +204,14 @@ class TimersPage(QWidget):
         self.identified: dict | None = None
         self.kill_data: dict | None = None
         self.kill_server, self.kill_faction = "", "mine"
+        try:
+            kept = kept_choices(self.store.value(CHOICES_KEY))
+        except Exception:                        # a store that cannot be read: the region the app keeps
+            kept = None
+        self.kept = kept is not None             # the web page's choices, over the region the app keeps
+        if kept is not None:
+            self.region, self.group = kept["region"], kept["group"]
+            self.kill_server, self.kill_faction = kept["server"], kept["faction"]
         self.boss_data: dict | None = None
         self.serials = {"kills": 0, "bosses": 0}
         self.started = False
@@ -306,6 +351,7 @@ class TimersPage(QWidget):
         self.faction_box = QComboBox()
         for key, words in timers.KILL_FACTIONS:
             self.faction_box.addItem(words, key)
+        self.faction_box.setCurrentIndex(max(0, self.faction_box.findData(self.kill_faction)))   # the one kept
         self.faction_box.currentIndexChanged.connect(self._faction_chosen)
         row.addWidget(self.faction_box)
         self.kills_button = QPushButton("Load / refresh kills")
@@ -408,7 +454,7 @@ class TimersPage(QWidget):
 
     def _replied(self, name: str, answer) -> None:
         if name == "ui":
-            if isinstance(answer, dict):
+            if isinstance(answer, dict) and not self.kept:
                 self.region = str(answer.get("event_region") or "")
                 self.group = str(answer.get("event_group") or "")
         elif name == "catalog":
@@ -433,6 +479,7 @@ class TimersPage(QWidget):
                 self.identified = doc
                 if not self.kill_server:
                     self.kill_server = str(doc["server"])
+                    self._save()
                 self._show_identity()
                 if self.kill_data is None:
                     self.load_kills()
@@ -502,7 +549,10 @@ class TimersPage(QWidget):
         self._prepare()
 
     def _save(self) -> None:
-        """The region and group, kept by the app for this page and the overlay's events strip."""
+        """The choices kept as the web page keeps them (``save``): all four with the web page's, and the region and
+        group by the app too, for the overlay's events strip."""
+        self.store.setValue(CHOICES_KEY, choices_text(self.region, self.group, self.kill_server, self.kill_faction))
+        self.kept = True
         if self.requests is not None:
             self.requests.post("save", "/api/ui", {"event_region": self.region, "event_group": self.group})
 
@@ -511,10 +561,12 @@ class TimersPage(QWidget):
         if server is None or server == self.kill_server:
             return
         self.kill_server = server
+        self._save()
         self._show_kills()
 
     def _faction_chosen(self, index: int) -> None:
         self.kill_faction = self.faction_box.itemData(index) or "mine"
+        self._save()
         self._show_identity()
         self._show_kills()
 

@@ -289,6 +289,17 @@ TIER_COLOURS = {"gold": "#e5cc80", "pink": "#e577b1", "orange": "#ff8000", "purp
 NO_PARSE_TIP = "No parse yet: no other ranked run of this class on this encounter"
 
 
+#: Where the web page keeps Top parses' page size (account-view.js ``PARSES_PER_PAGE``), with the app's interface data
+#: since 0.2.482: the native page keeps it there too since 0.2.496.
+PER_PAGE_KEY = "aion2.account.parsesPerPage"
+
+
+def kept_per_page(text) -> int:
+    """``parsesPerPage``: the page size kept, 25, 50 or 100; else 25."""
+    value = js_number(text)
+    return next((n for n in (25, 50, 100) if n == value), 25)
+
+
 def fresh_parses(limit: int = 25) -> dict:
     return {"page": 1, "limit": limit, "sort": "parse", "order": "desc", "boss": "", "difficulty": "", "cls": "", "character": ""}
 

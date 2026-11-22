@@ -15,7 +15,7 @@ from PySide6.QtCore import QCoreApplication, QEvent  # noqa: E402
 from PySide6.QtWidgets import QApplication, QCheckBox, QLabel, QPushButton, QTableWidget  # noqa: E402
 
 from aion2calc.gui import gathering_page as g  # noqa: E402
-from aion2calc.gui.gathering_page import GatheringPage  # noqa: E402
+from aion2calc.gui.gathering_page import TAB_KEY, GatheringPage  # noqa: E402
 from aion2calc.gui.news import when  # noqa: E402
 from aion2calc.gui.window import MainWindow, WebPage  # noqa: E402
 
@@ -82,8 +82,18 @@ class FakeApp:
         return self.everyone
 
 
+def _store(**values):
+    """The interface data of a page of its own, as the app gives it (each value a text)."""
+    from aion2calc.gui import interface
+    store = interface.InterfaceStore(shared=interface._Shared())
+    for key, value in values.items():
+        store.setValue(key, value)
+    return store
+
+
 def _page(app, **kwargs) -> GatheringPage:
     opened = []
+    kwargs.setdefault("store", _store())
     page = GatheringPage(app, show_page=opened.append, **kwargs)
     page.opened = opened
     page.resize(1040, 900)
@@ -144,7 +154,7 @@ def test_a_log_entrys_words():
 # ------------------------------------------------------------------ the page
 def test_the_page_reads_both_records_once_shown_and_shows_your_totals(qapp):
     app = FakeApp()
-    page = GatheringPage(app, show_page=lambda page: None)
+    page = GatheringPage(app, show_page=lambda page: None, store=_store())
     assert app.calls == [] and _texts(page.window_).count("Loading…") == 1       # nothing asked before it is shown
     page = _page(app)
     assert app.calls[:2] == ["/api/gathering", "/api/community?path=%2Fapi%2Fv1%2Fgathering%2Fstats"]
@@ -184,12 +194,19 @@ def test_the_tabs_and_whose_records(qapp):
     assert cubes.horizontalHeaderItem(0).text() == "Drop" and cubes.rowCount() == 2
     assert [cubes.item(1, c).text() for c in range(3)] == ["Sword", "Unique", "33.3%"]
     page.tab_buttons["log"].click()
+    assert page.store.value(TAB_KEY) == "log"                                     # with the web page's choice
     (log,) = _tables(page)
     assert [log.horizontalHeaderItem(c).text() for c in range(4)] == ["When", "Where", "What", "Character"]
     assert log.item(0, 0).text() == when(T * 1000) and log.item(0, 1).text() == "Place 0"
     assert log.item(1, 1).text() == "—" and log.item(1, 3).text() == "—"
     assert "Failed: nothing gathered" in log.cellWidget(1, 2).text()
     assert log.cellWidget(2, 2).text().startswith("Reward cube: ")
+
+
+def test_the_page_opens_on_the_tab_shown_last(qapp):
+    page = _page(FakeApp(), store=_store(**{TAB_KEY: "dungeons"}))               # here or on the web page
+    assert page.tab == "dungeons" and page.tab_buttons["dungeons"].isChecked()
+    assert _page(FakeApp(), store=_store(**{TAB_KEY: "cubes"})).tab == "nodes"   # not one of its tabs: the first
 
 
 def test_without_everyones_rates_your_own_are_shown_and_the_reason_given(qapp):

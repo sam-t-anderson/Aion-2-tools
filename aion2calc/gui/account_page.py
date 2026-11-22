@@ -150,9 +150,12 @@ class AccountPage(QWidget):
 
     status_read = Signal(object)
 
-    def __init__(self, api: AppApi | None, open_web=None, ask=None, confirm=None, alert=None, parent: QWidget | None = None):
+    def __init__(self, api: AppApi | None, open_web=None, ask=None, confirm=None, alert=None, parent: QWidget | None = None,
+                 store=None):
         super().__init__(parent)
+        from .planner_page import interface_store
         self.api, self.open_web = api, open_web
+        self.store = store if store is not None else interface_store()    # Top parses' page size, with the web page's
         self.ask = ask or self._ask
         self.confirm = confirm or self._confirm
         self.alert = alert or self._alert
@@ -162,7 +165,7 @@ class AccountPage(QWidget):
         self.me: dict = {}
         self.security: dict = {}
         self.mine = ac.fresh_filter()                    # My logs' page and filters (``st.mine``)
-        self.parses = ac.fresh_parses()                  # Top parses' (``st.parses``); its page size kept for the visit
+        self.parses = ac.fresh_parses(self._per_page())  # Top parses' (``st.parses``), at the page size kept
         self.parses_all: dict | None = None             # an older log server's whole list (``st.parsesAll``)
         self.logs_answer: dict = {}
         self.legion: str | None = None                   # the legion opened (``st.legion``)
@@ -435,12 +438,12 @@ class AccountPage(QWidget):
 
     def open(self, tab: str | None) -> None:
         """The page opened afresh from the header's menu (``#/account/<tab>``, mounted anew): on ``tab`` (My logs for
-        the sign-in), the lists' filters and pages, the legion opened and what was said let go (Top parses' page size
-        kept). Drawn again here while it is shown; the window shows it otherwise, which draws it."""
+        the sign-in), the lists' filters and pages, the legion opened and what was said let go (Top parses at the page
+        size kept). Drawn again here while it is shown; the window shows it otherwise, which draws it."""
         self.tab = tab if tab in {key for key, _words in ac.TABS} else "logs"
         self.legion = None
         self.mine, self.shared = ac.fresh_filter(), ac.fresh_filter()
-        self.parses = ac.fresh_parses(self.parses.get("limit", 25))
+        self.parses = ac.fresh_parses(self._per_page())
         self.parses_all = None
         self.flash = ""
         if self.isVisible():
@@ -981,9 +984,16 @@ class AccountPage(QWidget):
         self.fetch_parses()
 
     def parses_per_page(self, limit: int) -> None:
-        """Another page size, kept for the visit (the web page keeps it in its browser)."""
+        """Another page size, kept with the web page's (``aion2.account.parsesPerPage``)."""
         self.parses.update(limit=int(limit), page=1)
+        self.store.setValue(ac.PER_PAGE_KEY, str(int(limit)))
         self.fetch_parses()
+
+    def _per_page(self) -> int:
+        try:
+            return ac.kept_per_page(self.store.value(ac.PER_PAGE_KEY))
+        except Exception:                        # a store that cannot be read: 25
+            return 25
 
     # ---------------------------------------------------------------- signed out
     def _signed_out(self, s: dict) -> None:

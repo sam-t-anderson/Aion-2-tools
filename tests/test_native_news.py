@@ -82,13 +82,15 @@ FEED = {"status": "ready", "entries": [entry(1, image=PICTURE), entry(2, "Update
 class FakeApp:
     """The app as the page asks it: its settings, and the log server's feed for each region."""
 
-    def __init__(self, feeds: dict, ui: dict | None = None, fail: str = ""):
-        self.feeds, self.ui, self.fail = feeds, dict(ui or {"news_region": "global"}), fail
+    def __init__(self, feeds: dict, ui: dict | None = None, fail: str = "", fail_ui: bool = False):
+        self.feeds, self.ui, self.fail, self.fail_ui = feeds, dict(ui or {"news_region": "global"}), fail, fail_ui
         self.calls = []
 
     def get(self, path):
         self.calls.append(("GET", path))
         if path == "/api/ui":
+            if self.fail_ui:
+                raise OSError("the app did not answer")
             return dict(self.ui)
         assert path.startswith("/api/community?path=")
         inner = urllib.parse.unquote(path.split("=", 1)[1])
@@ -113,8 +115,18 @@ def png(width: int, height: int, colour: str) -> bytes:
     return bytes(data)
 
 
+def _store(**values):
+    """The interface data of a page of its own, as the app gives it (each value a text)."""
+    from aion2calc.gui import interface
+    store = interface.InterfaceStore(shared=interface._Shared())
+    for key, value in values.items():
+        store.setValue(key, value)
+    return store
+
+
 def _page(app: FakeApp, width: int = 1000, **kwargs) -> NewsPage:
     opened = []
+    kwargs.setdefault("store", _store())
     page = NewsPage(app, open_link=opened.append, **kwargs)
     page.opened = opened
     page.resize(width, 800)
@@ -223,11 +235,25 @@ def test_choosing_a_region_keeps_it_and_reads_its_feed(qapp):
     page.region_box.setCurrentIndex(list(news.REGIONS).index("global"))
     settle(lambda: not page.busy)
     assert ("POST", "/api/ui", {"news_region": "global"}) in app.calls
+    assert page.store.value(news.REGION_KEY) == "global"                         # with the web page's choice
     assert [card.url for card in page.cards] == [article(1), article(2, "update"), article(3)]
     page.region_box.setCurrentIndex(list(news.REGIONS).index("tw"))              # a feed that answers another region
     settle(lambda: not page.busy)
     assert page.status.text() == news.NEEDS_UPDATE and page.cards == []
     assert page.empty.text() == news.NONE_SHOWN and not page.empty.isHidden()
+
+
+def test_the_region_the_web_page_keeps_comes_first(qapp):
+    kr = {"status": "ready", "region": "kr", "entries": [entry(7, region="kr")]}
+    tw = {"status": "ready", "region": "tw", "entries": [entry(9, region="tw")]}
+    app = FakeApp({"global": FEED, "kr": kr, "tw": tw}, ui={"news_region": "kr"})
+    page = _page(app, store=_store(**{news.REGION_KEY: "tw"}))                    # news.js's own: over the app's
+    assert page.region == "tw" and page.region_box.currentData() == "tw"
+    assert [card.url for card in page.cards] == [article(9, region="tw")]
+    page = _page(app, store=_store(**{news.REGION_KEY: "mars"}))                  # not a region: the app's
+    assert page.region == "kr"
+    page = _page(FakeApp({"global": FEED, "tw": tw}, fail_ui=True), store=_store(**{news.REGION_KEY: "tw"}))
+    assert page.region == "tw"                                                    # the app's settings not read
 
 
 def test_a_headlines_words_are_text_not_markup(qapp):

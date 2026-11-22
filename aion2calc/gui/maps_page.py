@@ -291,16 +291,23 @@ class Legend(QWidget):
 
 class MapsPage(QWidget):
     """Game → Maps. The route catalog and the heat map are read when the page is first shown; the heat map again
-    every ``refresh_seconds`` while it is shown."""
+    every ``refresh_seconds`` while it is shown. The heat map's square size and matchup chosen are kept with the web
+    page's (``store``)."""
 
     def __init__(self, api: AppApi | None, open_link=webbrowser.open, clipboard=None, now=time.time,
-                 parent: QWidget | None = None):
+                 parent: QWidget | None = None, store=None):
         super().__init__(parent)
+        from .planner_page import interface_store
         self.api, self.open_link, self.now = api, open_link, now
+        self.store = store if store is not None else interface_store()
         self.clipboard = clipboard or (lambda text: QGuiApplication.clipboard().setText(text))
         self.routes: dict | None = None
         self.heat: dict | None = None
-        self.cell, self.matchup, self.listed = 2000, "", ""
+        try:
+            cell, matchup = self.store.value(m.CELL_KEY), self.store.value(m.MATCHUP_KEY)
+        except Exception:                        # a store that cannot be read: the default size, the busiest
+            cell = matchup = None
+        self.cell, self.matchup, self.listed = m.kept_cell(cell), m.kept_matchup(matchup), ""
         self.loaded_at = 0.0
         self.serial = 0
         self.started = False
@@ -384,6 +391,7 @@ class MapsPage(QWidget):
         self.cell_box.setAccessibleName("Squares")
         for size, words in m.HEAT_CELLS:
             self.cell_box.addItem(words, size)
+        self.cell_box.setCurrentIndex(max(0, self.cell_box.findData(self.cell)))
         self.cell_box.activated.connect(lambda _index: self._choose_cell())
         flow.addWidget(_field("Squares", self.cell_box))
         self.refresh = QPushButton("Refresh")
@@ -535,10 +543,12 @@ class MapsPage(QWidget):
 
     def _choose_matchup(self) -> None:
         self.matchup = self.matchup_box.currentData() or "all"
+        self.store.setValue(m.MATCHUP_KEY, self.matchup)            # ``rememberMatchup``: a choice, not the busiest
         self.load_heat()
 
     def _choose_cell(self) -> None:
         self.cell = int(self.cell_box.currentData())
+        self.store.setValue(m.CELL_KEY, str(self.cell))
         self.load_heat()
 
     def draw_heat(self) -> None:

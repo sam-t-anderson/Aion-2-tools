@@ -24,6 +24,9 @@ PROVIDER_NOTE = ("Provider-hosted map, markers and controls. Map data and any ac
                  "applicability and marker completeness are not independently verified.")
 HEAT_MAP_ID = 20
 HEAT_CELLS = ((2000, "Normal squares (2,000)"), (1000, "Fine squares (1,000)"), (4000, "Coarse squares (4,000)"))
+#: Where the web page keeps the square size and the matchup chosen (maps.js ``HEAT_DETAIL``, ``HEAT_MATCHUP``), with the
+#: app's interface data since 0.2.482: the native page keeps them there too since 0.2.496.
+CELL_KEY, MATCHUP_KEY = "aion2.maps.heatCell", "aion2.maps.heatMatchup"
 HEAT_REGIONS = {"nae": "NA East", "naw": "NA West", "eu": "Europe", "la": "South America", "as": "Asia"}
 HEAT_SHORT = {1800: "last 30 min", 7200: "last 2 h", 21600: "last 6 h", 86400: "last 24 h", 604800: "last 7 days"}
 HEAT_WINDOWS = {1800: "the last 30 minutes", 7200: "the last 2 hours", 21600: "the last 6 hours",
@@ -66,6 +69,18 @@ def provider_url(zone: str) -> str:
 
 
 # ------------------------------------------------------------------ the heat map
+def kept_cell(text) -> int:
+    """``rememberedCell``: the square size kept, else 2,000."""
+    from .character import js_number
+    value = js_number(text)
+    return next((size for size, _words in HEAT_CELLS if size == value), 2000)
+
+
+def kept_matchup(text) -> str:
+    """``rememberedMatchup``: the matchup kept, else none (the busiest then)."""
+    return text if isinstance(text, str) else ""
+
+
 def heat_path(cell: int, matchup: str = "") -> str:
     """What the page asks the log server for: the Abyss map, the square size and the matchup."""
     query = f"map={HEAT_MAP_ID}&cell={urllib.parse.quote(str(cell), safe='')}"
