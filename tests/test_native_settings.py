@@ -288,7 +288,7 @@ def test_app_and_data_as_the_web_page_draws_it(qapp, home):
     assert any(sw.DISCORD_URL in t and sw.DISCORD in t for t in texts)
     assert any(sw.PATCH_NOTES_URL in t and sw.ALL_NOTES in t for t in texts)
     assert sw.NATIVE_NOTE.startswith("On by default since 0.2.426. Every page is native so far")
-    assert "Raid Planner (but publishing and browsing plans, a saved fight compared and recorded movement imported)" in sw.NATIVE_NOTE
+    assert "Raid Planner (but a saved fight compared and recorded movement imported)" in sw.NATIVE_NOTE
     assert "and the movement replay's Raid Planner file, open in the web interface" in sw.NATIVE_NOTE
     pages = page.controls["app_default_page"]
     assert [pages.itemText(i) for i in range(pages.count())][:3] == ["Live Meter", "Combat Logs", "Raid Planner"]

@@ -7,8 +7,9 @@ the transport and the party buffs' lane; the panel to add tokens, edit the one s
 the buffs and the notes. Each change keeps the plan at once, as the web page does, and hands the app the plans for its
 overlay.
 
-Publishing and browsing plans, a saved fight compared and recorded movement imported are drawn on the web Raid
-Planner for now (its button opens it): the plans are the same.
+Since 0.2.491 it publishes a plan to the log server, updates it, refreshes it and backs up its credential, and
+browses the published plans by boss, as the web page does. A saved fight compared and recorded movement imported are
+drawn on the web Raid Planner for now (its button opens it): the plans are the same.
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ import os
 import random
 import re
 import time
+from urllib.parse import quote
 
 from PySide6.QtCore import QEvent, QPointF, QRectF, QSize, QStandardPaths, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPainterPath, QPen, QPolygonF
@@ -47,8 +49,6 @@ ARENAS = (("square", "Square"), ("circle", "Circle"))
 BOSS, BOSS_HINT, NPC, NPC_HINT = "Boss", "Boss / mini-boss name", "NPC id", "mob code"
 LINK_NOTE = "Link this plan to an encounter so the overlay can auto-play it for that fight."
 EXPORT, IMPORT, COPY_CODE, LOAD_CODE = "Export file", "Import file", "Copy share code", "Load from code"
-ON_THE_WEB = ("Publishing and browsing plans, comparing with a saved fight and importing recorded movement are on the "
-              "web Raid Planner for now. It shows these plans too.")
 OPEN_WEB = "Open the web Raid Planner"
 PUBLISHED = "Published link: "
 ARENA_HINT = "Add players, enemies, markers or AoE zones from the panel, then drag them on the map."
@@ -67,7 +67,8 @@ SHOWN_BOX, REMOVE = "Shown on the map", "Remove token"
 EACH = "Each token"
 NO_BUFFS, BUFF_HINT, SOURCE, ADD_BUFF = "none yet", "Buff name", "source…", "Add"
 NOTES_HINT = "Callouts, phases, assignments…"
-PANEL_ELSEWHERE = "Compare with a fight and Import recorded movement are on the web Raid Planner for now."
+PANEL_ELSEWHERE = ("Compare with a fight and Import recorded movement are on the web Raid Planner for now. It shows "
+                   "these plans too.")
 # what is said (``toast``) and asked
 COPIED, COPY_FAILED = "Copied to clipboard", "Copy failed"
 IMPORTED, LOADED, NAME_BUFF = "Plan imported", "Plan loaded", "Name the buff"
@@ -620,6 +621,11 @@ def stylesheet() -> str:
         QWidget#rpFrameRowOn {{ border-left: 3px solid {c['gold']}; border-radius: 4px; background: rgba(233, 203, 128, 0.16); }}
         QScrollArea#rpFrames {{ background: transparent; border: none; }}
         QPlainTextEdit#rpNotes {{ background: {c['bg2']}; border: 1px solid {c['line2']}; border-radius: 5px; }}
+        QLabel#rpCardName {{ color: {c['text']}; font-weight: 600; }}
+        QLabel#rpCardBoss {{ color: {c['gold']}; }}
+        QLabel#rpClassChip {{ background: rgba(57, 194, 224, 0.12); color: {c['chip_fg']}; border: 1px solid rgba(57, 194, 224, 0.25);
+            border-radius: 3px; padding: 1px 6px; }}
+        QLabel#empty {{ color: {c['faint']}; padding: 18px; }}
         """
 
 
@@ -643,6 +649,19 @@ class RaidPage(QWidget):
         self.now = now or (lambda: int(time.time() * 1000))
         self.pick = pick or random.random
         self.requests = Requests(api, self) if api is not None else None
+        # publishing and browsing go to the log server through the app: up to its 30 s, and the app's own time
+        self.plan_requests = Requests(api, self, timeout=45) if api is not None else None
+        if self.plan_requests is not None:
+            self.plan_requests.replied.connect(self._plan_replied)
+            self.plan_requests.failed.connect(self._plan_failed)
+        self.server_url = ""                                 # ``io.server()``: the log server plans are published to
+        self.asked: dict[str, tuple] = {}                    # each request on its way, by name, with what it needs
+        self.asks = 0
+        self.renders = 0                                     # each drawing: a message for one drawn before is let go
+        self.browsing = None                                 # the published plans shown (``st.browsing``)
+        self.browse_bosses: list = []
+        self.browse_chosen = None
+        self.cards: list[dict] = []
         # raid.js's ``st``: the plan shown, the moment, the speed, the token selected, playing
         self.id = None
         self.plan: dict | None = None
@@ -679,6 +698,10 @@ class RaidPage(QWidget):
         page.setContentsMargins(24, 20, 24, 20)
         self.frame = Window(r.TITLE, r.SUBTITLE)
         page.addWidget(self.frame)
+        self.browse_frame = Window(r.BROWSE_TITLE, r.BROWSE_SUB)      # ``renderBrowse``, in the planner's place
+        self.browse_frame.hide()
+        self.browse_box = self.browse_frame.body
+        page.addWidget(self.browse_frame)
         page.addStretch(1)
         body = self.frame.body
         self.header = QVBoxLayout()
@@ -773,8 +796,10 @@ class RaidPage(QWidget):
         put in place, the plans handed to the app, then drawn."""
         self.mounted = True
         self.pause()
+        self.browsing = None
         self.mount_plan()
         self.share()
+        self.ask("logserver", "/api/logserver")
         self.render()
 
     def mount_plan(self) -> None:
@@ -828,6 +853,9 @@ class RaidPage(QWidget):
 
     # ---------------------------------------------------------------- drawing (``render``)
     def render(self) -> None:
+        self.renders += 1
+        self.browse_frame.hide()
+        self.frame.show()
         p = self.plan if self.plan is not None else {}
         self.length = r.num(get(p, "duration", _MISSING)) or 1
         r.remember(self.store, self.id)
@@ -880,23 +908,40 @@ class RaidPage(QWidget):
         self.npc_field.changed.connect(lambda v: self._encounter("npc_id", v))
         self.header.addWidget(_row(_label(BOSS, "small", wrap=False), self.boss_edit, _label(NPC, "small", wrap=False),
                                    self.npc_field, _label(LINK_NOTE, "faint")))
-        self.header.addWidget(_row(_button(EXPORT, self.export), _button(IMPORT, self.import_file),
-                                   _button(COPY_CODE, self.copy_code), _button(LOAD_CODE, self.load_code),
-                                   _button(OPEN_WEB, lambda: self.open_web("raid"))))
-        self.header.addWidget(_label(ON_THE_WEB, "faint"))
-        owned = get(r.owners(self.store), self.id, _MISSING) if self.id else _MISSING
-        if r.yes(owned):
+        owned = self.owner()
+        self.visibility_box = _choice([(v[0].upper() + v[1:], v) for v in r.VISIBILITIES], r.visibility_index(p),
+                                      "Plan visibility", self._visibility)
+        self.publish_button = _button(r.UPDATE if owned is not None else r.PUBLISH, self.publish, "primary")
+        parts = [_button(EXPORT, self.export), _button(IMPORT, self.import_file), _button(COPY_CODE, self.copy_code),
+                 _button(LOAD_CODE, self.load_code), _label(r.VISIBILITY, "small", wrap=False), self.visibility_box,
+                 self.publish_button]
+        if owned is not None:
+            parts += [_button(r.PUBLISH_COPY, self.publish_copy), _button(r.REFRESH, self.refresh),
+                      _button(r.OWNER_BACKUP, self.backup_owner)]
+        parts += [_button(r.BROWSE, self.browse), _label(r.VISIBILITY_HINT, "faint")]
+        self.header.addWidget(_row(*parts))
+        self.pub_line = QLabel()                                   # ``#rpubmsg``
+        self.pub_line.setObjectName("small")
+        self.pub_line.setTextFormat(Qt.RichText)
+        self.pub_line.setOpenExternalLinks(True)
+        self.pub_line.setWordWrap(True)
+        self.pub_copy = _button(r.COPY_LINK, lambda: None)
+        self.pub_copy.hide()
+        line = QWidget()
+        line.setObjectName("plain")
+        box = QHBoxLayout(line)
+        box.setContentsMargins(0, 0, 0, 0)
+        box.setSpacing(8)
+        box.addWidget(self.pub_line)
+        box.addWidget(self.pub_copy)
+        box.addStretch(1)
+        self.header.addWidget(line)
+        if owned is not None:
             url = r.text(get(owned, "url", _MISSING))
             shown = (f"<a href=\"{html.escape(url)}\">{html.escape(url)}</a>" if re.match(r"https?://", url, re.I)
                      else html.escape(url))
-            link = QLabel(f"{PUBLISHED}{shown} · revision {html.escape(r.text(get(owned, 'revision', _MISSING)))}")
-            link.setTextFormat(Qt.RichText)
-            link.setOpenExternalLinks(True)
-            link.setObjectName("small")
-            self.published = link
-            self.header.addWidget(link)
-        else:
-            self.published = None
+            self.pub_line.setText(f"{PUBLISHED}{shown} · revision {html.escape(r.text(get(owned, 'revision', _MISSING)))}")
+        self.published = self.pub_line if owned is not None else None
 
     def _side(self, p) -> None:
         _clear(self.side)
@@ -921,6 +966,7 @@ class RaidPage(QWidget):
         self.side.addWidget(_head(BUFFS))
         self._buffs(p)
         self.side.addWidget(_label(PANEL_ELSEWHERE, "faint"))
+        self.side.addWidget(_row(_button(OPEN_WEB, lambda: self.open_web("raid"))))
         self.side.addWidget(_head(NOTES))
         self.notes_edit = QPlainTextEdit()
         self.notes_edit.setObjectName("rpNotes")
@@ -1296,8 +1342,9 @@ class RaidPage(QWidget):
 
     def _imported(self, p) -> None:
         """``importDoc``: kept as a new plan, and shown."""
-        if not isinstance(p, dict):
-            raise r.PlanError("Cannot set properties of " + ("null" if p is None else "undefined") + " (setting 'meta')")
+        refusal = r.import_refusal(p)
+        if refusal is not None:
+            raise r.PlanError(refusal)
         plans = r.raid_plans(self.store)
         key = r.import_doc(p, plans, self.now(), make_id=lambda: r.uid(self.pick))
         self.save_plans(plans)
@@ -1320,6 +1367,203 @@ class RaidPage(QWidget):
             self.say(LOADED)
         except (ValueError, RecursionError) as problem:
             self.say(str(problem))
+
+    # ---------------------------------------------------------------- publishing and browsing (0.2.491)
+    def owner(self):
+        """``owner()``: the plan shown's published credential, or None."""
+        found = get(r.owners(self.store), self.id, _MISSING) if self.id else _MISSING
+        return found if r.yes(found) else None
+
+    def server(self) -> str:
+        """``io.server()``: the log server's address, without its trailing slashes."""
+        return self.server_url.rstrip("/")
+
+    def ask(self, kind: str, path: str, body=None, **context) -> None:
+        """A request to the app for the plans' log server, with what its answer needs."""
+        if self.plan_requests is None:
+            return
+        self.asks += 1
+        name = f"{kind}:{self.asks}"
+        self.asked[name] = (kind, context)
+        if body is None:
+            self.plan_requests.get(name, path)
+        else:
+            self.plan_requests.post(name, path, body)
+
+    def _visibility(self, index: int) -> None:
+        meta = get(self.plan, "meta", _MISSING)
+        if isinstance(meta, dict):
+            meta["visibility"] = self.visibility_box.itemData(index)
+            self.persist()
+
+    def publish(self) -> None:
+        """Publish plan, or Update published plan: its visibility kept with it, then sent; its credential kept."""
+        vis = self.visibility_box.currentData()
+        meta = get(self.plan, "meta", _MISSING)
+        if isinstance(meta, dict):
+            meta["visibility"] = vis
+        self.persist()
+        self.publish_button.setEnabled(False)
+        self.pub_line.setText(html.escape(r.PUBLISHING))
+        self.pub_copy.hide()
+        original = self.owner()
+        body = {"plan": self.plan, "visibility": vis}
+        if original is not None:
+            body["owner"] = original
+        self.ask("publish", "/api/plans", body, plan=self.id, original=original, vis=vis, turn=self.renders,
+                 button=self.publish_button)
+
+    def publish_copy(self) -> None:
+        """Publish new copy: a publication of its own, kept as a new local plan with its credential."""
+        self.ask("copy", "/api/plans", {"plan": self.plan, "visibility": self.visibility_box.currentData()},
+                 plan=self.plan)
+
+    def refresh(self) -> None:
+        """Refresh published plan: the published revision in place of the local plan, asked first."""
+        if not self.confirm(r.ASK_REFRESH):
+            return
+        owned = self.owner()
+        self.ask("refresh", "/api/plans", {"id": get(owned, "id", None), "owner": owned})
+
+    def backup_owner(self) -> None:
+        """Private ownership backup: the credential and the plan in a file, asked first."""
+        if not self.confirm(r.ASK_BACKUP):
+            return
+        path = self.save_file(r.BACKUP_FILE)
+        if path:
+            with open(path, "w", encoding="utf-8", newline="") as file:
+                file.write(r.owner_backup(self.owner(), self.plan))
+
+    def browse(self) -> None:
+        """Browse plans: the bosses plans are bound to, then every published plan."""
+        self.ask("bosses", "/api/plans/bosses")
+
+    def _browse(self, chosen) -> None:
+        self.ask("browse", r.browse_path(chosen), chosen=chosen)
+
+    def _plan_replied(self, name: str, answer) -> None:
+        kind, ctx = self.asked.pop(name, (None, {}))
+        if kind == "logserver":
+            self.server_url = r.text(get(answer, "url", _MISSING))
+        elif kind == "publish":
+            self._published(answer, ctx)
+        elif kind == "copy":
+            try:
+                self._imported(b.copy(ctx["plan"]))
+            except (ValueError, RecursionError) as problem:
+                self.say(str(problem))
+                return
+            self.plan = r.raid_plans(self.store).get(self.id)
+            r.save_owner(self.store, r.copy_owner(answer, self.server()), self.id)
+            self.render()
+            self.say(r.NEW_COPY)
+        elif kind == "refresh":
+            plan = get(answer, "plan", _MISSING)
+            refusal = r.import_refusal(plan if plan is not _MISSING else None)
+            if refusal is not None:
+                self.say(refusal)
+                return
+            self.plan = plan
+            r.save_owner(self.store, {**(self.owner() or {}), "revision": get(answer, "revision", _MISSING)}, self.id)
+            self.persist()
+            self.render()
+        elif kind == "bosses":
+            found = get(answer, "bosses", _MISSING)
+            self.browse_bosses = found if isinstance(found, list) else []
+            self._browse(None)
+        elif kind == "browse":
+            found = get(answer, "plans", _MISSING)
+            self.browsing = found if isinstance(found, list) else []
+            self.show_browse(self.browsing, ctx.get("chosen"))
+        elif kind == "open":
+            refusal = r.import_refusal(answer)
+            if refusal is not None:
+                self.say(refusal)
+                return
+            self._imported(answer)
+            self.browsing = None
+            self.render()
+            self.say(r.OPENED)
+
+    def _plan_failed(self, name: str, why: str) -> None:
+        kind, ctx = self.asked.pop(name, (None, {}))
+        if kind == "publish":
+            if ctx["turn"] == self.renders:                      # its line still the one drawn when it was sent
+                self.pub_line.setText(html.escape(why))
+            if _alive(ctx["button"]):
+                ctx["button"].setEnabled(True)
+        elif kind == "bosses":                                   # ``io.bosses().catch(() => [])``
+            self.browse_bosses = []
+            self._browse(None)
+        elif kind in ("copy", "refresh", "browse", "open"):
+            self.say(why)
+
+    def _published(self, answer, ctx: dict) -> None:
+        """A plan published: its credential kept (and the page drawn again) where the server gave one or it had one;
+        then, on the plan still shown, where it is."""
+        local, original = ctx["plan"], ctx["original"]
+        if r.yes(get(answer, "edit_token", _MISSING)) or original is not None:
+            r.save_owner(self.store, r.published_owner(original, answer, self.server()), local)
+            if self.id == local:
+                self.render()
+        if self.id == local and self.browsing is None:
+            url = get(answer, "url", _MISSING)
+            safe = r.safe_url(url)
+            self.pub_line.setText(f"Published ({html.escape(ctx['vis'])}): <a href=\"{html.escape(safe)}\">{html.escape(safe)}</a>")
+            self.pub_copy.clicked.disconnect()
+            self.pub_copy.clicked.connect(lambda _c=False, words=r.text(url): self._copy_link(words))
+            self.pub_copy.show()
+        if _alive(ctx["button"]):
+            ctx["button"].setEnabled(True)
+
+    def _copy_link(self, words: str) -> None:
+        try:
+            self.copy(words)
+            self.say(COPIED)
+        except Exception:                                        # noqa: BLE001 - a clipboard that refused
+            self.say(COPY_FAILED)
+
+    def show_browse(self, plans: list, chosen) -> None:
+        """``renderBrowse``: the published plans in the planner's place, with the bosses to filter by."""
+        self.frame.hide()
+        self.browse_frame.show()
+        self.browse_chosen = chosen
+        _clear(self.browse_box)
+        self.browse_box.addWidget(_row(_button(r.BACK, self.back_to_planner)))
+        if self.browse_bosses:
+            buttons = [_label(r.BOSS_FILTER, "muted", wrap=False)]
+            for item in r.boss_buttons(self.browse_bosses, chosen):
+                choice = {"npc": item["npc"], "boss": item["boss"]} if item["npc"] else None
+                buttons.append(_button(item["words"], lambda c=choice: self._browse(c),
+                                       "primary" if item["lit"] else "small"))
+            self.browse_box.addWidget(_row(*buttons))
+        self.cards = []
+        if not plans:
+            self.browse_box.addWidget(_label(r.NO_PLANS_BOSS if r.yes(chosen) else r.NO_PLANS, "empty"))
+        for item in plans:
+            words = r.plan_card(item)
+            card = QWidget()
+            card.setObjectName("plain")
+            column = QVBoxLayout(card)
+            column.setContentsMargins(0, 6, 0, 6)
+            column.setSpacing(2)
+            column.addWidget(_label(words["name"], "rpCardName"))
+            if words["boss"] is not None:
+                column.addWidget(_label(words["boss"], "rpCardBoss"))
+            column.addWidget(_label(words["line"], "small"))
+            if words["classes"]:
+                column.addWidget(_row(*[_label(c, "rpClassChip", wrap=False) for c in words["classes"]]))
+            column.addWidget(_row(_button(r.OPEN, lambda key=words["id"]: self.open_plan(key), "primary")))
+            self.browse_box.addWidget(card)
+            self.cards.append(words)
+
+    def back_to_planner(self) -> None:
+        self.browsing = None
+        self.render()
+
+    def open_plan(self, key: str) -> None:
+        """Open: the published plan copied into a new local plan (``fetchPlan``, ``importDoc``)."""
+        self.ask("open", "/api/plans?id=" + quote(key, safe="-_.!~*'()"))
 
     # ---------------------------------------------------------------- tokens
     def add(self, kind: str) -> None:
@@ -1478,6 +1722,15 @@ class RaidPage(QWidget):
 
     def closeEvent(self, event) -> None:
         self.timer.stop()
-        if self.requests is not None:
-            self.requests.stop()
+        for worker in (self.requests, self.plan_requests):
+            if worker is not None:
+                worker.stop()
         super().closeEvent(event)
+
+
+def _alive(widget) -> bool:
+    try:
+        import shiboken6
+        return shiboken6.isValid(widget)
+    except ImportError:                                          # pragma: no cover - PySide6 brings it
+        return True

@@ -1,3 +1,11 @@
+## Raid Planner in the native interface, second part (0.2.491)
+
+**The app's window now publishes and browses raid plans too.**
+- **Publish plan** with its visibility (unlisted, public or private) sends the plan to the log server set in Settings and keeps its credential; **Update published plan** then updates the same link, and the line under the buttons shows it with **Copy link**.
+- **Publish new copy** publishes a separate copy as a new plan of your own; **Refresh published plan** replaces your local plan with the published revision (asked first); **Private ownership backup** exports the credential that lets you edit the plan on another computer (asked first).
+- **Browse plans** lists the published plans, by boss if you choose one, and **Open** copies one into your own plans.
+- A saved fight compared and recorded movement imported are still on the web Raid Planner.
+
 ## Raid Planner in the native interface, first part (0.2.490)
 
 **The app's window now draws the Raid Planner itself: your plans, the map, the playback, the party buffs and the notes.**
