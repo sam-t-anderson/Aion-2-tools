@@ -1,3 +1,14 @@
+## The Settings page in the native interface, part 6 (0.2.480)
+
+**Settings in the app's window now has the rest of the Overlay tab as the web page draws it: the overlay's colours and fonts, its text effects and each text's own font, its background, and the look presets.**
+- **Overlay colors & fonts:** a colour for each of the overlay's texts, with **Reset number colors**; the font, its size and weight; the glow and its colour, the bars' colours, the outline and its colour, and the colour cycle. Each says "Saving…", then "Saved", beside it.
+- **Overlay text effects & per-element fonts:** the halo, its colour and the retroreflection; and for each of the overlay's eleven texts a font, size and weight of its own, or the overlay's, with **Reset element**.
+- **Overlay background:** **Choose image** (a PNG or JPEG of 8 MB at most) and **Remove**; its visibility, zoom and darkening; and the text's auto-contrast against it.
+- **Overlay look presets:** the web page's 17 starter presets and your own.
+  - **Apply** one, **Save current look as…** a name, or **Delete** one of yours.
+  - **Copy share code** to send one, and **Paste a shared code…** to save one sent to you. The codes are the web page's, so a code copied on one opens on the other.
+- Each time the page opens, its rows' words start afresh, as the web page's do.
+
 ## The Settings page in the native interface, part 5 (0.2.479)
 
 **Settings in the app's window now has the Overlay tab's Hidden Cube radar and Hotkeys as the web page draws them.**

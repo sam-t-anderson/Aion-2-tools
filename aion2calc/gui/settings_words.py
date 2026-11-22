@@ -760,11 +760,13 @@ LAYOUT = (
 
 def shown_number(ui, key: str, fallback: int, rule: str) -> int:
     """A number field's value from the app's (``finite``: ``Number.isFinite(+v) ? +v : d``; ``or``:
-    ``Number(v) || d``)."""
+    ``Number(v) || d``; ``nullish``: ``v ?? d``, since 0.2.480)."""
     ui = _dict(ui)
     x = _js_number_or_nan(ui.get(key)) if key in ui else math.nan
     if rule == "finite":
         return int(x) if math.isfinite(x) else fallback
+    if rule == "nullish":
+        return fallback if ui.get(key) is None or not math.isfinite(x) else int(x)
     return int(x) if math.isfinite(x) and x else fallback
 
 

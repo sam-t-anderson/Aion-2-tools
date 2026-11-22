@@ -15,25 +15,29 @@
   state, the streaming address to copy, and the overlay's layout.
 - Since 0.2.479 the **Hidden Cube radar** (its learn steps, its sensitivity, what it hears and its samples, read twice
   a second while shown) and the **Hotkeys**, each action's keys pressed in its field and saved together.
-- **The other tabs' rows** are still the early ones, drawn from ``settings_schema``: each control saves its one
-  setting, and a row the native page does not draw in full yet opens the web Settings page for the rest.
+- Since 0.2.480 the rest of **Overlay** (settings_looks.py has its words): the text's colours and the fonts, the text
+  effects and each element's own font, the background image with its sliders and auto-contrast, and the look presets,
+  the web page's starter presets and your own, applied, saved, deleted, and copied or pasted as share codes.
+- **The other rows** (Appearance and Profiles & backup) are still on the web Settings page, which the row opens.
 
 Each control saves its setting through the app's ``/api/ui`` the moment it changes, as the web page's does, and says
-so for a moment at the page's foot; the page reads the app's settings, its state and its log server each time it is
-shown, as the web page does when it opens.
+so where the web page says it; the page reads the app's settings, its state and its log server each time it is shown,
+as the web page does when it opens, and its rows' words start afresh, as the web page's do when it draws itself again.
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 
-from PySide6.QtCore import QEvent, QSize, QStandardPaths, Qt, QTimer, QUrl
-from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QFileDialog, QFrame, QHBoxLayout, QLabel,
-                               QLineEdit, QMessageBox, QPushButton, QScrollArea, QSlider, QSpinBox, QTextBrowser,
-                               QVBoxLayout, QWidget)
+from PySide6.QtCore import QEvent, QSize, QStandardPaths, Qt, QTimer, QUrl, Signal
+from PySide6.QtGui import QColor, QDesktopServices
+from PySide6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QComboBox, QDialog, QFileDialog, QFrame,
+                               QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea,
+                               QSlider, QSpinBox, QTextBrowser, QVBoxLayout, QWidget)
 
 from . import image_health
+from . import settings_looks as looks
 from . import settings_words as sw
 from . import theme
 from .api import AppApi, Job, Requests
@@ -43,7 +47,7 @@ from .database_page import Window
 from .pets_page import Toast
 from .result_windows import GridTable
 from .results import _dict, _truthy
-from .settings_schema import ROWS, Bool, Choice
+from .settings_schema import ROWS
 
 #: What the page reads as it is shown (``pageSettings``): the app's state, its log server and its settings.
 READINGS = (("status", "/api/status"), ("server", "/api/logserver"), ("ui", "/api/ui"))
@@ -113,6 +117,13 @@ def _words(text: str = "", name: str = "") -> QLabel:
     label.setWordWrap(True)
     if name:
         label.setObjectName(name)
+    return label
+
+
+def _inline(text: str) -> QLabel:
+    """A control's words beside it, on one line (a ``label``'s text in a ``.row``)."""
+    label = QLabel(text)
+    label.setTextFormat(Qt.PlainText)
     return label
 
 
@@ -186,6 +197,37 @@ class HotkeyEdit(QLineEdit):
         if combo:
             self.setText(combo)
         event.accept()
+
+
+class ColourPick(QPushButton):
+    """A colour picker (``input type="color"``): its colour as a swatch. A click asks for another (``ask(start, words)``,
+    a ``QColor`` or None), and ``picked`` tells one other than the colour it had, as the picker's ``change`` does."""
+
+    picked = Signal(str)
+
+    def __init__(self, words: str, ask, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.words, self.ask, self.value = words, ask, ""
+        self.setAccessibleName(words)
+        self.setFixedSize(44, 22)
+        self.clicked.connect(lambda _checked=False: self.choose())
+        self.set_value("#000000")
+
+    def set_value(self, colour: str) -> None:
+        """The colour shown, told to nobody."""
+        self.value = colour
+        self.setToolTip(colour)
+        self.setStyleSheet(f"QPushButton {{ background: {colour}; border: 1px solid {theme.COLORS['line2']}; "
+                           "border-radius: 3px; }")
+
+    def choose(self) -> None:
+        chosen = self.ask(self.value, self.words)
+        if chosen is None or not chosen.isValid():
+            return
+        colour = chosen.name().lower()
+        if colour != self.value:
+            self.set_value(colour)
+            self.picked.emit(colour)
 
 
 class SetRow(QFrame):
@@ -282,6 +324,9 @@ class SettingsPage(QWidget):
         self.confirm = confirm or self._ask
         self.save_file = save_file or self._ask_where
         self.choose_sound = self._ask_sound                # where the event sound's file is (a test hands one over)
+        self.choose_image = self._ask_image                # where the overlay background's image is
+        self.ask_text = self._ask_text                     # a name or a share code asked for (``prompt``)
+        self.ask_colour = lambda start, words: QColorDialog.getColor(QColor(start), self, words)
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.quit_app = quit_app or QApplication.quit
         # the readings, the saves and the quick actions; the long ones (an update's download, a scan of the cache, the
@@ -309,8 +354,13 @@ class SettingsPage(QWidget):
         self.rows: list[SetRow] = []
         self.saved: list[tuple[str, object]] = []        # what this page saved, latest last
         self.notes_dialog: PatchNotes | None = None
-        self._pending: dict[str, QTimer] = {}
-        self._latest: dict[str, object] = {}
+        # the overlay's look (0.2.480): each row's words, its checkboxes and colours, each element's own font, and the
+        # settings of a shared preset being saved
+        self.look_messages: dict[str, QLabel] = {}
+        self.look_checks: list[str] = []
+        self.look_colours: list[tuple[str, str]] = []
+        self.element_fonts: dict = {}
+        self.shared_settings: dict = {}
         self._loading = False
         self.tab = sw.chosen_tab(self.store.value(sw.TAB_KEY))
         self.setStyleSheet(STYLE)
@@ -365,14 +415,18 @@ class SettingsPage(QWidget):
                       ("overlay", "In-game (RTSS)"): lambda row: self._items(row, sw.RTSS),
                       ("overlay", "Streaming (OBS / Discord)"): self._streaming,
                       ("overlay", "Overlay layout"): lambda row: self._items(row, sw.LAYOUT),
-                      ("overlay", "Hidden Cube radar"): self._radar, ("overlay", "Hotkeys (Windows)"): self._hotkeys})
-        schema = {(row.group, row.title): row for row in ROWS}
+                      ("overlay", "Hidden Cube radar"): self._radar, ("overlay", "Hotkeys (Windows)"): self._hotkeys,
+                      ("overlay", "Overlay colors & fonts"): self._look_colours,
+                      ("overlay", "Overlay text effects & per-element fonts"): self._look_effects,
+                      ("overlay", "Overlay background"): self._look_background,
+                      ("overlay", "Overlay look presets"): self._look_presets})
+        on_the_web = {(row.group, row.title) for row in ROWS}
         for group, title in sw.ROW_ORDER:
             row = SetRow(group, title, top=title == "Author")
             if (group, title) in drawn:
                 drawn[(group, title)](row)
-            else:
-                self._schema_row(row, schema[(group, title)])
+            elif (group, title) in on_the_web:
+                self._on_the_web(row)
             self.frame.body.addWidget(row)
             self.rows.append(row)
 
@@ -1017,42 +1071,377 @@ class SettingsPage(QWidget):
             return
         self.requests.post("hotkeys", "/api/ui", {"hotkeys": hotkeys})
 
-    # the rows of the tabs not drawn as the web page draws them yet (settings_schema)
-    def _schema_row(self, row: SetRow, spec) -> None:
-        for control in spec.controls:
-            row.body.addWidget(self._control(control))
-        if spec.web:
-            row.body.addWidget(_flow(_words("More of this setting is on the web Settings page for now." if spec.controls
-                                            else "This setting is on the web Settings page for now.", "muted"),
-                                     _button("Open the web Settings page", lambda: self.open_web("settings"))))
+    # ---------------------------------------------------------------- Overlay: the look (0.2.480)
+    def _look_message(self, kind: str, name: str) -> QLabel:
+        """A look row's words (``#ov-color-msg``, ``#ov-font-msg`` …), where its saves are said."""
+        words = _words("", "setnote")
+        words.setAccessibleName(name)
+        self.look_messages[kind] = words
+        return words
 
-    def _control(self, control) -> QWidget:
-        if isinstance(control, Bool):
-            widget = WrapCheck(control.label)
-            widget.box.toggled.connect(lambda on, key=control.key: self.save(key, bool(on)))
-            self.controls[control.key] = widget
+    def _colour_pick(self, key: str, words: str) -> ColourPick:
+        pick = ColourPick(words, lambda start, words: self.ask_colour(start, words))
+        self.controls[key] = pick
+        return pick
+
+    def _look_item(self, item, message: str) -> QWidget:
+        """A checkbox or a colour of the font line or the effects' line, saved and said where the fonts are
+        (``saveFont``)."""
+        kind, key, words, extra = item
+        if kind == "check":
+            widget = WrapCheck(words)
+            if extra:
+                widget.setToolTip(extra)
+            widget.box.toggled.connect(lambda on, key=key: self._save_look(message, {key: bool(on)}))
+            self.controls[key] = widget
+            self.look_checks.append(key)
             return widget
-        holder = QWidget()
-        row = QHBoxLayout(holder)
-        row.setContentsMargins(0, 0, 0, 0)
-        if control.label:
-            row.addWidget(QLabel(control.label))
-        if isinstance(control, Choice):
-            box = QComboBox()
-            for value, text in control.options:
-                box.addItem(text, value)
-            box.currentIndexChanged.connect(lambda _i, key=control.key, b=box, cast=control.cast:
-                                            self.save(key, cast(b.currentData())))
+        pick = self._colour_pick(key, words)
+        pick.picked.connect(lambda colour, key=key: self._save_look(message, {key: colour}))
+        self.look_colours.append((key, extra))
+        return _flow(_inline(words), pick, gap=(4, 4))
+
+    def _look_colours(self, row: SetRow) -> None:
+        """The text's colours with Reset number colors; then the overlay's font, size and weight, its glow, the bars'
+        colours, the outline and the colour cycle (``Overlay colors & fonts``)."""
+        self.text_colours: dict[str, ColourPick] = {}
+        parts = []
+        for element, words in looks.TEXT_COLOURS:
+            pick = ColourPick(words, lambda start, words: self.ask_colour(start, words))
+            pick.picked.connect(lambda _colour: self.save_text_colours())
+            self.text_colours[element] = pick
+            parts.append(_flow(_inline(words), pick, gap=(4, 4)))
+        parts += [_button(looks.COLOURS_RESET, self.reset_text_colours),
+                  self._look_message("colour", "Overlay colors status")]
+        row.body.addWidget(_flow(*parts, gap=(14, 10)))
+        self.font_family = QComboBox()
+        self.font_family.setAccessibleName(looks.FONT)
+        for family in looks.FONTS:
+            self.font_family.addItem(family or looks.DEFAULT_FONT, family)
+        self.font_family.currentIndexChanged.connect(
+            lambda _i: self._save_look("font", {"overlay_font_family": self.font_family.currentData()}))
+        self.controls["overlay_font_family"] = self.font_family
+        scale = self._spin("overlay_font_scale", looks.SIZE, 80, 160)
+        scale.valueChanged.connect(self._save_font_scale)
+        self.font_weight = QComboBox()
+        self.font_weight.setAccessibleName(looks.WEIGHT)
+        for weight in looks.WEIGHTS:
+            self.font_weight.addItem(str(weight), weight)
+        self.font_weight.currentIndexChanged.connect(
+            lambda _i: self._save_look("font", {"overlay_font_weight": self.font_weight.currentData()}))
+        self.controls["overlay_font_weight"] = self.font_weight
+        line = [_flow(_inline(looks.FONT), self.font_family, gap=(4, 4)),
+                _flow(_inline(looks.SIZE), scale, _inline("%"), gap=(4, 4)),
+                _flow(_inline(looks.WEIGHT), self.font_weight, gap=(4, 4))]
+        line += [self._look_item(item, "font") for item in looks.FONT_LINE]
+        line.append(self._look_message("font", "Overlay fonts status"))
+        row.body.addWidget(_flow(*line, gap=(14, 10)))
+        row.body.addWidget(_note(looks.COLOURS_NOTE))
+
+    def save_text_colours(self) -> None:
+        """Every text colour saved together as one is chosen (``saveOverlayColors``)."""
+        self._save_look("colour", {"overlay_text_colors": {element: pick.value
+                                                           for element, pick in self.text_colours.items()}})
+
+    def reset_text_colours(self) -> None:
+        """The rate's and the total's colours as the overlay's own, then every colour saved (``#ov-color-reset``)."""
+        for element in looks.RESET_COLOURS:
+            self.text_colours[element].set_value(looks.TEXT_DEFAULTS[element])
+        self.save_text_colours()
+
+    def _save_font_scale(self, value) -> None:
+        """The overlay's text size (``#ov-font-scale``), saved when it is 80–160 %."""
+        if self._loading:
+            return
+        number = sw.parse_int(value)
+        if number is None or not 80 <= number <= 160:
+            self.look_messages["font"].setText(looks.SIZE_RANGE)
+            return
+        self._save_look("font", {"overlay_font_scale": number})
+
+    def _look_effects(self, row: SetRow) -> None:
+        """The halo, its colour and the retroreflection, said where the fonts are; then each element's own font, size and
+        weight, with Reset element (``Overlay text effects & per-element fonts``)."""
+        row.body.addWidget(_flow(*[self._look_item(item, "font") for item in looks.EFFECTS], gap=(14, 10)))
+        self.element = QComboBox()
+        self.element.setAccessibleName(looks.ELEMENT)
+        for value, words in looks.ELEMENTS:
+            self.element.addItem(words, value)
+        self.element.currentIndexChanged.connect(lambda _i: self.load_element())
+        self.element_family = QComboBox()
+        self.element_family.setAccessibleName("Element font")
+        for family in looks.FONTS:
+            self.element_family.addItem(family or looks.INHERIT, family)
+        self.element_size = QSpinBox()
+        self.element_size.setRange(79, 160)                       # 79: none (the field left empty), shown as auto
+        self.element_size.setSpecialValueText(looks.AUTO_SIZE)
+        self.element_size.setKeyboardTracking(False)
+        self.element_size.setAccessibleName("Element size")
+        self.element_weight = QComboBox()
+        self.element_weight.setAccessibleName("Element weight")
+        self.element_weight.addItem(looks.AUTO, "")
+        for weight in looks.WEIGHTS:
+            self.element_weight.addItem(str(weight), weight)
+        self.element_family.currentIndexChanged.connect(lambda _i: self.save_element())
+        self.element_size.valueChanged.connect(lambda _value: self.save_element())
+        self.element_weight.currentIndexChanged.connect(lambda _i: self.save_element())
+        row.body.addWidget(_flow(_flow(_inline(looks.ELEMENT), self.element, gap=(4, 4)),
+                                 _flow(_inline(looks.FONT), self.element_family, gap=(4, 4)),
+                                 _flow(_inline(looks.SIZE), self.element_size, _inline("%"), gap=(4, 4)),
+                                 _flow(_inline(looks.WEIGHT), self.element_weight, gap=(4, 4)),
+                                 _button(looks.ELEMENT_RESET, self.reset_element),
+                                 self._look_message("element", "Element fonts status"), gap=(14, 10)))
+        row.body.addWidget(_note(looks.ELEMENTS_NOTE))
+
+    def load_element(self) -> None:
+        """The chosen element's font, size and weight shown in their fields (``feLoad``), nothing saved. A font or
+        weight none of the list's shows none, as a list given a value it lacks does."""
+        family, scale, weight = looks.element_shown(self.element_fonts, self.element.currentData())
+        was, self._loading = self._loading, True
+        try:
+            self.element_family.setCurrentIndex(self.element_family.findData(family))
+            self.element_size.setValue(self.element_size.minimum() if scale is None else int(scale))
+            self.element_weight.setCurrentIndex(0 if weight is None else next(
+                (i for i in range(1, self.element_weight.count()) if self.element_weight.itemData(i) == weight), -1))
+        finally:
+            self._loading = was
+
+    def save_element(self) -> None:
+        """The chosen element's font saved from its fields (``feSave``): what of it is set, or the element left out when
+        none is; every element's sent together."""
+        if self._loading:
+            return
+        family = self.element_family.currentData() if self.element_family.currentIndex() >= 0 else ""
+        size = self.element_size.value()
+        scale = None if size == self.element_size.minimum() else size
+        if scale is not None and not 80 <= scale <= 160:
+            self.look_messages["element"].setText(looks.SIZE_RANGE)
+            return
+        weight = self.element_weight.currentData() if self.element_weight.currentIndex() > 0 else None
+        entry = looks.element_entry(family or "", scale, weight)
+        element = self.element.currentData()
+        if entry:
+            self.element_fonts[element] = entry
         else:
-            box = QSpinBox()
-            box.setRange(control.minimum, control.maximum)
-            if control.unit:
-                box.setSuffix(" " + control.unit)
-            box.valueChanged.connect(lambda value, key=control.key: self._save_later(key, int(value)))
-        row.addWidget(box)
-        row.addStretch(1)
-        self.controls[control.key] = box
-        return holder
+            self.element_fonts.pop(element, None)
+        self._save_look("element", {"overlay_text_fonts": dict(self.element_fonts)})
+
+    def reset_element(self) -> None:
+        """The chosen element's own font forgotten, its fields emptied, then saved (``#ov-fe-clear``)."""
+        self.element_fonts.pop(self.element.currentData(), None)
+        self.load_element()
+        self.save_element()
+
+    def _look_background(self, row: SetRow) -> None:
+        """The image behind the overlay's card, chosen or removed; its visibility, zoom and darkening; and the text's
+        auto-contrast (``Overlay background``)."""
+        self.bg_message = self._look_message("background", "Overlay background status")
+        row.body.addWidget(_flow(_button(looks.BG_CHOOSE, self.choose_background),
+                                 _button(looks.BG_REMOVE, self.remove_background), self.bg_message, gap=(14, 10)))
+        numbers = []
+        for key, words, low, high, _shown_, _rule in looks.BG_NUMBERS:
+            box = self._spin(key, words, low, high)
+            box.valueChanged.connect(lambda value, key=key, low=low, high=high:
+                                     self._save_background_number(key, value, low, high))
+            numbers.append(_flow(_inline(words), box, _inline("%"), gap=(4, 4)))
+        row.body.addWidget(_flow(*numbers, gap=(14, 10)))
+        box = QComboBox()
+        box.setAccessibleName(looks.AUTOCONTRAST)
+        for value, words in looks.AUTOCONTRASTS:
+            box.addItem(words, value)
+        box.currentIndexChanged.connect(lambda _i, b=box: self.save("overlay_text_autocontrast", b.currentData()))
+        self.controls["overlay_text_autocontrast"] = box
+        row.body.addWidget(_flow(_flow(_inline(looks.AUTOCONTRAST), box, gap=(4, 4))))
+        note = _note(looks.BG_NOTE)
+        note.setTextFormat(Qt.RichText)
+        row.body.addWidget(note)
+
+    def _save_background_number(self, key: str, value, low: int, high: int) -> None:
+        """A background number (``saveBgNum``): saved when it is within its limits, then said."""
+        if self._loading:
+            return
+        number = sw.parse_int(value)
+        if number is None or not low <= number <= high:
+            self.look_messages["background"].setText(looks.bg_range(low, high))
+            return
+        self._save_look("background", {key: number}, saying="")
+
+    def choose_background(self) -> None:
+        """An image of your own behind the overlay's card (``#ov-bg-file``): 8 MB at most, sent as a data address, as
+        the web page's ``FileReader`` reads it."""
+        path = self.choose_image()
+        if not path:
+            return
+        words = self.look_messages["background"]
+        try:
+            size = os.path.getsize(path)
+        except OSError as problem:
+            words.setText(str(problem))
+            return
+        if size > looks.BG_LIMIT:
+            words.setText(looks.BG_TOO_BIG)
+            return
+        words.setText(looks.BG_UPLOADING)
+        try:
+            with open(path, "rb") as file:
+                raw = file.read()
+        except OSError:
+            words.setText(looks.BG_READ_FAILED)
+            return
+        kind = looks.BG_TYPES.get(os.path.splitext(path)[1].lower(), "application/octet-stream")
+        if self.requests is not None:
+            self.requests.post("background", "/api/overlay/background",
+                               {"data": f"data:{kind};base64,{base64.b64encode(raw).decode('ascii')}"})
+
+    def remove_background(self) -> None:
+        if self.requests is not None:
+            self.requests.post("background-clear", "/api/overlay/background", {"clear": True})
+
+    def _ask_image(self) -> str:
+        path, _kind = QFileDialog.getOpenFileName(self, looks.BG_CHOOSE, "", looks.BG_FILES)
+        return path
+
+    def _look_presets(self, row: SetRow) -> None:
+        """The presets' list, with Apply, Save current look as…, Delete, Copy share code and Paste a shared code…
+        (``Overlay look presets``)."""
+        self.preset_box = QComboBox()
+        self.preset_box.setAccessibleName(looks.PRESET)
+        self.preset_box.setMinimumWidth(229)
+        self.preset_box.currentIndexChanged.connect(lambda _i: self.preset_chosen())
+        self._list_presets({})
+        row.body.addWidget(_flow(self.preset_box, _button(looks.APPLY, self.apply_preset),
+                                 _button(looks.SAVE_AS, self.save_preset), _button(looks.DELETE, self.delete_preset),
+                                 _button(looks.COPY, self.copy_preset), _button(looks.PASTE, self.paste_preset),
+                                 self._look_message("preset", "Overlay look presets status"), gap=(14, 10)))
+        note = _note(looks.PRESETS_NOTE)
+        note.setTextFormat(Qt.RichText)
+        row.body.addWidget(note)
+
+    def _list_presets(self, ui) -> None:
+        """The presets' list (``overlayPresetOptions``): each group's name in bold, not to be chosen (an ``optgroup``),
+        its presets under it; the first preset chosen, as a page just drawn has it."""
+        box = self.preset_box
+        box.blockSignals(True)
+        try:
+            box.clear()
+            for heading, choices in looks.preset_groups(ui):
+                box.addItem(heading, None)
+                item = box.model().item(box.count() - 1)
+                item.setEnabled(False)
+                font = item.font()
+                font.setBold(True)
+                item.setFont(font)
+                for value, name in choices:
+                    box.addItem("  " + name, value)
+            box.setCurrentIndex(next((i for i in range(box.count()) if box.itemData(i) is not None), -1))
+        finally:
+            box.blockSignals(False)
+
+    def preset_chosen(self) -> None:
+        """Another preset chosen (``#ov-preset``'s change): what a starter preset looks like, or that it is yours."""
+        choice = self.preset_box.currentData()
+        if choice:
+            self.look_messages["preset"].setText(looks.preset_said(choice))
+
+    def apply_preset(self) -> None:
+        """The chosen preset's settings saved (``#ov-preset-apply``), then the page drawn again from the app's."""
+        choice = self.preset_box.currentData()
+        if not choice:
+            return
+        settings = looks.preset_settings(choice, self.ui)
+        if not _truthy(settings):
+            self.look_messages["preset"].setText(looks.NOT_FOUND)
+            return
+        self.look_messages["preset"].setText(looks.APPLYING)
+        if self.requests is not None:
+            self.requests.post("preset-apply", "/api/ui", settings)
+
+    def save_preset(self) -> None:
+        """The look as the app has it now, saved under a name asked for (``#ov-preset-save``); one of the same name,
+        whatever its case, replaced. The app's settings are read first, as the web page reads them."""
+        name = looks.js_trim(self.ask_text(looks.NAME_IT, ""))
+        if not name:
+            return
+        if looks.js_units(name) > looks.NAME_LIMIT:
+            self.look_messages["preset"].setText(looks.NAME_TOO_LONG)
+            return
+        self.look_messages["preset"].setText(looks.SAVING)
+        if self.requests is not None:
+            self.requests.get(f"preset-save:{name}", "/api/ui")
+
+    def delete_preset(self) -> None:
+        """The chosen saved preset deleted (``#ov-preset-delete``); a starter preset cannot be."""
+        choice = self.preset_box.currentData() or ""
+        if choice[:1] != "s":
+            self.look_messages["preset"].setText(looks.PICK_SAVED)
+            return
+        self.look_messages["preset"].setText(looks.DELETING)
+        if self.requests is not None:
+            self.requests.get(f"preset-delete:{choice[3:]}", "/api/ui")
+
+    def copy_preset(self) -> None:
+        """The chosen preset's share code copied (``#ov-preset-copy``); with none to copy, the look the app has now, as
+        "My overlay look"."""
+        choice = self.preset_box.currentData() or ""
+        settings = looks.preset_settings(choice, self.ui) if choice else None
+        if _truthy(settings):
+            self._copy_code(choice[3:], settings)
+        elif self.requests is not None:
+            self.requests.get("preset-look", "/api/ui")
+
+    def _copy_code(self, name: str, settings) -> None:
+        QApplication.clipboard().setText(looks.encode_preset(name, settings))
+        self.look_messages["preset"].setText(looks.COPIED)
+
+    def paste_preset(self) -> None:
+        """A share code pasted (``#ov-preset-import``), then saved under the name asked for, its own offered."""
+        code = looks.js_trim(self.ask_text(looks.PASTE_IT, ""))
+        if not code:
+            return
+        try:
+            preset = looks.decode_preset(code)
+        except ValueError:
+            self.look_messages["preset"].setText(looks.NOT_A_CODE)
+            return
+        name = looks.js_trim(self.ask_text(looks.SAVE_SHARED_AS, preset["name"]))
+        if not name:
+            return
+        if looks.js_units(name) > looks.NAME_LIMIT:
+            self.look_messages["preset"].setText(looks.NAME_TOO_LONG)
+            return
+        self.look_messages["preset"].setText(looks.SAVING)
+        self.shared_settings = preset["settings"]
+        if self.requests is not None:
+            self.requests.get(f"preset-share:{name}", "/api/ui")
+
+    def _ask_text(self, question: str, text: str = "") -> str | None:
+        answer, ok = QInputDialog.getText(self, "Settings", question, QLineEdit.Normal, text)
+        return answer if ok else None
+
+    def _save_look(self, message: str, body: dict, saying: str = looks.SAVING) -> None:
+        """A look setting saved, said in its row's words (``msg.textContent``): ``saying`` it, then "Saved", or why
+        not."""
+        if self._loading:
+            return
+        for key, value in body.items():
+            self.saved.append((key, value))
+            self.ui[key] = value
+        words = self.look_messages[message]
+        if saying:
+            words.setText(saying)
+        if self.requests is None:
+            words.setText(sw.SAVED)
+            return
+        self.requests.post(f"look:{message}", "/api/ui", body)
+
+    def rerender(self) -> None:
+        """The page drawn again from the app's (``pageSettings()``, after a preset is applied, saved or deleted)."""
+        self.start()
+
+    # the rows not drawn as the web page draws them yet (settings_schema): each opens the web Settings page
+    def _on_the_web(self, row: SetRow) -> None:
+        row.body.addWidget(_flow(_words("This setting is on the web Settings page for now.", "muted"),
+                                 _button("Open the web Settings page", lambda: self.open_web("settings"))))
 
     # ------------------------------------------------------------------ the tabs
     def show_tab(self, key: str) -> None:
@@ -1074,7 +1463,8 @@ class SettingsPage(QWidget):
 
     # ------------------------------------------------------------------ reading
     def start(self) -> None:
-        """What the page shows, read from the app (``pageSettings``)."""
+        """What the page shows, read from the app (``pageSettings``), each row's words afresh."""
+        self._fresh()
         if self.requests is None:
             return
         for name, path in READINGS:
@@ -1088,6 +1478,17 @@ class SettingsPage(QWidget):
         super().showEvent(event)
         if not event.spontaneous():
             self.start()
+
+    def _fresh(self) -> None:
+        """Each row's words as a page just drawn has them: the web page draws itself again each time it opens, and after
+        a preset is applied, saved or deleted. What the page reads as it opens (Pet Tracker, RTSS, the radar, the
+        version) is said again once read."""
+        for words in (self.asset_message, self.storage_message, self.notes_message, self.records_message,
+                      self.log_cache_message, self.server_message, self.pet_note, self.pet_folder_message,
+                      self.stream_message, self.hotkeys_message, *self.number_messages.values(),
+                      *self.look_messages.values()):
+            words.setText("")
+        self._clear(self.maintenance_box)
 
     def _replied(self, name: str, answer) -> None:
         kind, _, key = name.partition(":")
@@ -1115,6 +1516,14 @@ class SettingsPage(QWidget):
             self.read_radar()
         elif kind == "hotkeys":
             self.hotkeys_message.setText(sw.SAVED)
+        elif kind == "look":
+            self.look_messages[key].setText(sw.SAVED)
+        elif kind == "background":
+            self.look_messages["background"].setText(looks.BG_UPLOADED)
+        elif kind == "background-clear":
+            self.look_messages["background"].setText(looks.BG_REMOVED)
+        elif kind.startswith("preset-"):
+            self._preset_replied(kind, key, answer)
         elif kind == "cache":
             self._log_cache_said(int(key))
         elif kind == "server-save":
@@ -1199,6 +1608,14 @@ class SettingsPage(QWidget):
             self.toast.say(why)
         elif kind == "hotkeys":
             self.hotkeys_message.setText(why)
+        elif kind == "look":
+            self.look_messages[key].setText(why)
+        elif kind in ("background", "background-clear"):
+            self.look_messages["background"].setText(why)
+        elif kind in ("preset-share", "preset-shared"):
+            self.look_messages["preset"].setText(looks.could_not_save(why))
+        elif kind.startswith("preset-"):
+            self.look_messages["preset"].setText(why)
         elif kind == "number":
             self.records_message.setText(why)
         elif kind in ("cache", "server-save"):                     # the web page says nothing; the page says why
@@ -1243,6 +1660,25 @@ class SettingsPage(QWidget):
             self.notes_message.setText(why)
         elif kind == "quit":
             self.quit_app()                                        # stopped or not, the web page goes too
+
+    def _preset_replied(self, kind: str, name: str, answer) -> None:
+        """A preset's step done: the app's settings read (then the presets saved with the change), or the change saved
+        (then said, and the page drawn again), as the web page's handlers do."""
+        fresh = _dict(answer)
+        if kind == "preset-save":
+            self.requests.post("preset-saved", "/api/ui",
+                               {"overlay_presets": looks.with_preset(fresh, name, looks.look_of(fresh))})
+        elif kind == "preset-delete":
+            self.requests.post("preset-deleted", "/api/ui", {"overlay_presets": looks.without_preset(fresh, name)})
+        elif kind == "preset-share":
+            self.requests.post("preset-shared", "/api/ui",
+                               {"overlay_presets": looks.with_preset(fresh, name, self.shared_settings)})
+        elif kind == "preset-look":
+            self._copy_code(looks.MY_LOOK, looks.look_of(fresh))
+        else:
+            self.toast.say({"preset-apply": looks.APPLIED, "preset-saved": looks.SAVED_IT,
+                            "preset-deleted": looks.DELETED, "preset-shared": looks.SHARED_SAVED}[kind])
+            self.rerender()
 
     def apply_status(self, status) -> None:
         """The app's state: your data's folder, the game database's line, the version and its update."""
@@ -1308,21 +1744,31 @@ class SettingsPage(QWidget):
                 field.setText(sw.hotkey_shown(ui, action))
             self.pet_folder.setText(js_text(ui.get("pettracker_path")) if _truthy(ui.get("pettracker_path")) else "")
             self.controls["meter_log_cache_mb"].setValue(sw.log_cache(ui))
-            for spec in ROWS:
-                for control in spec.controls:
-                    widget, value = self.controls[control.key], ui.get(control.key)
-                    if isinstance(control, Bool):
-                        widget.box.setChecked(value is True)
-                    elif isinstance(control, Choice):
-                        index = widget.findData(value)
-                        if index < 0 and value is not None:
-                            index = widget.findData(control.cast(value)) if _castable(control.cast, value) else -1
-                        if index >= 0:
-                            widget.setCurrentIndex(index)
-                    elif isinstance(value, (int, float)) and not isinstance(value, bool):
-                        widget.setValue(int(value))
+            self._apply_look(ui)
         finally:
             self._loading = False
+
+    def _apply_look(self, ui: dict) -> None:
+        """The overlay's look as the app has it (0.2.480): each colour, font, effect and background number by the web
+        page's template's rules; the first element's own font; the presets' list, its first chosen."""
+        colours = looks.text_colours(ui)
+        for element, pick in self.text_colours.items():
+            pick.set_value(colours[element])
+        self._choose(self.font_family, looks.font_family(ui))
+        self.controls["overlay_font_scale"].setValue(sw.shown_number(ui, "overlay_font_scale", 100, "or"))
+        self._choose(self.font_weight, looks.font_weight(ui))
+        for key in self.look_checks:
+            self.controls[key].box.setChecked(ui.get(key) is True)
+        for key, fallback in self.look_colours:
+            self.controls[key].set_value(looks.hex_colour(ui.get(key), fallback))
+        self.element_fonts = looks.element_fonts(ui)
+        self.element.setCurrentIndex(0)
+        self.load_element()
+        self.look_messages["background"].setText(looks.bg_message(ui))
+        for key, _words_, _low, _high, fallback, rule in looks.BG_NUMBERS:
+            self.controls[key].setValue(sw.shown_number(ui, key, fallback, rule))
+        self._choose(self.controls["overlay_text_autocontrast"], looks.autocontrast(ui))
+        self._list_presets(ui)
 
     @staticmethod
     def _choose(box: QComboBox, value) -> None:
@@ -1330,19 +1776,6 @@ class SettingsPage(QWidget):
         box.setCurrentIndex(index if index >= 0 else 0)
 
     # ------------------------------------------------------------------ saving
-    def _save_later(self, key: str, value) -> None:
-        """A number saves once its field has been still for a moment, not at every keystroke."""
-        if self._loading:
-            return
-        self._latest[key] = value
-        timer = self._pending.get(key)
-        if timer is None:
-            timer = self._pending[key] = QTimer(self)
-            timer.setSingleShot(True)
-            timer.setInterval(400)
-            timer.timeout.connect(lambda key=key: self.save(key, self._latest[key]))
-        timer.start()
-
     def save(self, key: str, value, saved: str = sw.SAVED) -> None:
         """One setting saved through the app's ``/api/ui``, as the web page saves it, then said (``toast``)."""
         if self._loading:
@@ -1512,10 +1945,3 @@ class SettingsPage(QWidget):
     def sizeHint(self) -> QSize:
         return QSize(1000, 800)
 
-
-def _castable(cast, value) -> bool:
-    try:
-        cast(value)
-        return True
-    except (TypeError, ValueError):
-        return False
