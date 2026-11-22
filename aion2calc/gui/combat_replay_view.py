@@ -12,6 +12,8 @@ interface since 0.2.468; its model is ``combat_replay``.
   (``.cr-events``: its rows marked before, in or after the replay's time, followed as it plays, a row chosen going to
   its time; a model whose rows in view alone are drawn, so a long fight's thousands of rows cost little) and **the
   slider's ticks** at each of them.
+- Since 0.2.492 **Open in Raid Planner** under the key: the replay, as the key shows it, made the planner's plan
+  (``importPlan``), or without the planner **Export Raid Planner file**.
 """
 from __future__ import annotations
 
@@ -20,14 +22,15 @@ import time
 from bisect import bisect_left, bisect_right
 from collections import OrderedDict
 
-from PySide6.QtCore import (QAbstractListModel, QEvent, QLineF, QModelIndex, QPoint, QPointF, QRectF, QSize, Qt, QTimer,
-                            Signal)
+from PySide6.QtCore import (QAbstractListModel, QEvent, QLineF, QModelIndex, QPoint, QPointF, QRectF, QSize,
+                            QStandardPaths, Qt, QTimer, Signal)
 from PySide6.QtGui import (QColor, QFont, QFontInfo, QFontMetricsF, QPainter, QPainterPath, QPainterPathStroker, QPen,
                            QPixmap, QPolygonF, QTextCharFormat, QTextLayout, QTextOption)
-from PySide6.QtWidgets import (QAbstractItemView, QBoxLayout, QCheckBox, QComboBox, QFrame, QGraphicsOpacityEffect,
-                               QHBoxLayout, QLabel, QListView, QSlider, QStyle, QStyledItemDelegate, QStyleOptionSlider,
-                               QToolTip, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QBoxLayout, QCheckBox, QComboBox, QFileDialog, QFrame,
+                               QGraphicsOpacityEffect, QHBoxLayout, QLabel, QListView, QSlider, QStyle,
+                               QStyledItemDelegate, QStyleOptionSlider, QToolTip, QVBoxLayout, QWidget)
 
+from . import builds as b
 from . import combat_replay as rp
 from . import theme
 from .chrome import FlowLayout
@@ -46,6 +49,8 @@ NARROW = 535                             # ``@media (max-width: 760px)``: the li
                                          # narrower than in a 760 px window (534 px, the review zoomed 1.25)
 EVENTS_LEAST, EVENTS_SHARE = 260, 0.34   # ``grid-template-columns: minmax(0, 1fr) minmax(260px, 34%)``
 SMALL_PX = 12                            # the Combat Logs page's small text (``QLabel#small``)
+PLAN_OPEN, PLAN_EXPORT = "Open in Raid Planner", "Export Raid Planner file"
+PLAN_FILE = "recorded-replay.a2plan.json"
 
 
 def _text_colour() -> QColor:
@@ -877,12 +882,15 @@ class ReplayPanel(QWidget):
     """The replay with its controls (``replay``'s box): its heading and note, the other recordings merged into it (or
     the button to add them), Play and Rewind, the speed, the time slider and its clock, the arena's shape, the arena
     and the key. ``store`` keeps the speed and the shape for every log; ``merge`` asks for the other recordings, and
-    ``merging`` is how that is going."""
+    ``merging`` is how that is going; ``open_replay`` makes the replay the Raid Planner's plan (Open in Raid Planner),
+    and without it ``save_file`` asks where to export it."""
 
-    def __init__(self, replay: rp.Replay, store, parent: QWidget | None = None, merge=None, merging: dict | None = None):
+    def __init__(self, replay: rp.Replay, store, parent: QWidget | None = None, merge=None, merging: dict | None = None,
+                 open_replay=None, save_file=None):
         super().__init__(parent)
         self.setObjectName("plain")
         self.replay, self.store = replay, store
+        self.open_replay, self.save_file = open_replay, save_file or self._ask_where
         self.clock = 0.0                          # the replay's own time: the slider's tenths would swallow a frame's ms
         self.speed = rp.replay_speed(store.value(rp.SPEED_KEY))
         self.shape = rp.room_shape(store.value(rp.ROOM_KEY))
@@ -949,7 +957,38 @@ class ReplayPanel(QWidget):
         self.key = KeyPanel(replay, self.shape)                  # ``.cr-key``
         self.key.changed.connect(self._key_changed)
         column.addWidget(self.key)
+        planner = QWidget()                                       # ``data-plan`` and ``data-plan-status``
+        planner.setObjectName("plain")
+        line = QHBoxLayout(planner)
+        line.setContentsMargins(0, 0, 0, 0)
+        line.setSpacing(8)
+        self.plan_button = _button(PLAN_OPEN if open_replay is not None else PLAN_EXPORT, self.to_planner)
+        self.plan_status = _label("", "small")
+        line.addWidget(self.plan_button)
+        line.addWidget(self.plan_status, 1)
+        column.addWidget(planner)
         self.draw(0.0)
+
+    def to_planner(self) -> None:
+        """Open in Raid Planner: the replay as the key shows it, on the arena in the shape chosen, made the planner's
+        plan; why not, beside the button, should the planner refuse it. Without the planner, exported as a file."""
+        plan = self.replay.plan(self.shape)
+        if self.open_replay is not None:
+            try:
+                self.open_replay(plan)
+            except ValueError as problem:
+                self.plan_status.setText(str(problem))
+            return
+        path = self.save_file(PLAN_FILE)
+        if path:
+            with open(path, "w", encoding="utf-8", newline="") as file:
+                file.write(b.stringify(plan))
+
+    def _ask_where(self, name: str) -> str:
+        """Where the file is saved, the computer's Downloads folder offered (where a browser puts a download)."""
+        folder = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
+        path, _filter = QFileDialog.getSaveFileName(self, PLAN_EXPORT, f"{folder}/{name}" if folder else name)
+        return path
 
     @staticmethod
     def _named(words: str, field: QWidget) -> QWidget:

@@ -22,6 +22,10 @@ Since 0.2.469 why everyone moved:
   a count, the rows in progress marked as the replay plays.
 
 An older recording holds only ``positions``, already on the view's scale, and has neither the arena nor the trails.
+
+Since 0.2.492 the replay becomes a Raid Planner plan (``planOf``: Open in Raid Planner), and so does a fight of a
+recording the planner imports (``movementFights``, ``movementPlan``): each player, pet and enemy that moved a token
+that moves as it did, on the map while the fight had it, with the bosses' casts' measured areas (``castAreas``).
 """
 from __future__ import annotations
 
@@ -30,10 +34,11 @@ import re
 from bisect import bisect_left
 
 from . import theme
+from .builds import _MISSING
 from .character import js_number
 from .combat import js_string, locale_key
 from .combat_records import class_colour
-from .combat_review import _UNNAMED, _num, actor_label, fixed, is_character, npc_name, number
+from .combat_review import _UNNAMED, _num, actor_label, fixed, is_character, npc_name, number, segment_refs
 from .results import _dict, _list, _truthy
 
 ROOM_KEY = "a2-replay-arena"            # the arena's shape, kept for every log: a circle unless a square was chosen
@@ -75,11 +80,42 @@ NO_MERGE_MOVEMENT = "The log server sent no movement."
 NO_OTHERS = "No other public recording of this fight was found."
 HITS_KEY = ("Struck by an add or a boss's clone: where it hit a player (recordings before 0.2.394 hold no position of most "
             "adds)")
+# a Raid Planner plan from the movement (0.2.492)
+PLAN_FADE = 8                           # a token leaves the plan this long after its last position (``FADE``)
+AREA_RED = "#f06060"                    # a measured area's colour in a plan
+RECORDED_REPLAY = "Recorded replay"
+NO_FIGHT_MOVEMENT = "This fight holds no recorded movement."
 
 
 def _js_round(x: float) -> int:
     """``Math.round``: a half rounds up."""
     return math.floor(x + 0.5)
+
+
+def js_hypot(*values: float) -> float:
+    """``Math.hypot`` as V8 works it out, to its last bit: the values over the largest, their squares summed with
+    Kahan's compensation, the root times the largest (an infinity wins over NaN)."""
+    absolute, nan, top = [], False, 0.0
+    for v in values:
+        if math.isnan(v):
+            nan = True
+        else:
+            absolute.append(abs(v))
+            top = max(top, abs(v))
+    if top == math.inf:
+        return math.inf
+    if nan:
+        return math.nan
+    if top == 0:
+        return 0.0
+    total = compensation = 0.0
+    for v in absolute:
+        n = v / top
+        summand = n * n - compensation
+        preliminary = total + summand
+        compensation = (preliminary - total) - summand
+        total = preliminary
+    return math.sqrt(total) * top
 
 
 def _finite(x) -> bool:
@@ -141,10 +177,10 @@ def enclosing_circle(points) -> dict:
     hull = pts if len(pts) < 3 else chain(pts) + chain(pts[::-1])
 
     def holds(c, p):
-        return math.hypot(p[0] - c["x"], p[1] - c["y"]) <= c["r"] + 1e-6 * (1 + c["r"])
+        return js_hypot(p[0] - c["x"], p[1] - c["y"]) <= c["r"] + 1e-6 * (1 + c["r"])
 
     def two(a, b):
-        return {"x": (a[0] + b[0]) / 2, "y": (a[1] + b[1]) / 2, "r": math.hypot(a[0] - b[0], a[1] - b[1]) / 2}
+        return {"x": (a[0] + b[0]) / 2, "y": (a[1] + b[1]) / 2, "r": js_hypot(a[0] - b[0], a[1] - b[1]) / 2}
 
     def three(a, b, c):
         det = 2 * (a[0] * (b[1] - c[1]) + b[0] * (c[1] - a[1]) + c[0] * (a[1] - b[1]))
@@ -157,7 +193,7 @@ def enclosing_circle(points) -> dict:
         sa, sb, sc = a[0] * a[0] + a[1] * a[1], b[0] * b[0] + b[1] * b[1], c[0] * c[0] + c[1] * c[1]
         x = (sa * (b[1] - c[1]) + sb * (c[1] - a[1]) + sc * (a[1] - b[1])) / det
         y = (sa * (c[0] - b[0]) + sb * (a[0] - c[0]) + sc * (b[0] - a[0])) / det
-        return {"x": x, "y": y, "r": math.hypot(a[0] - x, a[1] - y)}
+        return {"x": x, "y": y, "r": js_hypot(a[0] - x, a[1] - y)}
 
     circle = {"x": hull[0][0], "y": hull[0][1], "r": 0.0}
     for i in range(1, len(hull)):
@@ -205,7 +241,7 @@ def frame_movement(world: list, is_boss, boss_named: bool):
         mx, my = quantile([p["x"] for p in ground], 0.5), quantile([p["y"] for p in ground], 0.5)
 
         def reach(p):
-            return math.hypot(p["x"] - mx, p["y"] - my)
+            return js_hypot(p["x"] - mx, p["y"] - my)
         far = sorted(reach(p) for p in ground)
         limit = far[len(far) - 1 - len(far) // 100]
         floor = [p for p in ground if reach(p) <= limit]
@@ -349,6 +385,241 @@ def before(frames: list, t: float) -> int:
         else:
             hi = m
     return lo - 1
+
+
+# ------------------------------------------------------------------ a Raid Planner plan from the movement (0.2.492)
+def _of(e, key):
+    """``e?.[key]``: undefined (``_MISSING``) where ``e`` is not an object or has no such key."""
+    return e.get(key, _MISSING) if isinstance(e, dict) else _MISSING
+
+
+def _yes(value) -> bool:
+    """``value`` as a condition, undefined false."""
+    return value is not _MISSING and _truthy(value)
+
+
+def _n(value) -> float:
+    """``+value`` as arithmetic reads it: undefined NaN, null 0."""
+    return math.nan if value is _MISSING else js_number(value)
+
+
+def _words(value) -> str:
+    """``${value}``: undefined and null as JavaScript writes them."""
+    return "undefined" if value is _MISSING else "null" if value is None else js_string(value)
+
+
+def _round(x: float) -> float:
+    """``Math.round``: a half up, NaN and the infinities as they are."""
+    if not math.isfinite(x):
+        return x
+    whole = math.floor(x)
+    return float(whole + 1 if x - whole >= 0.5 else whole)
+
+
+def _tenth(v) -> float:
+    return _round(_n(v) * 10) / 10
+
+
+def _unit(v: float) -> float:
+    """``Math.min(1, Math.max(0, v))``, NaN as it is."""
+    return v if math.isnan(v) else min(1.0, max(0.0, v))
+
+
+def _at(at, p) -> tuple[float, float]:
+    """``at(p)``'s place for a point whose coordinates may not be numbers (an aim): NaN where one is not."""
+    x, y = _n(_of(p, "x")), _n(_of(p, "y"))
+    px, py, _out = at({"x": x if math.isfinite(x) or math.isinf(x) else 0.0, "y": y if not math.isnan(y) else 0.0})
+    return (math.nan if math.isnan(x) else px), (math.nan if math.isnan(y) else py)
+
+
+def _world_at(frames, t: float):
+    """``worldAt``: the last frame at or before ``t``, None before the first."""
+    if not frames:
+        return None
+    i = before(frames, t)
+    return frames[i] if i >= 0 else None
+
+
+def cast_areas(segment, tokens: dict, r: dict, at, scale, shapes, shown=lambda key: True) -> list[dict]:
+    """``castAreas``: the measured areas of a fight's boss casts, where and for as long as the replay draws them, in
+    the view's units: around the aim or the caster, or along the caster's facing (the cast's own, else the caster's
+    heading, else the way to a distant aim). A cast whose skill has no measured area, or whose caster has no position
+    then, gives none; neither does a shape that needs a facing the recording does not have."""
+    if not _yes(shapes) or scale is None:
+        return []
+    out = []
+    for c in _list(_of(segment, "npc_casts")):
+        if not isinstance(c, dict):
+            continue
+        source, t = c.get("source", _MISSING), c.get("t", _MISSING)
+        if source not in tokens or not _finite(t) or not shown(source):
+            continue
+        caster = r.get(source)
+        a = shapes.get(_words(c.get("skill_id", _MISSING))) if isinstance(shapes, dict) else None
+        if not _yes(a):
+            name = _of(caster, "name")
+            a = shapes.get(f"{_words(name) if _yes(name) else ''}|{_words(c.get('skill_id', _MISSING))}")
+        if not _yes(a):
+            continue
+        a = _dict(a)
+        delay = a.get("delay", _MISSING)
+        t0 = t + (_n(delay) if _yes(delay) else 0) if a.get("anchor") == "hit" else t
+        bw = _world_at(tokens[source], t0) or _world_at(tokens[source], t)
+        if bw is None:
+            continue
+        target = c.get("target", _MISSING)
+        tw = _world_at(tokens[target], t) if _yes(target) and target in tokens else None
+        pos = c.get("pos", _MISSING)
+        if _yes(pos):
+            aim = {"x": pos[0] if isinstance(pos, (list, str)) and len(pos) > 0 else _MISSING,
+                   "y": pos[1] if isinstance(pos, (list, str)) and len(pos) > 1 else _MISSING}
+        else:
+            aim = tw or bw
+        bx, by = _at(at, bw)
+        ax, ay = _at(at, aim)
+        facing = c.get("facing") if c.get("facing") is not None else bw.get("heading") if bw.get("heading") is not None \
+            else None
+        dx, dy = _n(_of(aim, "x")) - bw["x"], _n(_of(aim, "y")) - bw["y"]
+        if facing is None and js_hypot(dx, dy) > 100:
+            facing = math.atan2(dy, dx) * 180 / math.pi
+        name = _of(caster, "name")
+        skill = c.get("skill", _MISSING)
+        base = {"t": t, "until": t + aoe_life(a),
+                "label": f"{_words(name) if _yes(name) else actor_label(caster)}: "
+                         f"{_words(skill) if _yes(skill) else _words(c.get('skill_id', _MISSING))}"}
+        path, arcs = aoe_extras(a)
+        if path is not None or arcs is not None:                 # never one arc over the safe gaps
+            if arcs is not None and facing is not None:
+                for part in _list(arcs.get("segments")):
+                    a0 = _n(part[0] if isinstance(part, list) and part else _MISSING)
+                    a1 = _n(part[1] if isinstance(part, list) and len(part) > 1 else _MISSING)
+                    out.append({**base, "until": t + aoe_life(arcs), "shape": "cone", "x": bx, "y": by,
+                                "radius": scale(_n(arcs.get("radius", _MISSING))), "angle": (a1 - a0) / 2,
+                                "facing": _n(facing) + (a0 + a1) / 2})
+            if path is not None:
+                span = path.get("span", _MISSING)
+                p0 = _world_at(tokens[source], t)
+                p1 = _world_at(tokens[source], t + (_n(span) if _yes(span) else 0))
+                if p0 and p1:
+                    x0, y0 = _at(at, p0)
+                    length = js_hypot(p1["x"] - p0["x"], p1["y"] - p0["y"])
+                    if length > 0:
+                        half = path.get("half_width", _MISSING)
+                        out.append({**base, "until": t + area_life(a), "shape": "line", "x": x0, "y": y0,
+                                    "length": scale(length), "width": 2 * scale(_n(half) if _yes(half) else 0),
+                                    "facing": math.atan2(p1["y"] - p0["y"], p1["x"] - p0["x"]) * 180 / math.pi})
+            continue
+        shape = a.get("shape")
+        radius = scale(_n(a.get("radius", _MISSING)))
+        if shape == "circle_aim":
+            out.append({**base, "shape": "circle", "x": ax, "y": ay, "radius": radius})
+        elif shape == "circle_caster" or (shape == "cone" and _n(a.get("angle", _MISSING)) >= 180):
+            out.append({**base, "shape": "circle", "x": bx, "y": by, "radius": radius})
+        elif shape == "ring":
+            out.append({**base, "shape": "ring", "x": bx, "y": by, "radius": radius,
+                        "inner": scale(_n(a.get("inner", _MISSING)))})
+        elif facing is not None and shape == "cone":
+            out.append({**base, "shape": "cone", "x": bx, "y": by, "radius": radius, "angle": a.get("angle", _MISSING),
+                        "facing": facing})
+        elif facing is not None and shape == "line":
+            out.append({**base, "shape": "line", "x": bx, "y": by, "length": scale(_n(a.get("length", _MISSING))),
+                        "width": 2 * scale(_n(a.get("half_width", _MISSING))), "facing": facing})
+    return out
+
+
+def plan_of(name, duration, tokens: dict, order: list, r: dict, at, room, shape: str, colours=None,
+            hidden=lambda key: False, areas=()) -> dict:
+    """``planOf``: a Raid Planner plan (an a2plan) from a fight's movement (``tokens``: each entity's positions in time
+    order, drawn in ``order``). Every player, pet and enemy that moved becomes a token that moves as it did, on the map
+    from its first position (an add or a summon that came mid-fight) until 8 s after its last, as the replay fades it;
+    each of ``areas`` an area token of its shape for as long as the replay draws it. The plan's map is the fight's
+    arena (``room``: its square, which a circle arena fills), or without one the whole view."""
+    if room:
+        ox, oy, size = room["x"] - room["r"], room["y"] - room["r"], 2 * room["r"]
+    else:
+        ox, oy, size = 0, 0, 100
+
+    def share(v: float) -> float:
+        return _round(1e4 * v / size) / 1e4 if size else math.nan
+
+    def place(x: float, y: float) -> tuple[float, float]:
+        return (_unit((x - ox) / size), _unit((y - oy) / size)) if size else (math.nan, math.nan)
+    length = _n(duration)
+    plan_tokens = []
+    for key in order:
+        frames, e = tokens[key], r.get(key)
+        cls = _of(e, "class")
+        token = {"id": _words(key), "kind": "enemy" if _of(e, "kind") == "enemy" else "player",
+                 "label": actor_label(e), "cls": cls, "color": class_colour(None if cls is _MISSING else cls, colours)}
+        if hidden(key):
+            token["hidden"] = True
+        if frames and frames[0]["t"] > 1:
+            token["from"] = _tenth(frames[0]["t"])
+        if frames and frames[-1]["t"] + PLAN_FADE < length:
+            token["until"] = _tenth(frames[-1]["t"] + PLAN_FADE)
+        keyframes = []
+        for p in frames:
+            x, y = at(p)[:2]
+            kx, ky = place(x, y)
+            keyframes.append({"t": p["t"], "x": kx, "y": ky})
+        token["keyframes"] = keyframes
+        plan_tokens.append(token)
+    for i, a in enumerate(areas):
+        reach = next((v for v in (a.get("radius", _MISSING), a.get("length", _MISSING)) if _yes(v)), 0)
+        token = {"id": f"aoe:{i}", "kind": "aoe", "label": a["label"], "color": AREA_RED, "shape": a["shape"],
+                 "radius": share(_n(reach))}
+        if _yes(a.get("inner", _MISSING)):
+            token["inner"] = share(_n(a["inner"]))
+        if a["shape"] == "cone":
+            token["angle"] = a.get("angle", _MISSING)
+        if a["shape"] == "line":
+            token["length"], token["width"] = share(_n(a.get("length", _MISSING))), share(_n(a.get("width", _MISSING)))
+        if a.get("facing") is not None:
+            token["facing"] = _tenth(a["facing"])
+        x, y = place(_n(a["x"]), _n(a["y"]))
+        token.update({"from": _tenth(a["t"]), "until": _tenth(a["until"]),
+                      "keyframes": [{"t": _tenth(a["t"]), "x": x, "y": y}]})
+        plan_tokens.append(token)
+    return {"format": "a2plan", "version": 1, "meta": {"name": name if _yes(name) else RECORDED_REPLAY},
+            "duration": duration, "arena": {"kind": shape if room else "square"}, "tokens": plan_tokens, "buffs": []}
+
+
+def movement_fights(doc) -> list[dict]:
+    """``movementFights``: the fights of a recording that hold recorded movement, each with its place in the
+    recording, its name (its boss, its label, else Fight n), its length, how many positions and whether a boss
+    fought."""
+    out = []
+    for index, s in enumerate(_list(_of(doc, "segments"))):
+        s = _dict(s)
+        boss, label, duration = s.get("boss", _MISSING), s.get("label", _MISSING), s.get("duration", _MISSING)
+        positions = len(_list(s.get("movement")))
+        if positions:
+            out.append({"index": index, "name": boss if _yes(boss) else label if _yes(label) else f"Fight {index + 1}",
+                        "duration": duration if _yes(duration) else 0, "positions": positions,
+                        "boss": _yes(boss) or any(_yes(_of(e, "is_boss")) for e in _list(s.get("entities")))})
+    return out
+
+
+def movement_plan(doc, index, shape: str, shapes=None, colours=None) -> dict:
+    """``movementPlan``: one fight of a recording as a plan, as the replay's Open in Raid Planner makes it (the arena in
+    the shape last chosen in a replay); ValueError when the fight holds no movement."""
+    segments = _of(doc, "segments")
+    segment = segments[index] if isinstance(segments, list) and isinstance(index, int) and not isinstance(index, bool) \
+        and 0 <= index < len(segments) else _MISSING
+    world = _placed(_of(segment, "movement"))
+    if not world:
+        raise ValueError(NO_FIGHT_MOVEMENT)
+    r = segment_refs(doc, segment, True)
+    at, rooms, scale = frame_movement(world, lambda key: _yes(_of(r.get(key), "is_boss")), _yes(segment.get("boss")))
+    tokens: dict = {}
+    for p in world:
+        tokens.setdefault(p.get("entity"), []).append(p)
+    for frames in tokens.values():
+        frames.sort(key=lambda p: p["t"])
+    boss = segment.get("boss", _MISSING)
+    return plan_of(boss if _yes(boss) else segment.get("label", _MISSING), segment.get("duration", _MISSING), tokens,
+                   js_key_order(tokens), r, at, rooms.get(shape) if rooms else None, shape, colours,
+                   areas=cast_areas(segment, tokens, r, at, scale, shapes))
 
 
 class Replay:
@@ -1018,6 +1289,16 @@ class Replay:
                         "text": actor_label(self.r.get(k)) + (f" · {js_string(cls)[:1].upper()}{js_string(cls)[1:]}"
                                                               if _truthy(cls) else "")})
         return "Players", out
+
+    def plan(self, shape: str) -> dict:
+        """The replay as a Raid Planner plan (Open in Raid Planner): what the key shows of it, on the arena in
+        ``shape``, with the measured areas while the key shows the casts and their areas."""
+        boss = self.segment.get("boss", _MISSING)
+        areas = (cast_areas(self.segment, self.tokens, self.r, self.at, self.scale, self.shapes, self.shown)
+                 if self.world and "casts" not in self.hidden and "aoe" not in self.hidden else [])
+        return plan_of(boss if _yes(boss) else self.segment.get("label", _MISSING), self.segment.get("duration", _MISSING),
+                       self.tokens, self.order, self.r, self.at, self.rooms.get(shape) if self.rooms else None, shape,
+                       self.colours, hidden=lambda key: not self.shown(key), areas=areas)
 
     def frame(self, t: float) -> list[dict]:
         """The tokens drawn at ``t`` (``draw``), in drawing order: each with its place, radius, colour, how opaque, the

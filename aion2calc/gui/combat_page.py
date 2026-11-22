@@ -91,16 +91,16 @@ class CombatPage(QWidget):
     ``choose_backup`` and ``save_file`` stand in for the file dialogs (a log to analyze, a recovery file or a private
     backup to import, where an export goes), ``confirm`` for the questions and ``open_link`` for the browser; ``store``
     keeps the choices the web page keeps in its browser; ``identity_call`` sends a request to the share server's
-    identity routes; ``open_in_web`` opens a page in the web interface itself, even one drawn here (a log's full
-    review)."""
+    identity routes; ``open_builds`` opens a log's character in Builds and ``open_replay`` a log's movement replay in
+    the Raid Planner."""
 
     def __init__(self, api: AppApi | None, open_web=None, choose_file=None, open_link=None, parent: QWidget | None = None,
                  store=None, choose_recovery=None, save_file=None, choose_backup=None, confirm=None, identity_call=None,
-                 open_in_web=None, open_builds=None):
+                 open_builds=None, open_replay=None):
         super().__init__(parent)
         self.open_builds = open_builds                   # a log's character opened in Builds (0.2.489)
+        self.open_replay = open_replay                   # a log's movement replay opened in the Raid Planner (0.2.492)
         self.api, self.open_web, self.store = api, open_web, store
-        self.open_in_web = open_in_web or open_web
         self.choose_file = choose_file or self._ask_file
         self.choose_recovery, self.save_file, self.choose_backup = choose_recovery, save_file, choose_backup
         self.confirm, self.identity_call = confirm, identity_call
@@ -268,8 +268,9 @@ class CombatPage(QWidget):
     def _review(self) -> ReviewPage:
         """A log's own page, drawn when first opened and kept."""
         if self.review_page is None:
-            self.review_page = ReviewPage(self.api, self.open_web, self.open_in_web, pictures=self.pictures, store=self.store,
-                                          open_builds=self._to_builds if self.open_builds is not None else None)
+            self.review_page = ReviewPage(self.api, self.open_web, pictures=self.pictures, store=self.store,
+                                          open_builds=self._to_builds if self.open_builds is not None else None,
+                                          open_replay=self.open_replay)
             self.review_page.uploaded.connect(self._uploaded)          # My Uploads read again (``a2log-uploaded``)
             self.featured_line.addWidget(self.review_page)
         return self.review_page

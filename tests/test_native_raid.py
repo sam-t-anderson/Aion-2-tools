@@ -364,7 +364,9 @@ def test_files_codes_and_an_ownership_backup(made, tmp_path):
     assert page.id != shown and page.plan_box.currentText() == "From file"
     assert import_text(json.dumps({"format": "other"})) == r.NOT_A_PLAN
     assert import_text("null") == "Cannot read properties of null (reading 'format')"
-    assert import_text(json.dumps({"format": "a2log"})) == rp.MOVEMENT_ELSEWHERE
+    assert import_text(json.dumps({"format": "a2log"})) == r.NO_MOVEMENT                  # a recording: its fights offered
+    assert page.moves == {"file": "in.json", "doc": {"format": "a2log"}, "fights": []}
+    assert r.no_fight_words("in.json") in _texts(page)
     assert import_text(json.dumps({"format": "a2plan-owner", "owner": {"id": "x"}, "plan": {"format": "a2plan"}})) == r.BAD_OWNER
     owner = {"id": "abc123", "edit_token": "t" * 24, "revision": 2, "server": "https://logs.example",
              "url": "https://logs.example/plans/abc123"}
@@ -391,15 +393,12 @@ def test_the_window_draws_the_raid_planner_and_stops_its_playback_when_left(qapp
     from aion2calc.gui.window import MainWindow
     monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
     monkeypatch.setattr(interface, "_shared", interface._Shared())
-    opened = []
     window = MainWindow(None)
     page = window.page("raid")
     assert isinstance(page, rp.RaidPage)
-    page.open_web = opened.append
     window.show_page("raid")
     page.mount()
-    _button(page, rp.OPEN_WEB).click()
-    assert opened == ["raid"]
+    assert not [b_ for b_ in page.findChildren(QPushButton) if "web" in b_.accessibleName()]   # nothing left to the web
     page.play()
     window.show_page("timers")
     assert not page.playing and not page.mounted
@@ -541,3 +540,198 @@ def test_published_plans_browsed_filtered_and_opened(online):
     assert settle(lambda: page.browse_frame.isVisible())
     _button(page, r.BACK).click()
     assert page.frame.isVisible() and page.browsing is None
+
+
+# ------------------------------------------------------------------ a fight compared, recorded movement, a replay (0.2.492)
+def test_the_fight_compared_and_the_recordings_words(tmp_path):
+    from aion2calc.gui.news import when
+    e = {"id": 7, "player": "Ann", "boss": "Ice Queen", "duration": 119.5}
+    assert r.fight_option(e) == ("#7 Ann Ice Queen 120s", "7")
+    assert r.fight_option({"id": 8, "boss": ""}) == ("#8 0s", "8")         # white space run together, as a select shows it
+    actual = r.actual_of({"rotation": [[1.5, "Slash"], [1.7, "Stab"], [30, "Slash"]], "summary": {"duration": 125.2}},
+                         "7", e, 60)
+    assert actual == {"id": 7, "rotation": [[1.5, "Slash"], [1.7, "Stab"], [30, "Slash"]], "buffs": [], "duration": 125.2,
+                      "boss": "Ice Queen", "npc_id": b._MISSING, "map_id": b._MISSING}
+    assert r.actual_of({}, "9", {}, "60")["duration"] == "60"                # the plan's own length
+    assert r.fight_chosen(actual, e) and not r.fight_chosen(actual, {"id": "7"}) and not r.fight_chosen(None, e)
+    assert r.fight_meta([{"id": "7", "boss": "X"}], "7.0") == {"id": "7", "boss": "X"} and r.fight_meta([], "7") == {}
+    assert r.cast_ticks(actual, 150) == [1.0, 100 * 1.7 / 150, 20.0]
+    assert r.casts_now(actual, 1.6) == ["Slash", "Stab"] and r.casts_now(actual, 10) == []
+    assert r.offers_fight(actual) and not r.offers_fight({"boss": "", "npc_id": 0}) and not r.offers_fight(None)
+    # Use selected fight: its boss, NPC and map, cleaned; what the fight does not name is left out
+    assert r.fight_encounter({"boss": "Old", "map_id": 3}, {"boss": "Ice Queen", "npc_id": "215755"}) == {
+        "npc_id": 215755, "boss": "Ice Queen"}
+    rows = r.recording_rows({"rows": [
+        {"file": "a.a2log.json", "updated": NOW / 1000, "contexts": [
+            {"movement": 0, "boss": "X"}, {"movement": 5, "boss": "Ice Queen"}, {"movement": 3, "label": "Run 2"},
+            {"movement": 1}, {"movement": 2, "boss": "Z"}]},
+        {"file": "b.a2log.json", "updated": NOW / 1000, "contexts": [{"movement": 0}]}]})
+    assert rows == [{"id": "a.a2log.json", "label": f"{when(NOW)} · Ice Queen, Run 2, fight +1"}]
+    assert r.recording_rows({}) == [] and r.recording_rows({"rows": [{"contexts": [{"movement": 1}]}]})[0]["label"] == "— · fight"
+    assert r.fight_to_import({"name": "Ice Queen", "duration": 59.5}) == "Ice Queen · 60 s"
+    assert r.no_fight_words("x.a2log.json").startswith("No fight in x.a2log.json holds recorded movement")
+    assert r.no_fight_words(b._MISSING).startswith("No fight in this recording holds")
+    assert r.showing_words("Mine") == "The planner is showing Mine, a plan you have worked on. What should happen to it?"
+    # a replay kept as a new plan, the one shown next
+    store = QSettings(str(tmp_path / "interface.ini"), QSettings.IniFormat)
+    with pytest.raises(r.PlanError, match=r.INVALID_REPLAY):
+        r.store_replay(store, {"format": "a2plan"}, NOW)
+    replay = {"format": "a2plan", "meta": {"name": "Replay", "updated": 1}, "tokens": [], "encounter": {"npc_id": "12"}}
+    assert r.store_replay(store, replay, NOW, make_id=lambda: "abc1234") == "abc1234"
+    assert store.value(r.CURRENT) == "abc1234" and replay["meta"]["updated"] == 1             # a copy kept
+    assert _plans(store)["abc1234"] == {"format": "a2plan", "meta": {"name": "Replay", "updated": NOW}, "tokens": [],
+                                        "encounter": {"npc_id": 12}}
+
+
+@pytest.fixture
+def fights(qapp, tmp_path):
+    """A Raid Planner whose app has saved fights to compare and saved recordings with movement."""
+    from test_native_replay import CATALOG, _casting
+    from test_native_settings import _refused
+    rows = [{"file": "a.a2log.json", "updated": NOW / 1000, "contexts": [{"movement": 20, "boss": "Ice Queen"}]},
+            {"file": "empty.a2log.json", "updated": NOW / 1000, "contexts": [{"movement": 3}]},
+            {"file": "bad.a2log.json", "updated": NOW / 1000, "contexts": [{"movement": 3, "label": "Lost"}]}]
+    fake = FakeApp({("POST", "/api/plans/saved", None): {"ok": True}, ("GET", "/api/logserver", None): {"url": ""},
+                    ("GET", "/api/encounters", None): [[{"id": 7, "player": "Ann", "boss": "Ice Queen", "duration": 119.5},
+                                                        {"id": 8, "player": "Bo", "boss": "", "duration": 30}]],
+                    ("GET", "/api/encounters/7", None): {"rotation": [[1.5, "Slash"], [1.7, "Stab"], [100, "Slash"]],
+                                                         "summary": {"duration": 125.2}},
+                    ("GET", "/api/encounters/8", None): _refused("/api/encounters/8", 404, "Encounter 8 not found"),
+                    ("GET", r.RECORDINGS_PATH, None): {"rows": rows},
+                    ("GET", "/api/sessions?file=a.a2log.json", None): _casting(),
+                    ("GET", "/api/sessions?file=empty.a2log.json", None): {"format": "a2log", "segments": [{"duration": 9}]},
+                    ("GET", "/api/sessions?file=bad.a2log.json", None): _refused("/api/sessions", 500, "OSError: unreadable"),
+                    ("GET", "/static/aoe-shapes.json", None): {"shapes": CATALOG}})
+    store = QSettings(str(tmp_path / "interface.ini"), QSettings.IniFormat)
+    page = rp.RaidPage(fake, store=store, now=lambda: NOW, pick=Picks())
+    page.resize(1400, 1000)
+    page.show()
+    assert settle(lambda: page.plan is not None and page.aoe_shapes is not None)
+    yield page, fake, store
+    page.close()
+
+
+def _choose(box, index):
+    box.setCurrentIndex(index)
+    box.activated.emit(index)
+
+
+def test_a_saved_fight_compared_on_the_plans_timeline(fights):
+    page, fake, store = fights
+    assert settle(lambda: page.fight_box.count() == 3)
+    assert [page.fight_box.itemText(i) for i in range(3)] == [r.NO_FIGHT, "#7 Ann Ice Queen 120s", "#8 Bo 30s"]
+    assert r.COMPARE_HEAD in _texts(page) and r.COMPARE_NOTE in _texts(page) and not page.cast_row.isVisible()
+    # a fight chosen: its casts on their lane, the plan lengthened to hold it (to the whole second)
+    _choose(page.fight_box, 1)
+    assert settle(lambda: page.actual is not None)
+    assert fake.sent("GET")[-1][1] == "/api/encounters/7"
+    assert page.plan["duration"] == 126 and _plans(store)[page.id]["duration"] == 126
+    assert page.cast_row.isVisible() and page.cast_lane.ticks == [100 * 1.5 / 126, 100 * 1.7 / 126, 100 * 100 / 126]
+    assert page.fight_box.currentIndex() == 1                                  # drawn again with the fight chosen
+    page.go_to(1.6)
+    assert page.cast_chips == ["Slash", "Stab"] and r.CASTS_NOW in _texts(page)
+    page.go_to(50)
+    assert page.cast_chips == [] and r.NO_CASTS in _texts(page)
+    # Use selected fight: the plan's boss, as the fight names it
+    _button(page, r.USE_FIGHT).click()
+    assert page.plan["encounter"] == {"boss": "Ice Queen"} and _plans(store)[page.id]["encounter"] == {"boss": "Ice Queen"}
+    # one the app cannot read: said; none: the lane gone; another plan: the fight let go
+    _choose(page.fight_box, 2)
+    assert settle(lambda: page.toast.text() == "Encounter 8 not found") and page.actual is not None
+    _choose(page.fight_box, 0)
+    assert page.actual is None and not page.cast_row.isVisible() and not page.casts_now.isVisible()
+    _choose(page.fight_box, 1)
+    assert settle(lambda: page.actual is not None)
+    page.new_plan()
+    assert page.actual is None and not page.cast_row.isVisible()
+
+
+def test_recorded_movement_imported_as_a_new_plan(fights):
+    page, fake, store = fights
+    from aion2calc.gui.news import when
+    assert settle(lambda: page.moves_box.count() == 4)
+    assert [page.moves_box.itemText(i) for i in range(4)] == [r.CHOOSE_RECORDING, f"{when(NOW)} · Ice Queen",
+                                                              f"{when(NOW)} · fight", f"{when(NOW)} · Lost"]
+    assert r.MOVES_HEAD in _texts(page) and r.MOVES_NOTE in _texts(page)
+    shown = page.id
+    _choose(page.moves_box, 1)
+    assert page.moves == {"id": "a.a2log.json", "loading": True} and r.LOADING_RECORDING in _texts(page)
+    assert settle(lambda: page.fight_pick is not None)
+    assert fake.sent("GET")[-1][1] == "/api/sessions?file=a.a2log.json" and page.moves_box.currentIndex() == 1
+    assert [page.fight_pick.itemText(i) for i in range(page.fight_pick.count())] == ["Ice Queen · 120 s"]
+    _button(page, r.IMPORT_FIGHT).click()
+    assert page.toast.text() == r.MOVES_IMPORTED and page.moves is None and page.id != shown
+    plan = _plans(store)[page.id]
+    assert plan["meta"] == {"name": "Ice Queen", "updated": NOW} and plan["arena"] == {"kind": "circle"}
+    assert len(plan["tokens"]) == 19 and plan["duration"] == 120 and page.plan_box.currentText() == "Ice Queen"
+    assert [t["label"] for t in plan["tokens"]][:3] == ["Ice Queen", "TestSorc ✓ · Zikel", "TestCleric"]
+    assert [t["kind"] for t in plan["tokens"]].count("aoe") == 12                     # the bosses' measured areas
+    # a recording without movement, one the app cannot read, and none
+    _choose(page.moves_box, 2)
+    assert settle(lambda: page.moves.get("fights") == [])
+    assert r.no_fight_words(b._MISSING) in _texts(page) and page.fight_pick is None
+    _choose(page.moves_box, 3)
+    assert settle(lambda: page.moves.get("error") == "OSError: unreadable") and "OSError: unreadable" in _texts(page)
+    _choose(page.moves_box, 0)
+    assert page.moves is None and r.LOADING_RECORDING not in _texts(page)
+
+
+def test_a_recording_given_to_import_file(made, tmp_path):
+    from test_native_replay import _casting
+    page, fake, store, asked, chosen, picks = made
+    path = tmp_path / "session-1.a2log.json"
+    path.write_text(json.dumps({**_casting(), "format": "a2log"}), encoding="utf-8")
+    chosen["file"] = str(path)
+    page.import_file()
+    assert page.toast.text() == r.CHOOSE_FIGHT and page.moves["file"] == "session-1.a2log.json"
+    assert page.moves_box.currentIndex() == 0                                  # no saved recording chosen
+    _button(page, r.IMPORT_FIGHT).click()
+    assert page.toast.text() == r.MOVES_IMPORTED and page.plan["meta"]["name"] == "Ice Queen"
+    assert [t["kind"] for t in page.plan["tokens"]].count("aoe") == 0           # no catalog of areas from this app
+    path.write_text(json.dumps({"format": "a2log", "segments": [{"duration": 3}]}), encoding="utf-8")
+    page.import_file()
+    assert page.toast.text() == r.NO_MOVEMENT and r.no_fight_words("session-1.a2log.json") in _texts(page)
+
+
+def test_a_replay_opened_in_the_planner(made):
+    page, fake, store, asked, chosen, picks = made
+    first = page.id                                                    # "My first plan", untouched
+    replay = {"format": "a2plan", "version": 1, "meta": {"name": "Recorded replay"}, "duration": 30,
+              "arena": {"kind": "square"}, "tokens": [{"id": "b1", "kind": "enemy", "keyframes": [{"t": 0, "x": 0.5, "y": 0.5}]}],
+              "buffs": []}
+    work = []
+    page.ask_work = lambda name: work.append(name) or "keep"
+    assert page.open_replay(replay) is True
+    assert work == [] and first not in _plans(store) and page.plan["meta"] == {"name": "Recorded replay", "updated": NOW}
+    assert store.value(r.CURRENT) == page.id and page.plan_box.currentText() == "Recorded replay"
+    # a plan worked on: asked first, then kept, discarded, or nothing done
+    assert page.open_replay(replay) is True and work == ["Recorded replay"] and len(_plans(store)) == 2
+    page.ask_work = lambda name: "discard"
+    kept = set(_plans(store))
+    assert page.open_replay(replay) is True and len(_plans(store)) == 2 and len(kept & set(_plans(store))) == 1
+    page.ask_work = lambda name: "cancel"
+    shown = page.id
+    assert page.open_replay(replay) is False and page.id == shown and len(_plans(store)) == 2
+    with pytest.raises(r.PlanError, match=r.INVALID_REPLAY):
+        page.ask_work = lambda name: "keep"
+        page.open_replay({"format": "a2plan", "tokens": None})
+
+
+def test_the_window_opens_a_replay_in_the_raid_planner(qapp, monkeypatch, tmp_path):
+    from aion2calc.gui import interface
+    from aion2calc.gui.window import MainWindow
+    from test_native_replay import _replay
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
+    monkeypatch.setattr(interface, "_shared", interface._Shared())
+    window = MainWindow(None)
+    window.show()
+    planner = window.page("raid")
+    plan = _replay().plan("circle")
+    assert window.open_replay(plan) is True                          # the starter untouched: it gives way
+    assert window.current_page() == "raid" and planner.plan["meta"]["name"] == "Ice Queen"
+    assert planner.plan_box.currentText() == "Ice Queen" and len(r.raid_plans(planner.store)) == 1
+    # over a plan worked on, cancelled: nothing opens
+    window.show_page("meter")
+    planner.ask_work = lambda name: "cancel"
+    assert window.open_replay(plan) is False and window.current_page() == "meter"
+    window.close()

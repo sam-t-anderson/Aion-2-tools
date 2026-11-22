@@ -1395,8 +1395,7 @@ def test_an_uploads_log_on_its_page(qapp, tmp_path):
     from aion2calc.gui.combat_saved import Section
     app = FakeApp()
     app.opened_log = _parted()                                  # part 2 of a recording
-    web = []
-    page = _page(app, open_in_web=web.append)
+    page = _page(app)
     page.show_list("owned")
     settle(lambda: page.owned is not None and _row_buttons(page.owned, "Review"))
     read = len(app.calls)
@@ -1418,10 +1417,9 @@ def test_an_uploads_log_on_its_page(qapp, tmp_path):
     folds = [f.button.accessibleName() for f in view.findChildren(Section) if f.isVisibleTo(view)]
     assert not [f for f in folds if f in (cw.PARTS_HEAD, cw.METADATA_HEAD, cw.PUBLISH_HEAD, cw.REPORT_HEAD)]
     assert cw.context_line(view.doc, cw.segments(view.doc)[0]) in labels             # the metadata's line alone
-    # the replay's Raid Planner file: the web interface's My Uploads, which reviews the upload there too
-    assert cw.ELSEWHERE_OPENED in labels and cw.ELSEWHERE not in labels
-    _click(view, cw.OPEN_WEB_OPENED)
-    assert web == ["combat/owned"]
+    # the review is whole since 0.2.492: no note or button to the web interface
+    assert not [t for t in labels if "web interface" in t]
+    assert not [b for b in view.findChildren(QPushButton) if "web interface" in b.text()]
     # another encounter chosen: its parses asked for with the log again
     view.open_segment(1)
     settle(lambda: len([p_ for p_, _b in app.log_server.posted if p_ == "/api/v1/rankings"]) == 2)
@@ -2473,9 +2471,9 @@ def _summary_cell(view, row, column):
 
 def test_a_shared_log_review(qapp):
     from aion2calc.gui.combat_review_page import ReviewPage
-    opened, web = [], []
+    opened = []
     app = FakeApp()
-    page = _page(app, open_web=opened.append, open_in_web=web.append)
+    page = _page(app, open_web=opened.append)
     page.open_review("shared", "log0001")
     view = page.review_page
     assert isinstance(view, ReviewPage)
@@ -2486,7 +2484,7 @@ def test_a_shared_log_review(qapp):
     # the page's paint metrics are Qt's own (``QWidget.metric``): asking for them leaves the metric chosen as it was
     assert view.logicalDpiY() > 0 and view.state["metric"] == "summary"
     texts = _labels(view)
-    assert all(t in texts for t in ("120.0s", "Run r1 · Finished · boss killed", cw.ELSEWHERE, "No markers"))
+    assert all(t in texts for t in ("120.0s", "Run r1 · Finished · boss killed", "No markers"))
     assert any(t.startswith("Installed game version: 2.1.0.3") for t in texts)
     assert any(t.startswith("Heals over time rebuilt: 2 heal records") for t in texts)
     assert "<span style='color: #123456;'>TestSorc ✓ · Zikel</span>" in texts          # the user's sorcerer colour
@@ -2519,9 +2517,6 @@ def test_a_shared_log_review(qapp):
     assert any("Recorded: 1 hit of theirs" in t for t in texts) and "PARSE" not in _cells(view) + [
         h.text() for h in view.summary.findChildren(QLabel) if h.objectName() == "thead"]
     assert any(t.startswith("An opponent's figures") for t in texts)
-    # the full review in the web interface, at this encounter
-    _click(view, cw.OPEN_WEB)
-    assert web == ["combat-log/shared/log0001?mode=&segment=1"]
     # the parses read again; another log the server links the fight to
     count = asked.count("/api/v1/logs/log0001/rankings?segment=1")
     _choose(view, "Player", "")

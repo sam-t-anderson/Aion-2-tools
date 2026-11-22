@@ -743,3 +743,158 @@ def import_refusal(p):
     if isinstance(p, str):
         return f"Cannot create property 'meta' on string '{p}'"
     return NOT_A_PLAN
+
+
+# ------------------------------------------------------------------ a saved fight compared, recorded movement (0.2.492)
+COMPARE_HEAD = "COMPARE WITH A FIGHT"
+NO_FIGHT, FIGHT_NAME = "— none —", "Saved fight to compare with"
+COMPARE_NOTE = ("Overlay a saved combat log so its skill casts and buff windows play on the same timeline. Choose "
+                "visibility before publishing; attaching a fight shares its timeline too.")
+USE_FIGHT = "Use selected fight"
+ACTUAL_LANE = "Actual casts"
+CASTS_NOW, NO_CASTS = "Casts:", "—"
+MOVES_HEAD = "IMPORT RECORDED MOVEMENT"
+CHOOSE_RECORDING, RECORDING_NAME = "Choose a saved recording…", "Saved recording to import movement from"
+LOADING_RECORDING = "Loading the recording…"
+FIGHT_TO_IMPORT, IMPORT_FIGHT = "Fight to import", "Import"
+MOVES_NOTE = ("The fight becomes a new plan: each player, pet and enemy moves as it did, on the fight's arena. Import "
+              "file takes a recording (.a2log.json) too.")
+MOVES_IMPORTED = "Recorded movement imported as a new plan"
+CHOOSE_FIGHT, NO_MOVEMENT = "Choose the fight to import under Import recorded movement", "This recording holds no movement"
+INVALID_REPLAY = "Invalid replay plan"
+# the replay opened in the planner over a plan worked on (``askAboutWork``)
+ASK_REPLAY = "Open the replay in the Raid Planner?"
+KEEP, DISCARD, CANCEL = "Keep it and open the replay", "Discard it and open the replay", "Cancel"
+REPLAY_NOTE = "A kept plan stays in the planner's Plan list; the replay opens as a new plan."
+RECORDINGS_PATH = "/api/sessions?paged=1&offset=0&limit=100"
+
+
+def shown_text(words: str) -> str:
+    """An option's words as a ``select`` shows them (``option.text``): ASCII white space run together and trimmed."""
+    return re.sub(r"[\t\n\f\r ]+", " ", words).strip("\t\n\f\r ")
+
+
+def fight_option(e) -> tuple[str, str]:
+    """A saved fight to compare with (``#ractual``'s option): ``#id player boss 60s``, and its value (the id)."""
+    key, player, boss = get(e, "id", _MISSING), get(e, "player", _MISSING), get(e, "boss", _MISSING)
+    words = (f"#{text(key)} {text(player if yes(player) else '')} {text(boss if yes(boss) else '')} "
+             f"{fixed(num(get(e, 'duration', _MISSING)), 0)}s")
+    return shown_text(words), text(key)
+
+
+def fight_chosen(actual, e) -> bool:
+    """The option shown chosen: the fight compared (``st.actual.id === e.id``, a number against the list's id)."""
+    return actual is not None and strictly(actual["id"], get(e, "id", _MISSING))
+
+
+def _number_key(value) -> float:
+    """``+value`` as the fight's id compares."""
+    return number_of(value)
+
+
+def fight_meta(encounters, key) -> dict:
+    """The fight's row in the list (``find((x) => +x.id === +id) || {}``)."""
+    n = _number_key(key)
+    return next((x for x in _list(encounters) if _number_key(get(x, "id", _MISSING)) == n), {})
+
+
+def actual_of(answer, key, meta, length) -> dict:
+    """``st.actual``, the fight compared: its id, its casts (``rotation``, [time, skill] each), its buffs, its length
+    (the plan's when it gives none), and its boss, NPC and map as the analysis or the list give them."""
+    summary = get(answer, "summary", _MISSING)
+
+    def either(*values):
+        for value in values:
+            if yes(value):
+                return value
+        return values[-1]
+    rotation, buffs = get(answer, "rotation", _MISSING), get(answer, "buffs", _MISSING)
+    return {"id": _plain(_number_key(key)), "rotation": rotation if yes(rotation) else [],
+            "buffs": buffs if yes(buffs) else [], "duration": either(get(summary, "duration", _MISSING), length),
+            "boss": either(get(answer, "boss", _MISSING), get(summary, "boss", _MISSING), get(meta, "boss", _MISSING)),
+            "npc_id": either(get(answer, "npc_id", _MISSING), get(summary, "npc_id", _MISSING)),
+            "map_id": either(get(answer, "map_id", _MISSING), get(summary, "map_id", _MISSING))}
+
+
+def _cast_time(cast) -> float:
+    """A cast's time (``([ct]) => ct``)."""
+    return number_of(cast[0] if isinstance(cast, list) and cast else _MISSING)
+
+
+def cast_ticks(actual, length: float) -> list[float]:
+    """The Actual casts lane's ticks: each cast's place along the plan, in percent (``100 * ct / dur``)."""
+    return [100 * _cast_time(c) / length for c in _list(actual.get("rotation"))]
+
+
+def casts_now(actual, t: float) -> list[str]:
+    """``Casts:``: the skills cast within 0.4 s of the moment."""
+    return [text(c[1] if isinstance(c, list) and len(c) > 1 else _MISSING) for c in _list(actual.get("rotation"))
+            if abs(_cast_time(c) - t) < 0.4]
+
+
+def fight_encounter(enc, actual) -> dict:
+    """Use selected fight: the plan's boss, NPC and map from the fight compared, cleaned."""
+    out = dict(enc) if isinstance(enc, dict) else {}
+    for key in ("boss", "npc_id", "map_id"):
+        out[key] = (actual or {}).get(key, _MISSING)
+    return clean_encounter({k: v for k, v in out.items() if v is not _MISSING})
+
+
+def offers_fight(actual) -> bool:
+    """Whether the header offers Use selected fight: a fight compared that names its boss or NPC."""
+    return actual is not None and (yes(actual.get("boss", _MISSING)) or yes(actual.get("npc_id", _MISSING)))
+
+
+def recording_rows(answer) -> list[dict]:
+    """``io.recordings()``: the saved recordings with movement, newest first, each as its file and a label of when it
+    was saved and its first three fights (``+n`` more)."""
+    from .news import when
+    out = []
+    for row in _list(get(answer, "rows", _MISSING)):
+        fights = [c for c in _list(get(row, "contexts", _MISSING)) if yes(get(c, "movement", _MISSING))]
+        if not fights:
+            continue
+        names = []
+        for c in fights[:3]:
+            boss, label = get(c, "boss", _MISSING), get(c, "label", _MISSING)
+            names.append(text(boss if yes(boss) else label if yes(label) else "fight"))
+        more = f" +{len(fights) - 3}" if len(fights) > 3 else ""
+        out.append({"id": get(row, "file", _MISSING),
+                    "label": f"{when(number_of(get(row, 'updated', _MISSING)) * 1000)} · {', '.join(names)}{more}"})
+    return out
+
+
+def fight_to_import(f) -> str:
+    """A fight of a recording to import (``#rmovefight``'s option): its name and its whole seconds."""
+    return shown_text(f"{text(f['name'])} · {js_string(js_round(num(f['duration'])))} s")
+
+
+def no_fight_words(file) -> str:
+    """A recording without movement in any of its fights."""
+    return (f"No fight in {text(file) if yes(file) else 'this recording'} holds recorded movement (recordings made "
+            "before 0.2.350 have none).")
+
+
+SHOWING = ("The planner is showing ", ", a plan you have worked on. What should happen to it?")
+
+
+def showing_words(name: str) -> str:
+    """The question's words about the plan worked on (``askAboutWork``)."""
+    return SHOWING[0] + name + SHOWING[1]
+
+
+def store_replay(store, plan, now: int, make_id=uid) -> str:
+    """``storeReplay(plan)``: a replay kept as a new plan (a copy, as JSON keeps it), its time of saving now and its
+    encounter cleaned, remembered as the plan shown next; its id. PlanError for one that is not a plan."""
+    if not isinstance(plan, dict) or not strictly(plan.get("format", _MISSING), "a2plan") \
+            or not isinstance(plan.get("tokens"), list):
+        raise PlanError(INVALID_REPLAY)
+    copy = b.parse(b.stringify(plan))
+    meta = copy.get("meta", _MISSING)
+    copy["meta"] = {**(meta if isinstance(meta, dict) else {}), "updated": now}
+    copy["encounter"] = clean_encounter(copy.get("encounter"))
+    plans, key = raid_plans(store), make_id()
+    plans[key] = copy
+    store.setValue(PLANS, b.stringify(plans))              # as the web page keeps it: handed to the app as it opens
+    remember(store, key)
+    return key

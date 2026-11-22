@@ -8,8 +8,11 @@ the buffs and the notes. Each change keeps the plan at once, as the web page doe
 overlay.
 
 Since 0.2.491 it publishes a plan to the log server, updates it, refreshes it and backs up its credential, and
-browses the published plans by boss, as the web page does. A saved fight compared and recorded movement imported are
-drawn on the web Raid Planner for now (its button opens it): the plans are the same.
+browses the published plans by boss, as the web page does.
+
+Since 0.2.492 a saved fight is compared on the plan's timeline (its casts on a lane of their own, and the boss it was
+for given to the plan), a fight's recorded movement is imported as a new plan (from a saved recording, or a recording
+given to Import file), and a log's movement replay opens in the planner as a plan (``openReplay``): the page is whole.
 """
 from __future__ import annotations
 
@@ -28,11 +31,13 @@ from PySide6.QtWidgets import (QBoxLayout, QCheckBox, QColorDialog, QComboBox, Q
                                QSizePolicy, QSlider, QToolTip, QVBoxLayout, QWidget)
 
 from . import builds as b
+from . import combat_replay as moves
 from . import raid as r
 from . import theme
 from .api import AppApi, Requests
 from .builds import _MISSING, get
 from .builds_page import NumberField, _row
+from .combat import encode_component
 from .combat_page import stylesheet as combat_stylesheet
 from .database_page import Window
 from .pets_page import Toast, _clear
@@ -49,7 +54,6 @@ ARENAS = (("square", "Square"), ("circle", "Circle"))
 BOSS, BOSS_HINT, NPC, NPC_HINT = "Boss", "Boss / mini-boss name", "NPC id", "mob code"
 LINK_NOTE = "Link this plan to an encounter so the overlay can auto-play it for that fight."
 EXPORT, IMPORT, COPY_CODE, LOAD_CODE = "Export file", "Import file", "Copy share code", "Load from code"
-OPEN_WEB = "Open the web Raid Planner"
 PUBLISHED = "Published link: "
 ARENA_HINT = "Add players, enemies, markers or AoE zones from the panel, then drag them on the map."
 BACK_TO_START, PLAY, PAUSE = "⏮", "▶ Play", "⏸ Pause"
@@ -67,15 +71,13 @@ SHOWN_BOX, REMOVE = "Shown on the map", "Remove token"
 EACH = "Each token"
 NO_BUFFS, BUFF_HINT, SOURCE, ADD_BUFF = "none yet", "Buff name", "source…", "Add"
 NOTES_HINT = "Callouts, phases, assignments…"
-PANEL_ELSEWHERE = ("Compare with a fight and Import recorded movement are on the web Raid Planner for now. It shows "
-                   "these plans too.")
 # what is said (``toast``) and asked
 COPIED, COPY_FAILED = "Copied to clipboard", "Copy failed"
 IMPORTED, LOADED, NAME_BUFF = "Plan imported", "Plan loaded", "Name the buff"
-MOVEMENT_ELSEWHERE = "Recorded movement is imported on the web Raid Planner for now."
 ASK_DELETE = "Delete this plan?"
 ASK_CODE = "Paste an a2plan share code:"
 TOAST_MS = 1800                                       # raid.js ``toast``'s time
+COLOURS_KEY = "a2-combat-colors"                      # the class colours the web log review reads (``preferences``)
 WIDE = 1000                                           # narrower than this, the panel goes under the map
 
 
@@ -597,6 +599,39 @@ class BuffLane(QWidget):
         return super().event(event)
 
 
+class CastLane(QWidget):
+    """The Actual casts lane (``.lanebody`` with a ``.casttick`` at each cast of the fight compared, along the
+    plan's length)."""
+
+    def __init__(self):
+        super().__init__()
+        self.ticks: list[float] = []                          # each cast's place, in percent of the lane
+        self.setFixedHeight(24)
+        self.setMinimumWidth(60)
+        self.setAccessibleName(r.ACTUAL_LANE)
+
+    def paintEvent(self, _event) -> None:
+        c = theme.COLORS
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        box = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        clip = QPainterPath()
+        clip.addRoundedRect(QRectF(self.rect()), 5, 5)
+        painter.setClipPath(clip)
+        painter.fillRect(self.rect(), theme.qcolor("inset"))
+        inner = QRectF(1, 1, self.width() - 2, self.height() - 2)
+        tick = QColor(c["accent"])
+        tick.setAlphaF(0.7)
+        for left in self.ticks:
+            if math.isfinite(left):
+                painter.fillRect(QRectF(inner.left() + inner.width() * left / 100, inner.top() + 2, 2,
+                                        inner.height() - 4), tick)
+        painter.setClipping(False)
+        painter.setPen(QPen(QColor(c["line"]), 1))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(box, 5, 5)
+
+
 class PlanToast(Toast):
     """raid.js's ``toast``: a word at the foot of the page for 1.8 s."""
 
@@ -630,17 +665,18 @@ def stylesheet() -> str:
 
 
 class RaidPage(QWidget):
-    """Combat → Raid Planner. ``open_web`` opens a page of the web interface; ``store`` keeps the plans (the app's
-    interface data); ``confirm``, ``ask_text``, ``choose_file``, ``save_file``, ``choose_colour`` and ``copy`` stand in
-    for the questions, the file and colour dialogs and the clipboard; ``now`` and ``pick`` for the clock and chance."""
+    """Combat → Raid Planner. ``store`` keeps the plans (the app's interface data); ``confirm``, ``ask_text``,
+    ``ask_work``, ``choose_file``, ``save_file``, ``choose_colour`` and ``copy`` stand in for the questions (the replay's
+    keep, discard or cancel among them), the file and colour dialogs and the clipboard; ``now`` and ``pick`` for the
+    clock and chance."""
 
-    def __init__(self, api: AppApi | None, open_web=None, parent: QWidget | None = None, store=None, confirm=None,
-                 ask_text=None, choose_file=None, save_file=None, choose_colour=None, copy=None, now=None, pick=None):
+    def __init__(self, api: AppApi | None, parent: QWidget | None = None, store=None, confirm=None, ask_text=None,
+                 choose_file=None, save_file=None, choose_colour=None, copy=None, now=None, pick=None, ask_work=None):
         super().__init__(parent)
         self.api = api
-        self.open_web = open_web or (lambda page: None)
         self.store = store if store is not None else interface_store()
         self.confirm = confirm or self._ask
+        self.ask_work = ask_work or self._ask_work
         self.ask_text = ask_text or self._ask_text
         self.choose_file = choose_file or self._ask_file
         self.save_file = save_file or self._ask_where
@@ -662,6 +698,15 @@ class RaidPage(QWidget):
         self.browse_bosses: list = []
         self.browse_chosen = None
         self.cards: list[dict] = []
+        # a saved fight compared (``st.actual``) from the app's saved fights (``st.encounters``); the saved recordings
+        # with movement (``st.recordings``) and the one being imported (``st.moves``); the bosses' measured areas
+        self.encounters: list = []
+        self.recordings: list[dict] = []
+        self.actual: dict | None = None
+        self.moves: dict | None = None
+        self.aoe_shapes: dict | None = None
+        self.fight_box: QComboBox | None = None
+        self.moves_box: QComboBox | None = None
         # raid.js's ``st``: the plan shown, the moment, the speed, the token selected, playing
         self.id = None
         self.plan: dict | None = None
@@ -753,6 +798,27 @@ class RaidPage(QWidget):
         self.now_line.setContentsMargins(0, 0, 0, 0)
         self.now_line.setSpacing(5)
         self.left.addWidget(now)
+        # the fight compared: its casts' lane and those cast at the moment (``#castnow``), while one is compared
+        self.cast_row = QWidget()
+        self.cast_row.setObjectName("plain")
+        cast_line = QHBoxLayout(self.cast_row)
+        cast_line.setContentsMargins(0, 0, 0, 0)
+        cast_line.setSpacing(8)
+        head = _label(r.ACTUAL_LANE.upper(), "rpLane", wrap=False)
+        head.setMinimumWidth(90)
+        head.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        cast_line.addWidget(head)
+        self.cast_lane = CastLane()
+        cast_line.addWidget(self.cast_lane, 1)
+        self.left.addWidget(self.cast_row)
+        self.casts_now = QWidget()
+        self.casts_now.setObjectName("plain")
+        self.cast_words = QHBoxLayout(self.casts_now)
+        self.cast_words.setContentsMargins(0, 0, 0, 0)
+        self.cast_words.setSpacing(5)
+        self.left.addWidget(self.casts_now)
+        self.cast_row.hide()
+        self.casts_now.hide()
         self.left.addStretch(1)
         self.columns.addWidget(left, 1)
         self.panel = QFrame()
@@ -800,6 +866,11 @@ class RaidPage(QWidget):
         self.mount_plan()
         self.share()
         self.ask("logserver", "/api/logserver")
+        self.ask("encounters", "/api/encounters")            # ``io.encounters()``, ``io.recordings()``: none on failure
+        self.ask("recordings", r.RECORDINGS_PATH)
+        if self.aoe_shapes is None and not any(kind == "aoe" for kind, _ctx in self.asked.values()):
+            self.ask("aoe", "/static/aoe-shapes.json")       # the bosses' measured areas, read once for the page
+        self.moves = None
         self.render()
 
     def mount_plan(self) -> None:
@@ -864,6 +935,10 @@ class RaidPage(QWidget):
         self._header(p)
         self._side(p)
         self.lane.bars = r.buff_bars(p, self.length)
+        self.cast_row.setVisible(self.actual is not None)        # ``actualLane``
+        self.casts_now.setVisible(self.actual is not None)
+        self.cast_lane.ticks = r.cast_ticks(self.actual, self.length) if self.actual is not None else []
+        self.cast_lane.update()
         top = max(0, math.floor(round(self.length * 10, 6)))
         self.slider.blockSignals(True)
         self.slider.setRange(0, top)
@@ -906,8 +981,10 @@ class RaidPage(QWidget):
         self.npc_field.setPlaceholderText(NPC_HINT)
         self.npc_field.setAccessibleName(NPC)
         self.npc_field.changed.connect(lambda v: self._encounter("npc_id", v))
-        self.header.addWidget(_row(_label(BOSS, "small", wrap=False), self.boss_edit, _label(NPC, "small", wrap=False),
-                                   self.npc_field, _label(LINK_NOTE, "faint")))
+        boss_row = [_label(BOSS, "small", wrap=False), self.boss_edit, _label(NPC, "small", wrap=False), self.npc_field]
+        if r.offers_fight(self.actual):
+            boss_row.append(_button(r.USE_FIGHT, self.use_fight))
+        self.header.addWidget(_row(*boss_row, _label(LINK_NOTE, "faint")))
         owned = self.owner()
         self.visibility_box = _choice([(v[0].upper() + v[1:], v) for v in r.VISIBILITIES], r.visibility_index(p),
                                       "Plan visibility", self._visibility)
@@ -965,8 +1042,8 @@ class RaidPage(QWidget):
             self._shown(p, tokens)
         self.side.addWidget(_head(BUFFS))
         self._buffs(p)
-        self.side.addWidget(_label(PANEL_ELSEWHERE, "faint"))
-        self.side.addWidget(_row(_button(OPEN_WEB, lambda: self.open_web("raid"))))
+        self._fight_row()
+        self._moves_row()
         self.side.addWidget(_head(NOTES))
         self.notes_edit = QPlainTextEdit()
         self.notes_edit.setObjectName("rpNotes")
@@ -979,6 +1056,69 @@ class RaidPage(QWidget):
         self.notes_edit.kept = self.notes_edit.toPlainText()
         self.notes_edit.installEventFilter(self)
         self.side.addWidget(self.notes_edit)
+
+    def _fight_row(self) -> None:
+        """COMPARE WITH A FIGHT (``fightRow``): the app's saved fights, the one compared chosen."""
+        self.side.addWidget(_head(r.COMPARE_HEAD))
+        self.fight_box = QComboBox()
+        self.fight_box.setAccessibleName(r.FIGHT_NAME)
+        self._fill_fights()
+        self.fight_box.activated.connect(self._fight_chosen)
+        self.side.addWidget(_row(self.fight_box))
+        self.side.addWidget(_label(r.COMPARE_NOTE, "faint"))
+
+    def _fill_fights(self) -> None:
+        box = self.fight_box
+        box.clear()
+        box.addItem(r.NO_FIGHT, "")
+        chosen = 0
+        for e in self.encounters:
+            words, value = r.fight_option(e)
+            box.addItem(words, value)
+            if not chosen and r.fight_chosen(self.actual, e):
+                chosen = box.count() - 1
+        box.setCurrentIndex(chosen)
+
+    def _moves_row(self) -> None:
+        """IMPORT RECORDED MOVEMENT (``movesRow``): the saved recordings with movement, the one loading or why it could
+        not be read, its fights to import (or that none holds movement)."""
+        mv = self.moves or {}
+        self.moves_lines: list[str] = []                     # what the row says of the recording (``role="status"``)
+        self.side.addWidget(_head(r.MOVES_HEAD))
+        self.moves_box = QComboBox()
+        self.moves_box.setAccessibleName(r.RECORDING_NAME)
+        self._fill_recordings()
+        self.moves_box.activated.connect(self._recording_chosen)
+        self.side.addWidget(_row(self.moves_box))
+        self.fight_pick = None
+        if mv.get("loading"):
+            self.moves_lines.append(r.LOADING_RECORDING)
+            self.side.addWidget(_label(r.LOADING_RECORDING, "faint"))
+        if mv.get("error"):
+            self.moves_lines.append(mv["error"])
+            self.side.addWidget(_label(mv["error"], "small"))
+        if mv.get("fights") is not None:
+            if mv["fights"]:
+                self.fight_pick = QComboBox()
+                self.fight_pick.setAccessibleName(r.FIGHT_TO_IMPORT)
+                for f in mv["fights"]:
+                    self.fight_pick.addItem(r.fight_to_import(f), f["index"])
+                self.side.addWidget(_row(self.fight_pick, _button(r.IMPORT_FIGHT, self.import_moves, "primary")))
+            else:
+                self.moves_lines.append(r.no_fight_words(mv.get("file", _MISSING)))
+                self.side.addWidget(_label(self.moves_lines[-1], "small"))
+        self.side.addWidget(_label(r.MOVES_NOTE, "faint"))
+
+    def _fill_recordings(self) -> None:
+        box, chosen = self.moves_box, 0
+        box.clear()
+        box.addItem(r.CHOOSE_RECORDING, "")
+        for row in self.recordings:
+            box.addItem(r.shown_text(r.text(row["label"])), r.text(row["id"]))
+            if not chosen and (self.moves or {}).get("id", _MISSING) is not _MISSING \
+                    and r.strictly((self.moves or {})["id"], row["id"]):
+                chosen = box.count() - 1
+        box.setCurrentIndex(chosen)
 
     def eventFilter(self, watched, event) -> bool:
         if watched is getattr(self, "notes_edit", None) and event.type() == QEvent.FocusOut:
@@ -1185,6 +1325,16 @@ class RaidPage(QWidget):
             self.now_line.addWidget(_label(NONE_NOW, "faint", wrap=False))
         self.now_line.addStretch(1)
         self.now_words = chips
+        self.cast_chips = []
+        if self.actual is not None:                               # ``#castnow``
+            _clear(self.cast_words)
+            self.cast_words.addWidget(_label(r.CASTS_NOW, "small", wrap=False))
+            self.cast_chips = r.casts_now(self.actual, t)
+            for words in self.cast_chips:
+                self.cast_words.addWidget(_label(words, "rpClassChip", wrap=False))
+            if not self.cast_chips:
+                self.cast_words.addWidget(_label(r.NO_CASTS, "faint", wrap=False))
+            self.cast_words.addStretch(1)
 
     def _play_words(self) -> None:
         self.play_button.setText(PAUSE if self.playing else PLAY)
@@ -1243,7 +1393,7 @@ class RaidPage(QWidget):
     # ---------------------------------------------------------------- the plans (``reload`` and the header)
     def reload(self) -> None:
         self.plan = r.raid_plans(self.store).get(self.id)
-        self.sel, self.t = None, 0.0
+        self.sel, self.t, self.actual = None, 0.0, None
         self.render()
 
     def _chose_plan(self, index: int) -> None:
@@ -1328,8 +1478,10 @@ class RaidPage(QWidget):
                 owner, plan = r.ownership(doc)
                 self._imported(plan)
                 r.save_owner(self.store, owner, self.id)
-            elif r.strictly(kind, "a2log"):
-                self.say(MOVEMENT_ELSEWHERE)
+            elif r.strictly(kind, "a2log"):                         # its fights with movement, to choose from
+                self.moves = {"file": os.path.basename(path), "doc": doc, "fights": moves.movement_fights(doc)}
+                self.render()
+                self.say(r.CHOOSE_FIGHT if self.moves["fights"] else r.NO_MOVEMENT)
                 return
             else:
                 if not r.strictly(kind, "a2plan") or not isinstance(doc, dict):
@@ -1348,7 +1500,7 @@ class RaidPage(QWidget):
         plans = r.raid_plans(self.store)
         key = r.import_doc(p, plans, self.now(), make_id=lambda: r.uid(self.pick))
         self.save_plans(plans)
-        self.id, self.plan, self.sel, self.t = key, p, None, 0.0
+        self.id, self.plan, self.sel, self.t, self.actual = key, p, None, 0.0, None
 
     def copy_code(self) -> None:
         try:
@@ -1445,6 +1597,24 @@ class RaidPage(QWidget):
         kind, ctx = self.asked.pop(name, (None, {}))
         if kind == "logserver":
             self.server_url = r.text(get(answer, "url", _MISSING))
+        elif kind == "encounters":
+            self.encounters = answer if isinstance(answer, list) else []
+            if _alive(self.fight_box):
+                self._fill_fights()
+        elif kind == "recordings":
+            self.recordings = r.recording_rows(answer)
+            if _alive(self.moves_box):
+                self._fill_recordings()
+        elif kind == "aoe":                                      # a catalog without shapes draws no areas
+            shapes = get(answer, "shapes", _MISSING)
+            if isinstance(shapes, dict) and shapes:
+                self.aoe_shapes = shapes
+        elif kind == "encounter":
+            self._compared(answer, ctx)
+        elif kind == "recording":
+            if self._still_loading(ctx["key"]):
+                self.moves = {**ctx["key"], "doc": answer, "fights": moves.movement_fights(answer)}
+                self.render()
         elif kind == "publish":
             self._published(answer, ctx)
         elif kind == "copy":
@@ -1487,7 +1657,21 @@ class RaidPage(QWidget):
 
     def _plan_failed(self, name: str, why: str) -> None:
         kind, ctx = self.asked.pop(name, (None, {}))
-        if kind == "publish":
+        if kind == "encounters":                                 # ``.catch(() => [])``
+            self.encounters = []
+            if _alive(self.fight_box):
+                self._fill_fights()
+        elif kind == "recordings":
+            self.recordings = []
+            if _alive(self.moves_box):
+                self._fill_recordings()
+        elif kind == "encounter":
+            self.say(why)
+        elif kind == "recording":
+            if self._still_loading(ctx["key"]):
+                self.moves = {**ctx["key"], "error": why}
+                self.render()
+        elif kind == "publish":
             if ctx["turn"] == self.renders:                      # its line still the one drawn when it was sent
                 self.pub_line.setText(html.escape(why))
             if _alive(ctx["button"]):
@@ -1515,6 +1699,103 @@ class RaidPage(QWidget):
             self.pub_copy.show()
         if _alive(ctx["button"]):
             ctx["button"].setEnabled(True)
+
+    # ---------------------------------------------------------------- a saved fight compared (0.2.492)
+    def _fight_chosen(self, index: int) -> None:
+        """A saved fight chosen to compare with (``#ractual``), or none."""
+        key = self.fight_box.itemData(index)
+        if not key:
+            self.actual = None
+            self.render()
+            return
+        self.ask("encounter", f"/api/encounters/{key}", key=key, plan=self.plan)
+
+    def _compared(self, answer, ctx: dict) -> None:
+        """The fight read: compared on the plan's timeline, the plan lengthened to hold it (to the whole second)."""
+        p = ctx["plan"]
+        length = get(p, "duration", _MISSING)
+        self.actual = r.actual_of(answer, ctx["key"], r.fight_meta(self.encounters, ctx["key"]), length)
+        if isinstance(p, dict) and r.number_of(self.actual["duration"]) > r.number_of(length):
+            p["duration"] = r._plain(float(math.ceil(r.number_of(self.actual["duration"]))))
+            self.persist()
+        self.render()
+
+    def use_fight(self) -> None:
+        """Use selected fight: the plan's boss, NPC and map from the fight compared."""
+        enc = get(self.plan, "encounter", _MISSING)
+        self.plan["encounter"] = r.fight_encounter(enc, self.actual)
+        self.persist()
+        self.render()
+
+    # ---------------------------------------------------------------- recorded movement imported (0.2.492)
+    def _recording_chosen(self, index: int) -> None:
+        """A saved recording chosen to import movement from (``#rmovelog``): read, then its fights offered."""
+        file = self.moves_box.itemData(index)
+        if not file:
+            self.moves = None
+            self.render()
+            return
+        key = {"id": file}
+        self.moves = {**key, "loading": True}
+        self.render()
+        self.ask("recording", "/api/sessions?file=" + encode_component(file), key=key)
+
+    def _still_loading(self, key: dict) -> bool:
+        """The recording read is still the one chosen (another chosen since, or none, lets it go)."""
+        return self.moves is not None and bool(self.moves.get("loading")) and self.moves.get("id") == key.get("id")
+
+    def class_colours(self) -> dict:
+        """The class colours a plan's players take (the web log review's ``preferences()``, kept by Settings)."""
+        try:
+            value = self.store.value(COLOURS_KEY)
+            kept = b.parse(value) if isinstance(value, str) else None
+        except (ValueError, RecursionError):
+            return {}
+        return kept if r.yes(kept) else {}
+
+    def import_moves(self) -> None:
+        """Import: the fight chosen as a new plan, each player, pet and enemy moving as it did, on its arena in the
+        shape last chosen in a replay."""
+        if self.fight_pick is None or not self.moves:
+            return
+        try:
+            plan = moves.movement_plan(self.moves.get("doc"), self.fight_pick.currentData(),
+                                       moves.room_shape(self.store.value(moves.ROOM_KEY)), self.aoe_shapes,
+                                       self.class_colours())
+            self._imported(plan)
+        except (ValueError, RecursionError) as problem:
+            self.say(str(problem))
+            return
+        self.moves = None
+        self.render()
+        self.say(r.MOVES_IMPORTED)
+
+    # ---------------------------------------------------------------- a log's replay opened here (0.2.492)
+    def open_replay(self, plan) -> bool:
+        """``openReplay(plan)``: a log's movement replay made the plan shown, an untouched plan giving way to it and
+        one worked on kept or discarded as asked; False when cancelled. PlanError for one that is not a plan."""
+        plans = r.raid_plans(self.store)
+        current = r.next_plan_id(plans, self.id, r.remembered(self.store))
+        drop = current if current and r.is_blank(current, plans[current], r.owners(self.store)) else None
+        if current and not drop:
+            name = get(get(plans[current], "meta", _MISSING), "name", _MISSING)
+            choice = self.ask_work(r.text(name) if r.yes(name) else r.UNTITLED)
+            if choice not in ("keep", "discard"):
+                return False
+            if choice == "discard":
+                drop = current
+        self.pause()
+        key = r.store_replay(self.store, plan, self.now(), make_id=lambda: r.uid(self.pick))
+        self.id, self.sel, self.t, self.actual, self.browsing = key, None, 0.0, None, None
+        self.plan = r.raid_plans(self.store).get(key)
+        if drop:
+            kept = r.raid_plans(self.store)
+            kept.pop(drop, None)
+            self.save_plans(kept)
+        r.remember(self.store, self.id)
+        if self.mounted:
+            self.render()
+        return True
 
     def _copy_link(self, words: str) -> None:
         try:
@@ -1697,6 +1978,24 @@ class RaidPage(QWidget):
     # ---------------------------------------------------------------- the computer's dialogs
     def _ask(self, words: str) -> bool:
         return QMessageBox.question(self, "Aion 2 Calc", words) == QMessageBox.Yes
+
+    def _ask_work(self, name: str) -> str:
+        """The question before a replay opens over a plan worked on (``askAboutWork``): "keep", "discard" or
+        "cancel" (Escape)."""
+        box = QMessageBox(self.window())
+        box.setWindowTitle(r.ASK_REPLAY)
+        box.setTextFormat(Qt.RichText)
+        before, after = r.SHOWING
+        box.setText(f"<b>{html.escape(r.ASK_REPLAY)}</b><p>{html.escape(before)}<b>{html.escape(name)}</b>"
+                    f"{html.escape(after)}</p><p><small>{html.escape(r.REPLAY_NOTE)}</small></p>")
+        keep = box.addButton(r.KEEP, QMessageBox.AcceptRole)
+        discard = box.addButton(r.DISCARD, QMessageBox.DestructiveRole)
+        cancel = box.addButton(r.CANCEL, QMessageBox.RejectRole)
+        box.setDefaultButton(keep)
+        box.setEscapeButton(cancel)
+        box.exec()
+        clicked = box.clickedButton()
+        return "keep" if clicked is keep else "discard" if clicked is discard else "cancel"
 
     def _ask_text(self, words: str) -> str:
         text, ok = QInputDialog.getText(self, "Aion 2 Calc", words)

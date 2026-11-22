@@ -1,3 +1,11 @@
+## Raid Planner in the native interface, last part (0.2.492)
+
+**The app's window now draws the whole Raid Planner, and a log's movement replay opens in it: every page is native.**
+- **Compare with a fight:** choose one of your saved fights to play its skill casts on the plan's timeline, on a lane of their own, with those cast at the moment listed under it; the plan grows to the fight's length. **Use selected fight** links the plan to that fight's boss, so the overlay plays it there.
+- **Import recorded movement:** choose a saved recording (or give one to **Import file**), then one of its fights with movement: it becomes a new plan where each player, pet and enemy moves as it did, on the fight's arena, with the bosses' measured areas while they last.
+- **Open in Raid Planner**, under a log's movement replay, makes the replay the planner's plan, as its key shows it, and opens the planner on it. A plan you have worked on is kept in your list or discarded, as you choose first (or nothing happens when you cancel); an untouched one simply gives way.
+- The log review's note and button to the web interface are gone, and so is the Raid Planner's **Open the web Raid Planner**: nothing is left to it.
+
 ## Raid Planner in the native interface, second part (0.2.491)
 
 **The app's window now publishes and browses raid plans too.**

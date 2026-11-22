@@ -510,7 +510,7 @@ def test_the_sources_rows_and_advanced_capture(qapp, tmp_path):
     page.final_bosses.editingFinished.emit()
     assert store.value(lm.FINAL_BOSS_KEY) == "4004"
     # everything is drawn here since 0.2.473: nothing opens in the web interface
-    page = _page(tmp_path, store=store, open_in_web=lambda page: None)
+    page = _page(tmp_path, store=store)
     assert not [b for b in page.findChildren(QPushButton) if b.text() == "Open in the web interface"]
 
 
@@ -1314,10 +1314,7 @@ def test_the_live_review_is_read_with_the_fight_and_follows_its_latest_encounter
     texts = _visible_texts(review)
     assert not [t for t in texts if t in ("Save metadata", "Other parts of this recording")]
     assert not [b for b in review.findChildren(QPushButton) if b.text() in ("Save metadata", "Upload")]
-    opened = []
-    review.open_in_web = opened.append
-    review.full_review()
-    assert opened == ["meter"]
+    assert not [b for b in review.findChildren(QPushButton) if "web interface" in b.text()]     # the review is whole
 
 
 def test_the_live_review_waits_for_its_cost_and_goes_with_clear_session(qapp, tmp_path):

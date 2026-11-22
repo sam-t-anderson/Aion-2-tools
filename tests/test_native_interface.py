@@ -19,7 +19,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent, Qt  # noqa: E402
-from PySide6.QtWidgets import QApplication, QPushButton  # noqa: E402
+from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from aion2calc import gui, launcher  # noqa: E402
 from aion2calc.app import overlay_launch, server  # noqa: E402
@@ -151,20 +151,15 @@ def test_an_idle_meter_says_so(qapp):
 
 
 # ------------------------------------------------------------------ the app window
-def test_the_window_lists_the_web_navigation_and_draws_the_live_meter(qapp, monkeypatch):
+def test_the_window_lists_the_web_navigation_and_draws_the_live_meter(qapp):
     window = MainWindow(None, "http://127.0.0.1:8765/")
     titles = [window.nav.item(i).text() for i in range(window.nav.count())]
     assert titles[:4] == ["COMBAT", "Live Meter", "Combat Logs", "Raid Planner"]
     assert titles[-2:] == ["Settings", "Account"] and len(titles) == 3 + sum(len(pages) for _s, pages in SECTIONS)
-    assert isinstance(window.page("meter"), MeterPage) and not isinstance(window.page("raid"), WebPage)
-    assert window.pages.currentWidget() is window.page("meter")
+    assert isinstance(window.page("meter"), MeterPage) and window.pages.currentWidget() is window.page("meter")
+    assert not [key for key in window.page_index if isinstance(window.page(key), WebPage)]   # every page native (0.2.492)
     window.show_page("raid")
     assert window.pages.currentWidget() is window.page("raid")
-    opened = []
-    monkeypatch.setattr(launcher, "open_window", lambda url, prefer_app=True, native=None: opened.append((url, native)))
-    window.page("raid").mount()                                  # Raid Planner's parts still on the web (0.2.490)
-    next(b for b in window.page("raid").findChildren(QPushButton) if b.accessibleName() == "Open the web Raid Planner").click()
-    assert opened == [("http://127.0.0.1:8765/#/raid", False)]                       # the web interface's page
 
 
 def test_the_live_meter_page_shows_the_fight_and_its_buttons(qapp, tmp_path):
