@@ -46,12 +46,12 @@ SAVED_NEXT_LAUNCH = "Saved · applies on next launch"
 
 # ------------------------------------------------------------------ App & data
 NATIVE = "open the app and the meter overlay in the native interface, drawn in Python instead of a browser"
-NATIVE_NOTE = ("On by default since 0.2.426. Every page but Raid Planner and Builds is native so far: the meter overlay, "
-               "the Live Meter page, Combat Logs with a log's own page and its movement replay, Build Planner, My "
-               "Character, Gear & Advice, Saved Results, Timers, Maps, Database, Crafting, Gathering, Pet Tracker, News, "
-               "Settings and Account. Raid Planner, Builds and the movement replay's Raid Planner file open in the web "
-               "interface from the app's window. It takes effect the next time the app "
-               "or the overlay opens. The app comes with what it needs, and installs it with its other requirements when "
+NATIVE_NOTE = ("On by default since 0.2.426. Every page but Raid Planner is native so far: the meter overlay, the Live "
+               "Meter page, Combat Logs with a log's own page and its movement replay, Build Planner, Builds (its skills, "
+               "passives, stigmas and Daevanion boards), My Character, Gear & Advice, Saved Results, Timers, Maps, "
+               "Database, Crafting, Gathering, Pet Tracker, News, Settings and Account. Raid Planner, Builds' other tabs "
+               "and the movement replay's Raid Planner file open in the web interface from the app's window. It takes "
+               "effect the next time the app or the overlay opens. The app comes with what it needs, and installs it with its other requirements when "
                "run from source.")
 APP_WINDOW = "start in a separate app window (Edge or Chrome) instead of a browser tab; closing it stops the app"
 APP_WINDOW_NOTE = ("The window opens at 1920×1080, or as large as the screen allows when it is smaller, centred; it is "

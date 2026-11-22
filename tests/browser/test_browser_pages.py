@@ -12,7 +12,7 @@ import re
 
 import pytest
 
-from apphelpers import go, open_settings
+from apphelpers import go, open_settings, until
 from community import KILLS, PLANS
 
 INSTALLED = {"supported": True, "installed": {"version": "1.4.0", "folder": "C:\\Games\\PetTracker"}, "enabled": True,
@@ -568,3 +568,26 @@ def test_gear_and_advice_ranks_defense_titles_and_says_when_to_keep_the_worn_ite
     assert card.locator("[data-keep] .small").inner_text() == (
         "No replacement beats yours enchanted to +15 and rerolled toward good rolls (+5.8%): enchant and reroll it, "
         "as the upgrade path says.")
+
+
+def test_the_builds_page_says_the_app_keeps_its_drafts_and_hands_them_to_it(app_page, app_url):
+    """In the app, Builds' drafts are the app's interface data (0.2.482), shared with the app's window (0.2.486): the
+    page says so, and a draft saved there reaches the app."""
+    import urllib.request
+    page = app_page
+    go(page, app_url, "#/builds")
+    page.wait_for_selector("#build-workspace [data-save]")
+    page.wait_for_function("() => !document.querySelector('#build-workspace [data-message]').textContent.startsWith('Loading')")
+    note = page.locator("#build-workspace details p.small").text_content()
+    assert note.startswith("Up to ten drafts / 2 MiB, kept by the app on your machine for its window and the web pages alike.")
+    assert page.locator("#build-workspace [data-saved]").text_content() == "No drafts saved."
+    page.fill("#build-workspace [data-name]", "Kept ✓")
+    page.locator("#build-workspace [data-name]").dispatch_event("change")
+    page.click("#build-workspace [data-save]")
+    assert page.locator("#build-workspace [data-message]").text_content() == "Draft saved by the app."
+
+    def kept():
+        with urllib.request.urlopen(app_url + "api/interface", timeout=10) as answer:
+            return json.loads(json.load(answer)["values"].get("a2-build-drafts-v1") or "[]")
+    assert until(page, kept)
+    assert [row["draft"]["name"] for row in kept()] == ["Kept ✓"]
