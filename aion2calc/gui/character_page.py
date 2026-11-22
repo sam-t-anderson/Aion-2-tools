@@ -95,9 +95,9 @@ class CharacterPage(QWidget):
             self.optimizing.failed.connect(self._opt_failed)
         self.setStyleSheet(GatheringPage._stylesheet() + result_windows.STYLE + f"""
             QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
-                border: 1px solid rgba(233, 203, 128, 0.65); color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
+                border: 1px solid {theme.css('frame_hi')}; color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
             QPushButton#primary:disabled, QPushButton#small:disabled {{ color: {theme.COLORS['faint']}; }}
-            QPlainTextEdit#diff {{ background: rgba(6, 9, 15, 0.65); border: none; border-radius: 6px; padding: 10px; }}
+            QPlainTextEdit#diff {{ background: {theme.css('inset')}; border: none; border-radius: 6px; padding: 10px; }}
             QLabel#good {{ color: {theme.COLORS['good']}; }}
             QFrame#win QLabel#kpiGood {{ color: {theme.COLORS['good']}; font-size: 19px; font-weight: 700; }}
             QFrame#screenRead {{ border: 1px dashed {theme.COLORS['line2']}; border-radius: 6px; background: transparent; }}

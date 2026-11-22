@@ -400,7 +400,8 @@ BOARD_NOTE = ("The decorations worth placing, by modeled damage on your build (t
 RINGS = (("colossus", "COLOSSUS · centre"), ("statue", "STATUES · inner ring"), ("artwork", "ARTWORKS · outer ring"))
 NO_DECORATION = "No catalogued decoration with a known effect."
 # a decoration's grade in its name's colour (``.prow[data-grade]``): the game's names for them are not the items'
-DECORATION_COLOURS = {"Heroic": "#ee6c2a", "Unique": "#e9a43a", "Epic": "#3d94d8", "Rare": "#52b35c"}
+DECORATION_COLOURS = theme.Shades({"Heroic": theme.Shade("g_epic"), "Unique": theme.Shade("g_unique"),
+                                   "Epic": theme.Shade("g_legend"), "Rare": theme.Shade("g_rare")})   # app.css .prow[data-grade]
 DECOR_ICON = re.compile(r"https://aion2hub\.com/api/icon/items/[0-9]{1,12}")
 
 

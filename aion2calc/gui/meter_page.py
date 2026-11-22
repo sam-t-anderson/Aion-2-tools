@@ -75,13 +75,13 @@ ADVANCED_KEY = "meter-advanced-open"     # whether Advanced capture was left ope
 METER_ASKS = {"view", "clear", "start", "stop", "region", "act:save", "act:export", "act:split", "act:finish",
               "record-status:0", "record-status:1"}
 COUNTER_GOLD = "#e8cf8e"                 # a counter's icon (``.keyicon``, ``.ticketicon``, ``.runicon``)
-STYLE = f"""
+STYLE = theme.Sheet(lambda: f"""
     QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
-        border: 1px solid rgba(233, 203, 128, 0.65); color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
+        border: 1px solid {theme.css('frame_hi')}; color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
     QPushButton#danger {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #a32c36, stop:1 #682029);
         border: 1px solid #d75c66; color: #fff; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
     QPushButton#primary:disabled, QPushButton#danger:disabled {{ color: rgba(255, 243, 207, 0.5); }}
-    QFrame#note QCheckBox {{ color: #f1d4a3; }}
+    QFrame#note QCheckBox {{ color: {theme.COLORS['note_fg']}; }}
     QLabel#small, QFrame#note QLabel#small, QCheckBox#small, QFrame#note QCheckBox#small {{ color: {C['muted']};
         font-size: 12px; }}
     QLabel#faintSmall {{ color: {C['faint']}; font-size: 12px; }}
@@ -90,14 +90,14 @@ STYLE = f"""
     QFrame#note {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35); border-radius: 5px;
         padding: 9px 12px; }}
     QFrame#note QLabel, QFrame#note QCheckBox, QFrame#note QWidget#plain {{ background: transparent; }}
-    QFrame#note QLabel {{ color: #f1d4a3; }}
-    QToolButton#fold {{ color: #f1d4a3; font-weight: 700; border: none; background: transparent; padding: 2px 0px; }}
+    QFrame#note QLabel {{ color: {theme.COLORS['note_fg']}; }}
+    QToolButton#fold {{ color: {theme.COLORS['note_fg']}; font-weight: 700; border: none; background: transparent; padding: 2px 0px; }}
     QFrame#pm {{ background: transparent; border: none; }}
     QFrame#pm QLabel {{ background: transparent; }}
     QWidget#counter, QWidget#counter QLabel {{ background: transparent; }}
-    QFrame#note QLabel#noteSmall {{ color: #f1d4a3; font-size: 12px; }}
+    QFrame#note QLabel#noteSmall {{ color: {theme.COLORS['note_fg']}; font-size: 12px; }}
     QFrame#note QLabel#faintSmall {{ color: {C['faint']}; }}
-"""
+""")
 
 
 # ------------------------------------------------------------------ the parts

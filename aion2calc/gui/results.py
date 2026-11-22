@@ -25,8 +25,9 @@ COMPARISON = ("Generate a separate {mode} example with common gear and the serve
               "Genus and HP/skill reserves stay saved separately. Seed searches and weighted refinement can take several "
               "minutes; completed comparisons are reused until the scoring inputs change. Only anonymous allocations are "
               "submitted. Stationary damage comparison, not a survival or win-rate model.")
-MUTED, FAINT, GOLD, ACCENT = theme.COLORS["muted"], theme.COLORS["faint"], theme.COLORS["gold"], theme.COLORS["accent"]
-TEXT = theme.COLORS["text"]
+MUTED, FAINT, GOLD, ACCENT = (theme.Shade("muted"), theme.Shade("faint"), theme.Shade("gold"),
+                              theme.Shade("accent"))
+TEXT = theme.Shade("text")
 
 
 def e(value) -> str:
@@ -470,7 +471,7 @@ def stigma_effect(x: dict) -> str:
 # ------------------------------------------------------------------ Daevanion
 #: A node's colour by its grade (``.node[data-grade]``); a node of any other grade is the board's off colour.
 NODE_FILL = {"Common": "#c9ccd3", "Rare": "#4aa3e6", "Legend": "#a46cf0", "Unique": "#f0bf4a"}
-NODE_OFF, NODE_START = "#232c42", "#4fd1b3"
+NODE_OFF, NODE_START = theme.Shade("node_off"), "#4fd1b3"
 #: The board's key (``.legend``): each grade's colour and cost, then what the shapes mean.
 LEGEND = (("#c9ccd3", "Common 1 pt"), ("#4aa3e6", "Rare 2 pt"), ("#a46cf0", "Epic 3 pt"), ("#f0bf4a", "Unique 4 pt"))
 LEGEND_NOTE = "squares = stats · circles = +1 skill level · bright = take it"
@@ -526,7 +527,7 @@ def node_fill(nd: dict) -> str:
     if nd.get("type") == "Start":
         return NODE_START
     grade = nd.get("grade")
-    return NODE_FILL.get(grade, NODE_OFF) if isinstance(grade, str) else NODE_OFF
+    return NODE_FILL.get(grade, str(NODE_OFF)) if isinstance(grade, str) else str(NODE_OFF)
 
 
 def node_tip(nd: dict) -> str:
@@ -603,8 +604,9 @@ def daevanion_copy(v: dict) -> str:
 LEFT_SLOTS = ("MainHand", "SubHand", "Helmet", "Shoulder", "Torso", "Pants", "Gloves", "Boots", "Cape", "Belt",
               "Main hand", "Off-hand", "Armor x7")
 #: An item's colour by its grade (``--g-*``): its name, and its tile's left edge.
-GRADES = {"Common": "rgba(255, 255, 255, 0.88)", "Rare": "#52b35c", "Legend": "#3d94d8", "Unique": "#e9a43a",
-          "Epic": "#ee6c2a", "Mythic": "#d33939", "Special": "#34b798"}
+GRADES = theme.Shades({grade: theme.Shade("g_" + key, whole=True) for grade, key in (
+    ("Common", "common"), ("Rare", "rare"), ("Legend", "legend"), ("Unique", "unique"), ("Epic", "epic"),
+    ("Mythic", "mythic"), ("Special", "special"))})                    # app.css --g-*, as the look has them
 EQUIPMENT_GRID = "Stats from equipment, rolls and manastones"
 ROLLS_HEAD, ENCHANT_HEAD = "KEEP / REROLL TOWARD (best first)", "ENCHANT PRIORITY"
 
@@ -797,8 +799,8 @@ NO_HOTBAR = "Optimize your build to generate its hotbar and macro setup."
 HOTBAR_SUB = "suggested key bindings"
 HOTBAR_INTRO = ("Place each skill on your hotbar and assign the key shown on its icon. These are suggested bindings: match "
                 "your in-game Key Settings, or use your own keys consistently in both tabs.")
-HOTBAR_MANUAL = (f"<b style='color: {GOLD};'>Manual / Hold to charge:</b> keep these skills outside the macro. Hold a charge "
-                 "skill’s own key, then release it at the required charge level.")
+HOTBAR_MANUAL = (theme.Sheet(lambda: f"<b style='color: {GOLD};'>Manual / Hold to charge:</b> keep these skills outside the macro. Hold a charge "
+                 "skill’s own key, then release it at the required charge level."))
 
 
 def kbd(value) -> str:
@@ -993,10 +995,10 @@ NO_CANDIDATE = "No modeled candidate for this genus."
 ASSUMPTIONS = "Model assumptions and line contributions"
 ASSUMPTIONS_NOTE = ("Line contributions are not additive. Defensive effects and roll probabilities are not simulated. No "
                     "in-game portraits or rarity grades are inferred.")
-GENUS_LINKS = (" The official profile supplies the equipped pet but does not supply these Insight allocations. "
+GENUS_LINKS = (theme.Sheet(lambda: " The official profile supplies the equipped pet but does not supply these Insight allocations. "
                f"<a href='character' style='color: {theme.COLORS['accent']};'>My Character</a> or <a href='gear' "
                f"style='color: {theme.COLORS['accent']};'>Gear &amp; Advice</a> → Pet Genus Insight: enter and save your "
-               "levels and lines, then recalculate. Saved results keep their original snapshot.")
+               "levels and lines, then recalculate. Saved results keep their original snapshot."))
 
 
 def _whole_number(value) -> int | None:

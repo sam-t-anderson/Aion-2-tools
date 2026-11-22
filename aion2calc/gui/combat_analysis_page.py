@@ -32,8 +32,8 @@ from .pictures import Pictures
 from .results import _dict, _truthy, js_text
 
 C = theme.COLORS
-INSET = "rgba(6, 9, 15, 0.65)"
-STYLE = f"""
+INSET = theme.Shade("inset", whole=True)
+STYLE = theme.Sheet(lambda: f"""
     QFrame#parse {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {C['card_a']}, stop:1 {C['card_b']});
         border: 1px solid {C['line']}; border-radius: 10px; }}
     QFrame#parse QLabel, QFrame#parse QWidget#plain {{ background: transparent; }}
@@ -45,8 +45,8 @@ STYLE = f"""
     QLabel#pStatGold {{ color: {C['gold']}; font-weight: 700; }}
     QPushButton#pTab {{ background: {INSET}; border: 1px solid {C['line']}; color: {C['muted']}; border-radius: 6px;
         padding: 4px 14px; font-weight: 600; }}
-    QPushButton#pTab[on="true"] {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2b3550, stop:1 #1c2438);
-        color: {C['gold']}; border-color: rgba(233, 203, 128, 0.65); }}
+    QPushButton#pTab[on="true"] {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {theme.COLORS['btn_a']}, stop:1 {theme.COLORS['btn_b']});
+        color: {C['gold']}; border-color: {theme.css('frame_hi')}; }}
     QLabel#pHeading {{ color: {C['gold']}; font-family: serif; font-size: 13px; font-weight: 700; letter-spacing: 1px; }}
     QFrame#parse QFrame#pBox {{ background: {INSET}; border: 1px solid {C['line']}; border-radius: 8px; }}
     QLabel#pBoxName {{ color: {C['faint']}; font-size: 12px; letter-spacing: 0.6px; }}
@@ -59,15 +59,15 @@ STYLE = f"""
     QFrame#parse QFrame#pTdBox {{ background: transparent; border: none; border-bottom: 1px solid {INSET}; }}
     QFrame#pRotation {{ background: transparent; border: none; border-top: 1px solid {C['line']}; }}
     QLabel#pFaint {{ color: {C['faint']}; font-size: 12px; }}
-    QFrame#parse QLabel#pIcon {{ background: #0b0f18; border: 1px solid {C['line']}; border-radius: 5px; }}
+    QFrame#parse QLabel#pIcon {{ background: {theme.COLORS['icon_bg']}; border: 1px solid {C['line']}; border-radius: 5px; }}
     QFrame#parse QLabel#pNoData {{ color: {C['muted']}; background: {INSET}; border: 1px dashed {C['line2']};
         border-radius: 8px; padding: 14px; }}
     QFrame#tip {{ background: rgba(57, 194, 224, 0.06); border: none; border-left: 3px solid {C['accent']};
         border-top-right-radius: 4px; border-bottom-right-radius: 4px; }}
     QFrame#tip QLabel {{ background: transparent; }}
-    QFrame#parse QLabel#pClass {{ background: #0b0f18; border-radius: 6px; }}
+    QFrame#parse QLabel#pClass {{ background: {theme.COLORS['icon_bg']}; border-radius: 6px; }}
     QLabel#specHead {{ color: {C['gold']}; font-size: 12px; font-weight: 700; margin-top: 14px; }}
-    """
+    """)
 WIDE = 900                     # the card's width from which it shows every section at once (``@container pcard``)
 _TAB = {"chosen": "dps"}       # the tab chosen last, for every card (``_ptab``)
 
@@ -135,7 +135,7 @@ class Bar(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         w, h = float(self.width()), float(self.height())
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(6, 9, 15, 166))
+        painter.setBrush(theme.qcolor("inset"))                     # ``.bar``'s ground
         painter.drawRoundedRect(QRectF(0, 0, w, h), 3, 3)
         if self.fraction > 0:
             fill = QLinearGradient(0, 0, w * self.fraction, 0)
@@ -213,12 +213,12 @@ class DpsChart(QWidget):
         w, h = float(self.width()), float(self.height())
         n = len(self.per) or 1
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(57, 194, 224, 71))
+        painter.setBrush(theme.qcolor("chart_bar"))                 # ``fill:var(--chart-bar)``
         for i, v in enumerate(self.per):
             height = v / self.top * h
             painter.drawRect(QRectF(i / n * w, h - height, max(1.0, w / n - w / 1000.0), height))
         if self.roll:
-            painter.setPen(QPen(QColor(C["gold"]), 2))
+            painter.setPen(QPen(QColor(C["chart_line"]), 2))         # ``stroke:var(--chart-line)``
             painter.drawPolyline(QPolygonF([QPointF((i + 0.5) / n * w, h - v / self.top * h) for i, v in enumerate(self.roll)]))
         painter.end()
 

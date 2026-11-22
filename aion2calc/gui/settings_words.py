@@ -72,6 +72,12 @@ PERFORMANCE_NOTE = ("The live meter works out its numbers every second instead o
 LANGUAGE_NOTE = ("The app's buttons, headings and short texts; the game's names, long explanations, the overlay and the "
                  "reports stay in English. The same choice as at the top of the page.")
 LAUNCH_LABEL = "Open the app on"
+#: The theme's buttons (pages/settings.js, ``data-th``) and the accent's (``data-accent-btn``, each named as app.js
+#: ``ACCENTS`` has it, capitalised), with the accent's note.
+THEME_BUTTONS = (("system", "Follow computer"), ("light", "Light"), ("dark", "Dark"))
+ACCENT_BUTTONS = tuple((accent, accent[0].upper() + accent[1:]) for accent in
+                       ("gold", "crimson", "emerald", "azure", "amethyst", "rose"))
+ACCENT_NOTE = "Recolours the app's accent on top of your light/dark theme."
 #: The rows whose name the web page writes in two parts, the second muted (each part its own text to translate).
 MUTED_TITLES = {"Hotkeys (Windows)": ("Hotkeys", "(Windows)")}
 #: The pages the app can open on at launch (app.js ``LAUNCH_PAGES``): the navigation's, but Account.

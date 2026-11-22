@@ -207,7 +207,7 @@ class TimersPage(QWidget):
         return f"""
         QFrame#note {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35); border-radius: 6px; }}
         QFrame#note QLabel, QFrame#note QToolButton {{ background: transparent; }}
-        QFrame#newsCard {{ background: {c['panel2']}; border: 1px solid rgba(206, 182, 122, 0.28); border-radius: 8px; }}
+        QFrame#newsCard {{ background: {c['panel2']}; border: 1px solid {theme.css('frame')}; border-radius: 8px; }}
         QLabel#h2 {{ color: {c['gold']}; font-size: 17px; font-weight: 700; }}
         QLabel#cardTitle {{ font-size: 15px; font-weight: 700; }}
         QLabel#countdown {{ font-size: 15px; font-weight: 700; }}

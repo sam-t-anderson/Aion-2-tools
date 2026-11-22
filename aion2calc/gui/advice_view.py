@@ -41,11 +41,11 @@ from .result_windows import (Across, Bar, BoardTab, GenusRing, GridTable, SkillI
                              coverage_section, icon_path, targets_section)
 from .timers_page import Fold
 
-GAIN = "#8fe08f"
-DOWN = theme.COLORS["bad"]
-FRAME = "rgba(206, 182, 122, 0.28)"                     # app.css's --frame, --frame-hi and --inset
-FRAME_HI = "rgba(233, 203, 128, 0.65)"
-INSET = "rgba(6, 9, 15, 0.65)"
+GAIN = theme.Shade("gain")
+DOWN = theme.Shade("bad")
+FRAME = theme.Shade("frame", whole=True)               # app.css's --frame, --frame-hi and --inset, as the look has them
+FRAME_HI = theme.Shade("frame_hi", whole=True)
+INSET = theme.Shade("inset", whole=True)
 
 
 def _label(text: str = "", name: str = "", rich: bool = False, wrap: bool = True) -> QLabel:
@@ -248,9 +248,9 @@ def _grade_edges() -> str:
     return "\n".join(rules)
 
 
-STYLE = f"""
+STYLE = theme.Sheet(lambda: f"""
 QLabel#chip {{ background: rgba(57, 194, 224, 0.12); border: 1px solid rgba(57, 194, 224, 0.25); border-radius: 3px;
-               padding: 1px 6px; color: #9fe3f2; }}
+               padding: 1px 6px; color: {theme.COLORS['chip_fg']}; }}
 QLabel#chipGold {{ background: rgba(233, 203, 128, 0.12); border: 1px solid {FRAME}; border-radius: 3px;
                    padding: 1px 6px; color: {theme.COLORS['gold']}; }}
 QFrame#topRow {{ background: {theme.COLORS['panel2']}; border: 1px solid {theme.COLORS['line']}; border-radius: 5px; }}
@@ -270,7 +270,7 @@ QLabel#badgeUp {{ background: rgba(92, 184, 92, 0.18); color: {GAIN}; border: 1p
                   border-radius: 3px; padding: 0 5px; font-weight: 700; }}
 QLabel#badgeGoal {{ background: rgba(233, 203, 128, 0.12); color: {theme.COLORS['gold']}; border: 1px solid {FRAME};
                     border-radius: 3px; padding: 0 5px; font-weight: 700; }}
-QLabel#badgeStep {{ background: rgba(57, 194, 224, 0.12); color: #9fe3f2; border: 1px solid rgba(57, 194, 224, 0.3);
+QLabel#badgeStep {{ background: rgba(57, 194, 224, 0.12); color: {theme.COLORS['chip_fg']}; border: 1px solid rgba(57, 194, 224, 0.3);
                     border-radius: 3px; padding: 0 5px; font-weight: 700; }}
 QFrame#icard {{ background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 {theme.COLORS['card_a']}, stop: 1 {theme.COLORS['card_b']});
                 border: 1px solid {FRAME}; border-top: 3px solid {FRAME}; border-radius: 7px; }}
@@ -281,7 +281,7 @@ QFrame#pstep {{ background: {theme.COLORS['panel2']}; border: 1px solid {theme.C
                 border-radius: 6px; }}
 QFrame#pstep QLabel {{ background: transparent; }}
 QLabel#pn {{ color: {theme.COLORS['gold']}; font-weight: 800; }}
-QLabel#kind {{ background: #0b0f18; border: 1px solid {FRAME}; color: {theme.COLORS['gold']}; border-radius: 11px; }}
+QLabel#kind {{ background: {theme.COLORS['icon_bg']}; border: 1px solid {FRAME}; color: {theme.COLORS['gold']}; border-radius: 11px; }}
 QLabel#gold {{ color: {theme.COLORS['gold']}; font-weight: 700; }}
 QLabel#aHead {{ color: {theme.COLORS['gold']}; font-weight: 700; letter-spacing: 0.6px; }}
 QLabel#faint {{ color: {theme.COLORS['faint']}; }}
@@ -299,7 +299,7 @@ QFrame#dtile[best="true"] {{ border-color: {FRAME_HI}; }}
 QFrame#dtile QLabel {{ background: transparent; }}
 QLabel#dn {{ font-weight: 700; }}
 QLabel#pts {{ color: {theme.COLORS['gold']}; font-size: 20px; font-weight: 800; }}
-QFrame#prow {{ background: {INSET}; border: 1px solid #1d2539; border-radius: 6px; }}
+QFrame#prow {{ background: {INSET}; border: 1px solid {theme.COLORS['line_soft']}; border-radius: 6px; }}
 QFrame#gslot {{ background: {INSET}; border: 1px solid {theme.COLORS['line']}; border-radius: 6px; }}
 QFrame#gslot[aimed="true"] {{ border-color: rgba(57, 194, 224, 0.45); }}
 QFrame#gslot[special="true"] {{ border-color: {FRAME_HI};
@@ -318,7 +318,7 @@ QProgressBar#cum::chunk {{ background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 
 {_grade_edges()}
 QPushButton#dslot:hover, QPushButton#dslot:checked, QPushButton#dmini:hover, QPushButton#dmini:checked {{
     border-color: {FRAME_HI}; background: {theme.COLORS['hover']}; }}
-"""
+""")
 
 
 class AdviceView(QWidget):

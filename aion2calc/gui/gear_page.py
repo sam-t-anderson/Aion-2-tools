@@ -127,10 +127,10 @@ class GearPage(QWidget):
             self.advising.failed.connect(self._advice_failed)
         self.setStyleSheet(GatheringPage._stylesheet() + result_windows.STYLE + f"""
             QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
-                border: 1px solid rgba(233, 203, 128, 0.65); color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
+                border: 1px solid {theme.css('frame_hi')}; color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
             QPushButton#primary:disabled, QPushButton#small:disabled {{ color: {theme.COLORS['faint']}; }}
-            QPlainTextEdit#diff {{ background: rgba(6, 9, 15, 0.65); border: none; border-radius: 6px; padding: 10px; }}
-            QFrame#gedit {{ background: rgba(6, 9, 15, 0.65); border: 1px solid {theme.COLORS['line']}; border-radius: 6px; }}
+            QPlainTextEdit#diff {{ background: {theme.css('inset')}; border: none; border-radius: 6px; padding: 10px; }}
+            QFrame#gedit {{ background: {theme.css('inset')}; border: 1px solid {theme.COLORS['line']}; border-radius: 6px; }}
             QFrame#gedit QLabel {{ background: transparent; }}
             QFrame#gelines {{ border: 1px dashed {theme.COLORS['line']}; border-radius: 6px; background: transparent; }}
             QLabel#gearHead {{ color: {theme.COLORS['gold']}; font-weight: 700; letter-spacing: 0.6px; }}

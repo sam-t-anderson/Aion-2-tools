@@ -59,7 +59,8 @@ LOOK_KEYS = (("overlay_text_colors", "overlay_font_family", "overlay_font_scale"
 DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS + PET_KEYS + OVERLAY_KEYS + RADAR_KEYS + LOOK_KEYS + ("combat_colors",)
 DRAWN_GROUPS = ("system", "meter", "server", "pettracker", "overlay")
 #: The rows drawn in the tabs still partly on the web page (0.2.481).
-DRAWN_ROWS = (("appearance", "Combat class colors"), ("backup", "Settings backup"))
+DRAWN_ROWS = (("appearance", "Combat class colors"), ("backup", "Settings backup"), ("appearance", "Theme"),
+              ("appearance", "Accent colour"))
 T0 = 1700000000
 STATUS = {"home": "/data/aion2calc", "version": "0.2.475", "db": {"items": 12345, "last_sync": {"at": T0}},
           "update": None, "update_state": {"checked_at": T0}, "update_download": {}}
@@ -182,7 +183,7 @@ def _row(page, title):
 # ------------------------------------------------------------------ the rows drawn, and those still on the web page
 def test_the_drawn_rows_save_the_apps_settings_and_the_others_open_the_web_page(home):
     defaults = server.ui_settings()
-    assert len(ROWS) == 3             # the theme, the accent colour and the profiles still on the web page; the rest here
+    assert len(ROWS) == 1             # the customization profiles still on the web page; the rest here
     assert {row.group for row in ROWS} <= {key for key, _title in GROUPS} - set(DRAWN_GROUPS)
     assert [key for key, _title in GROUPS] == [key for key, _title in sw.TABS]
     for key in DRAWN_KEYS:     # the drawn rows' saves; the text's and the classes' colours are their own until chosen
@@ -245,7 +246,7 @@ def test_the_tabs_and_the_rows_on_the_web(qapp, home):
     store.setValue(sw.TAB_KEY, "nowhere")
     assert _page(home, store=store).tab == "appearance"
     web = list(ROWS)
-    assert {row.title for row in web} == {"Theme", "Accent colour", "Customization profiles"}
+    assert {row.title for row in web} == {"Customization profiles"}
     buttons = [b for b in page.findChildren(QPushButton) if b.text() == "Open the web Settings page"]
     assert len(buttons) == len(web)                                  # Language is the window's own since 0.2.483
     buttons[0].click()

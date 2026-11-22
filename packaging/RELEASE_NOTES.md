@@ -1,3 +1,12 @@
+## The native interface in your theme and accent colour (0.2.484)
+
+**The app's window now draws itself in the web pages' theme and accent colour: Follow computer, Light or Dark, and Gold, Crimson, Emerald, Azure, Amethyst or Rose.**
+- The colours are the web pages' own, read from their style sheet, so a page reads the same in the window and in the browser in each theme and accent.
+- **Choosing them:** **Settings → Appearance → Theme** and **Accent colour** in the window as on the web page. It is the web pages' own choice, so choosing it in either is choosing it for both; the window draws itself again in it, on the page you were on.
+- **Follow computer** draws the window light or dark as your computer is, and again when your computer changes.
+- The overlay keeps its own look, as the web overlay does.
+- Fixed on the way, in the window: the DPS chart of an analyzed encounter and the log review's rate chart draw their line in the chart colour the web pages use, which follows the accent; until now it was always gold.
+
 ## The native interface in your language (0.2.483)
 
 **The app's window now speaks the languages the web pages speak: English, Deutsch, Français, Español, Português (Brasil) and 日本語.**

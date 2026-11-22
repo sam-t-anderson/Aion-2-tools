@@ -293,10 +293,10 @@ class CraftingPage(QWidget):
         return GatheringPage._stylesheet() + f"""
         QWidget#plain, QWidget#detail {{ background: transparent; }}
         QFrame#note {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35); border-radius: 5px;
-                       color: #f1d4a3; padding: 9px 12px; }}
+                       color: {theme.COLORS['note_fg']}; padding: 9px 12px; }}
         QFrame#note QLabel, QFrame#note QToolButton, QFrame#note QWidget#foldBody, QFrame#note QWidget#plain {{
-            background: transparent; border: none; padding: 0; color: #f1d4a3; }}
-        QFrame#note QToolButton#fold {{ color: #f1d4a3; font-weight: 600; }}
+            background: transparent; border: none; padding: 0; color: {theme.COLORS['note_fg']}; }}
+        QFrame#note QToolButton#fold {{ color: {theme.COLORS['note_fg']}; font-weight: 600; }}
         QWidget#foldBody {{ background: transparent; }}
         QToolButton#fold {{ border: none; padding: 2px 0; color: {cl['text']}; }}
         QPushButton#craftRecipe, QPushButton#craftRecipeOn {{ text-align: left; background: {cl['panel']};
@@ -315,7 +315,7 @@ class CraftingPage(QWidget):
         QFrame#stats {{ background: transparent; border: 1px solid {cl['line']}; border-radius: 5px; }}
         QFrame#stats QLabel, QFrame#stats QWidget#plain, QFrame#stats QWidget#foldBody {{ background: transparent; }}
         QLabel#notice {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35); border-radius: 5px;
-                         color: #f1d4a3; padding: 9px 12px; }}
+                         color: {theme.COLORS['note_fg']}; padding: 9px 12px; }}
         """
 
     # ------------------------------------------------------------------ reading
