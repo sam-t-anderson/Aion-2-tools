@@ -210,6 +210,7 @@ class Dot(QWidget):
         super().__init__(parent)
         self.state = "ok"
         self.opacity = 1.0
+        self.still = False                                   # performance mode: no pulse (``body.perf``)
         self.setFixedSize(QSize(16, 16))
         self.pulse = QVariantAnimation(self)                 # ``@keyframes pulse { 50% { opacity: .35; } }``, 1.2 s
         self.pulse.setDuration(1200)
@@ -221,13 +222,18 @@ class Dot(QWidget):
 
     def set_state(self, state: str) -> None:
         self.state = state
-        if state == "run":
+        if state == "run" and not self.still:
             if self.pulse.state() != QAbstractAnimation.State.Running:
                 self.pulse.start()
         else:
             self.pulse.stop()
             self.opacity = 1.0
         self.update()
+
+    def hold(self, still: bool) -> None:
+        """Performance mode (app.css's ``body.perf``: no animation): the dot holds still while the database updates."""
+        self.still = still
+        self.set_state(self.state)
 
     def _faded(self, value) -> None:
         self.opacity = float(value)
@@ -422,6 +428,10 @@ class Header(QFrame):
     def say(self, words: str) -> None:
         """What Application screenshot is doing, or did."""
         self.shot_status.setText(words)
+
+    def calm(self, on: bool) -> None:
+        """Performance mode on or off (Settings → App & data): what moves in the header holds still."""
+        self.dot.hold(on)
 
     def fit(self, width: int) -> None:
         """A window 1,180 pixels wide or less (app.css's ``max-width: 1180px``): the database's dot without its words,

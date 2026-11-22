@@ -355,3 +355,28 @@ def test_application_screenshot_saves_the_window_with_the_page_whole(window_of, 
     header.shot.click()
     assert header.shot_status.text() == hd.SHOT_FAILED + lm.SHOT_TOO_LARGE and header.shot.isEnabled()
     assert len(app.sent("POST", "/api/screenshot")) == sent
+
+
+def test_performance_mode_holds_the_database_s_dot_still(window_of):
+    header = hd.Header(QComboBox())
+    header.calm(True)                                                        # app.css's ``body.perf``: no animation
+    header.show_status({"sync": {"running": True, "phase": "items"}, "db": {}})
+    assert header.dot.state == "run" and header.dot.pulse.state() == QAbstractAnimation.State.Stopped
+    assert header.dot.opacity == 1.0
+    header.calm(False)
+    assert header.dot.pulse.state() == QAbstractAnimation.State.Running
+    header.calm(True)
+    assert header.dot.pulse.state() == QAbstractAnimation.State.Stopped and header.dot.opacity == 1.0
+    header.close()
+    # the window: as the app's settings say when it starts, then as Settings' check box is saved
+    app = FakeApp({("GET", "/api/ui", None): {"performance_mode": True}, ("POST", "/api/ui", None): {"ok": True}})
+    window = window_of(app)
+    assert not window.header.dot.still
+    window.read_ui()
+    settle(lambda: window.header.dot.still)
+    window.page("settings").save("performance_mode", False)
+    assert not window.header.dot.still
+    window.page("settings").save("performance_mode", True)
+    assert window.header.dot.still
+    settle(lambda: len(app.sent("POST", "/api/ui")) == 2)
+    assert [b for _m, _p, b in app.sent("POST", "/api/ui")] == [{"performance_mode": False}, {"performance_mode": True}]

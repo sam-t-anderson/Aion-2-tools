@@ -392,7 +392,10 @@ class SettingsPage(QWidget):
     """The Settings page. ``api`` is the app's local API (None in tests); ``open_web(page)`` opens a page of the web
     interface; ``store`` keeps the tab chosen (what the web page keeps in its browser); ``confirm`` asks a question,
     ``save_file`` where a file goes, ``open_link`` opens an address in the browser and ``quit_app`` closes this window
-    once the app has stopped."""
+    once the app has stopped. ``ui_saved(key, value)`` is each setting saved, as it is sent (the window follows
+    performance mode with it, 0.2.495)."""
+
+    ui_saved = Signal(str, object)
 
     def __init__(self, api: AppApi | None, open_web, parent=None, store=None, confirm=None, save_file=None,
                  open_link=None, quit_app=None, open_page=None, change_language=None, change_look=None):
@@ -2196,6 +2199,7 @@ class SettingsPage(QWidget):
             return
         self.saved.append((key, value))
         self.ui[key] = value
+        self.ui_saved.emit(key, value)
         if self.requests is None:
             self.toast.say(saved)
             return
