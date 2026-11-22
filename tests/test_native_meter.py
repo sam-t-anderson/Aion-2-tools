@@ -903,7 +903,9 @@ def test_the_meter_is_read_while_the_page_is_shown_at_the_web_pages_pace(qapp, t
     assert not page.overlay_on_start.isChecked() and page.light
     assert page.poller.timeout == 8 and page.poller._timer.isActive()
     settle(lambda: page.iface.count() == 2)
-    assert page.poller._timer.interval() == 1500                                  # capturing, in performance mode
+    # capturing, in performance mode: the pace is set as each reading comes (``poll``'s next ``setTimeout``), so where
+    # the meter answered before the app's settings, the performance pace is the next reading's
+    settle(lambda: page.poller._timer.interval() == 1500, timeout=6.0)
     page.light = False
     assert page._pace() == 700
     page.answer = IDLE

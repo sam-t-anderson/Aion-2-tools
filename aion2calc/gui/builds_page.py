@@ -34,7 +34,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from PySide6.QtCore import QObject, QRectF, QRegularExpression, QStandardPaths, Qt, Signal
 from PySide6.QtGui import (QColor, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient,
-                           QRegularExpressionValidator)
+                           QRegularExpressionValidator, QShowEvent)
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
                                QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget)
 
@@ -44,7 +44,8 @@ from .api import AppApi, Requests
 from .character import field_value, js_number, js_string
 from .chrome import FlowLayout
 from .combat_page import stylesheet as combat_stylesheet
-from .combat_review_page import LOGO, AutoGrid
+from .combat_review import character_details, profile_image
+from .combat_review_page import LOGO, AutoGrid, details_view
 from .combat_saved import _clear
 from .database_page import Window
 from .news import when as when_at
@@ -89,9 +90,9 @@ NO_MATCH = "No skills match this search."
 BOARDS = "Daevanion boards"
 NOTES = "Draft notes"
 SOURCE_IMAGE = "Source image unavailable"
-ON_THE_WEB = ("This part of the draft is drawn on the web Builds page for now. Save the draft here, then load it there "
-              "from Saved local drafts.")
-OPEN_WEB = "Open the web Builds page"
+BACK_TO_LOG = "← Back to log"
+REFERENCE_HEAD = "Read-only source reference"
+FULL_REFERENCE = "Full reference JSON"
 # what was done
 PENDING = "Apply pending component/Genus edits first."
 MODE_CHANGED = "Draft mode changed. No score was recalculated."
@@ -332,7 +333,7 @@ class Remote(QObject):
         self._pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="gui-build-pictures")
 
     def ask(self, url: str) -> None:
-        if not ICON.match(url or "") or url in self._asked:
+        if not (ICON.match(url or "") or profile_image(url)) or url in self._asked:   # ``icon``'s or ``profileImage``'s
             return
         self._asked.add(url)
         try:
@@ -361,11 +362,11 @@ class Picture(QLabel):
     """A picture of the page (``icon``): the app's bundled copy, else the source's once read, else the app's logo
     with its tip; ◇ where the catalog gives none on a host the page shows."""
 
-    def __init__(self, url: str, size: int, parent: QWidget | None = None):
+    def __init__(self, url: str, size: int, parent: QWidget | None = None, height: int | None = None):
         super().__init__(parent)
-        self.url, self.side = url, size
+        self.url, self.side, self.tall = url, size, height or size
         self.setObjectName("plain")
-        self.setFixedSize(size, size)
+        self.setFixedSize(size, self.tall)
         self.setAlignment(Qt.AlignCenter)
         if not url:
             self.setText("◇")                    # ``.cr-profile-empty``
@@ -376,7 +377,7 @@ class Picture(QLabel):
             picture = QPixmap(LOGO)
             self.setToolTip(SOURCE_IMAGE)
         if picture is not None and not picture.isNull():
-            self.setPixmap(picture.scaled(self.side, self.side, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.setPixmap(picture.scaled(self.side, self.tall, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
 
 # ------------------------------------------------------------------ the parts
@@ -744,15 +745,14 @@ def stylesheet() -> str:
 
 # ------------------------------------------------------------------ the page
 class BuildsPage(QWidget):
-    """Character → Builds. ``open_web`` opens a page of the web interface; ``confirm``, ``choose_file`` and
-    ``save_file`` stand in for the questions and the file dialogs; ``store`` keeps the drafts (the app's interface
-    data); ``read_picture`` reads a source's picture (the web page's ``img``)."""
+    """Character → Builds. ``confirm``, ``choose_file`` and ``save_file`` stand in for the questions and the file
+    dialogs; ``store`` keeps the drafts (the app's interface data); ``read_picture`` reads a source's picture (the web
+    page's ``img``). ``prepare`` opens it on a log's character."""
 
-    def __init__(self, api: AppApi | None, open_web=None, parent: QWidget | None = None, store=None, confirm=None,
+    def __init__(self, api: AppApi | None, parent: QWidget | None = None, store=None, confirm=None,
                  choose_file=None, save_file=None, pictures: Pictures | None = None, read_picture=None):
         super().__init__(parent)
         self.api = api
-        self.open_web = open_web or (lambda page: None)
         self.store = store if store is not None else interface_store()
         self.confirm = confirm or self._ask
         self.choose_file = choose_file or self._ask_file
@@ -781,6 +781,8 @@ class BuildsPage(QWidget):
         self.context: dict = {}
         self.mount_turn = 0                       # each opening of the page: a later one lets the earlier's answers go
         self.mounted = False
+        self.pending = None                       # the context the next opening starts on (``buildWorkspaceContext``)
+        self.back = None
         self.draft: dict = {}
         self.draft_turn = 0                       # each draft put in place (``draft !== owner``)
         self.serial = 0
@@ -827,7 +829,17 @@ class BuildsPage(QWidget):
     def showEvent(self, event) -> None:
         super().showEvent(event)
         if not self.mounted:
-            self.mount()
+            context, back = self.pending or ({}, None)
+            self.pending = None
+            self.mount(context, back)
+
+    def prepare(self, context: dict, back=None) -> None:
+        """Opened from a log's character (``buildWorkspaceContext``, 0.2.489): the next opening starts on it, and
+        ``back`` (← Back to log) returns to the log."""
+        self.pending = (dict(context or {}), back)
+        self.mounted = False
+        if self.isVisible():
+            self.showEvent(QShowEvent())
 
     def leave(self) -> None:
         """Another page shown (the web page's ``dispose``): what is on its way is let go, and the page starts afresh
@@ -836,12 +848,14 @@ class BuildsPage(QWidget):
         self.mount_turn += 1
         self.serial += 1
 
-    def mount(self, context: dict | None = None) -> None:
+    def mount(self, context: dict | None = None, back=None) -> None:
         """The page opened (``mount``): the catalog read once, then an empty draft for the class (``io.className``,
-        else the catalog's first), the mode and the level given, and the class's budgets asked for."""
+        else the catalog's first), the mode and the level given, and the class's budgets asked for. ``back`` is the
+        way back to the log it was opened from (``io.backURL``)."""
         self.mounted = True
         self.mount_turn += 1
         self.context = dict(context or {})
+        self.back = back
         self.reset_state()
         self.reference = self.context.get("reference")
         self.source = self.context.get("source") or {}
@@ -899,6 +913,10 @@ class BuildsPage(QWidget):
         _clear(self.layout_)
         frame = Window(TITLE)
         self.frame = frame
+        self.back_button = None
+        if self.back is not None:                           # ``io.backURL``: the button after the title
+            self.back_button = frame.tool(_button(BACK_TO_LOG, self.back))
+            frame.head.addStretch(1)
         body = frame.body
         body.addWidget(_note(_label(INTRO)))
         self.class_box = QComboBox()
@@ -1283,8 +1301,7 @@ class BuildsPage(QWidget):
             self.draw_inputs()
             return
         if self.tab not in ("active", "passive", "stigma", "daevanion"):
-            self.body.addWidget(_note(_label(ON_THE_WEB)))
-            self.body.addWidget(_row(_button(OPEN_WEB, lambda: self.open_web("builds"))))
+            self.draw_reference()
             return
         catalog, draft = self.catalog or {}, self.draft
         a = b.assessment(catalog, draft)
@@ -2181,6 +2198,40 @@ class BuildsPage(QWidget):
         self.evaluating = False
         if self.mounted and self.tab == "inputs" and self.body is not None:
             self.draw_inputs()
+
+    # ---------------------------------------------------------------- the source character (``tab === 'reference'``)
+    def draw_reference(self) -> None:
+        """The draft's read-only reference: where it comes from, the snapshot's status and times, the recorded
+        character as the log review draws it (character-view.js ``details``), and the whole reference as JSON."""
+        _clear(self.body)
+        words = self.reference_words = b.reference_words(self.reference, self.source)
+        self.body.addWidget(_head(REFERENCE_HEAD))
+        self.body.addWidget(_note(_label(words["note"])))
+        if words["status"] is not None:
+            self.body.addWidget(_label("\n".join(words["status"])))
+        if words["data"] is not None:
+            self.body.addWidget(details_view(character_details(words["data"], words["region"]), self._profile_picture))
+        else:
+            self.body.addWidget(_label(b.NO_SNAPSHOT))
+        if words["json"] is not None:
+            fold = Fold(FULL_REFERENCE)
+            text = _label(words["json"], "profileJson", wrap=False)
+            text.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            text.setStyleSheet("font-family: monospace;")
+            fold.add(text)
+            self.body.addWidget(fold)
+        self.body.addStretch(1)
+
+    def _profile_picture(self, url: str, alt: str, size: int, height: int | None = None) -> Picture:
+        """A recorded character's picture (``profileIcon``): on the official and community hosts only, the app's
+        bundled copy first, else the app's logo where it cannot be read; ◇ where there is none."""
+        url = profile_image(url)
+        label = Picture(url, size, height=height)
+        label.setAccessibleName(alt if url else "Image unavailable")
+        if url:
+            self.shown_pictures.append(label)
+            self._fill(label)
+        return label
 
     # ---------------------------------------------------------------- pictures
     def _picture(self, url: str, size: int) -> Picture:

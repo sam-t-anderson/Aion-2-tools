@@ -117,7 +117,8 @@ class MainWindow(QMainWindow):
                 self.nav.addItem(item)
                 self.page_rows[key] = self.nav.count() - 1
                 if key == "meter":
-                    widget = MeterPage(api, open_page=self.show_page, open_in_web=self.open_in_web, open_web=self.open_web)
+                    widget = MeterPage(api, open_page=self.show_page, open_in_web=self.open_in_web, open_web=self.open_web,
+                                       open_builds=self.open_builds)
                 elif key == "settings":
                     widget = SettingsPage(api, self.open_web, open_page=self.show_page,
                                           change_language=self.change_language, change_look=self.change_look)
@@ -146,9 +147,9 @@ class MainWindow(QMainWindow):
                 elif key == "account":
                     widget = AccountPage(api, self.open_web)
                 elif key == "combat":
-                    widget = CombatPage(api, self.open_web, open_in_web=self.open_in_web)
+                    widget = CombatPage(api, self.open_web, open_in_web=self.open_in_web, open_builds=self.open_builds)
                 elif key == "builds":
-                    widget = BuildsPage(api, self.open_in_web)
+                    widget = BuildsPage(api)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)
@@ -215,6 +216,18 @@ class MainWindow(QMainWindow):
 
     def show_page(self, key: str) -> None:
         self.nav.setCurrentRow(self.page_rows[key])
+
+    def open_builds(self, context: dict, back=None) -> None:
+        """A log's character opened in Builds (``openBuildWorkspace``, 0.2.489): the page opens on it, and its
+        ← Back to log shows the page it came from again, then ``back`` (the log reopened there)."""
+        origin = self.current_page()
+
+        def again() -> None:
+            self.show_page(origin)
+            if back is not None:
+                back()
+        self.page("builds").prepare(context, again)
+        self.show_page("builds")
 
     def _navigate(self, current, _previous) -> None:
         key = current.data(Qt.UserRole) if current is not None else None
