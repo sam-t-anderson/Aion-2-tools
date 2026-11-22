@@ -288,7 +288,7 @@ def test_app_and_data_as_the_web_page_draws_it(qapp, home):
     assert any(sw.DISCORD_URL in t and sw.DISCORD in t for t in texts)
     assert any(sw.PATCH_NOTES_URL in t and sw.ALL_NOTES in t for t in texts)
     assert sw.NATIVE_NOTE.startswith("On by default since 0.2.426. Every page but Raid Planner is native")
-    assert "Builds (its skills, passives, stigmas, Daevanion boards, equipment and arcana cards)" in sw.NATIVE_NOTE
+    assert "Builds (all but its source character)" in sw.NATIVE_NOTE
     pages = page.controls["app_default_page"]
     assert [pages.itemText(i) for i in range(pages.count())][:3] == ["Live Meter", "Combat Logs", "Raid Planner"]
     assert pages.count() == 16 and pages.findData("account") < 0
