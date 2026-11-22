@@ -118,8 +118,8 @@ class MainWindow(QMainWindow):
                 self.nav.addItem(item)
                 self.page_rows[key] = self.nav.count() - 1
                 if key == "meter":
-                    widget = MeterPage(api, open_page=self.show_page, open_in_web=self.open_in_web, open_web=self.open_web,
-                                       open_builds=self.open_builds)
+                    widget = MeterPage(api, open_page=self.show_page, open_web=self.open_web, open_builds=self.open_builds,
+                                       open_replay=self.open_replay)
                 elif key == "settings":
                     widget = SettingsPage(api, self.open_web, open_page=self.show_page,
                                           change_language=self.change_language, change_look=self.change_look)
@@ -148,11 +148,11 @@ class MainWindow(QMainWindow):
                 elif key == "account":
                     widget = AccountPage(api, self.open_web)
                 elif key == "combat":
-                    widget = CombatPage(api, self.open_web, open_in_web=self.open_in_web, open_builds=self.open_builds)
+                    widget = CombatPage(api, self.open_web, open_builds=self.open_builds, open_replay=self.open_replay)
                 elif key == "builds":
                     widget = BuildsPage(api)
                 elif key == "raid":
-                    widget = RaidPage(api, self.open_in_web)
+                    widget = RaidPage(api)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)
@@ -231,6 +231,14 @@ class MainWindow(QMainWindow):
                 back()
         self.page("builds").prepare(context, again)
         self.show_page("builds")
+
+    def open_replay(self, plan: dict) -> bool:
+        """A log's movement replay opened in the Raid Planner (``importPlan``, 0.2.492): the planner shown on it once
+        it is the plan there (a plan worked on kept or discarded as asked); nothing when cancelled."""
+        opened = self.page("raid").open_replay(plan)
+        if opened:
+            self.show_page("raid")
+        return opened
 
     def _navigate(self, current, _previous) -> None:
         key = current.data(Qt.UserRole) if current is not None else None

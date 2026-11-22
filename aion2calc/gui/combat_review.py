@@ -60,12 +60,6 @@ OPPONENT_NOTE = ("The review below reads the fight from their side: the summary,
                  "their deaths, and the buffs, debuffs and crowd control on and from them. Only what the recording holds of "
                  "them is shown.")
 REFRESH = "Refresh rankings"
-ELSEWHERE = "The movement replay's Raid Planner file opens in the web interface for now."
-OPEN_WEB = "Open the full review in the web interface"
-#: an upload's log, opened with its credential, is not at an address the web interface can open: its My Uploads reviews it
-ELSEWHERE_OPENED = ("The movement replay's Raid Planner file opens in the web interface for now: its My Uploads "
-                    "reviews this upload too.")
-OPEN_WEB_OPENED = "Open My Uploads in the web interface"
 SUMMARY_COLUMNS = ["Player / server", "Class", "Damage done", "DPS", "Damage taken", "Healing", "HPS", "Deaths"]
 
 
@@ -140,6 +134,9 @@ def is_character(e, doc: dict) -> bool:
 
 
 # ------------------------------------------------------------------ the roster and the events
+_NONE = object()                                   # a key an actor does not have (``undefined``)
+
+
 def segment_refs(doc: dict, segment: dict, everyone: bool) -> dict:
     """The actors of one fight (``segmentRefs``): those who took part in it, by id, with their profiles and their pets'
     classes; everyone when the fight names none."""
@@ -173,7 +170,11 @@ def segment_refs(doc: dict, segment: dict, everyone: bool) -> dict:
             r[x["id"]]["profile_snapshot"] = x["profile_snapshot"]
     for x in r.values():
         if _truthy(x.get("owner")):
-            x["class"] = _dict(r.get(x["owner"])).get("class")
+            owner_class = _dict(r.get(x["owner"])).get("class", _NONE)
+            if owner_class is _NONE:                   # ``e.class = r[e.owner]?.class``: undefined, so left out
+                x.pop("class", None)
+            else:
+                x["class"] = owner_class
     return r
 
 

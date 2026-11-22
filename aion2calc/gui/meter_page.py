@@ -256,18 +256,19 @@ def counter_line(key: str, words: str, pictures: Pictures | None, ratio: float =
 # ------------------------------------------------------------------ the page
 class MeterPage(QWidget):
     """The Live Meter page. ``open_page`` shows another page of the window (Combat Logs, for a log saved),
-    ``open_link`` an address in the browser (a shared log), ``open_in_web`` a page in the web interface (what is not
-    drawn here yet), ``open_window`` the overlay's own page in a window when the app cannot open its overlay window;
+    ``open_link`` an address in the browser (a shared log), ``open_replay`` the live review's replay in the Raid
+    Planner, ``open_window`` the overlay's own page in a window when the app cannot open its overlay window;
     ``pictures`` gives the parse card's and the counters' pictures, ``store`` keeps the players' scope and Advanced
     capture's choices; ``ask`` and ``choose_file`` stand in for the questions and the file dialog in tests."""
 
     def __init__(self, api: AppApi | None, parent: QWidget | None = None, open_page=None, open_link=None,
-                 open_in_web=None, open_window=None, pictures: Pictures | None = None, store=None, ask=None,
-                 choose_file=None, open_web=None, open_builds=None):
+                 open_window=None, pictures: Pictures | None = None, store=None, ask=None, choose_file=None,
+                 open_web=None, open_builds=None, open_replay=None):
         super().__init__(parent)
         self.api = api
         self.open_builds = open_builds           # the live review's character opened in Builds (0.2.489)
-        self.open_page, self.open_in_web = open_page, open_in_web
+        self.open_replay = open_replay           # the live review's replay opened in the Raid Planner (0.2.492)
+        self.open_page = open_page
         self.open_web = open_web                 # a page of the app, here where the window draws it (the review's links)
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.open_window = open_window or _browser_window
@@ -997,9 +998,10 @@ class MeterPage(QWidget):
 
     def _review_drawn(self, doc: dict) -> None:
         if self.review is None:
-            self.review = ReviewPage(self.api, self.open_web, self.open_in_web, pictures=self.pictures, store=self.store,
-                                     live=True, open_builds=((lambda context, _back: self.open_builds(context, None))
-                                                             if self.open_builds is not None else None))
+            self.review = ReviewPage(self.api, self.open_web, pictures=self.pictures, store=self.store, live=True,
+                                     open_builds=((lambda context, _back: self.open_builds(context, None))
+                                                  if self.open_builds is not None else None),
+                                     open_replay=self.open_replay)
             self.review.setStyleSheet(combat_stylesheet())
             self.review_box.addWidget(self.review)
             self.review_slot.show()

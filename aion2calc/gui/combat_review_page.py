@@ -45,8 +45,8 @@ Drawn here so far:
   (``#/combat-log/opened``, ``show_opened``): reviewed with the review's own choices alone, so without other parts,
   metadata to save, an upload, a report or the fight's other recordings.
 
-The replay's Raid Planner file opens in the web interface for now, from a button on the page (for an upload's log, the
-web interface's My Uploads, which reviews it there too).
+Since 0.2.492 the replay opens in the Raid Planner (``options.importPlan``, ``open_replay``): the review is whole, and
+its button to the web interface is gone.
 """
 from __future__ import annotations
 
@@ -292,19 +292,20 @@ def profile_cards(cards: list, none: str, picture) -> QWidget:
 
 class ReviewPage(QWidget):
     """A log's own page (``pageCombatLog``, ``A2CombatReview.mount``). ``open_web`` opens a page of the app (another log
-    opens here again); ``open_in_web`` opens a page in the web interface itself (the full review). ``uploaded`` says this
-    recording was uploaded (``a2log-uploaded``). ``store`` keeps what the web page keeps in its browser (the movement
-    replay's speed and arena shape)."""
+    opens here again). ``uploaded`` says this recording was uploaded (``a2log-uploaded``). ``store`` keeps what the web
+    page keeps in its browser (the movement replay's speed and arena shape)."""
 
     uploaded = Signal()
 
-    def __init__(self, api: AppApi | None, open_web=None, open_in_web=None, parent: QWidget | None = None,
-                 pictures: Pictures | None = None, read_picture=None, store=None, live: bool = False, open_builds=None):
+    def __init__(self, api: AppApi | None, open_web=None, parent: QWidget | None = None, pictures: Pictures | None = None,
+                 read_picture=None, store=None, live: bool = False, open_builds=None, open_replay=None):
         super().__init__(parent)
         self.live = live                                 # the live session's review (``options.live``, 0.2.473)
         # ``options.openBuildWorkspace`` (0.2.489): a character's saved profile opened in Builds, given the context and
         # how to come back to this log
         self.open_builds = open_builds
+        # ``options.importPlan`` (0.2.492): the movement replay made the Raid Planner's plan, and the planner shown
+        self.open_replay = open_replay
         self.store = store if store is not None else interface_store()
         self.replay: ReplayPanel | None = None           # the movement replay drawn last, while it may be playing
         self.aoe_shapes: dict | None = None              # the bosses' skills' measured areas (``aoeShapes``), read once
@@ -321,7 +322,6 @@ class ReviewPage(QWidget):
         self.official_kept: dict[str, QPixmap | None] = {}
         image_health.watch(self)                         # Settings' Retry images reads them again (0.2.475)
         self.open_web = open_web or (lambda page: None)
-        self.open_in_web = open_in_web or self.open_web
         self.pictures = pictures
         self.names: dict | None = None                  # the community's NPC names, read once
         self.soon = QTimer(self)                         # pictures that come together, drawn once
@@ -721,18 +721,6 @@ class ReviewPage(QWidget):
         if _truthy(log):
             self.open_web(cv.shared_page(log, self.state["mode"]))
 
-    def full_review(self) -> None:
-        """The whole review, in the web interface (its graph, timeline, events and the rest)."""
-        if not self.where:
-            return
-        if self.where["kind"] == "live":                             # the live session's: the web interface's Live Meter
-            self.open_in_web("meter")
-            return
-        if self.where["kind"] == "opened":                           # an upload's: My Uploads there, to review it again
-            self.open_in_web("combat/owned")
-            return
-        self.open_in_web(self._address())
-
     def _address(self) -> str:
         """This log's page at the mode and encounter shown (``#/combat-log/local/<file>``, ``#/combat-log/shared/<id>``)."""
         page = cw.local_page if self.where["kind"] == "local" else cv.shared_page
@@ -869,18 +857,6 @@ class ReviewPage(QWidget):
             body.addWidget(replay)
         body.addWidget(self._compare_row())
         body.addWidget(self._comparisons(d))
-        elsewhere = QFrame()
-        elsewhere.setObjectName("note")
-        line = QVBoxLayout(elsewhere)
-        line.setContentsMargins(0, 0, 0, 0)
-        line.setSpacing(6)
-        opened = self.where.get("kind") == "opened"
-        line.addWidget(_label(cw.ELSEWHERE_OPENED if opened else cw.ELSEWHERE))
-        row, row_line = _plain(QHBoxLayout)
-        row_line.addWidget(_button(cw.OPEN_WEB_OPENED if opened else cw.OPEN_WEB, self.full_review))
-        row_line.addStretch(1)
-        line.addWidget(row)
-        body.addWidget(elsewhere)
         self.box.addWidget(frame)
 
     def _pick(self, words: str, values, chosen, changed, groups=None) -> QWidget:
@@ -2008,7 +1984,7 @@ class ReviewPage(QWidget):
                     column.addWidget(merge_row(merge, merging))
                 return box
             return None
-        self.replay = ReplayPanel(model, self.store, merge=merge, merging=merging)
+        self.replay = ReplayPanel(model, self.store, merge=merge, merging=merging, open_replay=self.open_replay)
         return self.replay
 
     def _stop_replay(self) -> None:

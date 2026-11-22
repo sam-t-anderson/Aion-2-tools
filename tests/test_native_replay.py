@@ -978,3 +978,88 @@ def test_movement_from_other_recordings_alone(qapp, tmp_path):
     settle(lambda: view.replay is None and rp.NO_MOVEMENT in _labels(view))
     labels = _labels(view)
     assert rp.NO_MOVEMENT + rp.MAY_HOLD not in labels and any(label.startswith("Merged with 1 of 2") for label in labels)
+
+
+# ------------------------------------------------------------------ the replay as a Raid Planner plan (0.2.492)
+def test_the_replay_and_a_recordings_fight_as_raid_planner_plans():
+    from aion2calc.gui import builds as b
+    log = _casting()
+    replay = _replay(log, {"enabled": False})
+    replay.shapes = CATALOG
+    plan = json.loads(b.stringify(replay.plan("square")))
+    assert {k: plan[k] for k in ("format", "version", "meta", "duration", "arena", "buffs")} == {
+        "format": "a2plan", "version": 1, "meta": {"name": "Ice Queen"}, "duration": 120, "arena": {"kind": "square"},
+        "buffs": []}
+    actors = {t["id"]: t for t in plan["tokens"] if t["kind"] != "aoe"}
+    # each that moved: on the map from its first place (a clone that came mid-fight) to 8 s after its last
+    assert [(k, t["kind"], t.get("from"), t.get("until"), len(t["keyframes"])) for k, t in actors.items()] == [
+        ("b1", "enemy", None, 68, 7), ("p1", "player", None, 38, 3), ("p2", "player", None, 17.5, 4),
+        ("pet1", "player", None, 11, 2), ("a1", "enemy", 3.5, 11.5, 1), ("w1", "enemy", None, 18, 2),
+        ("a2", "enemy", 19, 27, 1)]
+    assert actors["p1"]["label"] == "TestSorc ✓ · Zikel" and actors["p1"]["cls"] == "sorcerer" and actors["p1"]["color"] == GOLD
+    assert "cls" not in actors["b1"] and actors["pet1"]["cls"] == "sorcerer"      # a pet in its owner's class
+    assert actors["w1"]["keyframes"][0] == {"t": 0, "x": 1, "y": 0}               # beyond the arena: at its corner
+    # the boss casts' measured areas, each where and for as long as the replay draws it
+    areas = [t for t in plan["tokens"] if t["kind"] == "aoe"]
+    assert [(a["shape"], a["from"], a["until"]) for a in areas] == [
+        ("line", 2, 5.6), ("ring", 12, 13.5), ("cone", 14, 15.5), ("cone", 14, 15.5), ("line", 16, 23), ("cone", 18, 19.5),
+        ("circle", 20, 22.2), ("circle", 20.3, 22.5), ("circle", 20.6, 22.8), ("line", 24, 25.5), ("circle", 26, 27.5),
+        ("circle", 28, 30)]
+    assert areas[1] == {"id": "aoe:1", "kind": "aoe", "label": "Ice Queen: Ice Ring", "color": "#f06060", "shape": "ring",
+                        "radius": 0.3719, "inner": 0.124, "from": 12, "until": 13.5,
+                        "keyframes": [{"t": 12, "x": 0.6239669421487604, "y": 0.37603305785123964}]}
+    assert (areas[2]["angle"], areas[2]["facing"], areas[3]["facing"]) == (15, -171.9, -81.9)       # wedges either side
+    assert areas[5]["label"] == "Ice Queen: 127" and areas[5]["facing"] == 45                        # by the boss's name
+    # what the key hides: a token kept but hidden; the areas with the casts
+    replay.hidden.update({"pet", "casts"})
+    hidden = replay.plan("circle")
+    assert [t["id"] for t in hidden["tokens"] if t.get("hidden")] == ["pet1"] and hidden["arena"] == {"kind": "circle"}
+    assert not [t for t in hidden["tokens"] if t["kind"] == "aoe"]
+    # an older recording's positions, already on the view: the whole view, square, no areas
+    old = _moving()
+    fight = old["segments"][0]
+    fight["positions"] = [{"t": 1, "entity": "b1", "x": 0.5, "y": 0.25}, {"t": 2, "entity": "p1", "x": 1.2, "y": -0.1}]
+    del fight["movement"]
+    flat = rp.Replay(old, cw.data(old, cw.fresh_state()), {}, {}).plan("circle")
+    assert flat["arena"] == {"kind": "square"}
+    assert [t["keyframes"] for t in flat["tokens"]] == [[{"t": 1, "x": 0.5, "y": 0.25}], [{"t": 2, "x": 1, "y": 0}]]
+    # the planner's import: the fights that hold movement, then one as a plan (the fight's own actors alone)
+    assert rp.movement_fights(log) == [{"index": 0, "name": "Ice Queen", "duration": 120, "positions": 20, "boss": True}]
+    imported = rp.movement_plan(log, 0, "circle", CATALOG, {})
+    assert imported["arena"] == {"kind": "circle"} and len(imported["tokens"]) == 19
+    assert [t["label"] for t in imported["tokens"] if t["kind"] != "aoe"][5] == "Unknown / not recorded"   # the wolf did nothing
+    with pytest.raises(ValueError, match=rp.NO_FIGHT_MOVEMENT):
+        rp.movement_plan(log, 3, "circle")
+    # Math.hypot as V8 works it out (Python's own differs in the last place here)
+    assert rp.js_hypot(2398.985747399307, 4223.24996665417) == 4857.053931867491
+    assert rp.js_hypot(3, 4) == 5 and rp.js_hypot(math.nan, math.inf) == math.inf and math.isnan(rp.js_hypot(1, math.nan))
+
+
+def test_open_in_raid_planner_under_the_key(qapp, tmp_path):
+    from aion2calc.gui import builds as b
+    from aion2calc.gui.combat_replay_view import PLAN_EXPORT, PLAN_FILE, PLAN_OPEN, ReplayPanel
+    from aion2calc.gui.raid import INVALID_REPLAY, PlanError
+    app = FakeApp()
+    app.log_server.review_log = _moving()
+    opened = []
+    page = _page(app, store=_store(tmp_path), open_replay=opened.append)
+    page.open_review("local", "session-1.a2log.json")
+    view = page.review_page
+    settle(lambda: view.replay is not None and not view.awaiting)
+    panel = view.replay
+    assert panel.plan_button.text() == PLAN_OPEN
+    _click(view, PLAN_OPEN)
+    assert opened == [panel.replay.plan(panel.shape)] and opened[0]["meta"] == {"name": "Ice Queen"}
+
+    def refuse(plan):
+        raise PlanError(INVALID_REPLAY)
+    panel.open_replay = refuse                                     # the planner refusing it: why, beside the button
+    _click(view, PLAN_OPEN)
+    assert panel.plan_status.text() == INVALID_REPLAY
+    # without the planner: the replay's Raid Planner file, saved where asked
+    asked = []
+    alone = ReplayPanel(_replay(), _store(tmp_path), save_file=lambda name: asked.append(name) or str(tmp_path / "p.json"))
+    assert alone.plan_button.text() == PLAN_EXPORT
+    alone.plan_button.click()
+    assert asked == [PLAN_FILE]
+    assert (tmp_path / "p.json").read_text(encoding="utf-8") == b.stringify(alone.replay.plan(alone.shape))
