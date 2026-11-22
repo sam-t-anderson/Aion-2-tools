@@ -36,8 +36,25 @@ SYSTEM_KEYS = ("interface_native", "app_window", "app_text_scale", "performance_
 RECORD_KEYS = tuple(key for key, *_rest in sw.RECORD_CHECKS) + tuple(sw.RECORD_NUMBERS) + ("meter_log_cache_mb",)
 SERVER_KEYS = ("community_heartbeat", "community_contribute_character")
 PET_KEYS = ("pettracker_enabled", "pettracker_overlay", "pettracker_overlay_style", "pettracker_path")
-DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS + PET_KEYS
+
+
+def _described(items):
+    """The settings a row described in settings_words saves (0.2.478)."""
+    keys = []
+    for item in items:
+        if item[0] == "check":
+            keys.append(item[1])
+        elif item[0] == "row":
+            keys += [control[1] for control in item[1]]
+        elif item[0] == "check-number":
+            keys += [item[1][1], item[2][1]]
+    return tuple(keys)
+
+
+OVERLAY_KEYS = _described(sw.LIVE_OVERLAY) + _described(sw.RTSS) + _described(sw.LAYOUT)
+DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS + PET_KEYS + OVERLAY_KEYS
 DRAWN_GROUPS = ("system", "meter", "server", "pettracker")
+DRAWN_OVERLAY = ("Live meter overlay", "In-game (RTSS)", "Streaming (OBS / Discord)", "Overlay layout")
 T0 = 1700000000
 STATUS = {"home": "/data/aion2calc", "version": "0.2.475", "db": {"items": 12345, "last_sync": {"at": T0}},
           "update": None, "update_state": {"checked_at": T0}, "update_download": {}}
@@ -160,7 +177,7 @@ def _row(page, title):
 # ------------------------------------------------------------------ the rows still drawn from the schema
 def test_every_control_saves_one_of_the_apps_settings_and_its_default_fits(home):
     defaults = server.ui_settings()
-    assert len(ROWS) == 15 and len(CONTROLS) == 66           # App & data's, Meter's, Server's and Pet Tracker's drawn here
+    assert len(ROWS) == 11 and len(CONTROLS) == 4     # App & data, Meter, Server, Pet Tracker and half of Overlay drawn here
     assert len({control.key for control in CONTROLS}) == len(CONTROLS)                 # one control per setting
     assert not {control.key for control in CONTROLS} & set(DRAWN_KEYS)
     for control in CONTROLS:
@@ -178,7 +195,8 @@ def test_every_control_saves_one_of_the_apps_settings_and_its_default_fits(home)
         assert key in defaults, key
     for key, (_words, _unit, low, high, shown) in {**sw.RECORD_NUMBERS, "meter_log_cache_mb": sw.LOG_CACHE}.items():
         assert low <= defaults[key] <= high and low <= shown <= high, key
-    drawn = {r for r in sw.ROW_ORDER if r[0] in DRAWN_GROUPS}
+    drawn = {r for r in sw.ROW_ORDER if r[0] in DRAWN_GROUPS or (r[0] == "overlay" and r[1] in DRAWN_OVERLAY)}
+    assert len(OVERLAY_KEYS) == len(set(OVERLAY_KEYS)) == 62                 # 24 + 5 + 33, one each
     assert {(row.group, row.title) for row in ROWS} | drawn == set(sw.ROW_ORDER) and len(sw.ROW_ORDER) == 39
 
 
@@ -208,13 +226,13 @@ def test_each_control_saves_its_setting(qapp, home):
     page.controls["app_text_scale"].setCurrentIndex(page.controls["app_text_scale"].findData(90))
     assert page.saved == [("overlay_show_weekly_runs", False), ("overlay_show_weekly_runs", True),
                           ("overlay_bg_mode", "none"), ("app_text_scale", 90)]
-    page.controls["overlay_width"].setValue(500)
-    page.controls["overlay_width"].setValue(520)                                       # typed on: saved once, when still
+    page.controls["overlay_font_scale"].setValue(110)                                 # a schema row's number:
+    page.controls["overlay_font_scale"].setValue(120)                                 # saved once, when still
     clock = QElapsedTimer()
     clock.start()
     while len(page.saved) < 5 and clock.elapsed() < 3000:
         QCoreApplication.processEvents()
-    assert page.saved[4:] == [("overlay_width", 520)] and page.toast.text() == "Saved"
+    assert page.saved[4:] == [("overlay_font_scale", 120)] and page.toast.text() == "Saved"
 
 
 def test_the_tabs_and_the_rows_on_the_web(qapp, home):
@@ -260,7 +278,8 @@ def test_app_and_data_as_the_web_page_draws_it(qapp, home):
     assert [r.title for r in page.rows if r.isVisibleTo(page)] == [title for group, title in sw.ROW_ORDER
                                                                    if group == "system"]
     assert {(m, p) for m, p, _b in app.calls} == {("GET", "/api/status"), ("GET", "/api/logserver"), ("GET", "/api/ui"),
-                                                   ("GET", "/api/pettracker")}            # Pet Tracker's too (0.2.477)
+                                                   ("GET", "/api/pettracker"),           # Pet Tracker's (0.2.477)
+                                                   ("GET", "/api/rtss")}                 # and RTSS's (0.2.478)
     texts = _texts(page)
     for words in (sw.NATIVE, sw.NATIVE_NOTE, sw.APP_WINDOW, sw.APP_WINDOW_NOTE, sw.TEXT_LABEL, sw.TEXT_NOTE,
                   sw.TEXT_NATIVE, sw.PERFORMANCE_NOTE, sw.LANGUAGE_WEB, sw.LAUNCH_LABEL, sw.LAUNCH_NOTE,
@@ -632,6 +651,119 @@ def test_pet_tracker_elsewhere_and_not_installed(qapp, home):
     settle(lambda: "No signed release" in _texts(page))
 
 
+# ------------------------------------------------------------------ Overlay, first part (0.2.478)
+def test_the_live_meter_overlay_and_rtss(qapp, home, tmp_path):
+    sound = tmp_path / "chime.ogg"
+    sound.write_bytes(b"OggS" + b"\0" * 60)
+    big = tmp_path / "long.wav"
+    big.write_bytes(b"\0" * (1024 * 1024 + 1))
+    chosen = [str(big), str(sound), ""]
+    app = FakeApp(_answers({("GET", "/api/ui", None): {**server.ui_settings(), "overlay_close_on_stop": True,
+                                                        "overlay_show_target": False, "overlay_cooldowns_min_s": "x",
+                                                        "overlay_cooldowns_max": 0, "overlay_cooldowns_position": "top",
+                                                        "overlay_events_sound_set": True, "rtss_metric": "nope",
+                                                        "rtss_interval_ms": 250},
+                            ("GET", "/api/rtss", None): [{"supported": True, "enabled": False},
+                                                         {"supported": True, "enabled": True, "connected": True, "slot": 3,
+                                                          "version": "2.21", "updates": 42}],
+                            ("POST", "/api/overlay/event-sound", None): [{"overlay_events_sound_set": True},
+                                                                         {"overlay_events_sound_set": False}]}))
+    page = _page(home, app)
+    page.choose_sound = lambda: chosen.pop(0)
+    page.show_tab("overlay")
+    settle(lambda: page.ui and page.rtss_message.text() == "Off.")
+    texts = _texts(page)
+    for item in sw.LIVE_OVERLAY + sw.RTSS:
+        if item[0] == "note":
+            assert item[1] in texts, item[1]
+    assert sw.SOUND_NATIVE in texts
+    # shown by the web page's rules
+    assert page.controls["overlay_close_on_stop"].box.isChecked() and not page.controls["overlay_show_target"].box.isChecked()
+    assert page.controls["overlay_show_contribution"].box.isChecked() and not page.controls["overlay_show_ttk"].box.isChecked()
+    assert page.controls["overlay_cooldowns_min_s"].value() == 3 and page.controls["overlay_cooldowns_max"].value() == 1
+    assert page.controls["overlay_cooldowns_position"].currentData() == "top"
+    assert page.controls["rtss_metric"].currentData() == "dps" and page.controls["rtss_interval_ms"].value() == 250
+    assert page.controls["rtss_interval_ms"].singleStep() == 50 and page.sound_message.text() == sw.SOUND_SET
+    assert page.controls["overlay_show_odyle"].toolTip().startswith("The game's own count")
+    # each saved with what the web page says
+    page.controls["overlay_open_on_app_start"].box.setChecked(False)
+    settle(lambda: page.toast.text() == sw.SAVED_NEXT_LAUNCH)
+    page.controls["overlay_cooldowns_max"].setValue(12)
+    settle(lambda: app.sent("POST", "/api/ui")[-1][2] == {"overlay_cooldowns_max": 12} and page.toast.text() == "Saved")
+    page.controls["rtss_style"].setCurrentIndex(1)
+    settle(lambda: app.sent("POST", "/api/ui")[-1][2] == {"rtss_style": "colored"})
+    # Show overlay when starting: a refusal puts it back and says so
+    app.answers[("POST", "/api/ui", None)] = _refused("/api/ui", 400, "busy")
+    page.controls["overlay_on_start"].box.setChecked(False)
+    settle(lambda: page.toast.text() == "Could not save overlay preference: busy")
+    assert page.controls["overlay_on_start"].box.isChecked() and len(app.sent("POST", "/api/ui")) == 4   # not sent again
+    app.answers[("POST", "/api/ui", None)] = {"ok": True}
+    # RTSS: saved, then its state read again 800 ms later
+    page.controls["rtss_enabled"].box.setChecked(True)
+    settle(lambda: page.rtss_timer.isActive())
+    assert page.rtss_timer.interval() == sw.RTSS_READ_MS
+    page.rtss_timer.timeout.emit()
+    settle(lambda: page.rtss_message.text() == "Drawing in RTSS OSD slot 3 (shared memory v2.21, 42 updates).")
+    app.answers[("GET", "/api/rtss", None)] = _refused("/api/rtss", 500, "gone")
+    page.read_rtss()
+    settle(lambda: page.rtss_message.text() == sw.RTSS_UNAVAILABLE)
+    # the event sound: too big, then uploaded as a data address, then the built-in chime again
+    _button(page, sw.SOUND_UPLOAD).click()
+    assert page.sound_message.text() == sw.SOUND_TOO_BIG and not app.sent("POST", "/api/overlay/event-sound")
+    _button(page, sw.SOUND_UPLOAD).click()
+    settle(lambda: page.sound_message.text() == sw.SOUND_SAVED)
+    data = app.sent("POST", "/api/overlay/event-sound")[0][2]["data"]
+    import base64
+    assert data.startswith("data:audio/ogg;base64,") and base64.b64decode(data.partition(",")[2]) == sound.read_bytes()
+    _button(page, sw.SOUND_UPLOAD).click()                                             # nothing chosen: nothing sent
+    _button(page, sw.SOUND_DEFAULT).click()
+    settle(lambda: page.sound_message.text() == sw.SOUND_CLEARED)
+    assert app.sent("POST", "/api/overlay/event-sound")[-1][2] == {"clear": True}
+    assert len(app.sent("POST", "/api/overlay/event-sound")) == 2
+
+
+def test_the_streaming_address_and_the_overlay_layout(qapp, home):
+    app = FakeApp(_answers({("GET", "/api/ui", None): {**server.ui_settings(), "overlay_max_players": 0,
+                                                        "overlay_height": None, "overlay_name_mode": "number",
+                                                        "overlay_me_cosmetic": "aether", "overlay_always_visible": False}}))
+    app.base = "http://127.0.0.1:9123/"
+    page = _page(home, app)
+    page.show_tab("overlay")
+    settle(lambda: page.ui)
+    # the overlay's address for a browser source, copied and said for 2 s; the notes as the web page words them
+    assert page.stream_url.text() == "http://127.0.0.1:9123/overlay" and page.stream_url.isReadOnly()
+    _button(page, sw.STREAM_COPY).click()
+    assert QApplication.clipboard().text() == "http://127.0.0.1:9123/overlay"
+    assert page.stream_message.text() == sw.STREAM_COPIED and page._stream_clear.isActive()
+    page._stream_clear.timeout.emit()
+    assert page.stream_message.text() == ""
+    assert any("<b>OBS / Streamlabs Browser Source</b>" in t for t in _texts(page))
+    # the layout: a number the app has none of, its default; the lists; the checkboxes' rules
+    assert page.controls["overlay_max_players"].value() == 8 and page.controls["overlay_height"].value() == 0
+    assert page.controls["overlay_name_mode"].currentData() == "number"
+    assert page.controls["overlay_me_cosmetic"].currentData() == "aether"
+    assert [page.controls["overlay_top_cosmetic"].itemText(i) for i in range(7)][:2] == ["None", "Gold: a turning gold frame and a diamond"]
+    assert not page.controls["overlay_always_visible"].box.isChecked() and page.controls["overlay_remember_position"].box.isChecked()
+    assert page.controls["overlay_hover_interact"].contentsMargins().left() == 22
+    # the numbers checked and said beside their row; the interval inside its checkbox's line
+    page.controls["overlay_width"].setValue(400)
+    settle(lambda: page.number_messages["layout"].text() == "Saved")
+    assert app.sent("POST", "/api/ui")[-1][2] == {"overlay_width": 400}
+    page.controls["overlay_interpolate_ms"].setValue(150)
+    settle(lambda: app.sent("POST", "/api/ui")[-1][2] == {"overlay_interpolate_ms": 150})
+    app.answers[("POST", "/api/ui", None)] = _refused("/api/ui", 400, "ValueError: too wide")
+    page.controls["overlay_width"].setValue(500)
+    settle(lambda: page.number_messages["layout"].text() == "ValueError: too wide")
+    app.answers[("POST", "/api/ui", None)] = {"ok": True}
+    # each checkbox with what the web page says once saved
+    page.controls["overlay_click_through"].box.setChecked(True)
+    settle(lambda: page.toast.text() == sw.SAVED_OPEN_OVERLAY)
+    page.controls["overlay_snap_edge"].box.setChecked(True)
+    settle(lambda: page.toast.text() == sw.SAVED_RELAUNCH_OVERLAY)
+    page.controls["overlay_bar_style"].setCurrentIndex(1)
+    settle(lambda: app.sent("POST", "/api/ui")[-1][2] == {"overlay_bar_style": "gradient"})
+
+
 def test_the_settings_words():
     assert sw.chosen_tab("pettracker") == "pettracker" and sw.chosen_tab(None) == "appearance"
     assert sw.text_scale({"app_text_scale": "120abc"}) == 120 and sw.text_scale({}) == 100
@@ -660,6 +792,13 @@ def test_the_settings_words():
     started = sw.pet_status({"supported": True, "setup": {"status": "started"}})
     assert started["install"] is True and started["busy"] and started["setup"].startswith("Pet Tracker's installer is running")
     assert sw.pet_status({"supported": True, "installed": {"folder": "X"}})["text"].startswith("Installed, in X. ")
+    # Overlay, first part (0.2.478)
+    assert sw.shown_number({"overlay_width": "0"}, "overlay_width", 340, "or") == 340
+    assert sw.shown_number({"rtss_rows": 0}, "rtss_rows", 5, "finite") == 0 and sw.shown_number({}, "rtss_rows", 5, "finite") == 5
+    assert sw.clamped("300", 1, 120, 3) == 120 and sw.clamped("", 1, 120, 3) == 3 and sw.clamped("0", 1, 16, 8) == 8
+    assert sw.rtss_status({"supported": True, "enabled": True, "error": "RTSS is not running"}) == "RTSS is not running"
+    assert sw.rtss_status({"supported": True, "enabled": True}) == "Waiting for RTSS…" and sw.rtss_status({}).endswith("Windows only.")
+    assert sw.stream_url("https://host.example:8443/x/") == "https://host.example:8443/overlay"
 
 
 def test_the_image_failures_kept_as_the_web_page_keeps_them():

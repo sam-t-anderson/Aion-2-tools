@@ -1,3 +1,22 @@
+## The Settings page in the native interface, part 4 (0.2.478)
+
+**Settings in the app's window now has the first half of the Overlay tab as the web page draws it.**
+- **Live meter overlay**, with each setting's explanation:
+  - when the overlay opens and closes;
+  - what it shows: your contribution, the target, deaths, enemy HP, time to kill, the break gauge, your cooldowns (with the shortest shown, how many and where), combat power, Odyle Energy, Shugo keys, Nightmare tickets, weekly runs, your community rank, regional events and field-boss timers;
+  - the event sound: **Upload sound** sets a short sound of your own (1 MB at most), **Use default chime** goes back to the built-in one, and **Test** plays your system's alert, as the native overlay does;
+  - the raid plan's auto-play.
+- **In-game (RTSS):** drawing the meter inside the game through RivaTuner, with its rows, metric, style and refresh, and what RTSS is doing; once saved, it is read again.
+- **Streaming (OBS / Discord):** the overlay's address for a browser source, with **Copy URL**.
+- **Overlay layout:**
+  - players shown, width, height and row height;
+  - what the meter counts, and how names, bars, the background and the row effects look;
+  - live-ticking numbers, the graph, the FPS, click-through and hovering to interact;
+  - the settings that need the overlay reopened.
+- Each choice is saved as you make it and says so as the web page does, for example that it applies to the open overlay within 10 seconds, or once the overlay is reopened. If **Show overlay when starting the live meter** cannot be saved, it goes back as it was and says why.
+
+The Hidden Cube radar and the overlay's colours, fonts, effects, background, presets and hotkeys are still on the web Settings page.
+
 ## The Settings page in the native interface, part 3 (0.2.477)
 
 **Settings in the app's window now has the Pet Tracker tab as the web page draws it.**
