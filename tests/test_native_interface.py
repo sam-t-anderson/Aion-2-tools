@@ -328,8 +328,8 @@ def test_the_launcher_and_the_overlay_open_the_native_windows_when_it_is_on(monk
     assert spawned == [("window", "http://127.0.0.1:8765/"), ("overlay", "http://127.0.0.1:8765/overlay")]
     monkeypatch.setattr(overlay_launch, "_webview", lambda: False)
     assert overlay_launch.available()                                                 # the native overlay can open
-    with pytest.raises(OSError):                                                      # a companion needs pywebview
-        overlay_launch._spawn("http://127.0.0.1:8765/overlay?view=radar")
+    with pytest.raises(OSError):                     # the player cards window still needs pywebview (0.2.497)
+        overlay_launch._spawn("http://127.0.0.1:8765/overlay?view=players")
     ran = []
     monkeypatch.setenv(gui.ENV_KIND, "overlay")
     monkeypatch.setenv(gui.ENV_URL, "http://127.0.0.1:8765/overlay")

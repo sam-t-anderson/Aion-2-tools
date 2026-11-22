@@ -43,9 +43,10 @@ class WindowHost(QObject):
     """The overlay window's place on the desktop. ``win32`` is ``native_overlay()``'s backend (None where the platform
     has none, and a stand-in in tests); ``clock`` the hover's clock."""
 
-    def __init__(self, window, win32=None, clock=time.monotonic):
+    def __init__(self, window, win32=None, clock=time.monotonic, place: str = "overlay_pos"):
         super().__init__(window)
         self.window, self.win32, self.clock = window, win32, clock
+        self.place = place                        # where the window's place is kept: ``<place>_x``, ``_y``, ``_layout``
         self.shown = True                         # as the game window last had it
         self.placed = False                       # opened at its remembered place, or the game's corner
         self.previous = self.previous_hwnd = None # the game window's bounds when the overlay last followed it
@@ -102,7 +103,7 @@ class WindowHost(QObject):
         tells a rearranged desktop from the same one). With remember position off the game window places it."""
         if ui.get("overlay_remember_position") is False:
             return False
-        x, y, layout = ui.get("overlay_pos_x"), ui.get("overlay_pos_y"), ui.get("overlay_pos_layout")
+        x, y, layout = (ui.get(f"{self.place}_{part}") for part in ("x", "y", "layout"))
         if not all(isinstance(v, int) and not isinstance(v, bool) for v in (x, y)):
             return False
         place = resolve_remembered_position(x, y, layout if isinstance(layout, list) else None, self.monitors())
@@ -113,10 +114,11 @@ class WindowHost(QObject):
         return True
 
     def saved_place(self) -> dict:
-        """What a drag saves: the place and the monitors it was put on (the web overlay's ``overlay_pos_*``)."""
+        """What a drag saves: the place and the monitors it was put on (the web overlay's ``overlay_pos_*``, or a
+        companion window's own, ``overlay_party_pos_*`` and ``overlay_radar_pos_*``)."""
         x, y = self.position()
-        return {"overlay_pos_x": int(x), "overlay_pos_y": int(y),
-                "overlay_pos_layout": [[int(v) for v in monitor] for monitor in self.monitors()]}
+        return {f"{self.place}_x": int(x), f"{self.place}_y": int(y),
+                f"{self.place}_layout": [[int(v) for v in monitor] for monitor in self.monitors()]}
 
     # ------------------------------------------------------------------ the game window
     def follow_tick(self) -> None:

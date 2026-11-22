@@ -498,17 +498,24 @@ class FlowLayout(QLayout):
     nothing when no widget is shown), ``centre`` whether a line's widgets sit in its middle (``align-items:
     center``) or at its top (``flex-start``). A widget wider than a line takes the line (``max-width: 100%``) at its
     height for that width; a widget ``push``ed takes the room its line has to spare before it (``margin-left:
-    auto``)."""
+    auto``); one ``grow``n takes it in itself, starting from nothing (``flex: 1 1 0``)."""
 
     def __init__(self, parent=None, align=Qt.AlignRight, gap=(0, 0), lead: int = 0, centre: bool = True):
         super().__init__(parent)
         self._items: list = []
         self.align, self.gap, self.lead, self.centre = align, gap, lead, centre
         self._pushed: set[int] = set()
+        self._grown: set[int] = set()
         self.setContentsMargins(0, 0, 0, 0)
 
     def push(self, widget: QWidget) -> None:
         self._pushed.add(id(widget))
+
+    def grow(self, widget: QWidget) -> None:
+        """``widget`` takes the room its line has to spare: with no width of its own to begin with (its size policy
+        ``Ignored``), it never carries what follows it onto another line, and its words give way where the line is
+        full (the overlay's window title, ``flex: 1 1 0``)."""
+        self._grown.add(id(widget))
 
     def addItem(self, item):
         self._items.append(item)
@@ -582,11 +589,15 @@ class FlowLayout(QLayout):
             tall = max(hint.height() for _item, hint in line)
             spare = max(0, area.width() - used)
             pushed = any(id(item.widget()) in self._pushed for item, _hint in line if item.widget() is not None)
-            x = area.x() + (spare if self.align & Qt.AlignRight and not pushed else
-                            spare // 2 if self.align & Qt.AlignHCenter and not pushed else 0)
+            grown = any(id(item.widget()) in self._grown for item, _hint in line if item.widget() is not None)
+            x = area.x() + (spare if self.align & Qt.AlignRight and not (pushed or grown) else
+                            spare // 2 if self.align & Qt.AlignHCenter and not (pushed or grown) else 0)
             for item, hint in line:
-                if pushed and item.widget() is not None and id(item.widget()) in self._pushed:
+                if pushed and not grown and item.widget() is not None and id(item.widget()) in self._pushed:
                     x += spare
+                if grown and item.widget() is not None and id(item.widget()) in self._grown:
+                    hint = QSize(hint.width() + spare, hint.height())
+                    spare = 0                     # the first grown takes it all
                 if place:
                     top = y + ((tall - hint.height()) // 2 if self.centre else 0)
                     item.setGeometry(QRect(QPoint(x, top), hint))
