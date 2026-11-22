@@ -31,9 +31,9 @@ from bisect import bisect_left
 
 from . import theme
 from .character import js_number
-from .combat import js_string
+from .combat import js_string, locale_key
 from .combat_records import class_colour
-from .combat_review import _UNNAMED, _num, actor_label, fixed, is_character, npc_name
+from .combat_review import _UNNAMED, _num, actor_label, fixed, is_character, npc_name, number
 from .results import _dict, _list, _truthy
 
 ROOM_KEY = "a2-replay-arena"            # the arena's shape, kept for every log: a circle unless a square was chosen
@@ -58,6 +58,23 @@ EVENTS_HEAD = "Casts and events"
 EVENTS_HINT = " · select one to go to it"
 NO_EVENTS = "The key hides every cast and event."
 ATTACK = "1800000"                      # the plain Attack's skill, named only when it is another
+KEY_HEAD = "Key"
+KEY_NOTE = "Untick an entry to hide it on the replay."
+SHOW_ALL = "Show all"
+ADD_KEY = "Boss add or clone: an enemy that struck the party, or cast, during the boss fight"
+FADED_KEY = (f"Faded: last seen over 8 seconds ago, or outside the fight area; gone once unseen for {GONE} seconds (a minute "
+             "for players and bosses)")
+CAST_KEY = "Boss cast: ringed on the caster, a marker where it was aimed, a wedge for its facing"
+AOE_KEY = "Measured area of a boss skill: the shape its hits landed in across the public recordings"
+EXTRAS_KEY = "Measured area: a dash or trail along the boss's path; wedges with safe gaps between them"
+SPAWN_KEY = "Appeared: an enemy first seen here during the fight (an add, or a summon of the other side)"
+LIVES_KEY = "Death: a ✕ where a player fell, their token greyed until revived; a ring when revived"
+MERGE = "Add other recordings of this fight"
+MERGING = "Looking for other recordings…"
+NO_MERGE_MOVEMENT = "The log server sent no movement."
+NO_OTHERS = "No other public recording of this fight was found."
+HITS_KEY = ("Struck by an add or a boss's clone: where it hit a player (recordings before 0.2.394 hold no position of most "
+            "adds)")
 
 
 def _js_round(x: float) -> int:
@@ -338,12 +355,19 @@ class Replay:
     """One fight's replay (``replay``'s model): its positions by token, the view, the fight's actors, and each
     token's side, kind and colour. ``colours`` are the user's class colours and ``names`` the community's NPC names."""
 
-    def __init__(self, doc: dict, d: dict, colours=None, names: dict | None = None):
+    def __init__(self, doc: dict, d: dict, colours=None, names: dict | None = None, hidden: set | None = None,
+                 merged: dict | None = None):
         segment = _dict(d.get("segment"))
         self.doc, self.segment, self.colours, self.names = doc, segment, colours, names
+        # the key's entries unticked (``replayHidden``): a kind, "trail", "arena", "casts", "aoe", "spawns", "lives",
+        # "hits", or a player's "id:<id>" ("class:<class>" when the key lists classes); the page's, kept while it is open
+        self.hidden = hidden if hidden is not None else set()
+        # the fight's movement the log server merged from its other public recordings, once asked for: each row from
+        # another recording carries ``via``, its place in ``sources`` (``fromOthers``)
+        self.merged = merged if isinstance(merged, dict) and isinstance(merged.get("movement"), list) else None
         self.duration = segment.get("duration") if _finite(segment.get("duration")) else 0
         self.recorder = segment.get("ping_recorder")
-        self.world = _placed(segment.get("movement"))
+        self.world = _placed(self.merged["movement"] if self.merged is not None else segment.get("movement"))
         self.flat = _placed(segment.get("positions"))
         self.tokens: dict = {}
         self.at = lambda p: (100 * p["x"], 100 * p["y"], False)
@@ -537,22 +561,32 @@ class Replay:
     def event_rows(self) -> list[dict]:
         """The list beside the arena (``listEvents``): every cast, appearance, death, revive and add hit with its
         time, the same at the same moment (within half a second) one row with a count."""
-        rows = []
+        rows, hidden = [], self.hidden
         areas, shows, _longest = self._areas_shown()
-        for c, area, show in zip(self.casts, areas, shows):
+        for c, area, show in zip([] if "casts" in hidden else self.casts, areas, shows):
+            if not self.shown(c.get("source")):
+                continue
+            if "aoe" in hidden:
+                area, show = None, CAST_SHOW
             rows.append({"kind": "cast", "t": c["t"], "last": c["t"], "show": show,
                          "who": self.name_of(c.get("source")),
                          "what": js_string(c["skill"] if _truthy(c.get("skill")) else c.get("skill_id")),
                          "where": self.where_of(c), "area": aoe_text(area) if area else ""})
-        for sp in self.spawns:
+        for sp in [] if "spawns" in hidden else self.spawns:
+            if not self.shown(sp["id"]):
+                continue
             rows.append({"kind": "spawn", "t": sp["t"], "last": sp["t"], "show": SPAWN_SHOW, "who": self.name_of(sp["id"]),
                          "what": "", "where": "", "area": ""})
-        for life in self.lives:
+        for life in [] if "lives" in hidden else self.lives:
+            if not self.shown(life["id"]):
+                continue
             cls = _dict(self.r.get(life["id"])).get("class")
             who = self.name_of(life["id"]) + (f" · {js_string(cls)[:1].upper()}{js_string(cls)[1:]}" if _truthy(cls) else "")
             rows.append({"kind": life["kind"], "t": life["t"], "last": life["t"], "show": LIFE_SHOW, "who": who, "what": "",
                          "where": "", "area": ""})
-        for h in self.add_hits:
+        for h in [] if "hits" in hidden else self.add_hits:
+            if not self.shown(h.get("target")):
+                continue
             rows.append({"kind": "hit", "t": h["t"], "last": h["t"], "show": HIT_SHOW, "who": self.name_of(h.get("source")),
                          "what": self.hit_skill(h), "where": self.struck_text(h.get("target")), "area": ""})
         rows.sort(key=lambda e: e["t"])
@@ -584,11 +618,13 @@ class Replay:
         units, how opaque it is and its tip."""
         out: list[dict] = []
         areas, shows, longest = self._areas_shown()
-        for i in range(bisect_left(self._cast_times, t - longest - 1e-6), len(self.casts)):   # those before have gone
-            c, area = self.casts[i], areas[i]
+        hidden, no_areas = self.hidden, "aoe" in self.hidden
+        first = len(self.casts) if "casts" in hidden else bisect_left(self._cast_times, t - longest - 1e-6)
+        for i in range(first, len(self.casts)):                      # those before have gone
+            c, area = self.casts[i], None if no_areas else areas[i]
             if c["t"] > t:
                 break
-            if t - c["t"] > shows[i]:
+            if t - c["t"] > (CAST_SHOW if no_areas else shows[i]) or not self.shown(c["source"]):
                 continue
             gone, age = t - c["t"] > CAST_SHOW, min(1.0, (t - c["t"]) / CAST_SHOW)
             here = self.place(self.tokens[c["source"]], t)
@@ -612,19 +648,22 @@ class Replay:
                 if math.hypot(ax - x, ay - y) > 1.5:
                     out.append({"kind": "aimline", "x1": x, "y1": y, "x2": ax, "y2": ay, "alpha": 1 - age, "tip": ""})
                 out.append({"kind": "aim", "x": ax, "y": ay, "r": 2 + 2.5 * age, "alpha": 1 - age, "tip": title})
-        for i in range(bisect_left(self._spawn_times, t - SPAWN_SHOW - 1e-6), len(self.spawns)):
+        first = len(self.spawns) if "spawns" in hidden else bisect_left(self._spawn_times, t - SPAWN_SHOW - 1e-6)
+        for i in range(first, len(self.spawns)):
             sp = self.spawns[i]
             if sp["t"] > t:
                 break
-            if t - sp["t"] > SPAWN_SHOW:
+            if t - sp["t"] > SPAWN_SHOW or not self.shown(sp["id"]):
                 continue
             age = (t - sp["t"]) / SPAWN_SHOW
             x, y, _out = self.at(sp["frame"])
             out.append({"kind": "spawn", "x": x, "y": y, "r": 2.5 + 6 * age, "alpha": 1 - age,
                         "tip": f"{self.name_of(sp['id'])} appeared here at {fixed(sp['t'], 1)}s"})
-        for life, until in zip(self.lives, self._life_ends):
+        for life, until in zip([] if "lives" in hidden else self.lives, self._life_ends):
             if life["t"] > t:
                 break
+            if not self.shown(life["id"]):
+                continue
             if life["kind"] == "death":
                 if until <= t:                                       # revived, or dead again, since
                     continue
@@ -640,11 +679,12 @@ class Replay:
                 age = (t - life["t"]) / LIFE_SHOW
                 out.append({"kind": "revive", "x": here[0], "y": here[1], "r": 2.4 + 4 * age, "alpha": 1 - age,
                             "tip": f"{self.name_of(life['id'])} revived at {fixed(life['t'], 1)}s"})
-        for i in range(bisect_left(self._hit_times, t - HIT_SHOW - 1e-6), len(self.add_hits)):
+        first = len(self.add_hits) if "hits" in hidden else bisect_left(self._hit_times, t - HIT_SHOW - 1e-6)
+        for i in range(first, len(self.add_hits)):
             h = self.add_hits[i]
             if h["t"] > t:
                 break
-            if t - h["t"] > HIT_SHOW:
+            if t - h["t"] > HIT_SHOW or not self.shown(h["target"]):
                 continue
             here = self.place(self.tokens[h["target"]], h["t"])
             if not here:
@@ -883,28 +923,121 @@ class Replay:
         return dead
 
     def source_name(self, index) -> str:
-        """Which other recording a borrowed position came from (``sourceName``)."""
+        """Which other recording a borrowed position came from (``sourceName``): its uploader's, else another one."""
+        sources = _list(self.merged.get("sources")) if self.merged is not None else []
+        if isinstance(index, (int, float)) and not isinstance(index, bool) and float(index).is_integer() \
+                and 0 <= int(index) < len(sources) and _truthy(sources[int(index)]):
+            uploader = _dict(sources[int(index)]).get("uploader")
+            return f"{js_string(uploader) if _truthy(uploader) else 'Anonymous'}'s recording"
         return "another recording"
+
+    def sources_note(self) -> str:
+        """The other recordings merged into the fight's movement (``sourcesHTML``): each one's clock and what it gave,
+        or why it was left out; empty before they are asked for."""
+        if self.merged is None:
+            return ""
+        others = _list(self.merged.get("sources"))[1:]
+        if not others:
+            return NO_OTHERS
+        parts = []
+        for i, other in enumerate(others, 1):
+            other = _dict(other)
+            if _truthy(other.get("skipped")):
+                parts.append(f"{self.source_name(i)} ({js_string(other['skipped'])})")
+                continue
+            offset = _num(other.get("offset"))
+            parts.append(f"{self.source_name(i)} (clock {'+' if offset is not None and offset >= 0 else ''}{fixed(offset, 2)} s "
+                         f"from {number(other.get('shared_hits'))} shared hits, {number(other.get('positions'))} positions)")
+        kept = sum(1 for other in others if not _truthy(_dict(other).get("skipped")))
+        note = self.merged.get("note")
+        return (f"Merged with {kept} of {len(others)} other recordings of this fight: {'; '.join(parts)}. "
+                f"{js_string(note) if _truthy(note) else ''}")
+
+    def shown(self, key) -> bool:
+        """Whether the key shows a token (``shown``): a player by their own entry and their class's, any other by its
+        kind's."""
+        kind = self.kind_of(key)
+        if kind == "player":
+            cls = _dict(self.r.get(key)).get("class")
+            return (f"id:{js_string(key)}" not in self.hidden
+                    and f"class:{js_string(cls) if cls is not None else 'undefined'}" not in self.hidden)
+        return kind not in self.hidden
+
+    def key(self) -> list[dict]:
+        """The key's entries (``keyHTML``), in its order: each with its words, the swatch drawn beside it and, when it
+        can be unticked, its entry. A swatch is its kind and what it is drawn with."""
+        of = {kind: [k for k in self.order if self.kind_of(k) == kind] for kind in ("boss", "player", "pet", "add", "enemy")}
+        me, items = self.recorder, []
+
+        def item(swatch: tuple, text: str, key: str | None = None) -> None:
+            items.append({"swatch": swatch, "text": text, "key": key})
+        if of["boss"]:
+            item(("dot", ENEMY_RED, 4.5, False, 1.0), "Boss", "boss")
+        if me in self.tokens:
+            item(("dot", self.shade(me), 3, True, 1.0), "Recording player")
+        if of["pet"]:
+            item(("dot", None, 2.1, False, 1.0), "Pet or summon, in its owner's class colour", "pet")
+        if of["add"]:
+            item(("dot", ENEMY_RED, 1.8, False, 1.0), ADD_KEY, "add")
+        if of["enemy"]:
+            item(("dot", NEUTRAL_GREY, 2.1, False, 1.0), "Other enemy", "enemy")
+        if self.world and (of["boss"] or of["player"]):
+            item(("trail",), "Movement in the last 6 seconds", "trail")
+        item(("dot", None, 3, False, 0.35), FADED_KEY)
+        if self.rooms:
+            item(("room",), "Arena", "arena")
+        if self.casts:
+            item(("cast",), CAST_KEY, "casts")
+        areas = [a for a in self._areas_shown()[0] if a]
+        if areas:
+            item(("aoe",), AOE_KEY, "aoe")
+        if any(part is not None for a in areas for part in aoe_extras(a)):
+            item(("extras",), EXTRAS_KEY)
+        if self.spawns:
+            item(("spawn",), SPAWN_KEY, "spawns")
+        if self.lives:
+            item(("death",), LIVES_KEY, "lives")
+        if self.add_hits:
+            item(("hit",), HITS_KEY, "hits")
+        return items
+
+    def key_people(self) -> tuple[str, list[dict]]:
+        """The key's players (``who``), the recording player first and then by name; or, with over twelve, their
+        classes, each in its colour."""
+        me = self.recorder
+        players = sorted((k for k in self.order if self.kind_of(k) == "player"),
+                         key=lambda k: (k != me, locale_key(actor_label(self.r.get(k)))))
+        if len(players) > 12:
+            classes = sorted({js_string(c) for c in (_dict(self.r.get(k)).get("class") for k in players) if _truthy(c)})
+            return "Classes", [{"swatch": ("dot", class_colour(c, self.colours), 3, False, 1.0), "text": c[:1].upper() + c[1:],
+                                "key": f"class:{c}"} for c in classes]
+        out = []
+        for k in players:
+            cls = _dict(self.r.get(k)).get("class")
+            out.append({"swatch": ("dot", self.shade(k), 3, k == me, 1.0), "key": f"id:{js_string(k)}",
+                        "text": actor_label(self.r.get(k)) + (f" · {js_string(cls)[:1].upper()}{js_string(cls)[1:]}"
+                                                              if _truthy(cls) else "")})
+        return "Players", out
 
     def frame(self, t: float) -> list[dict]:
         """The tokens drawn at ``t`` (``draw``), in drawing order: each with its place, radius, colour, how opaque, the
         recording player's ring, its trail and its tip."""
-        out = []
+        out, hidden = [], self.hidden
         for key in self.order:
             frames = self.tokens[key]
-            here = self.place(frames, t)
+            here = self.place(frames, t) if self.shown(key) else None
             if here is None:
                 continue
             x, y, stale, last, i, outside = here
             e, kind = self.r.get(key), self.kind_of(key)
             if stale > (GONE_LONG if kind in ("player", "boss") else GONE):
                 continue
-            dead = self.dead_since(key, t) if kind == "player" else None
+            dead = self.dead_since(key, t) if kind == "player" and "lives" not in hidden else None
             first = i
             while first > 0 and frames[first - 1]["t"] >= t - TRAIL:
                 first -= 1
             trail = []
-            if self.world and (_truthy(_dict(e).get("is_boss")) or is_character(e, self.doc)):
+            if self.world and "trail" not in hidden and (_truthy(_dict(e).get("is_boss")) or is_character(e, self.doc)):
                 trail = [self.at(p)[:2] for p in frames[first:i + 1]] + [(x, y)]
             tip = add_name(e, self.names) if kind == "add" else actor_label(e)
             if dead is not None:

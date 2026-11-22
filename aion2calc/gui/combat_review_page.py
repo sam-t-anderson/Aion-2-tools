@@ -34,9 +34,11 @@ Drawn here so far:
 - Since 0.2.469 the replay's boss casts with their measured areas (``aoe-shapes.json``, read once for the page), the
   appearances, deaths, revives and add hits: drawn under the tokens and listed beside the arena, a row chosen going to
   its time.
+- Since 0.2.470 the replay's key, each entry unticked hiding what it names while the log is open; and for a shared log
+  the movement of the fight's other recordings, merged by the log server when asked for or when the parses name
+  another upload of the fight.
 
-The rest of the replay (its key, other recordings' movement and its Raid Planner file) opens in the web interface for
-now, from a button on the page.
+The replay's Raid Planner file opens in the web interface for now, from a button on the page.
 """
 from __future__ import annotations
 
@@ -64,7 +66,7 @@ from .combat import safe_link
 from .combat_community import _note
 from .chrome import FlowLayout
 from .combat_review_charts import HP, LINE, PingChart, RateChart
-from .combat_replay_view import ReplayPanel
+from .combat_replay_view import ReplayPanel, merge_row
 from .combat_review_views import ContributionBars, FilterPopup, GaugeChart, Placer, Timeline
 from .combat_saved import TIMEOUT, Section, _button, _clear, _head, _label
 from .database_page import Window
@@ -211,6 +213,12 @@ class ReviewPage(QWidget):
         self.store = store if store is not None else interface_store()
         self.replay: ReplayPanel | None = None           # the movement replay drawn last, while it may be playing
         self.aoe_shapes: dict | None = None              # the bosses' skills' measured areas (``aoeShapes``), read once
+        self.replay_hidden: set = set()                  # the replay's key entries unticked (``replayHidden``), per log
+        # per document and encounter: the movement the log server merged from the fight's other recordings
+        # (``mergedMoves``); the log server's combined fight shares its recording's, a combined review has its own
+        self.moves_by_doc: dict = {}
+        self.moving: dict = {}                           # the merges asked for, by request: the moves they answer into
+        self.ranks_segment = -1                          # the encounter the parses were asked for
         self.setObjectName("plain")
         self.official = OfficialPictures(self, read_picture)          # a character's pictures off the official hosts
         self.official.loaded.connect(self._official_picture)
@@ -305,6 +313,10 @@ class ReviewPage(QWidget):
         self._forget_timeline()
         self._forget_forms()
         self._stop_replay()                                          # its panel goes with the page cleared below
+        self.replay_hidden = set()                                   # the key as it starts for each log
+        self.moves_by_doc, self.moving = {}, {}
+        for kind_of in [k for k in self.asked if k.startswith("movement.")]:
+            self.asked[kind_of] += 1                                 # merges asked for the log shown before let go
         for kind_of in ("log", "ranks"):
             self.asked[kind_of] = self.asked.get(kind_of, 0) + 1     # answers about the log shown before are let go
         _clear(self.box)
@@ -357,6 +369,15 @@ class ReviewPage(QWidget):
         elif kind == "ranks":
             self.ranks = answer if isinstance(answer, dict) else {}
             self.draw()
+            # another party member's public upload of this fight (``shared_uploads``): its movement joins unasked
+            if _list(self.ranks.get("shared_uploads")) and self.ranks_segment == self.state["segment"]:
+                self._merge_others(self.ranks_segment, unasked=True)
+        elif kind is not None and kind.startswith("movement."):    # the fight's movement merged by the log server
+            moves = self.moving.pop(kind, None)
+            if moves is not None:
+                moves[int(kind.split(".", 1)[1])] = (answer if isinstance(_dict(answer).get("movement"), list)
+                                                     else {"error": rp.NO_MERGE_MOVEMENT})
+                self.draw()
         elif kind == "save":                                         # the metadata saved: the log as the app keeps it
             self.doc, self.meta_busy, self.meta_result = _dict(answer), False, cw.METADATA_SAVED
             self.ranks = None
@@ -395,6 +416,7 @@ class ReviewPage(QWidget):
             elif isinstance(combined.get("meta"), dict) and _truthy(combined["meta"].get("combined")) and \
                     0 <= index < len(cw.segments(combined)) and isinstance(combined.get("segments"), list):
                 self.fight = {**cw_fight(), "segment": index, "own": self.doc}
+                self.moves_by_doc[id(combined)] = (combined, self._moves())   # it shares this recording's merged movement
                 self.doc = combined
             else:
                 self.fight = {**cw_fight(), "segment": index, "error": cw.NO_COMBINED_FIGHT}
@@ -427,7 +449,12 @@ class ReviewPage(QWidget):
 
     def _failed(self, name: str, why: str) -> None:
         kind = self._current(name)
-        if kind == "log":
+        if kind is not None and kind.startswith("movement."):
+            moves = self.moving.pop(kind, None)
+            if moves is not None:
+                moves[int(kind.split(".", 1)[1])] = {"error": why}
+                self.draw()
+        elif kind == "log":
             self._refused(why)
         elif kind == "ranks":
             self.ranks = {"error": why}
@@ -470,7 +497,7 @@ class ReviewPage(QWidget):
         """The encounter's parses asked for (``requestRanks``); until they come every parse reads "·"."""
         if not self.rankings() or self.state["segment"] < 0:
             return
-        self.ranks = None
+        self.ranks, self.ranks_segment = None, self.state["segment"]
         path, body = cw.rankings_question(self.where["kind"], self.where["value"], self.state["segment"], self.doc)
         self._ask("ranks", path, proxied=body is None, body=body)
 
@@ -1740,18 +1767,54 @@ class ReviewPage(QWidget):
         return box
 
     # ---------------------------------------------------------------- the movement replay (0.2.468)
+    def _movement(self) -> bool:
+        """Whether the log server can merge the fight's other recordings (``options.movement``): a shared log's own."""
+        return self.where.get("kind") == "shared" and not cw.reconstructed(self.doc)
+
+    def _moves(self) -> dict:
+        """The merged movement of the document shown, by encounter (``mergedFor``)."""
+        found = self.moves_by_doc.get(id(self.doc))
+        if found is None or found[0] is not self.doc:
+            found = self.moves_by_doc[id(self.doc)] = (self.doc, {})
+        return found[1]
+
+    def _merge_others(self, index: int, unasked: bool = False) -> None:
+        """One fight's movement merged by the log server from its other public recordings (``mergeOthers``): asked for
+        with the replay's button (again after a failure), or once on its own when the parses name another upload."""
+        if not self._movement():
+            return
+        moves = self._moves()
+        prior = moves.get(index)
+        if prior is not None and (unasked or _truthy(prior.get("loading")) or isinstance(prior.get("movement"), list)):
+            return
+        moves[index] = {"loading": True}
+        kind = f"movement.{index}"
+        self.moving[kind] = moves
+        self._ask(kind, f"/api/v1/logs/{cw.encode_component(self.where.get('value', ''))}/movement?segment={index}",
+                  proxied=True)
+        self.draw()
+
     def _replay(self, d: dict) -> QWidget | None:
-        """The fight's movement replay (``replay``); for a shared log that holds no movement, why not; else nothing."""
-        model = rp.Replay(self.doc, d, self.colours, self.names)
+        """The fight's movement replay (``replay``), with the other recordings' movement once merged; for a shared log
+        that holds no movement, why not; else nothing."""
+        index = self.state["segment"]
+        merging = self._moves().get(index)
+        model = rp.Replay(self.doc, d, self.colours, self.names, self.replay_hidden, merging)
         model.shapes = self.aoe_shapes
+        offer = self._movement() and model.merged is None
+        merge = (lambda: self._merge_others(index)) if offer else None
         if not model.world and not model.flat:
-            if self.where.get("kind") == "shared" and not cw.reconstructed(self.doc):   # ``options.movement``
+            if self._movement():
                 box, column = _plain(spacing=8)
                 column.addWidget(_head(rp.HEAD))
-                column.addWidget(_muted(rp.NO_MOVEMENT + rp.MAY_HOLD))
+                column.addWidget(_muted(rp.NO_MOVEMENT + ("" if model.merged is not None else rp.MAY_HOLD)))
+                if model.sources_note():
+                    column.addWidget(_muted(model.sources_note()))
+                if merge is not None:
+                    column.addWidget(merge_row(merge, merging))
                 return box
             return None
-        self.replay = ReplayPanel(model, self.store)
+        self.replay = ReplayPanel(model, self.store, merge=merge, merging=merging)
         return self.replay
 
     def _stop_replay(self) -> None:

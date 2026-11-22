@@ -1,3 +1,11 @@
+## A combat log's own page in the native interface, part 14 (0.2.470)
+
+**A log's movement replay in the app's window now has its key, and adds the fight's other recordings**, as the web page's replay does:
+- **the key** under the arena: what each token and mark is, with its swatch. Untick an entry to hide it on the replay: a kind of token (bosses, pets and summons, adds and clones, other enemies), the trails, the arena, the boss casts, their measured areas, the appearances, the deaths and revives, the add hits, or a player (with over twelve players, a class). **Show all** brings everything back. The key stays as you set it while the log is open;
+- **other recordings of the fight** (a shared log): **Add other recordings of this fight** asks the log server to merge the movement of the fight's other public recordings into the replay. It is asked for on its own when the log server names another party member's upload of the fight. The replay then says which recordings were merged, how their clocks were matched and what each gave, or why one was left out. A position from another recording names it under the pointer, and the log server's combined fight keeps the merged movement.
+
+The replay's Raid Planner file still opens in the web interface, from the button on the page.
+
 ## A combat log's own page in the native interface, part 13 (0.2.469)
 
 **A log's movement replay in the app's window now shows why everyone moved**, as the web page's replay does:

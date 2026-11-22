@@ -22,7 +22,8 @@ from aion2calc.gui import combat_replay as rp  # noqa: E402
 from aion2calc.gui import combat_review as cw  # noqa: E402
 from aion2calc.gui.combat_records import GOLD, class_colour  # noqa: E402
 from aion2calc.gui.combat_replay_view import NARROW, STATE_ROLE, Arena, mark_drawing  # noqa: E402
-from test_native_combat import REVIEW_LOG, FakeApp, _click, _find, _labels, _page, _shown  # noqa: E402
+from test_native_combat import (REVIEW_LOG, REVIEW_RANKS, T0, FakeApp, _buttons, _click, _find, _labels, _page,  # noqa: E402
+                                _shown)
 from test_native_overlay_toolbar import settle  # noqa: E402
 
 
@@ -735,3 +736,245 @@ def test_a_fight_without_casts_or_events(qapp, tmp_path):
     settle(lambda: view.replay is not None and not view.awaiting)
     panel = view.replay
     assert panel.events is None and panel.scrub.ticks == [] and panel.body.count() == 1
+
+
+def test_the_keys_entries():
+    replay = _replay(_casting())
+    sorcerer, cleric = class_colour("sorcerer", {}), class_colour("cleric", {})
+    entries = [(item["key"], item["text"]) for item in replay.key()]
+    assert entries == [("boss", "Boss"), (None, "Recording player"), ("pet", "Pet or summon, in its owner's class colour"),
+                       ("add", rp.ADD_KEY), ("enemy", "Other enemy"), ("trail", "Movement in the last 6 seconds"),
+                       (None, rp.FADED_KEY), ("arena", "Arena"), ("casts", rp.CAST_KEY), ("spawns", rp.SPAWN_KEY),
+                       ("lives", rp.LIVES_KEY), ("hits", rp.HITS_KEY)]
+    assert replay.key()[1]["swatch"] == ("dot", sorcerer, 3, True, 1.0)            # the recording player, ringed
+    assert rp.FADED_KEY.startswith("Faded: last seen over 8 seconds ago") and "unseen for 20 seconds" in rp.FADED_KEY
+    # the measured areas' entries once the catalog has the skills; the dash, trail and wedges' when it has them
+    replay.shapes = CATALOG
+    keys = [item["key"] for item in replay.key()]
+    assert keys[keys.index("casts") + 1:keys.index("spawns")] == ["aoe", None]
+    assert replay.key()[keys.index("aoe") + 1]["text"] == rp.EXTRAS_KEY
+    replay.shapes = {"131": CATALOG["131"]}
+    assert [item["key"] for item in replay.key()][keys.index("casts") + 1] == "aoe" and rp.EXTRAS_KEY not in [
+        item["text"] for item in replay.key()]
+    # the players, the recording player first; with over twelve, their classes
+    title, people = replay.key_people()
+    assert title == "Players" and [(p["key"], p["text"], p["swatch"]) for p in people] == [
+        ("id:p1", cw.actor_label(replay.r["p1"]) + " · Sorcerer", ("dot", sorcerer, 3, True, 1.0)),
+        ("id:p2", "TestCleric · Cleric", ("dot", cleric, 3, False, 1.0))]
+    log = _moving()
+    many = [{"id": f"q{i}", "name": f"Ally{i:02d}", "class": ("templar", "ranger", "cleric")[i % 3]} for i in range(12)]
+    log["players"] += many
+    log["segments"][0]["movement"] += [_at(1, p["id"], 9000 + 10 * i, 19000) for i, p in enumerate(many)]
+    title, people = _replay(log).key_people()
+    assert title == "Classes" and [(p["key"], p["text"]) for p in people] == [
+        ("class:cleric", "Cleric"), ("class:ranger", "Ranger"), ("class:sorcerer", "Sorcerer"), ("class:templar", "Templar")]
+    # an older recording's positions: neither trails nor the arena
+    older = json.loads(json.dumps(REVIEW_LOG))
+    older["segments"][0]["positions"] = [{"t": 0, "entity": "b1", "x": 0.5, "y": 0.5}]
+    assert [item["key"] for item in _replay(older).key()] == ["boss", None]
+
+
+def test_the_key_hides_what_it_names():
+    replay = _replay(_casting())
+    replay.shapes = CATALOG
+
+    def tokens(t):
+        return {token["id"]: token for token in replay.frame(t)}
+
+    def kinds(t):
+        return [m["kind"] for m in replay.marks(t)]
+
+    def rows():
+        return [(e["kind"], rp.fixed(e["t"], 1)) for e in replay.event_rows()]
+    every = rows()
+    # a player by their own entry or their class's: their token, death, revive and the hit on them
+    for hidden in ({"id:p2"}, {"class:cleric"}):
+        replay.hidden.clear()
+        replay.hidden.update(hidden)
+        assert "p2" not in tokens(4.5) and "hit" not in kinds(4.5) and "death" not in kinds(6) and "revive" not in kinds(10)
+        assert [r for r in every if r not in rows()] == [("hit", "4.0"), ("death", "5.0"), ("revive", "9.0")]
+    # a kind: the bosses' tokens and casts; the adds' tokens, casts and appearances, not the hits on players
+    replay.hidden.clear()
+    replay.hidden.add("boss")
+    assert "b1" not in tokens(2) and kinds(2) == [] and all(r[0] != "cast" or r[1] in ("20.0", "20.6") for r in rows())
+    replay.hidden.clear()
+    replay.hidden.add("add")
+    assert "a1" not in tokens(4) and "spawn" not in kinds(4) and "hit" in kinds(4)
+    assert [r for r in every if r not in rows()] == [("spawn", "3.5"), ("spawn", "19.0"), ("cast", "20.0"), ("cast", "20.6")]
+    # the trails; the casts; their areas alone; the appearances; the deaths and revives (no player greyed); the hits
+    replay.hidden.clear()
+    replay.hidden.add("trail")
+    assert all(token["trail"] == [] for token in replay.frame(6))
+    replay.hidden.clear()
+    replay.hidden.add("casts")
+    assert {"castring", "area", "aim"}.isdisjoint(kinds(2)) and [r for r in rows() if r[0] == "cast"] == []
+    replay.hidden.clear()
+    replay.hidden.add("aoe")
+    assert "area" not in kinds(2) and "castring" in kinds(2)
+    assert {e["area"] for e in replay.event_rows()} == {""} and replay.event_rows()[0]["show"] == rp.CAST_SHOW
+    replay.hidden.clear()
+    replay.hidden.update({"spawns", "lives", "hits"})
+    assert {"spawn", "death", "revive", "hit"}.isdisjoint(kinds(4.5) + kinds(6) + kinds(10))
+    assert tokens(6)["p2"]["opacity"] == 1.0 and {r[0] for r in rows()} == {"cast"}
+
+
+def test_the_key_on_a_logs_page(qapp, tmp_path):
+    from aion2calc.gui.combat_replay_view import KeyEntry, swatch_pixmap
+    app = FakeApp()
+    app.log_server.review_log = _casting()
+    page = _page(app, store=_store(tmp_path))
+    page.open_review("local", "session-1.a2log.json")
+    view = page.review_page
+    settle(lambda: _drawn(view))
+    panel = view.replay
+    _shown()
+    key = panel.key
+    labels = _labels(view)
+    assert rp.KEY_HEAD in "".join(labels) and rp.KEY_NOTE in labels and not key.show_all.isVisible()
+    assert panel.parentWidget() is not None and key.isVisibleTo(view)
+    entries = {e.item["text"]: e for e in key.findChildren(KeyEntry)}
+    assert [e.item["text"] for e in key.entries][:3] == ["Boss", "Recording player", "Pet or summon, in its owner's class colour"]
+    assert entries["Recording player"].box is None and entries["Boss"].box.isChecked()
+    # unticked: hidden on the replay, the entry dimmed and struck through, Show all offered
+    boss = entries["Boss"]
+    QTest.mouseClick(boss.words, Qt.LeftButton)                     # anywhere on the entry, as on its label
+    assert not boss.box.isChecked() and view.replay_hidden == {"boss"} and key.show_all.isVisibleTo(view)
+    assert boss.words.font().strikeOut() and boss.graphicsEffect() is not None
+    assert "b1" not in {t["id"] for t in panel.arena.tokens}
+    rows = _rows(panel)
+    assert not any(r.startswith("2.0s Ice Queen") for r in rows) and rows[0] == "3.5s Clone appeared"
+    # the arena: none while unticked; the key's swatch in the shape chosen
+    entries["Arena"].box.setChecked(False)
+    assert panel.arena.room is None and view.replay_hidden == {"boss", "arena"}
+    shape = _find(view, QComboBox, lambda c: c.accessibleName() == "Arena")
+    shape.setCurrentIndex(1)
+    shape.activated.emit(1)
+    room = next(s for s, part in entries["Arena"].swatches if part == ("room",))
+
+    def drawn(shape):
+        probe = QLabel()
+        probe.setPixmap(swatch_pixmap(("room",), shape))
+        return probe.pixmap().toImage()
+    assert room.pixmap().toImage() == drawn("square") != drawn("circle")
+    # kept while the page is drawn again; Show all ticks every entry again
+    view.draw()
+    _shown()
+    panel, key = view.replay, view.replay.key
+    assert {e.item["key"] for e in key.entries if e.box is not None and not e.box.isChecked()} == {"boss", "arena"}
+    assert "b1" not in {t["id"] for t in panel.arena.tokens} and panel.arena.room is None
+    _click(view, rp.SHOW_ALL)
+    assert view.replay_hidden == set() and all(e.box.isChecked() for e in key.entries if e.box is not None)
+    assert not key.show_all.isVisibleTo(view) and panel.arena.room is not None and "b1" in {t["id"] for t in panel.arena.tokens}
+    # every cast and event hidden: the list says so
+    for key_ in ("casts", "spawns", "lives", "hits"):
+        next(e for e in key.entries if e.item["key"] == key_).box.setChecked(False)
+    _shown()
+    assert panel.events.none.isVisibleTo(view) and panel.events.none.text() == rp.NO_EVENTS
+    assert not panel.events.view.isVisibleTo(view) and panel.events.model.rowCount() == 0
+    _click(view, rp.SHOW_ALL)
+    assert panel.events.model.rowCount() == 16 and not panel.events.none.isVisibleTo(view)
+    # a player's entry; the key as it starts for another log
+    players = {e.item["key"]: e for e in key.entries if e.item["key"] and e.item["key"].startswith("id:")}
+    players["id:p2"].box.setChecked(False)
+    assert "p2" not in {t["id"] for t in panel.arena.tokens} and view.replay_hidden == {"id:p2"}
+    page.open_review("local", "session-1.a2log.json")
+    settle(lambda: _drawn(view) and view.replay is not panel)
+    assert view.replay_hidden == set() and view.replay.replay.hidden is view.replay_hidden
+
+
+def _merged(log) -> dict:
+    """The log server's merge of the fight's movement with its other public recordings (made up): this recording's
+    movement and another's, which holds the recording player's own; a third left out."""
+    movement = json.loads(json.dumps(log["segments"][0].get("movement") or []))
+    movement += [_at(2, "p1", 9100, 19000, via=1), _at(4, "p1", 9300, 19100, via=1)]
+    return {"movement": movement, "note": "Clocks matched by shared hits.",
+            "sources": [{"log": "log0001", "uploader": "Uploader A"},
+                        {"log": "log0002", "uploader": "Uploader B", "offset": 0.5, "shared_hits": 1234, "positions": 300},
+                        {"log": "log0003", "skipped": "another fight"}]}
+
+
+def test_other_recordings_movement(qapp, tmp_path):
+    from PySide6.QtWidgets import QPushButton
+    app = FakeApp()
+    log = _moving()
+    app.log_server.review_log = log
+    page = _page(app, store=_store(tmp_path))
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: _drawn(view))
+    asked = app.log_server.asked
+    # a shared log's replay offers the merge; asked for, it says so while the log server is asked
+    assert rp.MERGE in _buttons(view) and not any("/movement" in a for a in asked)
+    _click(view, rp.MERGE)
+    waiting = next(b for b in view.replay.findChildren(QPushButton) if b.text() == rp.MERGING)
+    assert not waiting.isEnabled()
+    # refused: why, and the merge offered again
+    settle(lambda: "/api/v1/logs/log0001/movement?segment=0" in asked and rp.MERGE in _buttons(view))
+    assert any("no other public recording of this fight" in label for label in _labels(view))
+    # merged: the other recordings' movement on the replay, what each gave, and no button
+    app.log_server.movement = _merged(log)
+    _click(view, rp.MERGE)
+    settle(lambda: view.replay is not None and view.replay.replay.merged is not None)
+    replay = view.replay.replay
+    assert rp.MERGE not in _buttons(view) and rp.MERGING not in _buttons(view)
+    assert replay.sources_note() == (
+        f"Merged with 1 of 2 other recordings of this fight: Uploader B's recording (clock +0.50 s from {cw.number(1234)} shared "
+        "hits, 300 positions); Anonymous's recording (another fight). Clocks matched by shared hits.")
+    labels = _labels(view)
+    assert replay.sources_note() in labels and replay.note.endswith(
+        "comes from 2 positions in the other recordings of this fight; 3 more are where they applied an effect or a cast "
+        "aimed at them.")
+    me = next(token for token in replay.frame(2) if token["id"] == "p1")
+    assert me["tip"].endswith("· move at 2.0s · from Uploader B's recording")
+    assert (replay.source_name(2), replay.source_name(9), replay.source_name("1")) == (
+        "Anonymous's recording", "another recording", "another recording")
+    assert asked.count("/api/v1/logs/log0001/movement?segment=0") == 2
+    # the log server's combined fight shares the merged movement
+    app.log_server.combined = json.loads(json.dumps(log))
+    app.log_server.combined["meta"]["combined"] = {"note": "Two recordings joined.", "sources": [
+        {"log": "log0001", "uploader": "Uploader A"}, {"log": "log0002", "uploader": "Uploader B", "offset": 0.5}]}
+    del app.log_server.combined["segments"][0]["movement"]
+    view._view_combined()                                           # **Combine all N recordings of this fight**
+    settle(lambda: view.fight["own"] is not None and _drawn(view))
+    assert view.replay.replay.merged is replay.merged and rp.MERGE not in _buttons(view)
+    # another party member's upload named by the parses: merged unasked, once
+    app = FakeApp()
+    app.log_server.review_log = log
+    app.log_server.ranks = {**REVIEW_RANKS, "shared_uploads": [{"log": "log0002", "uploader": "Uploader B", "created_at": T0}]}
+    app.log_server.movement = _merged(log)
+    page = _page(app, store=_store(tmp_path))
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    settle(lambda: view.replay is not None and view.replay.replay.merged is not None and _drawn(view))
+    view.draw()
+    _shown()
+    assert app.log_server.asked.count("/api/v1/logs/log0001/movement?segment=0") == 1 and view.replay.replay.merged
+    # a recording here is not offered it
+    app = FakeApp()
+    app.log_server.review_log = log
+    page = _page(app, store=_store(tmp_path))
+    page.open_review("local", "session-1.a2log.json")
+    view = page.review_page
+    settle(lambda: _drawn(view))
+    assert rp.MERGE not in _buttons(view)
+
+
+def test_movement_from_other_recordings_alone(qapp, tmp_path):
+    app = FakeApp()
+    app.log_server.movement = _merged(_moving())
+    page = _page(app, store=_store(tmp_path))
+    page.open_review("shared", "log0001")                            # the review log: no movement of its own
+    view = page.review_page
+    settle(lambda: view.doc is not None and view.ranks is not None and not view.awaiting)
+    assert rp.NO_MOVEMENT + rp.MAY_HOLD in _labels(view) and rp.MERGE in _buttons(view) and view.replay is None
+    _click(view, rp.MERGE)
+    settle(lambda: view.replay is not None and view.replay.replay.merged is not None)
+    assert view.replay.replay.world and rp.MERGE not in _buttons(view)
+    # merged, and none of the recordings held movement: said so, with what each gave
+    app.log_server.movement = {**_merged(_moving()), "movement": []}
+    page.open_review("shared", "log0001")
+    settle(lambda: view.doc is not None and view.ranks is not None and not view.awaiting)
+    _click(view, rp.MERGE)
+    settle(lambda: view.replay is None and rp.NO_MOVEMENT in _labels(view))
+    labels = _labels(view)
+    assert rp.NO_MOVEMENT + rp.MAY_HOLD not in labels and any(label.startswith("Merged with 1 of 2") for label in labels)
