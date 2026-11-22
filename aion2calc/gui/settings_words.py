@@ -1,7 +1,7 @@
 """The native Settings page's words and figures (0.2.475), as pages/settings.js writes them: its tabs, and the rows of
 App & data with their notes, the game database's line, the storage maintenance's table, the version and its update,
-and the patch notes; since 0.2.476 the Meter tab's Combat records and the Server tab's log server and community stats.
-The page (settings_page.py) draws them.
+and the patch notes; since 0.2.476 the Meter tab's Combat records and the Server tab's log server and community stats;
+since 0.2.477 the Pet Tracker tab. The page (settings_page.py) draws them.
 """
 from __future__ import annotations
 
@@ -493,3 +493,51 @@ def server_check(r) -> str:
     if _truthy(r.get("ok")):
         return "Server reachable" + server_versions(r)
     return "Check failed: " + (js_text(r["detail"]) if _truthy(r.get("detail")) else "unavailable")
+
+
+# ------------------------------------------------------------------ Pet Tracker (0.2.477)
+PET_INTRO = ("Pet Tracker, by 0Fox2Give, shows your pet ranks and how many souls you still need while you farm. Aion 2 "
+             "Calc can install it, run its capture, and show its pets in an overlay window of its own and on the ")
+PET_PAGE = "Pet Tracker page"
+CHECKING_PETS = "Checking Pet Tracker…"
+PETS_UNSUPPORTED = "Pet Tracker runs on Windows only."
+NOT_INSTALLED = "Not installed on this computer."
+INSTALL_PETS = "Install Pet Tracker"
+PET_INSTALL_NOTE = ("It downloads Pet Tracker's official installer and starts it only once it matches the release its "
+                    "publisher signed.")
+USE_PETS = "Run Pet Tracker's capture with Aion 2 Calc"
+WINDOWS_OFF = "(Windows; off by default)"
+USE_PETS_NOTE = ("It starts with the app, before you log into your character, so your collection syncs at login. When the "
+                 "app quits it stops too, unless Pet Tracker's own window is open and still using it.")
+PET_OVERLAY = "Show the Pet Tracker overlay while the game runs"
+PET_WINDOW_LABEL = "Which window"
+PET_WINDOWS = (("app", "in Aion 2 Calc's own window"), ("pettracker", "as Pet Tracker's own window"))
+PET_OVERLAY_NOTE = ("Aion 2 Calc's window is a separate overlay with its own Lock, Hide and opacity, and it remembers where "
+                    "you put it. While it is open, a running Pet Tracker's own overlay is hidden, so one shows, not two; it "
+                    "comes back when the window closes. Pet Tracker's own window adds Find a pet, farming maps and the "
+                    "Black Cloud Merchant list; if Pet Tracker started minimized, show it once from its tray icon. A hotkey "
+                    "can show and hide either (Overlay → Hotkeys).")
+PET_FOLDER_LABEL = "Pet Tracker folder"
+PET_FOLDER_HINT = "Found automatically"
+PET_FOLDER_NOTE = ("Only for a copy of Pet Tracker unpacked in a folder of your own (its portable ZIP). Leave it empty to "
+                   "use the installed one.")
+PET_BUSY = ("finding", "downloading", "installing", "started")     # an install under way: read again every 2 s
+PET_ENABLED_READ_MS = 800                                          # after Use Pet Tracker is saved, read it again
+
+
+def pet_status(state) -> dict:
+    """Pet Tracker's line in Settings (``ptStatus``): whether it runs here, its install and how it is doing, or its
+    install button with what the install is doing; a newer Pet Tracker's notice; whether to read it again soon."""
+    from .pets_page import setup_text, status_line, update_notice
+    s = _dict(state)
+    setup = _dict(s.get("setup"))
+    busy = setup.get("status") in PET_BUSY
+    if not _truthy(s.get("supported")):
+        return {"text": PETS_UNSUPPORTED, "install": None, "setup": "", "notice": None, "busy": busy}
+    if _truthy(s.get("installed")):
+        installed = _dict(s["installed"])
+        version = f": version {js_text(installed['version'])}" if _truthy(installed.get("version")) else ""
+        return {"text": f"Installed{version}, in {js_text(installed.get('folder'))}. {status_line(s)[0]}",
+                "install": None, "setup": "", "notice": update_notice(s), "busy": busy}
+    return {"text": NOT_INSTALLED, "install": not busy or setup.get("status") == "started",
+            "setup": setup_text(s.get("setup")), "notice": None, "busy": busy}

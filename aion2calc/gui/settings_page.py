@@ -9,6 +9,8 @@
   stopping the app; and the author. The language is the web interface's own, chosen on its Settings page.
 - Since 0.2.476 **Meter** (Combat records, its numbers checked and saved as the web page checks them) and **Server**
   (the log server, saved and probed from this computer, and the community stats) too.
+- Since 0.2.477 **Pet Tracker**: whether it is installed and how it is doing, its install and update, its use with
+  the app, its overlay and the folder of a copy unpacked by hand.
 - **The other tabs' rows** are still the early ones, drawn from ``settings_schema``: each control saves its one
   setting, and a row the native page does not draw in full yet opens the web Settings page for the rest.
 
@@ -219,10 +221,11 @@ class SettingsPage(QWidget):
     once the app has stopped."""
 
     def __init__(self, api: AppApi | None, open_web, parent=None, store=None, confirm=None, save_file=None,
-                 open_link=None, quit_app=None):
+                 open_link=None, quit_app=None, open_page=None):
         super().__init__(parent)
         from .planner_page import interface_store
         self.api, self.open_web = api, open_web
+        self.open_page = open_page or open_web           # another page of the window (the Pet Tracker page)
         self.store = store if store is not None else interface_store()
         self.confirm = confirm or self._ask
         self.save_file = save_file or self._ask_where
@@ -296,7 +299,10 @@ class SettingsPage(QWidget):
                   "Author": self._author}
         drawn = {("system", title): build for title, build in system.items()}
         drawn.update({("meter", "Combat records"): self._records, ("server", "Log server"): self._log_server,
-                      ("server", "Community stats"): self._community_stats})
+                      ("server", "Community stats"): self._community_stats, ("pettracker", "Pet Tracker"): self._pets,
+                      ("pettracker", "Use Pet Tracker"): self._use_pets,
+                      ("pettracker", "Pet Tracker overlay"): self._pet_overlay,
+                      ("pettracker", "Pet Tracker folder"): self._pet_folder})
         schema = {(row.group, row.title): row for row in ROWS}
         for group, title in sw.ROW_ORDER:
             row = SetRow(group, title, top=title == "Author")
@@ -571,6 +577,101 @@ class SettingsPage(QWidget):
         self.server_message.setText(sw.CHECKING_SERVER)
         self.slow.get("server-check", "/api/logserver/check")
 
+    # ---------------------------------------------------------------- Pet Tracker (0.2.477)
+    def _pets(self, row: SetRow) -> None:
+        """What Pet Tracker is, whether it is installed and how it is doing, and its install or update (``ptStatus``)."""
+        intro = QLabel(f"{_html(sw.PET_INTRO)}<a href='pets' style='color: {theme.COLORS['accent']};'>"
+                       f"{_html(sw.PET_PAGE)}</a>.")
+        intro.setTextFormat(Qt.RichText)
+        intro.setWordWrap(True)
+        intro.setTextInteractionFlags(Qt.LinksAccessibleByMouse | Qt.LinksAccessibleByKeyboard)
+        intro.linkActivated.connect(lambda _page: self.open_page("pets"))
+        row.body.addWidget(intro)
+        holder = QWidget()
+        self.pet_box = QVBoxLayout(holder)
+        self.pet_box.setContentsMargins(0, 0, 0, 0)
+        self.pet_box.setSpacing(4)
+        self.pet_box.addWidget(_words(sw.CHECKING_PETS, "setnote"))
+        row.body.addWidget(holder)
+        self.pet_note = _words("")
+        self.pet_note.setAccessibleName("Pet Tracker update")
+        row.body.addWidget(self.pet_note)
+        self.pet_timer = QTimer(self)
+        self.pet_timer.setSingleShot(True)
+        self.pet_timer.timeout.connect(self.read_pets)
+
+    def _use_pets(self, row: SetRow) -> None:
+        self._check(row, "pettracker_enabled", sw.USE_PETS, sw.WINDOWS_OFF)
+        row.body.addWidget(_note(sw.USE_PETS_NOTE))
+
+    def _pet_overlay(self, row: SetRow) -> None:
+        check = WrapCheck(sw.PET_OVERLAY)
+        check.box.toggled.connect(lambda on: self.save("pettracker_overlay", bool(on)))
+        self.controls["pettracker_overlay"] = check
+        style = QComboBox()
+        style.setAccessibleName(sw.PET_WINDOW_LABEL)
+        for value, words in sw.PET_WINDOWS:
+            style.addItem(words, value)
+        style.currentIndexChanged.connect(lambda _i, b=style: self.save("pettracker_overlay_style", b.currentData()))
+        self.controls["pettracker_overlay_style"] = style
+        row.body.addWidget(_flow(check, style, gap=(14, 10)))
+        row.body.addWidget(_note(sw.PET_OVERLAY_NOTE))
+
+    def _pet_folder(self, row: SetRow) -> None:
+        self.pet_folder = QLineEdit()
+        self.pet_folder.setPlaceholderText(sw.PET_FOLDER_HINT)
+        self.pet_folder.setAccessibleName(sw.PET_FOLDER_LABEL)
+        self.pet_folder.setMinimumWidth(380)
+        self.pet_folder_message = _words("", "setnote")
+        self.pet_folder_message.setAccessibleName("Pet Tracker folder status")
+        row.body.addWidget(_flow(self.pet_folder, _button(sw.SAVE, self.save_pet_folder), self.pet_folder_message,
+                                 gap=(14, 10)))
+        row.body.addWidget(_note(sw.PET_FOLDER_NOTE))
+
+    def read_pets(self) -> None:
+        """Pet Tracker's state (``/api/pettracker``)."""
+        self.pet_timer.stop()
+        if self.requests is not None:
+            self.requests.get("pets", "/api/pettracker")
+
+    def _pets_shown(self, state) -> None:
+        self._clear(self.pet_box)
+        status = sw.pet_status(state)
+        if status["install"] is None:
+            self.pet_box.addWidget(_words(status["text"], "setnote"))
+        else:
+            install = _button(sw.INSTALL_PETS, lambda: self.pet_control("install"))
+            install.setEnabled(status["install"])
+            self.pet_install = install
+            self.pet_box.addWidget(_flow(_words(status["text"], "setnote"), install,
+                                         _words(status["setup"], "setnote"), gap=(6, 4)))
+            self.pet_box.addWidget(_words(sw.PET_INSTALL_NOTE, "setnote"))
+        if status["notice"] is not None:
+            words, button_words, link = status["notice"]
+            notice = QFrame()
+            notice.setObjectName("note")
+            line = QHBoxLayout(notice)
+            line.setContentsMargins(8, 6, 8, 6)
+            line.addWidget(_words(words))
+            if button_words:
+                line.addWidget(_button(button_words, lambda: self.pet_control("update")))
+            else:
+                line.addWidget(_link("Download it from Pet Tracker's releases", link, self.open_link))
+            line.addStretch(1)
+            self.pet_box.addWidget(notice)
+        if status["busy"]:
+            self.pet_timer.start(2000)
+
+    def pet_control(self, action: str) -> None:
+        """Pet Tracker installed or updated (``A2Pets.control``)."""
+        if self.requests is not None:
+            self.requests.post(f"pet:{action}", "/api/pettracker", {"action": action})
+
+    def save_pet_folder(self) -> None:
+        """The folder of a copy of Pet Tracker unpacked by hand, saved; then its state read again."""
+        if self.requests is not None:
+            self.requests.post("pet-folder", "/api/ui", {"pettracker_path": self.pet_folder.text().strip()})
+
     # the rows of the tabs not drawn as the web page draws them yet (settings_schema)
     def _schema_row(self, row: SetRow, spec) -> None:
         for control in spec.controls:
@@ -633,6 +734,7 @@ class SettingsPage(QWidget):
             return
         for name, path in READINGS:
             self.requests.get(name, path)
+        self.read_pets()
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -661,6 +763,19 @@ class SettingsPage(QWidget):
             self.apply(_dict(answer))
         elif kind == "save":
             self.toast.say(key.partition("|")[2] or sw.SAVED)
+            if key.partition("|")[0] == "pettracker_enabled":                   # Pet Tracker starting or stopping
+                self.pet_timer.start(sw.PET_ENABLED_READ_MS)
+        elif kind == "pets":
+            self._pets_shown(answer)
+        elif kind == "pet":
+            if _truthy(_dict(answer).get("error")):                              # ``control``: an error is a failure
+                return self._failed(name, js_text(answer["error"]))
+            if key == "update":
+                self.pet_note.setText(js_text(_dict(answer).get("message")) if _truthy(_dict(answer).get("message")) else "")
+            self.read_pets()
+        elif kind == "pet-folder":
+            self.pet_folder_message.setText(sw.SAVED)
+            self.read_pets()
         elif kind == "open" and _truthy(_dict(answer).get("error")):
             self.toast.say(js_text(answer["error"]))
         elif kind == "sync":
@@ -697,6 +812,17 @@ class SettingsPage(QWidget):
             self.toast.say(f"Could not save it: {why}")
         elif kind == "server-saved":
             self.server_message.setText(sw.saved_unchecked(why))
+        elif kind == "pets":
+            self._clear(self.pet_box)
+            self.pet_box.addWidget(_words(why, "setnote"))
+        elif kind == "pet":
+            if key == "update":
+                self.pet_note.setText(why)
+            else:
+                self._clear(self.pet_box)
+                self.pet_box.addWidget(_words(why, "setnote"))
+        elif kind == "pet-folder":
+            self.pet_folder_message.setText(why)
         elif kind == "server-check":
             self.server_check_button.setEnabled(True)
             self.server_message.setText(why)
@@ -765,12 +891,17 @@ class SettingsPage(QWidget):
                 on[key] = ui.get(key) is not False if default_on else ui.get(key) is True
             on["community_heartbeat"] = ui.get("community_heartbeat") is not False
             on["community_contribute_character"] = ui.get("community_contribute_character") is not False
+            on["pettracker_enabled"] = ui.get("pettracker_enabled") is True
+            on["pettracker_overlay"] = ui.get("pettracker_overlay") is True
             for key, value in on.items():
                 self.controls[key].box.setChecked(value)
             self._choose(self.controls["app_text_scale"], sw.text_scale(ui))
             self._choose(self.controls["app_default_page"], sw.launch_page(ui))
             for key in sw.RECORD_NUMBERS:
                 self.controls[key].setValue(sw.record_number(ui, key))
+            self._choose(self.controls["pettracker_overlay_style"],
+                         "pettracker" if ui.get("pettracker_overlay_style") == "pettracker" else "app")
+            self.pet_folder.setText(js_text(ui.get("pettracker_path")) if _truthy(ui.get("pettracker_path")) else "")
             self.controls["meter_log_cache_mb"].setValue(sw.log_cache(ui))
             for spec in ROWS:
                 for control in spec.controls:

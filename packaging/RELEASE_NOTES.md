@@ -1,3 +1,11 @@
+## The Settings page in the native interface, part 3 (0.2.477)
+
+**Settings in the app's window now has the Pet Tracker tab as the web page draws it.**
+- **Pet Tracker:** what it is, with a link to the Pet Tracker page, and whether it is installed. Once installed, it shows the version, the folder and how it is doing, with a newer Pet Tracker's **Update** or a link to its releases for a copy of your own. Otherwise **Install Pet Tracker** downloads its signed installer, and the tab says how the install is going.
+- **Use Pet Tracker:** run Pet Tracker's capture with the app; once saved, the tab reads Pet Tracker's state again.
+- **Pet Tracker overlay:** show it while the game runs, in the app's own window or as Pet Tracker's.
+- **Pet Tracker folder:** the folder of a copy you unpacked yourself, saved with **Save**.
+
 ## The Settings page in the native interface, part 2 (0.2.476)
 
 **Settings in the app's window now has the Meter and Server tabs as the web page draws them.**
