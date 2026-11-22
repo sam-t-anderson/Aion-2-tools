@@ -44,8 +44,8 @@ def _label(text: str = "", name: str = "", wrap: bool = True) -> QLabel:
 
 
 class HistoryPage(QWidget):
-    """Character → Saved Results. ``open_web`` opens a page of the web interface; ``choose_file`` and ``save_as``
-    stand in for the file dialogs."""
+    """Character → Saved Results. ``open_web`` opens a page of the app (in the window); ``choose_file`` and
+    ``save_as`` stand in for the file dialogs."""
 
     def __init__(self, api: AppApi | None, open_web=None, choose_file=None, save_as=None, clipboard=None,
                  parent: QWidget | None = None):
@@ -235,7 +235,7 @@ class HistoryPage(QWidget):
             self.advice = AdviceView(self.api, result if isinstance(result, dict) else {}, self.open_web, state=self.advice_state)
             self.view.addWidget(self.advice)
         else:
-            self.windows = result_windows.ResultWindows(self.api, self.open_web, "history", when=when)
+            self.windows = result_windows.ResultWindows(self.api, self.open_web, when=when)
             self.view.addWidget(self.windows)
             self.windows.set_view(results.view_of(doc) or {})
         self.reveal.start(0)                                    # scrolled to it once it is laid out

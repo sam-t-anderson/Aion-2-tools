@@ -8,8 +8,8 @@ paper doll's slots, the rolls to keep and where an enchant level is worth most),
 (a character's cards, the variant for each slot and the value of each slot's skill rolls, with the deity totals) and
 the Titles, wings & pet window, since 0.2.437 the Skills hotbar (its rows of keys) and the Macro & rotation window
 (the macro's lines, the manual skills and the priority list), and since 0.2.438 the Pet Genus window (each genus's
-Insight ring and lines, what to roll for, the coverage and the roll targets): every window of a result. The words are
-``results.py``'s.
+Insight ring and lines, what to roll for, the coverage and the roll targets): every window of a result. Since 0.2.500
+the Overview's community comparison is generated here too (``comparisons.py``). The words are ``results.py``'s.
 """
 from __future__ import annotations
 
@@ -28,11 +28,11 @@ from . import pictures
 from . import results as r
 from . import theme
 from .chrome import FlowLayout
+from .comparisons import ComparisonPanel
 from .database_page import Icons, Kpi, Window, pairs_grid
 from .gathering_page import table
 from .timers_page import Fold
 
-COMPARISON_NOTE = "Generating a comparison is on the web page for now."
 #: A window's two- and three-column parts take one column at this width or less (app.css's 1100 px breakpoint, where
 #: ``.daev``, ``.paperdoll`` and ``.grid2`` stack, less the page's margins and the windows' menu).
 NARROW = 780
@@ -1128,14 +1128,14 @@ class GridTable(QWidget):
 
 class ResultWindows(QWidget):
     """A result's windows: the side menu and the chosen window (``renderWindows``). ``open_web`` opens a page of the
-    web interface (the windows not drawn here yet); ``state`` keeps the chosen window and tabs, as the web page's
-    state object does."""
+    app (the Pet Genus window's links); ``state`` keeps the chosen window and tabs, as the web page's state object
+    does."""
 
-    def __init__(self, api=None, open_web=None, web_page: str = "history", clipboard=None, when=None,
-                 parent: QWidget | None = None, open_link=None):
+    def __init__(self, api=None, open_web=None, clipboard=None, when=None, parent: QWidget | None = None,
+                 open_link=None):
         super().__init__(parent)
         self.setObjectName("plain")
-        self.open_web, self.web_page = open_web, web_page
+        self.api, self.open_web = api, open_web
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.clipboard = clipboard or (lambda text: QGuiApplication.clipboard().setText(text))
         self.when = when or (lambda ms: str(ms))
@@ -1239,11 +1239,6 @@ class ResultWindows(QWidget):
             button.clicked.connect(lambda: self.clipboard(copy))
             window.tool(button)
         return window
-
-    def _web_button(self) -> QPushButton:
-        button = QPushButton("Open the web Saved Results page" if self.web_page == "history" else "Open the web page")
-        button.clicked.connect(lambda: self.open_web(self.web_page) if self.open_web else None)
-        return button
 
     def _stat_grid(self, window: Window, rows: list[tuple[str, str]], title: str) -> None:
         """A window's figures under its title (``statGrid``); none when it has none."""
@@ -1364,15 +1359,15 @@ class ResultWindows(QWidget):
         return window
 
     def _comparison(self) -> QFrame:
-        """Contribute a community comparison (closed, as on the web page): what it does, and the web page's button."""
+        """Contribute a community comparison (closed, as on the web page): what it does, and the comparison of the
+        result's class and mode, generated here (0.2.500)."""
         box = QFrame()
         box.setObjectName("win")
         layout = QVBoxLayout(box)
         layout.setContentsMargins(14, 10, 14, 10)
         fold = Fold("Contribute a community comparison")
         fold.add(_label(r.comparison_text(self.view), "muted"))
-        fold.add(_label(COMPARISON_NOTE))
-        fold.add(self._web_button())
+        fold.add(ComparisonPanel(self.api, self.view))
         layout.addWidget(fold)
         return box
 
@@ -1946,6 +1941,8 @@ QFrame#skill QLabel#specAv {{ color: {theme.COLORS['muted']}; }}
 QFrame#skill QLabel#specOn {{ color: #1b1404; background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #f1dc9f,
     stop:1 #c39c45); border-color: #f5dfa0; }}
 QLabel#strong {{ font-weight: 700; }}
+QLabel#comparisonStatus, QLabel#comparisonFigures {{ color: {theme.COLORS['muted']}; }}
+QLabel#comparisonGood {{ color: {theme.COLORS['good']}; }}
 QLabel#stigmaName {{ color: {theme.COLORS['gold']}; font-weight: 700; }}
 QLabel#stigmaEffect {{ border: none; border-top: 1px dashed {theme.COLORS['line']}; padding: 3px 0; }}
 QLabel#goldHead {{ color: {theme.COLORS['gold']}; font-weight: 700; }}

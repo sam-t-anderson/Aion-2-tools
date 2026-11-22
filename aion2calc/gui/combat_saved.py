@@ -156,8 +156,8 @@ class Section(QWidget):
 
 
 class RecordedEncounters(QWidget):
-    """The recorded encounters by type (saved-logs.js). ``open_web`` opens a page of the web interface; ``store``
-    keeps whether mini-bosses are shown; ``pictures`` gives the bosses' portraits."""
+    """The recorded encounters by type (saved-logs.js). ``open_web`` opens a page of the app (a log's review);
+    ``store`` keeps whether mini-bosses are shown; ``pictures`` gives the bosses' portraits."""
 
     def __init__(self, api: AppApi | None, open_web=None, store=None, pictures: Pictures | None = None,
                  parent: QWidget | None = None):
@@ -392,9 +392,9 @@ class RecordedEncounters(QWidget):
 
 
 class UploadQueue(QFrame):
-    """The recordings' upload queue (archive-upload.js). ``open_web`` opens a page of the web interface, ``open_link``
-    an uploaded report in the browser; ``choose_file`` and ``save_file`` stand in for the file dialogs. ``uploaded``
-    says a report was uploaded."""
+    """The recordings' upload queue (archive-upload.js). ``open_web`` opens a page of the app (a log's review),
+    ``open_link`` an uploaded report in the browser; ``choose_file`` and ``save_file`` stand in for the file dialogs.
+    ``uploaded`` says a report was uploaded."""
 
     uploaded = Signal()
 

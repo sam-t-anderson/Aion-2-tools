@@ -97,8 +97,8 @@ def _row(*widgets, gap: int = 8) -> QWidget:
 
 
 class GearPage(QWidget):
-    """Character → Gear & Advice. ``show_page`` opens another native page (Saved advice); ``open_web`` the web
-    interface's (the advice's full view)."""
+    """Character → Gear & Advice. ``show_page`` opens another native page (Saved advice); ``open_web`` a page
+    of the app (a fight's analysis)."""
 
     def __init__(self, api: AppApi | None, show_page=None, open_web=None, parent: QWidget | None = None):
         super().__init__(parent)

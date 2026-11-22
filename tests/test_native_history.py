@@ -22,6 +22,7 @@ from aion2calc.gui import history_page as h  # noqa: E402
 from aion2calc.gui import result_windows as w  # noqa: E402
 from aion2calc.gui import results as r  # noqa: E402
 from aion2calc.gui.advice_view import AdviceView  # noqa: E402
+from aion2calc.gui.comparisons import ComparisonPanel  # noqa: E402
 from aion2calc.gui.database_page import Window  # noqa: E402
 from aion2calc.gui.history_page import HistoryPage  # noqa: E402
 from aion2calc.gui.news import when  # noqa: E402
@@ -276,13 +277,13 @@ def test_the_saved_runs_and_a_build_opened(qapp, view):
     QCoreApplication.processEvents()
     assert "STAT PRIORITY (DPS PER UPGRADE)" in _texts(windows)
     assert not [b for b in windows.findChildren(QToolButton) if b.text() == comparison.text() and b.isVisibleTo(windows)]
-    # contributing a comparison is on the web page for now: its button opens it
+    # the comparison is generated here (0.2.500): the fold holds the comparison of the build's class and mode
     windows.choose("overview")
     QCoreApplication.processEvents()
     next(b for b in windows.findChildren(QToolButton) if b.text() == "Contribute a community comparison").click()
-    assert w.COMPARISON_NOTE in _texts(windows)
-    _button(windows, "Open the web Saved Results page").click()
-    assert opened == ["history"]
+    panel = next(p for p in windows.findChildren(ComparisonPanel) if p.isVisibleTo(windows))
+    assert (panel.cls, panel.mode) == ("sorcerer", "pve") and panel.button.text() == r.COMPARISON_START
+    assert panel.button.isEnabled() and panel.api is app and opened == []
 
 
 def test_advice_its_text_and_the_export(qapp, view, tmp_path):

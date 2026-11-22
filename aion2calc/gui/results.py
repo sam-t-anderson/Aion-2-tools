@@ -391,6 +391,60 @@ def comparison_text(v: dict) -> str:
     return COMPARISON.format(mode="PvP" if str(v.get("scenario") or "").startswith("pvp") else "PvE")
 
 
+#: The community comparison's button and what it says while it runs (``renderCommonComparisons``, 0.2.500).
+COMPARISON_START, COMPARISON_AGAIN, COMPARISON_RUNNING = ("Generate community comparison", "Resubmit saved comparison",
+                                                          "Calculating…")
+COMPARISON_STARTING = "Starting a separate common-budget calculation…"
+COMPARISON_WAITING = "Waiting for the calculation…"
+COMPARISON_PATH = "/api/planner/presets/contribute"
+
+
+def comparison_key(v: dict) -> tuple[str, str]:
+    """The class and mode a result's comparison is generated for (``data-common-class``, ``data-common-mode``)."""
+    return js_text(v.get("class")), "pvp" if str(v.get("scenario") or "").startswith("pvp") else "pve"
+
+
+def comparison_button(state: dict) -> tuple[str, bool]:
+    """The comparison's button (``data-common-start``): its words, and whether it can be pressed (not while it runs)."""
+    state = _dict(state)
+    if state.get("status") == "running":
+        return COMPARISON_RUNNING, False
+    return (COMPARISON_AGAIN if _truthy(state.get("result")) else COMPARISON_START), True
+
+
+def comparison_status(state: dict) -> tuple[str, bool]:
+    """What the comparison says under its button (``role="status"``), and whether the server took it (``good``): the
+    calculation's last line while it runs, why it failed, or the comparison saved and what the server did with it."""
+    state = _dict(state)
+    message = js_text(state.get("message")) if _truthy(state.get("message")) else ""
+    if not _truthy(state.get("result")):
+        return message, False
+    result = _dict(state.get("result"))
+    submission = _dict(result.get("submission"))
+    taken = _truthy(submission.get("accepted"))
+    said = (js_text(submission["reason"]) if _truthy(submission.get("reason")) else
+            "Community preset updated." if taken else "Current community preset retained.")
+    saved = "Saved comparison reused" if _truthy(result.get("reused")) else "Comparison saved"
+    return f"{saved} · {n0(result.get('score'))} weighted modeled DPS ({js_text(result.get('model'))}). {said}", taken
+
+
+def comparison_lines(result) -> list[str]:
+    """The comparison's figures under what it says: each build's modeled DPS, and the server's own evaluation."""
+    result = _dict(result)
+    dps = _dict(result.get("dps"))
+    lines = [" · ".join(f"{js_text(name)}: {n0(value)} modeled DPS" for name, value in dps.items())]
+    score = _dict(result.get("submission")).get("candidate_score")
+    if score is not None:
+        lines.append(f"Server evaluation: {n0(score)} weighted modeled DPS (server policy).")
+    return lines
+
+
+def comparison_reading(log) -> str:
+    """What a reading of the calculation says: its log's last line (``next.log?.at(-1)``), or that it is waited for."""
+    last = log[-1] if isinstance(log, list) and log else None
+    return js_text(last) if _truthy(last) else COMPARISON_WAITING
+
+
 # ------------------------------------------------------------------ Skills
 def skill_counter(v: dict) -> tuple[str, str]:
     """The Skills window's counter (``.counter``): its words, and the points spent of the budget."""
