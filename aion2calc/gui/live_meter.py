@@ -8,7 +8,11 @@
 - **the fight**: why there is nothing yet, the enemies (one chosen shows each player's damage against it), the
   players with their bars, the ping and the game's counters, and the chosen player's parse card (``parseFromMeter``);
 - **the capture's setup**: Npcap's state (``refreshNpcap``), the capture interfaces, what Start sends, and what each
-  action says it did.
+  action says it did;
+- **the rest of Advanced capture** (since 0.2.472): the game installations (``renderInstallations``), the installed
+  game version and capture context (``#mautometa``), and the capture diagnostics: the driver's counters and the
+  capture's stage (``#mdriverstats``), the raw TCP recording, a diagnostic ZIP saved (``renderDiagnosticExport``),
+  what went wrong (``#mdiagerror``), and the marks and candidates (``renderMarks``, ``renderCandidates``).
 
 Every figure is the app's ``/api/meter`` reading, as the web page shows it.
 """
@@ -19,7 +23,7 @@ import math
 from . import theme
 from .combat import js_text
 from .news import when as moment
-from .results import _dict, _list, _truthy, cap, pct
+from .results import _dict, _list, _truthy, cap, n0, pct
 from .timers import world_for
 
 HEAD = "Live damage meter"
@@ -47,10 +51,8 @@ FINAL_NOTE = ("Final-boss order and PvP match-end packets are not yet verified. 
               "use Finish run. Map/instance changes create separate runs without claiming completion. Capture keeps "
               "running.")
 ENGINE_NOTE = ("Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, "
-               "and capture permission. {} Export writes an open a2log file; Upload uses the log server configured in "
+               "and capture permission. {}Export writes an open a2log file; Upload uses the log server configured in "
                "Settings.")
-ELSEWHERE_ADVANCED = ("The game installation, the installed game version and capture context, and the capture "
-                      "diagnostics are in the web interface's Live Meter for now.")
 ELSEWHERE_REVIEW = "The live review of this session is in the web interface's Live Meter for now."
 ELSEWHERE_OPEN = "Open in the web interface"
 NPCAP_OFF = "Npcap setup is only needed on Windows."
@@ -80,6 +82,45 @@ OVERLAY_TIP = "Open the compact overlay in a separate window"
 SHOT_TOO_LARGE = "This page is too large for a readable PNG. Collapse long sections or filter the log, then retry."
 SHOT_RENDERING = "Rendering the full application page…"
 SHOT_SAVING = "Saving application PNG…"
+INSTALL_AUTO = "Auto (one installed copy)"
+INSTALL_GONE = "Selected installation unavailable"
+INSTALL_CHOOSE = "Multiple copies found: choose the copy you play."
+INSTALL_NEXT = "Selection applies to the next capture. Save and clear retained combat before changing it."
+INSTALL_NONE = "No registered installation found. Capture can still run; Product version remains unavailable."
+INSTALL_PATH_FIRST = "Enter the game’s install folder."
+INSTALL_CHECKING = "Checking…"
+INSTALL_ADDED = "Added and selected."
+INSTALL_PLACEHOLDER = "C:\\Program Files (x86)\\NC\\AION 2"
+META_HEAD = "Installed game version and capture context"
+DIAGNOSTICS = "Capture diagnostics"
+DIAGNOSTICS_SUB = "capture counters, TCP recording for diagnostics, diagnostics export"
+RECORD = "Record TCP payloads for diagnostics (optional; remembered, and every capture records while it is ticked)"
+DIAGNOSTICS_NOTE = (
+    "Diagnostic ZIPs include capture counters, status errors and a readable summary even with TCP recording off. Open "
+    "diagnostics folder to find saved ZIPs. Ticked, TCP recording additionally writes raw payloads without a record or "
+    "size limit, even when no combat events are decoded: for every capture however it starts (here, the overlay's Start, "
+    "the Start/Stop hotkey or the start at launch), and from the moment you tick it during a capture. Available disk "
+    "space limits recording. Saves a diagnostic ZIP automatically when capture stops; long recordings take longer to "
+    "compress. Raw traffic may contain character names, IP addresses and other traffic; review before sharing.")
+MARKS_NOTE = (
+    "A mark stamps the capture's clock with what you saw, so the recording can be read against it: a shield soaking a "
+    "hit, an interrupted cast, a miss, reduced damage, a heal over time, a PvP team or round, a boss mechanic. Marks ride "
+    "in the diagnostic ZIP (marks.jsonl) and in the saved log. The <em>Mark this moment</em> hotkey (Settings → Overlay → "
+    "Hotkeys) adds one from inside the game; label it here afterwards.")
+RELABEL_TIP = "Give the latest mark this label and note (a hotkey press is labelled afterwards)"
+MARK_NOTE_HINT = "What you saw (optional)"
+#: What a mark says was seen (``MARK_LABELS``), each with its words.
+MARK_LABELS = (("shield", "A shield absorbed a hit"), ("interrupt", "A cast was interrupted"),
+               ("miss", "An attack missed or was evaded"), ("mitigation", "Damage was reduced (block, resist)"),
+               ("hot", "A heal over time ticked"), ("pvp", "PvP team or round changed"),
+               ("mechanic", "Boss mechanic (describe it)"), ("other", "Other"))
+MARKED = "Moment marked."
+RELABELLED = "Latest mark labelled."
+CONFIRMED = "Candidate confirmed as a mark."
+DISMISSED = "Candidate dismissed."
+RECORDING_ON = "TCP recording on: every capture records raw TCP from now on"
+RECORDING_OFF = "TCP recording off"
+DOWNLOAD_ZIP = "Download diagnostic ZIP"
 #: The actions whose button says what it is doing until it is done (``actionLabels``), each with its button's words.
 ACTIONS = {
     "save": ("Save to Combat Logs", "Saving combat log…"),
@@ -91,6 +132,8 @@ ACTIONS = {
     "hide": ("Hide overlay", "Hiding overlay…"),
     "overlay": ("Open overlay", "Opening overlay…"),
     "interfaces": ("Refresh interfaces", "Refreshing interfaces…"),
+    "diagnostics": ("Export capture diagnostics", "Exporting diagnostic ZIP…"),
+    "folder": ("Open diagnostics folder", "Opening diagnostics folder…"),
 }
 STAGES = {
     "capture_error": "Capture reported an error",
@@ -333,6 +376,12 @@ def final_boss_ids(text: str) -> list[int]:
     return [int(x.strip()) for x in str(text or "").split(",") if x.strip().isdigit() and x.strip().isascii()]
 
 
+def engine_note(info: str) -> str:
+    """The note on the protocol engine, Npcap's line in it (``#npcapinfo``); one space between the sentences, as the
+    page's words run."""
+    return ENGINE_NOTE.format(f"{info} " if info else "")
+
+
 def npcap_state(r: dict) -> dict:
     """Npcap's state (``refreshNpcap``): ``shown`` when there is something to do, above the meter (its ``text``, a
     ``button`` and the ``after`` words that follow it, and whether to look ``again`` soon); otherwise the ``info``
@@ -419,3 +468,199 @@ def shot_scale(width: float, height: float) -> float:
 def shot_words(result: dict, scaled: bool) -> str:
     return (f"Application screenshot saved: {js_text(_dict(result).get('file'))}"
             + (" (scaled to fit PNG limits)" if scaled else ""))
+
+
+# ------------------------------------------------------------------ the rest of Advanced capture (0.2.472)
+def _js(value) -> str:
+    """``${x}`` as JavaScript writes it, ``true`` and ``false`` too."""
+    return "true" if value is True else "false" if value is False else js_text(value)
+
+
+def _seconds_ago(value) -> str:
+    return "not observed" if value is None else f"{theme.fixed(value, 1)}s ago" if isinstance(value, (int, float)) \
+        else "NaNs ago"
+
+
+def driver_text(s: dict) -> str:
+    """The capture's counters (``#mdriverstats``): the driver's, the capture's stage, how long since game data and a
+    combat effect, and the session's processing."""
+    d = _dict(_dict(s).get("diagnostics"))
+    if _truthy(d.get("pcap_stats_sampled")):
+        text = (f"Driver counters{' (partial coverage)' if _truthy(d.get('pcap_stats_partial')) else ''}: "
+                f"{_n(d.get('pcap_received'))} received, {_n(d.get('pcap_dropped'))} capture-buffer drops, "
+                f"{_n(d.get('pcap_if_dropped'))} interface/driver drops. Zero does not prove loss-free capture; counts can "
+                "include other traffic.")
+    else:
+        text = "Driver counters: unavailable or not sampled. TCP reassembly monitoring is separate."
+    pipeline = d.get("pipeline")
+    if _truthy(pipeline):
+        pipeline = _dict(pipeline)
+        stage = pipeline.get("stage")
+        words = STAGES.get(stage) if isinstance(stage, str) else None
+        text += (f" Capture stage: {words or _js(stage)}. Payload packets {_n(d.get('payload_packets'))}; forwarded chunks "
+                 f"{_n(d.get('forwarded'))}; decoded effects {_n(d.get('decoded_events'))}; visible players "
+                 f"{_n(pipeline.get('visible_players'))}. This summarizes retained counters, not proof of current activity. "
+                 "Raw payload recording is optional.")
+    text += (f" Last forwarded game data: {_seconds_ago(d.get('last_packet_age_seconds'))}. Last decoded effect: "
+             f"{_seconds_ago(d.get('last_combat_age_seconds'))}. Idle time alone does not establish a capture failure.")
+    processing = d.get("capture_processing")
+    if _truthy(processing):
+        p = _dict(processing)
+        n = lambda key: "not recorded" if p.get(key) is None else n0(p[key])     # noqa: E731
+        text += (f" Session processing: {n('decoder_errors')} decoder failures; {n('shutdown_discarded_payloads')} "
+                 f"shutdown payload discards; {n('shutdown_drained_payloads')} payloads retained during shutdown. Legacy "
+                 f"error/discard count {n('capture_errors')} overlaps these counters.")
+    return text
+
+
+def meta_summary(s: dict) -> str:
+    """The folded line of the installed game version and capture context (``#mautometa-sum``)."""
+    s = _dict(s)
+    m = _dict(s.get("automatic_metadata"))
+    zone = _dict(s.get("automatic_context")).get("zone")
+    return f"{_installed(m)} · {_js(zone) if _truthy(zone) else 'zone not identified'} · expand for the comparison " \
+           "version, region and catalog coverage"
+
+
+def _installed(m: dict) -> str:
+    build = m.get("installed_build") if _truthy(m.get("installed_build")) else m.get("status")
+    source = f" ({_js(m['installed_build_source'])})" if _truthy(m.get("installed_build_source")) else ""
+    return f"Installed game version: {_js(build) if _truthy(build) else 'unavailable'}{source}"
+
+
+def meta_text(s: dict) -> str:
+    """The installed game version and capture context unfolded (``#mautometa``)."""
+    s = _dict(s)
+    m = _dict(s.get("automatic_metadata"))
+    ctx = _dict(s.get("automatic_context"))
+    coverage = _dict(s.get("catalog_coverage"))
+    classification = _dict(ctx.get("classification"))
+    ready = m.get("region_status") == "ready"
+    patch = _js(m["game_patch"]) if _truthy(m.get("game_patch")) else ""
+    if patch.startswith("version:product:"):
+        patch = patch[len("version:product:"):]
+    region = m.get("region") if _truthy(m.get("region")) else "waiting for recorded server ID" if ready \
+        else m.get("region_status")
+    world = m.get("server_name") if _truthy(m.get("server_name")) else "waiting for recorded server ID" if ready \
+        else "unavailable"
+    known = lambda value, missing: _js(value) if _truthy(value) else missing     # noqa: E731
+    unmapped = coverage.get("unmapped")
+    conflicts = _list(classification.get("conflicts"))
+    return (f"{_installed(m)}. Comparison version: {patch or 'unavailable'}. Automatic region: "
+            f"{known(region, 'unavailable')}. World: {_js(world)}. Zone: {known(ctx.get('zone'), 'not identified')}. "
+            f"Content: {known(ctx.get('encounter_type'), 'not identified')}. Difficulty: "
+            f"{known(ctx.get('difficulty'), 'not identified')}. Map / instance IDs: {known(coverage.get('map_id'), 'not recorded')} / "
+            f"{known(coverage.get('instance_id'), 'not recorded')}. "
+            f"{len(unmapped) if isinstance(unmapped, (list, str)) and unmapped else 0} unmapped catalog IDs and "
+            f"{_n(coverage.get('npc_entities_without_type'))} enemy references without an NPC type in this view (included "
+            f"in diagnostics). "
+            + (f"Context conflict: {'; '.join(_js(c) for c in conflicts)}. " if conflicts else "")
+            + ("NPC-only instance suggestion; entry remains unverified. " if classification.get("basis") == "npc_only" else "")
+            + (f"{_js(m['reason'])} " if _truthy(m.get("reason")) else "")
+            + "Product version identifies comparison groups across launchers; legacy capture metadata is retained.")
+
+
+def record_text(s: dict) -> str:
+    """The raw TCP recording's state (``#mrecordstatus``)."""
+    r = _dict(_dict(s).get("recording"))
+    size = r.get("disk_bytes") if isinstance(r.get("disk_bytes"), (int, float)) and r.get("disk_bytes") else 0
+    recorded = f"{_n(r.get('records'))} TCP payload records · {theme.fixed(size / 1048576, 1)} MiB on disk"
+    if _truthy(r.get("enabled")):
+        return f"Recording raw TCP · {recorded} · no record limit"
+    if _truthy(r.get("records")):
+        return f"Raw TCP recording off · {recorded}, kept for this capture's diagnostic ZIP"
+    return "Raw TCP recording is off · not required for live combat capture"
+
+
+def diagnostic_errors(s: dict) -> str:
+    """What went wrong with the recording, the decoder or the diagnostic ZIP (``#mdiagerror``)."""
+    s = _dict(s)
+    r, d = _dict(s.get("recording")), _dict(s.get("diagnostics"))
+    backlog = _dict(_dict(s.get("snapshot")).get("decode_backlog"))
+    parts = [
+        f"TCP recording stopped writing: {_js(r['error'])}. {_n(r.get('discarded_records'))} records were not saved. Free "
+        "disk space and export the retained data." if _truthy(r.get("error")) else "",
+        f"{_js(d['decoder_warning'])}. Capture continues; affected data remains unranked." if _truthy(d.get("decoder_warning"))
+        else "",
+        _js(d["archive_deferred"]) if _truthy(d.get("archive_deferred")) else "",
+        f"Could not save diagnostic ZIP: {_js(d['archive_error'])}. Use Export capture diagnostics to retry before starting "
+        "another capture." if _truthy(d.get("archive_error")) else "",
+        f"Raw diagnostic cleanup failed: {_js(d['recording_cleanup_error'])}. The raw file remains in the diagnostics "
+        "folder." if _truthy(d.get("recording_cleanup_error")) else "",
+        f"Live view is catching up ({_js(backlog.get('queue_depth'))} packets queued) during a heavy fight; final totals are "
+        "unaffected." if _truthy(backlog.get("catching_up")) else "",
+    ]
+    return " ".join(part for part in parts if part)
+
+
+def export_lines(r: dict) -> list[str]:
+    """A diagnostic ZIP saved (``renderDiagnosticExport``): what it holds and where it is."""
+    r = _dict(r)
+    lines = [f"Saved ZIP: {n0(r.get('size_bytes'))} bytes · {n0(r.get('records'))} raw TCP records.",
+             f"Capture packets: {n0(r.get('capture_packets'))} · decoded events: {n0(r.get('decoded_events'))} · retained "
+             f"effects: {n0(r.get('retained_effects'))}.",
+             f"Saved on this computer: {_js(r.get('file'))}",
+             "Contains a readable capture-summary.txt and diagnostics.json."]
+    if not _truthy(r.get("records")):
+        lines.append("Raw TCP recording was off or empty, so tcp-payloads.jsonl is intentionally empty. The ZIP still "
+                     "contains capture status, counters and errors. Use Open diagnostics folder to find it.")
+    return lines
+
+
+def exported_zip_words(r: dict) -> str:
+    """What Export capture diagnostics did."""
+    r = _dict(r)
+    records = f"{_js(r['records'])} raw TCP records." if _truthy(r.get("records")) else \
+        "Metadata-only ZIP; raw TCP recording is off or empty."
+    return f"Diagnostic ZIP saved ({n0(r.get('size_bytes'))} bytes) to {_js(r.get('file'))}. {records}"
+
+
+def installations(r: dict) -> dict:
+    """The game's installations (``renderInstallations``): the choices, the one chosen, whether one must be chosen
+    (Advanced capture then opens), and what that means."""
+    r = _dict(r)
+    rows = [_dict(x) for x in _list(r.get("installations"))]
+    options = [("", INSTALL_AUTO)] + [(_js(x.get("id")), _js(x.get("label"))) for x in rows]
+    selected = _js(r["selected"]) if _truthy(r.get("selected")) else ""
+    if selected and not any(_js(x.get("id")) == selected for x in rows):
+        options.append((selected, INSTALL_GONE))
+    required = _truthy(r.get("selection_required"))
+    status = INSTALL_CHOOSE if required else INSTALL_NEXT if rows else INSTALL_NONE
+    return {"options": options, "selected": selected, "required": required, "status": status}
+
+
+def _when(value) -> str:
+    """A mark's moment as the page writes it: its ISO time, the ``T`` a space and the fraction of a second dropped."""
+    import re
+    return re.sub(r"\.\d+Z$", "Z", (_js(value) if value is not None and value != "" else "").replace("T", " ", 1))
+
+
+def marks_line(marks) -> list[dict]:
+    """The latest marks (``renderMarks``), the newest first: when, what, the note and how far into which fight."""
+    rows = [_dict(m) for m in _list(marks) if (_dict(m).get("kind") or "mark") == "mark"][-8:][::-1]
+    out = []
+    for m in rows:
+        fight = ""
+        t = m.get("fight_t")
+        if isinstance(t, (int, float)) and not isinstance(t, bool) and math.isfinite(t):
+            fight = f" · {theme.js_round(t)}s into {_js(m['boss']) if _truthy(m.get('boss')) else 'the fight'}"
+        out.append({"when": _when(m.get("at")), "label": _js(m.get("label")),
+                    "note": _js(m["note"]) if _truthy(m.get("note")) else "", "fight": fight})
+    return out
+
+
+def candidates(marks) -> tuple[list[dict], int]:
+    """The candidates the app noticed and still waiting (``renderCandidates``), the newest six first, and how many were
+    decided."""
+    rows = [_dict(m) for m in _list(marks)]
+    pending = [m for m in rows if m.get("kind") == "candidate" and m.get("status") == "pending"][-6:][::-1]
+    decided = sum(1 for m in rows if m.get("kind") == "candidate" and m.get("status") != "pending")
+    return ([{"id": m.get("id"), "when": _when(m.get("at")), "label": _js(m.get("label")),
+              "why": _js(m.get("why")) if _truthy(m.get("why")) else ""} for m in pending], decided)
+
+
+def candidates_head(pending: list, decided: int) -> str:
+    if pending:
+        return ("Candidates the app noticed (confirm what you saw, dismiss what you did not"
+                + (f"; {decided} decided" if decided else "") + "):")
+    return f"No candidate waiting ({decided} decided this capture)." if decided else ""
