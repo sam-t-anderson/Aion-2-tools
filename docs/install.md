@@ -84,8 +84,9 @@ you are, and the versions in between are never installed one by one. The app che
 page when it starts or a window opens, then hourly; a check that fails (no network yet right after
 Windows starts, say) is retried within a couple of minutes. **Settings → App & data → Updates** turns
 the background download and the install on close on or off, and **Settings → Version** shows what the
-last check found, with **Check now** and **Update now**. Installing puts the new version over the old
-one. Your data is kept.
+last check found, with **Check now** and **Update now**. The native window shows the same bar at its
+bottom left, and names a newer release under the language choice where nothing downloads it (0.2.493).
+Installing puts the new version over the old one. Your data is kept.
 
 **Your data** stays on your computer, in `%LOCALAPPDATA%\aion2calc` on Windows and
 `~/.aion2calc` on macOS and Linux (details in [app.md](app.md#where-your-data-is-saved)). If the

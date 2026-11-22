@@ -1,3 +1,10 @@
+## The quiet update in the native window (0.2.493)
+
+**The app's own window now shows a new version as the web pages do.**
+- A small bar at the window's bottom left shows the new version's download, then **Update ready: version …** with **Update now** (the app closes and the installer opens) and **Update when the app closes**, as on the web pages.
+- Where nothing downloads it (a copy run from source, the background download turned off, or a download that failed), the window names the newer version under the language choice, a link to its release page.
+- The window asks the app as the web pages' header does: for a fresh release check when it opens, then every 20 seconds, each second while an update downloads.
+
 ## Raid Planner in the native interface, last part (0.2.492)
 
 **The app's window now draws the whole Raid Planner, and a log's movement replay opens in it: every page is native.**
