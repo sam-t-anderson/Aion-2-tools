@@ -8,6 +8,7 @@ async function pageBuilds() {
   buildWorkspaceView = A2BuildWorkspace.mount($("#build-workspace"), {
     api: communityAPI,
     localEvaluation: true,
+    keptByApp: true, // its drafts are the app's interface data (0.2.482), shared with the app's window
     evaluate: (doc) => api("/api/build/evaluate", doc),
     ...(buildWorkspaceContext || {}),
   });

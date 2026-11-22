@@ -1,3 +1,12 @@
+## Builds in the native interface, first part (0.2.486)
+
+**The app's window now draws the Builds page itself: your draft, its skills, passives, stigmas and Daevanion boards.**
+- **The draft:** the class, **New empty draft**, **Import profile / optimizer / draft JSON**, **Load current community preset**, the name, mode and character level, **Save local draft** and **Export build JSON**, as on the web page, with the same checks and messages.
+- **Active skills, Passives and Stigmas:** each skill's trained or equipped level, manual bonus levels and supporting effects, with the search; **Daevanion:** each board's nodes to take from its centre, and the separate budget of a board that is not a crystal board. Each tab shows its budget, what it uses, the class's highest server-reported budgets and the catalog's checks in the web page's words.
+- **Saved local drafts** are the web page's own, kept by the app with your other interface choices: a draft saved in the window opens on the web page, and the other way round.
+- Equipment, Arcana cards, Pantheon, Genus Insight, Evaluation and the source character are still drawn on the web Builds page: save the draft, then load it there.
+- The web Builds page in the app now says that the app keeps its drafts, for its window and the web pages alike; the website's page still keeps them in your browser.
+
 ## Customization profiles in the native interface (0.2.485)
 
 **Settings in the app's window now has the Customization profiles (Profiles & backup), the last of the web Settings page's rows: the whole Settings page is native.**

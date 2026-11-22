@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, Q
 
 from . import i18n, theme
 from .account_page import AccountPage
+from .builds_page import BuildsPage
 from .combat_review import read_page
 from .api import AppApi, Requests
 from .news import NewsPage
@@ -146,6 +147,8 @@ class MainWindow(QMainWindow):
                     widget = AccountPage(api, self.open_web)
                 elif key == "combat":
                     widget = CombatPage(api, self.open_web, open_in_web=self.open_in_web)
+                elif key == "builds":
+                    widget = BuildsPage(api, self.open_in_web)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)
@@ -216,7 +219,10 @@ class MainWindow(QMainWindow):
     def _navigate(self, current, _previous) -> None:
         key = current.data(Qt.UserRole) if current is not None else None
         if key in self.page_index:
+            left = self.pages.currentWidget()
             self.pages.setCurrentIndex(self.page_index[key])
+            if left is not self.pages.currentWidget() and hasattr(left, "leave"):
+                left.leave()                  # a page that starts afresh each time it is opened (Builds, 0.2.486)
 
     def open_web(self, page: str) -> None:
         """Open a page: here when this window draws it (an analyzed encounter since 0.2.456, a log's review since

@@ -50,6 +50,7 @@ class Pictures(QObject):
     ``changed`` is emitted when a picture arrives, for the overlay to draw it."""
 
     changed = Signal()
+    unmapped = Signal()                       # the asset map could not be read (``bundles`` says no for now, 0.2.486)
 
     def __init__(self, api: AppApi | None, parent: QObject | None = None):
         super().__init__(parent)
@@ -129,6 +130,16 @@ class Pictures(QObject):
             return True
         return str(code) in self.npcs
 
+    def bundles(self, url) -> bool | None:
+        """Whether the app bundles a picture for an address: None while its asset map is being read (``changed`` says
+        when it is, ``unmapped`` when it could not be), and no while the map cannot be read (0.2.486)."""
+        if not isinstance(url, str) or not url:
+            return False
+        self._ask_map()
+        if self._map_state == "read":
+            return url in self.files
+        return False if isinstance(self._map_state, float) else None
+
     def has_address(self, url) -> bool:
         """Whether the app bundles a picture for an address (``by_address`` may still be reading it); True until the
         asset map is read, as any address may be in it (0.2.460)."""
@@ -165,6 +176,7 @@ class Pictures(QObject):
                 self.read_map(answer)
             else:
                 self._map_state = time.monotonic()
+                self.unmapped.emit()
             return
         if name.startswith("file:"):
             file = name[len("file:"):]
@@ -177,6 +189,7 @@ class Pictures(QObject):
     def _failed(self, name: str, why: str) -> None:
         if name == "map":
             self._map_state = time.monotonic()
+            self.unmapped.emit()
         elif name.startswith("file:"):
             self._forget(name[len("file:"):])
 
