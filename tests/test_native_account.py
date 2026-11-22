@@ -249,10 +249,11 @@ def test_signed_out_and_the_ways_in(qapp):
     settle(lambda: page.state.get("signed_in"))
     assert _did(app, "register") == {"action": "register", "name": "Daeva"} and page.toast.text() == "Signed in as Daeva"
     assert "Daeva" in _texts(page) and "12 logs · 1 character" in _texts(page)
-    # signed out from the page (the web page's header menu), once asked
+    # signed out from the header's account menu, once asked (no Sign out of its own beside the name)
+    assert not any(b.text() == "Sign out" and b.isVisibleTo(page) for b in page.findChildren(QPushButton))
     asked = []
     page.confirm = lambda question: asked.append(question) or True
-    _button(page, "Sign out").click()
+    page.sign_out("Daeva")
     settle(lambda: page.state is not None and not page.state.get("signed_in"))
     assert asked == ["Sign out of Daeva?"] and _did(app, "signout") == {"action": "signout"}
     # a link code from the website, refused then taken; recovery

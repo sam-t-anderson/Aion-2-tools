@@ -22,21 +22,24 @@ def qapp():
 
 
 def _downloading(received=512, total=1024, version="0.2.500"):
-    return {"update_download": {"state": "downloading", "version": version, "received": received, "total": total,
-                                "kind": "installer"}, "update": {"version": version, "url": "https://example.org/r"}}
+    return {"db": {"items": 48213}, "update": {"version": version, "url": "https://example.org/r"},
+            "update_download": {"state": "downloading", "version": version, "received": received, "total": total,
+                                "kind": "installer"}}
 
 
 def _ready(kind="installer", on_close=True):
-    return {"update_download": {"state": "ready", "version": "0.2.500", "kind": kind},
+    return {"db": {"items": 48213}, "update_download": {"state": "ready", "version": "0.2.500", "kind": kind},
             "update": {"version": "0.2.500", "url": "https://example.org/r"}, "update_on_close": on_close}
 
 
 def test_the_status_words_and_when_it_is_asked_again():
     assert ub.poll_ms({"sync": {"running": True}, **_downloading()}) == ub.SYNCING_MS
     assert ub.poll_ms(_downloading()) == ub.DOWNLOADING_MS
-    assert ub.poll_ms({"update_state": {"checking": True}}) == ub.CHECKING_MS
-    assert ub.poll_ms({"update_state": {"checking": True}, "update": {"version": "1"}}) == ub.IDLE_MS
+    assert ub.poll_ms({"db": {}, "update_state": {"checking": True}}) == ub.CHECKING_MS
+    assert ub.poll_ms({"db": {}, "update_state": {"checking": True}, "update": {"version": "1"}}) == ub.IDLE_MS
     assert ub.poll_ms({}) == ub.poll_ms(None) == ub.IDLE_MS
+    # a status without the database's count, which the web page's line cannot read: asked for again in 20 s
+    assert ub.poll_ms({"update_download": {"state": "downloading"}, "db": None}) == ub.IDLE_MS
     # the download's progress, a whole percent; none known yet
     assert ub.bar_state(_downloading(received=2047, total=4096)) == {
         "kind": "downloading", "words": "Downloading version 0.2.500…", "pct": 49, "key": "downloading"}
@@ -78,10 +81,12 @@ def test_the_window_shows_the_download_then_the_update_ready(qapp):
     window._status(_ready(on_close=False))
     assert not box.isChecked()
     # nothing downloading: the bar gone, the newer release named as a link to its page
-    window._status({"update": {"version": "0.2.500", "url": "https://example.org/r"}})
+    window._status({"db": {"items": 1}, "update": {"version": "0.2.500", "url": "https://example.org/r"}})
     assert not bar.isVisible() and window.update_chip.isVisible()
     assert "Version 0.2.500 available" in window.update_chip.text() and 'href="https://example.org/r"' in window.update_chip.text()
-    window._status({})
+    window._status({})                                     # without the database's count: nothing changes (syncPill)
+    assert window.update_chip.isVisible()
+    window._status({"db": {"items": 1}})
     assert not window.update_chip.isVisible()
     # the app closing for its installer: the window says so in place of its pages
     window._closing()

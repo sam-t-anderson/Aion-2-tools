@@ -29,13 +29,13 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QDate, Qt, QTimer
+from PySide6.QtCore import QDate, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QGuiApplication
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFrame, QGraphicsOpacityEffect, QHBoxLayout, QInputDialog,
                                QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea, QVBoxLayout, QWidget)
 
 from . import account as ac
-from . import theme
+from . import i18n, theme
 from .api import AppApi, Requests
 from .database_page import Window
 from .gathering_page import GatheringPage
@@ -145,7 +145,10 @@ def _clear(layout) -> None:
 
 class AccountPage(QWidget):
     """Account. ``open_web`` opens a page of the web interface; ``ask(question, text)`` and ``confirm(question)`` stand
-    in for the web page's prompt and confirm, ``alert(words)`` for its alert."""
+    in for the web page's prompt and confirm, ``alert(words)`` for its alert. ``status_read(status)`` is each account
+    status the page reads (the window's header shows the account from it, 0.2.494)."""
+
+    status_read = Signal(object)
 
     def __init__(self, api: AppApi | None, open_web=None, ask=None, confirm=None, alert=None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -246,6 +249,7 @@ class AccountPage(QWidget):
 
     def _replied(self, name: str, answer) -> None:
         if name == "status":
+            self.status_read.emit(answer)
             self._draw(ac.status_view(answer))
         elif name.startswith("act:"):
             done, after = self.acting.pop(name[4:], None), self.after.pop(name[4:], None)
@@ -380,9 +384,7 @@ class AccountPage(QWidget):
         self.me = s.get("account") or {}
         self._fresh()
         name, counts = ac.title_line(self.me)
-        title = _row(_label(name, "acctName", wrap=False), _label(counts, "muted"))
-        title.layout().addWidget(_button("Sign out", self.sign_out))
-        self._add(title)
+        self._add(_row(_label(name, "acctName", wrap=False), _label(counts, "muted")))
         tabs = QWidget()
         tabs.setObjectName("plain")
         line = QHBoxLayout(tabs)
@@ -430,6 +432,19 @@ class AccountPage(QWidget):
         self.tab = key
         self.legion = None
         self.render()
+
+    def open(self, tab: str | None) -> None:
+        """The page opened afresh from the header's menu (``#/account/<tab>``, mounted anew): on ``tab`` (My logs for
+        the sign-in), the lists' filters and pages, the legion opened and what was said let go (Top parses' page size
+        kept). Drawn again here while it is shown; the window shows it otherwise, which draws it."""
+        self.tab = tab if tab in {key for key, _words in ac.TABS} else "logs"
+        self.legion = None
+        self.mine, self.shared = ac.fresh_filter(), ac.fresh_filter()
+        self.parses = ac.fresh_parses(self.parses.get("limit", 25))
+        self.parses_all = None
+        self.flash = ""
+        if self.isVisible():
+            self.render()
 
     # ---------------------------------------------------------------- my logs
     def _date_field(self, day: str, words: str) -> QDateEdit:
@@ -1123,9 +1138,11 @@ class AccountPage(QWidget):
     def website(self) -> None:
         self._post("website", {"action": "website"})
 
-    def sign_out(self) -> None:
-        """Sign out (the header menu's, on the web page), once asked."""
-        if self.confirm(f"Sign out of {self.me.get('name') or ''}?"):
+    def sign_out(self, name: str | None = None) -> None:
+        """Sign out (the header's account menu), once asked: of ``name``, the account the header shows."""
+        if name is None:
+            name = self.me.get("name") or ""
+        if self.confirm(i18n.t(ac.SIGN_OUT_ASK, name)):
             self._post("signout", {"action": "signout"})
 
     # ---------------------------------------------------------------- the dialogs
