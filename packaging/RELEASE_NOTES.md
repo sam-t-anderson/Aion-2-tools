@@ -1,3 +1,10 @@
+## Builds in the native interface, last part (0.2.489)
+
+**The app's window now draws the Builds page's Source character tab: the whole Builds page is native.**
+- **Source character:** the profile the draft was imported from, or a combat log's saved character, as My Character shows one: its stats, equipment, Daevanion, skills and the rest, with its status, upload and fetch times, and the full reference as JSON. A draft started empty says it has no source.
+- **A combat log's saved character opens in Builds:** on a log's own page, choose a player with a saved profile, then **Open saved character in Builds**. The draft starts on that character's class and level with the profile as its reference, and **Back to log** returns to the log where you were.
+- The Raid Planner page and the movement replay's Raid Planner file are the only parts still drawn in the web interface.
+
 ## Builds in the native interface, third part (0.2.488)
 
 **The app's window now draws the Builds page's Pantheon, Genus Insight and Evaluation / advanced inputs tabs too.**

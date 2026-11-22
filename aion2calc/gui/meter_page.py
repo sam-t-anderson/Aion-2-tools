@@ -263,9 +263,10 @@ class MeterPage(QWidget):
 
     def __init__(self, api: AppApi | None, parent: QWidget | None = None, open_page=None, open_link=None,
                  open_in_web=None, open_window=None, pictures: Pictures | None = None, store=None, ask=None,
-                 choose_file=None, open_web=None):
+                 choose_file=None, open_web=None, open_builds=None):
         super().__init__(parent)
         self.api = api
+        self.open_builds = open_builds           # the live review's character opened in Builds (0.2.489)
         self.open_page, self.open_in_web = open_page, open_in_web
         self.open_web = open_web                 # a page of the app, here where the window draws it (the review's links)
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
@@ -997,7 +998,8 @@ class MeterPage(QWidget):
     def _review_drawn(self, doc: dict) -> None:
         if self.review is None:
             self.review = ReviewPage(self.api, self.open_web, self.open_in_web, pictures=self.pictures, store=self.store,
-                                     live=True)
+                                     live=True, open_builds=((lambda context, _back: self.open_builds(context, None))
+                                                             if self.open_builds is not None else None))
             self.review.setStyleSheet(combat_stylesheet())
             self.review_box.addWidget(self.review)
             self.review_slot.show()

@@ -96,8 +96,9 @@ class CombatPage(QWidget):
 
     def __init__(self, api: AppApi | None, open_web=None, choose_file=None, open_link=None, parent: QWidget | None = None,
                  store=None, choose_recovery=None, save_file=None, choose_backup=None, confirm=None, identity_call=None,
-                 open_in_web=None):
+                 open_in_web=None, open_builds=None):
         super().__init__(parent)
+        self.open_builds = open_builds                   # a log's character opened in Builds (0.2.489)
         self.api, self.open_web, self.store = api, open_web, store
         self.open_in_web = open_in_web or open_web
         self.choose_file = choose_file or self._ask_file
@@ -267,10 +268,19 @@ class CombatPage(QWidget):
     def _review(self) -> ReviewPage:
         """A log's own page, drawn when first opened and kept."""
         if self.review_page is None:
-            self.review_page = ReviewPage(self.api, self.open_web, self.open_in_web, pictures=self.pictures, store=self.store)
+            self.review_page = ReviewPage(self.api, self.open_web, self.open_in_web, pictures=self.pictures, store=self.store,
+                                          open_builds=self._to_builds if self.open_builds is not None else None)
             self.review_page.uploaded.connect(self._uploaded)          # My Uploads read again (``a2log-uploaded``)
             self.featured_line.addWidget(self.review_page)
         return self.review_page
+
+    def _to_builds(self, context: dict, back) -> None:
+        """A character of the log shown opened in Builds; coming back opens the log again: its page, or the upload's
+        log given whole again (``#/combat-log/opened``)."""
+        kind, where = back if back is not None else (None, None)
+        again = ((lambda: self.open_web(where)) if kind == "page" else
+                 (lambda doc=where: self.open_upload(doc)) if kind == "doc" else None)
+        self.open_builds(context, again)
 
     def open_review(self, kind: str, value: str, mode=None, segment=None) -> None:
         """A log's own page in place of the views (``#/combat-log/local/<file>``, ``#/combat-log/shared/<id>``)."""

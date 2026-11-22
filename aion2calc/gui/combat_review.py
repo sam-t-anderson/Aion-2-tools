@@ -2663,6 +2663,8 @@ FULL_BUILD_NOTE = ("Expand a section for equipment rolls, specialties, titles, s
 EXPORT_PROFILE = "Export this profile JSON"
 PROFILE_FILE = "character-profile.json"
 BACK_TO_SAVED = "Return to saved historical profile"
+OPEN_IN_BUILDS = "Open saved character in Builds"
+BUILDS_BASIS = "Saved profile from combat log; reference only."
 FETCH_CURRENT = "Fetch current official profile (not historical)"
 LOOKUP_NOTE = ("Use this character's home server, not your own server. Manual lookup only previews current gear; it does not "
                "change the saved historical profile.")
@@ -2693,6 +2695,15 @@ PALETTES = {
     "Overlay (cool)": {"gladiator": "#c8474f", "templar": "#c9772b", "assassin": "#4caf6e", "ranger": "#b9962a",
                        "sorcerer": "#3a86c8", "spiritmaster": "#7a63d8", "cleric": "#3fb4b0", "chanter": "#b84f9e",
                        "brawler": "#7f9a3a"}}
+
+
+def builds_context(actor: dict) -> dict:
+    """What a character opens Builds with (``openBuildWorkspace``, pages/parse.js): its saved profile as the reference,
+    its class and the profile's level, and where it comes from."""
+    snapshot = _dict(actor).get("profile_snapshot")
+    return {"reference": {"snapshot": snapshot}, "className": _dict(actor).get("class"),
+            "level": _dict(_dict(_dict(snapshot).get("data")).get("profile")).get("characterLevel"),
+            "source": {"actor": _dict(actor).get("id"), "basis": BUILDS_BASIS}}
 
 
 def profile_image(value) -> str:

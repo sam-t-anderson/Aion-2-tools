@@ -1,8 +1,9 @@
-"""The native Builds page, its first part (0.2.486, ``gui/builds.py`` and ``gui/builds_page.py``), as
-build-workspace.js keeps, checks and draws a draft: the bundled catalog's rules and the entered budgets' checks in the
-web page's words, an optimizer's build and a file read as a draft, the drafts kept with the web page's
-(``a2-build-drafts-v1``), the frame, the skills, stigmas and boards, the class's budgets and the community preset.
-The expected checks and texts are build-workspace.js's own answers for the same drafts."""
+"""The native Builds page (0.2.486 to 0.2.489, ``gui/builds.py`` and ``gui/builds_page.py``), as build-workspace.js
+keeps, checks and draws a draft: the bundled catalog's rules and the entered budgets' checks in the web page's words, an
+optimizer's build and a file read as a draft, the drafts kept with the web page's (``a2-build-drafts-v1``), the frame,
+the skills, stigmas and boards, the class's budgets and the community preset; the equipment and arcana cards; the
+Pantheon, Genus Insight and evaluation; the source character, and a log's saved character opened in it. The expected
+checks and texts are build-workspace.js's own answers for the same drafts."""
 import json
 import os
 import pathlib
@@ -409,17 +410,6 @@ def test_leaving_the_page_starts_it_afresh(made):
     assert [p for _m, p, _b in fake.calls].count("/static/build-catalog.json") == 1     # the catalog read once
 
 
-def test_the_other_tabs_open_the_web_page(made):
-    page, *_rest = made
-    opened = []
-    page.open_web = opened.append
-    page.tab_buttons["reference"].click()
-    texts = [w.text() for w in page.findChildren(bp.QLabel)]
-    assert bp.ON_THE_WEB in texts
-    next(btn for btn in page.findChildren(bp.QPushButton) if btn.text() == bp.OPEN_WEB).click()
-    assert opened == ["builds"]
-
-
 def test_the_window_draws_builds_and_lets_it_go_when_left(qapp, monkeypatch, tmp_path):
     from aion2calc.gui import interface
     from aion2calc.gui.window import MainWindow
@@ -719,3 +709,100 @@ def test_the_advanced_inputs_and_an_evaluation(made):
     page.level_edit.setText("30")
     page.level_edit.editingFinished.emit()
     assert not page.evaluate_button.isEnabled()
+
+
+# ------------------------------------------------------------------ the source character and a log's character (0.2.489)
+def test_the_source_characters_words_and_a_logs_context():
+    from aion2calc.gui import combat_review as cw
+    from aion2calc.gui.news import when as when_at
+    assert b.reference_words(None, {}) == {"note": b.NO_SOURCE, "status": None, "data": None, "region": None, "json": None}
+    snap = {"status": "ok", "reason": "", "uploaded_at": 1700000000, "fetched_at": None, "identity": {"region": "eu"},
+            "data": {"profile": {"characterName": "A", "characterLevel": 50}, "region": "na"}}
+    words = b.reference_words({"snapshot": snap}, {"basis": "From a log."})
+    assert words["note"] == "From a log. " + b.PROFILE_LIMITS and words["region"] == "eu" and words["data"] == snap["data"]
+    assert words["status"] == ["Status: ok · ", f"Upload: {when_at(1700000000000)} · Fetch: Not recorded"]
+    assert words["json"].startswith('{\n  "snapshot": {\n    "status": "ok",')
+    assert b.reference_words({"snapshot": {"status": "pending"}}, {})["status"][0] == "Status: pending · "
+    actor = {"id": "p1", "class": "sorcerer", "profile_snapshot": snap}
+    assert cw.builds_context(actor) == {"reference": {"snapshot": snap}, "className": "sorcerer", "level": 50,
+                                        "source": {"actor": "p1", "basis": cw.BUILDS_BASIS}}
+    assert cw.builds_context({"class": "cleric"}) == {"reference": {"snapshot": None}, "className": "cleric", "level": None,
+                                                      "source": {"actor": None, "basis": cw.BUILDS_BASIS}}
+
+
+def test_the_source_character_tab_and_a_logs_character_opened(made, tmp_path):
+    from aion2calc.gui.combat_review_page import AutoGrid
+    page, _fake, _store, _asked, _chosen = made
+    page.tab_buttons["reference"].click()
+    assert page.reference_words["note"] == b.NO_SOURCE and page.reference_words["data"] is None
+    assert b.NO_SNAPSHOT in [w.text() for w in page.findChildren(bp.QLabel)] and page.back_button is None
+    snap = {"status": "ok", "reason": "saved", "uploaded_at": 1700000000, "identity": {"region": "eu"},
+            "data": {"profile": {"characterName": "TestSorc", "characterLevel": 30, "className": "Sorcerer"},
+                     "equipment": {"equipmentList": [{"slotPosName": "Main hand", "name": "Staff", "grade": "Epic"}]}}}
+    went_back = []
+    page.prepare({"reference": {"snapshot": snap}, "className": "sorcerer", "level": 30,
+                  "source": {"actor": "p1", "basis": "Saved profile from combat log; reference only."}},
+                 lambda: went_back.append(True))
+    assert settle(lambda: page.frame is not None and page.tab == "reference" and page.draft["class"] == "sorcerer")
+    assert page.draft["level"] == 30 and page.tab_buttons["reference"].objectName() == "tabOn"
+    assert page.reference_words["note"] == "Saved profile from combat log; reference only. " + b.PROFILE_LIMITS
+    texts = [w.text() for w in page.findChildren(bp.QLabel)]
+    assert "TestSorc" in texts and "<b>Staff</b>" in texts and page.findChildren(AutoGrid)
+    page.back_button.click()
+    assert went_back == [True]
+    page.save()                                                        # the reference and source kept with the draft
+    kept = json.loads(page.store.value(b.STORE))[0]["draft"]
+    assert kept["reference"] == {"snapshot": snap} and kept["source"] == {"log": "", "actor": "p1",
+                                                                         "basis": "Saved profile from combat log; reference only."}
+
+
+def test_a_logs_saved_character_opens_in_builds_and_comes_back(qapp):
+    from PySide6.QtWidgets import QPushButton
+    from aion2calc.gui import combat_review as cw
+    from test_native_combat import FakeApp as LogApp, _built, _click, _find, _labels, _page
+    app = LogApp()
+    app.log_server.review_log = _built()
+    opened, routed = [], []
+    page = _page(app, open_web=routed.append, open_builds=lambda context, back: opened.append((context, back)))
+    page.open_review("shared", "log0001")
+    view = page.review_page
+    view.official.read = lambda url: b""                             # the official hosts, never the network
+    assert settle(lambda: view.summary is not None and view.ranks is not None and view.names is not None
+                  and not view.awaiting)
+    _find(view, QPushButton, lambda x: x.accessibleName() == "Character build of TestSorc ✓ · Zikel").click()
+    _click(view, cw.OPEN_IN_BUILDS)
+    context, back = opened[-1]
+    saved = _built()["players"][0]["profile_snapshot"]
+    assert context == {"reference": {"snapshot": saved}, "className": "sorcerer", "level": 50,
+                       "source": {"actor": "p1", "basis": cw.BUILDS_BASIS}}
+    back()
+    assert routed == ["combat-log/shared/log0001?mode=&segment=0"]       # the log again, at the encounter shown
+    reopened = []
+    page.open_upload = reopened.append
+    page._to_builds({"className": "cleric"}, ("doc", {"meta": {}}))     # an upload's log: given whole again
+    opened[-1][1]()
+    assert reopened == [{"meta": {}}]
+    page._to_builds({"className": "cleric"}, None)                     # the Live Meter's: the window's way back alone
+    assert opened[-1] == ({"className": "cleric"}, None)
+    _click(view, cw.BACK_TO_LOG)
+    _find(view, QPushButton, lambda x: x.accessibleName() == "Character build of TestCleric").click()
+    assert cw.OPEN_IN_BUILDS not in [b_.text() for b_ in view.findChildren(QPushButton) if b_.isVisibleTo(view)]
+    assert cw.NO_PROFILE in _labels(view)
+
+
+def test_the_window_opens_builds_on_a_logs_character_and_returns(qapp, monkeypatch, tmp_path):
+    from aion2calc.gui import interface
+    from aion2calc.gui.window import MainWindow
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
+    monkeypatch.setattr(interface, "_shared", interface._Shared())
+    window = MainWindow(None)
+    window.show_page("combat")
+    back = []
+    page = window.page("builds")
+    window.open_builds({"className": "cleric", "level": 20}, lambda: back.append(window.current_page()))
+    assert window.current_page() == "builds" and page.pending is not None and not page.mounted   # on its next showing
+    window.show()
+    assert settle(lambda: page.mounted) and page.context == {"className": "cleric", "level": 20} and page.pending is None
+    page.back()
+    assert back == ["combat"] and window.current_page() == "combat"
+    window.close()

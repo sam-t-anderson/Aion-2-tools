@@ -211,6 +211,85 @@ class AutoGrid(QWidget):
 LOGO = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app", "static", "logo.png")
 
 
+def details_view(details: dict, picture) -> QWidget:
+    """A recorded character (character-view.js ``details``): the portrait and its lines, then each part's cards.
+    ``picture(url, alt, size, height)`` draws a picture (the official one, or the app's copy)."""
+    box, column = _plain(spacing=8)
+    if "empty" in details:
+        column.addWidget(_label(details["empty"]))
+        return box
+    hero = details["hero"]
+    top, line = _plain(QHBoxLayout, 20)
+    portrait = picture(hero["image"], hero["alt"], 140, 180)                       # ``.cr-profile-hero > img``
+    portrait.setStyleSheet(f"QLabel {{ background: {C['panel']}; border-radius: 8px; color: {C['muted']}; font-size: 24px; }}")
+    line.addWidget(portrait)
+    words, lines = _plain(spacing=2)
+    lines.addStretch(1)                                          # beside the portrait's middle (``align-items: center``)
+    lines.addWidget(_label(hero["name"], "combatHead"))
+    lines.addWidget(_label("\n".join(hero["lines"])))
+    lines.addStretch(1)
+    line.addWidget(words, 1)
+    column.addWidget(top)
+    column.addWidget(_head("Character stats"))
+    column.addWidget(stat_grid(details["stats"]))
+    for title, key, none in (("Equipment and inventory slots", "gear", "Equipment was not included in this snapshot."),
+                             ("Skills, passives and stigmas", "skills", "Skills were not included in this snapshot."),
+                             ("Pet and wings", "petwing", "Pet and wings were not included in this snapshot."),
+                             ("Daevanion boards", "boards", "Boards were not included in this snapshot.")):
+        column.addWidget(_head(title))
+        column.addWidget(profile_cards(details[key], none, picture))
+        if key == "petwing":
+            column.addWidget(_muted(details["genus"]))
+    return box
+
+
+def stat_grid(stats: list) -> QWidget:
+    """The stats (``.cr-profile-stats``): each in its box, at least 160 px wide."""
+    if not stats:
+        return _label("Stats were not included in this snapshot.")
+    boxes = []
+    for name, value, more in stats:
+        cell = QFrame()
+        cell.setObjectName("profileStat")
+        cell.setStyleSheet(f"QFrame#profileStat {{ border: 1px solid {C['line']}; border-radius: 6px; }}")
+        column = QVBoxLayout(cell)
+        column.setContentsMargins(12, 12, 12, 12)
+        column.setSpacing(1)
+        column.addWidget(_label(f"<b>{html.escape(name, quote=False)}</b>", rich=True))
+        column.addWidget(_label(value))
+        for words in more:
+            column.addWidget(_label(words, "small"))
+        column.addStretch(1)
+        boxes.append(cell)
+    return AutoGrid(boxes, 160, 8)
+
+
+def profile_cards(cards: list, none: str, picture) -> QWidget:
+    """A part's cards (``.cr-profile-card``): each its picture, slot, name and line."""
+    if not cards:
+        return _label(none)
+    frames = []
+    for card in cards:
+        frame = QFrame()
+        frame.setObjectName("profileCard")
+        edge = GRADE_EDGES.get(card.get("grade") or "", C["line"])
+        frame.setStyleSheet(f"QFrame#profileCard {{ background: {C['panel']}; border: 1px solid {edge}; border-radius: 6px; }}")
+        line = QHBoxLayout(frame)
+        line.setContentsMargins(12, 12, 12, 12)
+        line.setSpacing(12)
+        image = picture(card["image"], card["alt"], 48)
+        image.setStyleSheet(f"QLabel {{ color: {C['muted']}; font-size: 24px; }}")
+        line.addWidget(image)
+        words, column = _plain(spacing=1)
+        if card["small"]:
+            column.addWidget(_label(card["small"], "muted"))
+        column.addWidget(_label(f"<b>{html.escape(card['title'], quote=False)}</b>", rich=True))
+        column.addWidget(_label(card["line"], "muted"))
+        line.addWidget(words, 1)
+        frames.append(frame)
+    return AutoGrid(frames, 240, 10)
+
+
 class ReviewPage(QWidget):
     """A log's own page (``pageCombatLog``, ``A2CombatReview.mount``). ``open_web`` opens a page of the app (another log
     opens here again); ``open_in_web`` opens a page in the web interface itself (the full review). ``uploaded`` says this
@@ -220,9 +299,12 @@ class ReviewPage(QWidget):
     uploaded = Signal()
 
     def __init__(self, api: AppApi | None, open_web=None, open_in_web=None, parent: QWidget | None = None,
-                 pictures: Pictures | None = None, read_picture=None, store=None, live: bool = False):
+                 pictures: Pictures | None = None, read_picture=None, store=None, live: bool = False, open_builds=None):
         super().__init__(parent)
         self.live = live                                 # the live session's review (``options.live``, 0.2.473)
+        # ``options.openBuildWorkspace`` (0.2.489): a character's saved profile opened in Builds, given the context and
+        # how to come back to this log
+        self.open_builds = open_builds
         self.store = store if store is not None else interface_store()
         self.replay: ReplayPanel | None = None           # the movement replay drawn last, while it may be playing
         self.aoe_shapes: dict | None = None              # the bosses' skills' measured areas (``aoeShapes``), read once
@@ -649,11 +731,12 @@ class ReviewPage(QWidget):
         if self.where["kind"] == "opened":                           # an upload's: My Uploads there, to review it again
             self.open_in_web("combat/owned")
             return
-        if self.where["kind"] == "local":
-            page = cw.local_page(self.where["value"], self.state["mode"], self.state["segment"])
-        else:
-            page = cv.shared_page(self.where["value"], self.state["mode"], self.state["segment"])
-        self.open_in_web(page)
+        self.open_in_web(self._address())
+
+    def _address(self) -> str:
+        """This log's page at the mode and encounter shown (``#/combat-log/local/<file>``, ``#/combat-log/shared/<id>``)."""
+        page = cw.local_page if self.where["kind"] == "local" else cv.shared_page
+        return page(self.where["value"], self.state["mode"], self.state["segment"])
 
     # ---------------------------------------------------------------- drawing
     def draw(self) -> None:
@@ -1967,6 +2050,18 @@ class ReviewPage(QWidget):
             except RuntimeError:                                     # drawn again meanwhile
                 pass
 
+    def _to_builds(self, actor: dict) -> None:
+        """Open saved character in Builds (``data-build-workspace``): its saved profile as the draft's reference, its
+        class and level, and the way back to this log (``backURL``): its page, or the log given whole again."""
+        kind = self.where.get("kind")
+        if self.live:
+            back = None
+        elif kind in ("local", "shared"):
+            back = ("page", self._address())
+        else:
+            back = ("doc", self.doc)
+        self.open_builds(cw.builds_context(actor), back)
+
     def _close_character(self) -> None:
         """Back to the log (``data-profile-close``): a lookup still on its way is let go."""
         self.state["character"] = ""
@@ -2002,9 +2097,14 @@ class ReviewPage(QWidget):
             line.addWidget(_button(cw.EXPORT_PROFILE, lambda snapshot=model["snapshot"]: self._export_profile(snapshot)))
             line.addStretch(1)
             body.addWidget(row)
-        if model["preview"]:
+        actor = d["r"].get(character) if isinstance(d.get("r"), dict) else None
+        saved = _dict(_dict(actor).get("profile_snapshot"))
+        if (self.open_builds is not None and _truthy(saved.get("data"))) or model["preview"]:
             row, line = _plain(QHBoxLayout)
-            line.addWidget(_button(cw.BACK_TO_SAVED, self._back_to_saved))
+            if self.open_builds is not None and _truthy(saved.get("data")):
+                line.addWidget(_button(cw.OPEN_IN_BUILDS, lambda actor=actor: self._to_builds(actor)))
+            if model["preview"]:
+                line.addWidget(_button(cw.BACK_TO_SAVED, self._back_to_saved))
             line.addStretch(1)
             body.addWidget(row)
         if not cw.reconstructed(self.doc):                           # ``options.lookupProfile``: never a combined review's
@@ -2125,80 +2225,15 @@ class ReviewPage(QWidget):
             self.official.forget(url)
 
     def _details_view(self, details: dict) -> QWidget:
-        """A recorded character (character-view.js ``details``): the portrait and its lines, then each part's cards."""
-        box, column = _plain(spacing=8)
-        if "empty" in details:
-            column.addWidget(_label(details["empty"]))
-            return box
-        hero = details["hero"]
-        top, line = _plain(QHBoxLayout, 20)
-        portrait = self._picture(hero["image"], hero["alt"], 140, 180)            # ``.cr-profile-hero > img``
-        portrait.setStyleSheet(f"QLabel {{ background: {C['panel']}; border-radius: 8px; color: {C['muted']}; font-size: 24px; }}")
-        line.addWidget(portrait)
-        words, lines = _plain(spacing=2)
-        lines.addStretch(1)                                          # beside the portrait's middle (``align-items: center``)
-        lines.addWidget(_label(hero["name"], "combatHead"))
-        lines.addWidget(_label("\n".join(hero["lines"])))
-        lines.addStretch(1)
-        line.addWidget(words, 1)
-        column.addWidget(top)
-        column.addWidget(_head("Character stats"))
-        column.addWidget(self._stat_grid(details["stats"]))
-        for title, key, none in (("Equipment and inventory slots", "gear", "Equipment was not included in this snapshot."),
-                                 ("Skills, passives and stigmas", "skills", "Skills were not included in this snapshot."),
-                                 ("Pet and wings", "petwing", "Pet and wings were not included in this snapshot."),
-                                 ("Daevanion boards", "boards", "Boards were not included in this snapshot.")):
-            column.addWidget(_head(title))
-            column.addWidget(self._cards(details[key], none))
-            if key == "petwing":
-                column.addWidget(_muted(details["genus"]))
-        return box
+        """A recorded character (character-view.js ``details``)."""
+        return details_view(details, self._picture)
 
     @staticmethod
     def _stat_grid(stats: list) -> QWidget:
-        """The stats (``.cr-profile-stats``): each in its box, at least 160 px wide."""
-        if not stats:
-            return _label("Stats were not included in this snapshot.")
-        boxes = []
-        for name, value, more in stats:
-            cell = QFrame()
-            cell.setObjectName("profileStat")
-            cell.setStyleSheet(f"QFrame#profileStat {{ border: 1px solid {C['line']}; border-radius: 6px; }}")
-            column = QVBoxLayout(cell)
-            column.setContentsMargins(12, 12, 12, 12)
-            column.setSpacing(1)
-            column.addWidget(_label(f"<b>{html.escape(name, quote=False)}</b>", rich=True))
-            column.addWidget(_label(value))
-            for words in more:
-                column.addWidget(_label(words, "small"))
-            column.addStretch(1)
-            boxes.append(cell)
-        return AutoGrid(boxes, 160, 8)
+        return stat_grid(stats)
 
     def _cards(self, cards: list, none: str) -> QWidget:
-        """A part's cards (``.cr-profile-card``): each its picture, slot, name and line."""
-        if not cards:
-            return _label(none)
-        frames = []
-        for card in cards:
-            frame = QFrame()
-            frame.setObjectName("profileCard")
-            edge = GRADE_EDGES.get(card.get("grade") or "", C["line"])
-            frame.setStyleSheet(f"QFrame#profileCard {{ background: {C['panel']}; border: 1px solid {edge}; border-radius: 6px; }}")
-            line = QHBoxLayout(frame)
-            line.setContentsMargins(12, 12, 12, 12)
-            line.setSpacing(12)
-            picture = self._picture(card["image"], card["alt"], 48)
-            picture.setStyleSheet(f"QLabel {{ color: {C['muted']}; font-size: 24px; }}")
-            line.addWidget(picture)
-            words, column = _plain(spacing=1)
-            if card["small"]:
-                column.addWidget(_label(card["small"], "muted"))
-            column.addWidget(_label(f"<b>{html.escape(card['title'], quote=False)}</b>", rich=True))
-            column.addWidget(_label(card["line"], "muted"))
-            line.addWidget(words, 1)
-            frames.append(frame)
-        return AutoGrid(frames, 240, 10)
+        return profile_cards(cards, none, self._picture)
 
     def _toggle_colours(self) -> None:
         """The class colours' panel shown or hidden (``data-color-settings``)."""

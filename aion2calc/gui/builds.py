@@ -855,3 +855,30 @@ def evaluation_words(output: dict) -> dict:
             "scenarios": [f"{name}: {dps(get(r, 'dps'))} modeled DPS" for name, r in scenarios],
             "searches": searches, "note": "" if get(output, "note") is None else js_string(get(output, "note")),
             "detail": stringify(output, 2)}
+
+
+# ------------------------------------------------------------------ the source character (0.2.489)
+NO_SOURCE = "No source attached."
+PROFILE_LIMITS = ("Official profile totals do not identify trained points, missing bonus levels or selected supporting "
+                  "effects. They are not copied into the draft automatically.")
+NO_SNAPSHOT = "No official character snapshot is attached."
+
+
+def reference_words(reference, source) -> dict:
+    """The Source character tab's words (``tab === 'reference'``): its note, the snapshot's status and times, the
+    profile to draw and its region, and the whole reference as JSON."""
+    from .news import when as when_at
+    snapshot = get(reference, "snapshot")
+    data = get(snapshot, "data")
+
+    def stamp(key) -> str:
+        value = get(snapshot, key)
+        return when_at(js_number(value) * 1000) if truthy(value) else "Not recorded"
+    status = None
+    if truthy(snapshot):
+        status = [f"Status: {js_string(_or(get(snapshot, 'status'), 'unavailable'))} · {js_string(_or(get(snapshot, 'reason'), ''))}",
+                  f"Upload: {stamp('uploaded_at')} · Fetch: {stamp('fetched_at')}"]
+    return {"note": (js_string(_or(get(source, "basis"), NO_SOURCE)) + " " + (PROFILE_LIMITS if truthy(data) else "")).strip(),
+            "status": status, "data": data if truthy(data) else None,
+            "region": _or(get(get(snapshot, "identity"), "region"), get(data, "region")),
+            "json": stringify(reference, 2) if truthy(reference) else None}
