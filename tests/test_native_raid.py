@@ -404,3 +404,140 @@ def test_the_window_draws_the_raid_planner_and_stops_its_playback_when_left(qapp
     window.show_page("timers")
     assert not page.playing and not page.mounted
     window.close()
+
+
+# ------------------------------------------------------------------ publishing and browsing (0.2.491)
+def test_publishing_words_and_the_browse_view_words():
+    original = {"id": "abc123", "edit_token": "t" * 24, "revision": 2, "server": "https://logs.example", "note": "kept"}
+    assert r.published_owner(original, {"revision": 3, "url": "https://logs.example/p/abc123"}, "https://other") == {
+        "id": "abc123", "edit_token": "t" * 24, "revision": 3, "server": "https://logs.example", "note": "kept",
+        "url": "https://logs.example/p/abc123"}
+    fresh = r.published_owner(None, {"id": "new123", "edit_token": "e" * 24, "revision": 1}, "https://logs.example")
+    assert json.loads(b.stringify(fresh)) == {"id": "new123", "edit_token": "e" * 24, "revision": 1,
+                                              "server": "https://logs.example"}          # no url: left out, as JSON does
+    assert r.copy_owner({"id": "c", "url": "u"}, "s") == {"id": "c", "edit_token": b._MISSING, "revision": b._MISSING,
+                                                          "server": "s", "url": "u"}
+    assert json.loads(r.owner_backup(original, {"format": "a2plan"})) == {"format": "a2plan-owner", "version": 1,
+                                                                          "owner": original, "plan": {"format": "a2plan"}}
+    assert r.safe_url("HTTPS://x") == "HTTPS://x" and r.safe_url("javascript:alert(1)") == "#" and r.safe_url(None) == "#"
+    assert r.browse_path(None) == "/api/plans" and r.browse_path({"npc": "215755", "boss": "Ice"}) == "/api/plans?npc=215755"
+    assert r.browse_path({"boss": "Ice Queen"}) == "/api/plans?boss=Ice%20Queen"
+    menu = [{"boss": "Ice Queen", "npc_id": 215755, "plans": 3}, {"boss": "Unnamed", "plans": "2"}]
+    assert [(x["words"], x["npc"], x["lit"]) for x in r.boss_buttons(menu, None)] == [
+        ("All", "", True), ("Ice Queen (3)", "215755", False), ("Unnamed (2)", "", False)]
+    # browsing a boss: neither All nor that boss is lit (the filter holds no ``npc_id``), but a boss without one is
+    assert [x["lit"] for x in r.boss_buttons(menu, {"npc": "215755", "boss": "Ice Queen"})] == [False, False, True]
+    assert r.plan_card({"id": "p1", "name": "", "boss": "Ice Queen", "duration": 89.5, "tokens": 4, "has_fight": 1,
+                        "classes": ["Cleric", "Templar"]}) == {
+        "name": "Plan", "boss": "Ice Queen", "line": "unknown · 90s · 4 tokens · with a fight",
+        "classes": ["Cleric", "Templar"], "id": "p1"}
+    assert r.visibility_index({"meta": {"visibility": "public"}}) == 1 and r.visibility_index({"meta": {"visibility": "x"}}) == 0
+    assert r.import_refusal(None) == "Cannot read properties of null (reading 'meta')"
+    assert r.import_refusal("x") == "Cannot create property 'meta' on string 'x'" and r.import_refusal({}) is None
+
+
+@pytest.fixture
+def online(qapp, tmp_path):
+    """A Raid Planner whose app answers the log server's questions in turn, its questions answered yes."""
+    from test_native_settings import _refused
+    published = {"url": "https://logs.example/p/abc123", "id": "abc123", "edit_token": "t" * 24, "revision": 1}
+    fake = FakeApp({("GET", "/api/logserver", None): {"url": "https://logs.example/"},
+                    ("POST", "/api/plans/saved", None): {"ok": True},
+                    ("POST", "/api/plans", None): [published, dict(published, revision=2, edit_token=None),
+                                                   _refused("/api/plans", 409, "Plan server refused (409): stale revision"),
+                                                   {"url": "https://logs.example/p/copy01", "id": "copy01",
+                                                    "edit_token": "c" * 24, "revision": 1},
+                                                   {"plan": {"format": "a2plan", "meta": {"name": "Server's"}, "tokens": []},
+                                                    "revision": 5}],
+                    ("GET", "/api/plans/bosses", None): {"bosses": [{"boss": "Ice Queen", "npc_id": 215755, "plans": 1}]},
+                    ("GET", "/api/plans", None): {"plans": [{"id": "pub001", "name": "Queen's dance", "boss": "Ice Queen",
+                                                             "author": "Ann", "duration": 120, "tokens": 6,
+                                                             "classes": ["Cleric"]}]},
+                    ("GET", "/api/plans?npc=215755", None): {"plans": []},
+                    ("GET", "/api/plans?id=pub001", None): {"format": "a2plan", "meta": {"name": "Queen's dance"},
+                                                            "tokens": [{"id": "q1", "kind": "enemy"}]}})
+    store = QSettings(str(tmp_path / "interface.ini"), QSettings.IniFormat)
+    asked, chosen = [], {"answer": True, "copied": []}
+
+    def confirm(words):
+        asked.append(words)
+        return chosen["answer"]
+    page = rp.RaidPage(fake, store=store, confirm=confirm, save_file=lambda name: chosen.setdefault("saved", []).append(name)
+                       or str(tmp_path / "backup.json"), copy=chosen["copied"].append, now=lambda: NOW, pick=Picks())
+    page.resize(1400, 1000)
+    page.show()
+    assert settle(lambda: page.plan is not None and page.server() == "https://logs.example")
+    yield page, fake, store, asked, chosen
+    page.close()
+
+
+def test_a_plan_published_updated_copied_refreshed_and_backed_up(online, tmp_path):
+    page, fake, store, asked, chosen = online
+    first = page.id
+    assert page.publish_button.text() == r.PUBLISH and r.VISIBILITY_HINT in _texts(page)
+    assert not any(b_.accessibleName() == r.REFRESH for b_ in page.findChildren(QPushButton) if b_.isVisibleTo(page))
+    page.visibility_box.setCurrentIndex(1)
+    page.visibility_box.activated.emit(1)
+    assert _plans(store)[first]["meta"]["visibility"] == "public"
+    page.publish()
+    assert page.pub_line.text() == r.PUBLISHING and not page.publish_button.isEnabled()
+    assert settle(lambda: r.OWNERS in store.allKeys())
+    owner = json.loads(store.value(r.OWNERS))[first]
+    assert owner == {"id": "abc123", "edit_token": "t" * 24, "revision": 1, "server": "https://logs.example",
+                     "url": "https://logs.example/p/abc123"}
+    assert fake.sent("POST", "/api/plans")[-1][2] == {"plan": page.plan, "visibility": "public"}     # no credential yet
+    _shown()
+    assert "Published (public):" in page.pub_line.text() and page.publish_button.text() == r.UPDATE
+    page.pub_copy.click()
+    assert chosen["copied"] == ["https://logs.example/p/abc123"]
+    # updated: sent with its credential, its revision kept (the server gave no new token)
+    page.publish()
+    assert settle(lambda: json.loads(store.value(r.OWNERS))[first]["revision"] == 2)
+    assert fake.sent("POST", "/api/plans")[-1][2]["owner"]["revision"] == 1
+    assert json.loads(store.value(r.OWNERS))[first]["edit_token"] == "t" * 24
+    # refused: said on the line
+    page.publish()
+    assert settle(lambda: page.pub_line.text() == "Plan server refused (409): stale revision")
+    assert page.publish_button.isEnabled()
+    # a new copy: a new local plan with its own credential
+    _button(page, r.PUBLISH_COPY).click()
+    assert settle(lambda: page.toast.text() == r.NEW_COPY)
+    assert page.id != first and json.loads(store.value(r.OWNERS))[page.id]["id"] == "copy01"
+    assert page.plan["meta"]["name"] == r.FIRST_PLAN
+    # refreshed, once asked: the published revision in place of the plan
+    chosen["answer"] = False
+    _button(page, r.REFRESH).click()
+    assert asked[-1] == r.ASK_REFRESH and len(fake.sent("POST", "/api/plans")) == 4
+    chosen["answer"] = True
+    _button(page, r.REFRESH).click()
+    assert settle(lambda: page.plan["meta"].get("name") == "Server's")
+    assert json.loads(store.value(r.OWNERS))[page.id]["revision"] == 5 and _plans(store)[page.id]["meta"]["updated"] == NOW
+    assert fake.sent("POST", "/api/plans")[-1][2] == {"id": "copy01", "owner": json.loads(store.value(r.OWNERS))[page.id]
+                                                      | {"revision": 1}}
+    # the private backup, asked first
+    _button(page, r.OWNER_BACKUP).click()
+    assert asked[-1] == r.ASK_BACKUP and chosen["saved"] == [r.BACKUP_FILE]
+    backup = json.loads((tmp_path / "backup.json").read_text(encoding="utf-8"))
+    assert backup["format"] == "a2plan-owner" and backup["owner"]["id"] == "copy01" and backup["plan"] == page.plan
+
+
+def test_published_plans_browsed_filtered_and_opened(online):
+    page, fake, store, *_rest = online
+    _button(page, r.BROWSE).click()
+    assert settle(lambda: page.browse_frame.isVisible()) and not page.frame.isVisible()
+    assert [p for _m, p, _b in fake.sent("GET")][-2:] == ["/api/plans/bosses", "/api/plans"]
+    texts = _texts(page)
+    assert "Queen's dance" in texts and "Ice Queen" in texts and "Ann · 120s · 6 tokens" in texts and "Cleric" in texts
+    _button(page, "Ice Queen (1)").click()
+    assert settle(lambda: r.NO_PLANS_BOSS in _texts(page))
+    assert fake.sent("GET")[-1][1] == "/api/plans?npc=215755"
+    _button(page, r.ALL).click()
+    assert settle(lambda: "Queen's dance" in _texts(page))
+    _button(page, r.OPEN).click()
+    assert settle(lambda: page.toast.text() == r.OPENED)
+    assert page.frame.isVisible() and page.plan["meta"]["name"] == "Queen's dance" and page.plan["tokens"] == [{"id": "q1", "kind": "enemy"}]
+    assert page.plan_box.currentText() == "Queen's dance"
+    _button(page, r.BROWSE).click()
+    assert settle(lambda: page.browse_frame.isVisible())
+    _button(page, r.BACK).click()
+    assert page.frame.isVisible() and page.browsing is None

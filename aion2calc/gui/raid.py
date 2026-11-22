@@ -634,3 +634,112 @@ def slider_step(value: float, length: float) -> float:
     top = math.floor(round(length * 10, 6)) / 10 if length > 0 else 0.0
     v = min(max(0.0, value), top)
     return min(top, js_round(v * 10) / 10)
+
+
+# ------------------------------------------------------------------ publishing and browsing (0.2.491)
+VISIBILITIES = ("unlisted", "public", "private")
+VISIBILITY = "Visibility"
+VISIBILITY_HINT = "Public: listed in Browse plans. Unlisted: anyone with the link. Private: requires the secret link."
+PUBLISH, UPDATE = "Publish plan", "Update published plan"
+PUBLISH_COPY, REFRESH, OWNER_BACKUP, BROWSE = ("Publish new copy", "Refresh published plan", "Private ownership backup",
+                                               "Browse plans")
+PUBLISHING, COPY_LINK = "Publishing…", "Copy link"
+ASK_BACKUP = ("This private backup contains the credential that allows editing the published plan. Keep it private. "
+              "Export it now?")
+ASK_REFRESH = ("Replace local changes with the published revision? Export the local plan first if you want to keep "
+               "those edits.")
+NEW_COPY, OPENED = "Published new editable copy", "Plan opened"
+BACKUP_FILE = "private-plan-ownership.json"
+BROWSE_TITLE, BROWSE_SUB = "Browse published plans", "open one to copy it into your own plans"
+BACK, BOSS_FILTER, ALL = "← Back to the planner", "Boss:", "All"
+NO_PLANS_BOSS, NO_PLANS = "No public plans for this boss yet.", "No public plans yet."
+OPEN = "Open"
+
+
+def visibility_index(p) -> int:
+    """The visibility shown (``p.meta?.visibility || "unlisted"``): its option, else the first, as a select shows
+    one when none is chosen."""
+    chosen = get(get(p, "meta", _MISSING), "visibility", _MISSING)
+    chosen = chosen if yes(chosen) else "unlisted"
+    return next((i for i, v in enumerate(VISIBILITIES) if strictly(v, chosen)), 0)
+
+
+def published_owner(original, answer, server: str) -> dict:
+    """A plan published or updated (``saveOwner({...original, id, edit_token, revision, server, url})``): the
+    credential kept, with what the log server answered; a value neither has is left out, as JSON leaves it."""
+    out = dict(original) if isinstance(original, dict) else {}
+    answered_id, token = get(answer, "id", _MISSING), get(answer, "edit_token", _MISSING)
+    out["id"] = answered_id if yes(answered_id) else get(original, "id", _MISSING)
+    out["edit_token"] = token if yes(token) else get(original, "edit_token", _MISSING)
+    out["revision"] = get(answer, "revision", _MISSING)
+    kept_server = get(original, "server", _MISSING)
+    out["server"] = kept_server if yes(kept_server) else server
+    out["url"] = get(answer, "url", _MISSING)
+    return out
+
+
+def copy_owner(answer, server: str) -> dict:
+    """A new copy published: its own credential."""
+    return {"id": get(answer, "id", _MISSING), "edit_token": get(answer, "edit_token", _MISSING),
+            "revision": get(answer, "revision", _MISSING), "server": server, "url": get(answer, "url", _MISSING)}
+
+
+def owner_backup(owner, plan) -> str:
+    """A private ownership backup's text: the credential and the plan, as Import file takes them back."""
+    return b.stringify({"format": "a2plan-owner", "version": 1, "owner": owner, "plan": plan}, 2)
+
+
+def safe_url(url) -> str:
+    """A published link shown as one only on http(s); else ``#``."""
+    words = text(url)
+    return words if re.match(r"https?://", words, re.I) else "#"
+
+
+def browse_path(chosen) -> str:
+    """``browse(filter)``'s question: the plans for a boss by its NPC code, else by its name, else all."""
+    from urllib.parse import quote
+    npc, boss = get(chosen, "npc", _MISSING), get(chosen, "boss", _MISSING)
+    if yes(npc):
+        return "/api/plans?npc=" + quote(js_str(npc), safe="-_.!~*'()")
+    if yes(boss):
+        return "/api/plans?boss=" + quote(js_str(boss), safe="-_.!~*'()")
+    return "/api/plans"
+
+
+def boss_buttons(menu, chosen) -> list[dict]:
+    """The boss filter (``data-boss``): All, then each boss with how many plans it has; the one browsed lit, as the
+    web page compares it (its NPC code with the filter's ``npc_id``, which the filter it makes does not hold)."""
+    out = [{"words": ALL, "npc": "", "boss": "", "lit": not yes(chosen)}]
+    for item in _list(menu):
+        npc = get(item, "npc_id", _MISSING)
+        out.append({"words": f"{text(get(item, 'boss', _MISSING))} ({text(num(get(item, 'plans', _MISSING)))})",
+                    "npc": text(npc if yes(npc) else ""), "boss": text(get(item, "boss", _MISSING)),
+                    "lit": yes(chosen) and js_str(get(chosen, "npc_id", _MISSING)) == js_str(npc)})
+    return out
+
+
+def plan_card(item) -> dict:
+    """A published plan's card (``.pcard``): its name, boss, author, length, tokens and fight, classes, and id."""
+    boss = get(item, "boss", _MISSING)
+    author = get(item, "author", _MISSING)
+    name = get(item, "name", _MISSING)
+    return {"name": text(name if yes(name) else "Plan"), "boss": text(boss) if yes(boss) else None,
+            "line": (f"{text(author if yes(author) else 'unknown')} · {fixed(num(get(item, 'duration', _MISSING)), 0)}s · "
+                     f"{text(num(get(item, 'tokens', _MISSING)))} tokens"
+                     + (" · with a fight" if yes(get(item, "has_fight", _MISSING)) else "")),
+            "classes": [text(c) for c in _list(get(item, "classes", _MISSING))], "id": text(get(item, "id", _MISSING))}
+
+
+def import_refusal(p):
+    """What ``importDoc(p)`` throws for a plan that is not an object (strict mode's TypeError), or None."""
+    if isinstance(p, dict):
+        return None
+    if p is None:
+        return "Cannot read properties of null (reading 'meta')"
+    if isinstance(p, bool):
+        return f"Cannot create property 'meta' on boolean '{js_string(p)}'"
+    if isinstance(p, (int, float)):
+        return f"Cannot create property 'meta' on number '{js_string(p)}'"
+    if isinstance(p, str):
+        return f"Cannot create property 'meta' on string '{p}'"
+    return NOT_A_PLAN
