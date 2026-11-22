@@ -6,8 +6,8 @@ full yet (``web``: the log server, profiles and backups, hotkeys, colours and fo
 what it can and opens the web Settings page for the rest. Generated from ``pages/settings.js``'s controls and the
 keys their handlers save, then kept by hand; ``tests/test_native_settings.py`` checks every key is a setting.
 
-Since 0.2.475 the page draws App & data as the web page does (settings_page.py, settings_words.py), so its rows are no
-longer here; the others follow, a tab at a time.
+Since 0.2.475 the page draws App & data as the web page does (settings_page.py, settings_words.py), and since 0.2.476
+the Meter and Server tabs, so their rows are no longer here; the others follow, a tab at a time.
 """
 from __future__ import annotations
 
@@ -51,9 +51,6 @@ GROUPS = [('appearance', 'Appearance'), ('overlay', 'Overlay'), ('pettracker', '
 ROWS = (
     Row('appearance', 'Theme', (), web=True),
     Row('appearance', 'Accent colour', (), web=True),
-    Row('server', 'Log server', (), web=True),
-    Row('server', 'Community stats', (Bool('community_heartbeat', 'Contribute to the anonymous daily-active-meters count (on by default)'),
-         Bool('community_contribute_character', "Share your build's point totals when you collect a character (on by default)")), web=False),
     Row('overlay', 'Live meter overlay', (Bool('overlay_open_on_app_start', 'Open the overlay when the app starts (on by default)'),
          Bool('overlay_on_start', 'Show overlay when starting the live meter'),
          Bool('overlay_close_on_stop', 'Close the overlay when I stop the meter (off by default — the overlay stays up showing the last fight, and its own Stop button never closes it)'),
@@ -124,24 +121,6 @@ ROWS = (
          Number('overlay_height', 'Height', 0, 800, 'px'),
          Number('overlay_row_height', 'Row height', 14, 48, 'px'),
          Number('overlay_interpolate_ms', 'Tick every', 50, 1000, 'ms')), web=False),
-    Row('meter', 'Combat records', (Bool('meter_reset_after_battle', "Clear the live meter after a battle ends (off by default — the last fight's numbers stay on the overlay until the next fight, a wipe or a manual clear)"),
-         Bool('meter_reset_on_boss_start', 'Reset the live meter when a boss fight starts (on by default — a boss, mini-boss, field boss or world boss pull clears the overlay so each fight shows fresh)'),
-         Bool('meter_save_records', 'Save combat records automatically (write each session to the logs folder)'),
-         Bool('meter_upload_before_prune', 'Upload a recording to the server before auto-delete reclaims it (on by default)'),
-         Bool('meter_autostart', 'Start the meter automatically when the app launches (on by default — it runs in the background and the overlay shows data without pressing Start)'),
-         Bool('meter_show_server_name', "Show each player's server (world) name next to their name on the live meter (off by default; needs the region/world list — use Retry region detection if it hasn't resolved)"),
-         Bool('meter_auto_upload', 'Upload every recording of this session that is not on the configured server yet when the meter stops (from the app, the overlay or its hotkey) or the app quits (on by default)'),
-         Bool('meter_catch_up_uploads', 'Catch up at the next launch: upload recordings from the last 7 days that are still not on the server (needs the option above; on by default)'),
-         Bool('meter_upload_per_fight', 'Upload the recording each time a boss fight ends, so its kill, standings and timers reach the community during play (needs automatic uploads; on by default)'),
-         Bool('meter_report_boss_kills', 'Report open-world boss kills to the community world-boss feed (anonymous per-install; shown only once two installs agree; on by default)'),
-         Bool('meter_report_enemy_hp', "Share enemy HP data to improve everyone's HP bars (on by default)"),
-         Bool('share_gathering', 'Share gathering and drop data for the community drop rates (on by default)'),
-         Bool('meter_report_diagnostics', 'Share anonymous diagnostics to improve the catalog and catch meter bugs (on by default)'),
-         Bool('meter_show_dummy_parse', 'Show a training-dummy parse readout when hitting a dummy'),
-         Number('meter_reset_delay', 'Reset delay', 1, 120, 's'),
-         Number('meter_max_records', 'Keep up to', 1, 500, 'past combats'),
-         Number('meter_log_cache_mb', 'Keep the logs folder under', 0, 1048576, 'MB'),
-         Number('meter_dummy_record_seconds', 'Training-dummy parse window', 5, 3600, 's')), web=False),
     Row('backup', 'Customization profiles', (), web=True),
     Row('backup', 'Settings backup', (), web=True),
     Row('overlay', 'Overlay colors & fonts', (Bool('overlay_glow', 'Text glow'),

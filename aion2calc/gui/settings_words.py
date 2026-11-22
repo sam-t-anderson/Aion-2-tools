@@ -1,6 +1,7 @@
 """The native Settings page's words and figures (0.2.475), as pages/settings.js writes them: its tabs, and the rows of
 App & data with their notes, the game database's line, the storage maintenance's table, the version and its update,
-and the patch notes. The page (settings_page.py) draws them.
+and the patch notes; since 0.2.476 the Meter tab's Combat records and the Server tab's log server and community stats.
+The page (settings_page.py) draws them.
 """
 from __future__ import annotations
 
@@ -312,3 +313,183 @@ def launch_page(ui) -> str:
     value = _dict(ui).get("app_default_page")
     value = value if _truthy(value) else "meter"
     return value if value in dict(LAUNCH_PAGES) else LAUNCH_PAGES[0][0]
+
+
+# ------------------------------------------------------------------ Meter: Combat records (0.2.476)
+#: The row's checkboxes in its order: the setting, its words, the muted part, whether it is on unless false (else on
+#: only when true), and what is said once it is saved.
+RECORD_CHECKS = (
+    ("meter_reset_after_battle", "Clear the live meter after a battle ends (off by default — the last fight's numbers "
+     "stay on the overlay until the next fight, a wipe or a manual clear)", "", False, None),
+    ("meter_reset_on_boss_start", "Reset the live meter when a boss fight starts (on by default — a boss, mini-boss, "
+     "field boss or world boss pull clears the overlay so each fight shows fresh)", "", True, None),
+    ("meter_save_records", "Save combat records automatically (write each session to the logs folder)", "", True,
+     "Saved · applies to the next capture"),
+    ("meter_upload_before_prune", "Upload a recording to the server before auto-delete reclaims it (on by default)", "",
+     True, None),
+    ("meter_autostart", "Start the meter automatically when the app launches (on by default — it runs in the background "
+     "and the overlay shows data without pressing Start)", "", True, SAVED_NEXT_LAUNCH),
+    ("meter_show_server_name", "Show each player's server (world) name next to their name on the live meter",
+     "(off by default; needs the region/world list — use Retry region detection if it hasn't resolved)", False, None),
+    ("meter_auto_upload", "Upload every recording of this session that is not on the configured server yet when the "
+     "meter stops (from the app, the overlay or its hotkey) or the app quits (on by default)", "", True, None),
+    ("meter_catch_up_uploads", "Catch up at the next launch: upload recordings from the last 7 days that are still not "
+     "on the server (needs the option above; on by default)", "", True, None),
+    ("meter_upload_per_fight", "Upload the recording each time a boss fight ends, so its kill, standings and timers "
+     "reach the community during play (needs automatic uploads; on by default)", "", True, None),
+    ("meter_report_boss_kills", "Report open-world boss kills to the community world-boss feed",
+     "(anonymous per-install; shown only once two installs agree; on by default)", True, None),
+    ("meter_report_enemy_hp", "Share enemy HP data to improve everyone's HP bars (on by default)", "", True, None),
+    ("share_gathering", "Share gathering and drop data for the community drop rates (on by default)", "", True, None),
+    ("meter_report_diagnostics", "Share anonymous diagnostics to improve the catalog and catch meter bugs (on by "
+     "default)", "", True, None),
+    ("meter_show_dummy_parse", "Show a training-dummy parse readout when hitting a dummy", "", True, None),
+)
+#: The numbers checked before they are saved (``saveRecNum``): the setting, its words before and after the field,
+#: its least and most, and the value shown when the app has none.
+RECORD_NUMBERS = {
+    "meter_reset_delay": ("Reset delay", "s", 1, 120, 5),
+    "meter_max_records": ("Keep up to", "past combats", 1, 500, 20),
+    "meter_dummy_record_seconds": ("Training-dummy parse window", "s", 5, 3600, 60),
+}
+LOG_CACHE = ("Keep the logs folder under", "MB", 0, 1048576, 1024)
+LOG_CACHE_NOTE = ("A long session writes many rollover parts; when the logs folder passes this size the oldest "
+                  "recordings are deleted automatically to make room (the one being captured is never deleted). "
+                  "Default 1024 MB (1 GB); set 0 to never auto-delete.")
+PRUNE_NOTE = ("When the logs folder is over its size cap (above) and a recording is about to be deleted to make room, "
+              "upload it first so its data — boss kills included — isn't lost. Only matters while auto-delete is on and "
+              "a share server is set; it uploads at your upload visibility (Log server, public unless you change it), "
+              "like the stop/quit auto-upload.")
+PER_FIGHT_NOTE = ("Sends the current recording once a boss, mini-boss, field or world boss has died and the fight has "
+                  "paused, at most every 30 seconds; the share server updates the same log in place, so the upload at "
+                  "Stop and these are one log, never duplicates.")
+BOSS_KILLS_NOTE = ("Anonymous and opt-in: sends only the boss, server and kill time (no account, character, log or IP). "
+                   "Two different installs must report the same kill before it shows, so the public world-boss "
+                   "availability feed stays corroborated.")
+ENEMY_HP_NOTE = ("Anonymous and opt-out: when an enemy dies, sends only how much damage it took to die, its NPC id and "
+                 "the game build (no account, character, log or IP). The server pools these across players — including "
+                 "party kills — to learn each enemy's real HP so the meter can show an accurate HP %. The more players "
+                 "share, the better the bars for all.")
+GATHERING_NOTE = ("Opt-out: sends what each gather gave (the item, how many, whether it came up a better grade or "
+                  "failed, the kind of node, the map and dungeon, and the node's place in the world) and what each "
+                  "dungeon reward cube held, with an anonymous per-install key, so the Gathering page can show "
+                  "everyone's drop rates and, in time, where each kind of node grows. Your character's name goes with it "
+                  "only while the app is signed in to your account, so your own Gathering page on the website can list "
+                  "it; nobody else sees it. The app keeps its own gathering log either way.")
+DIAGNOSTICS_NOTE = ("Anonymous and opt-out: after a fight, sends only the NPC/skill ids the app couldn't name yet (so new "
+                    "content gets added to the catalog) and a few capture-health counters like rollover and "
+                    "dropped-packet totals (so meter bugs such as a mid-fight reset show up across players). No account, "
+                    "character, combat log or IP — just ids, small numbers, the game build and region.")
+RECORDS_NOTE = ("Applies to the live meter and overlay. A cleared battle's details stay available in the segment list "
+                "until replaced.")
+
+
+def _js_number_or_nan(value) -> float:
+    """``Number(value)``: JavaScript's number for a value, NaN where it has none."""
+    x = _js_number(value)
+    return math.nan if x is None else x
+
+
+def record_number(ui, key: str) -> int:
+    """A checked number's value shown (``Number(ui[key]) || fallback``)."""
+    x = _js_number_or_nan(_dict(ui).get(key)) if key in _dict(ui) else math.nan
+    if math.isnan(x) or x == 0:
+        return RECORD_NUMBERS[key][4]
+    return int(x) if float(x).is_integer() else int(x)
+
+
+def log_cache(ui) -> int:
+    """The logs folder's cap shown (``Number.isFinite(+ui.meter_log_cache_mb) ? ... : 1024``)."""
+    ui = _dict(ui)
+    x = _js_number_or_nan(ui.get("meter_log_cache_mb")) if "meter_log_cache_mb" in ui else math.nan
+    return int(x) if math.isfinite(x) else LOG_CACHE[4]
+
+
+def number_check(text, low: int, high: int) -> tuple[int | None, str]:
+    """A number as typed (``saveRecNum``): the whole number to save, or the words saying what it must be."""
+    n = parse_int(text)
+    if n is None or n < low or n > high:
+        return None, f"Enter a whole number from {low} to {high}."
+    return n, ""
+
+
+def log_cache_value(value) -> int:
+    """The logs folder's cap as saved: rounded and kept between 0 and 1048576 MB."""
+    x = _js_number_or_nan(value)
+    x = 0 if math.isnan(x) else x
+    return max(0, min(1048576, int(math.floor(x + 0.5))))
+
+
+def log_cache_saved(value: int) -> str:
+    return f"Saved · logs kept under {value} MB" if value else "Saved · auto-delete off"
+
+
+# ------------------------------------------------------------------ Server: Log server and Community stats (0.2.476)
+SERVER_PLACEHOLDER = "https://logs.example.com"
+KEY_SAVED = "key saved"
+KEY_OPTIONAL = "upload key (optional)"
+VISIBILITIES = (("public", "public"), ("unlisted", "unlisted"), ("legion", "legion only"), ("private", "private"))
+VISIBILITY_LABEL = "Who can see your uploads"
+VISIBILITY_TIP = ("Public uploads are listed in the community logs and count in the rankings; unlisted ones open only "
+                  "with their link; legion only ones open for the members of your legions (signed in, Account); private "
+                  "ones need the secret link")
+SAVE = "Save"
+CHECK_SERVER = "Check saved server"
+DEFAULT_SERVER = "Using the community default server. Enter your own above to override it."
+SAVED_CHECKING = "saved · checking…"
+CHECKING_SERVER = "Checking saved server runtime…"
+HEARTBEAT = "Contribute to the anonymous daily-active-meters count (on by default)"
+HEARTBEAT_NOTE = ("Once a day the app tells the configured log server that a meter ran, so the community can see how "
+                  "many are active. It sends only an anonymous token that rotates every day (it can't be traced to you or "
+                  "linked across days), the date, and the app version — never your name, character, server, IP or any "
+                  "combat data. Uncheck to opt out.")
+CONTRIBUTE = "Share your build's point totals when you collect a character (on by default)"
+CONTRIBUTE_NOTE = ("When you collect a character in My Character, send its spent skill, stigma and Daevanion point totals "
+                   "to the community \"highest observed build points\" so the shared budgets stay current. Anonymous: "
+                   "only the class, region, game version and the three point totals — never your name, character, "
+                   "server, IP or gear. Running Optimize already shares these; this adds the same from a plain collect. "
+                   "Uncheck to opt out.")
+
+
+def server_form(server) -> dict:
+    """The Log server's fields as the page opens (``srv``): the address and its hint, the key's hint, the visibility,
+    and whether the community default is in use."""
+    s = _dict(server)
+    default = _truthy(s.get("is_default")) and _truthy(s.get("url"))
+    return {"url": "" if _truthy(s.get("is_default")) else js_text(s.get("url")) if _truthy(s.get("url")) else "",
+            "placeholder": f"{js_text(s['url'])} (default)" if default else SERVER_PLACEHOLDER,
+            "key": KEY_SAVED if _truthy(s.get("has_key")) else KEY_OPTIONAL,
+            "visibility": js_text(s.get("visibility")) if _truthy(s.get("visibility")) else "public",
+            "default": default}
+
+
+def server_versions(r) -> str:
+    """The server's own versions after a check (``serverVersionText``)."""
+    software = _dict(_dict(r).get("software"))
+    if _truthy(software.get("server")) or _truthy(software.get("analyzer")):
+        server = js_text(software["server"]) if _truthy(software.get("server")) else "not reported"
+        analyzer = js_text(software["analyzer"]) if _truthy(software.get("analyzer")) else "not reported"
+        return f" · server {server} · analyzer {analyzer}"
+    return " · runtime versions not reported by this server"
+
+
+def saved_check(r) -> str:
+    """What Save says once the app has probed the server it saved (``#ssave``)."""
+    r = _dict(r)
+    if _truthy(r.get("ok")):
+        name = f" — {js_text(r['name'])}" if _truthy(r.get("name")) else ""
+        return "saved · server reachable" + name + server_versions(r)
+    detail = f" ({js_text(r['detail'])})" if _truthy(r.get("detail")) else ""
+    return "saved · can't reach the server" + detail
+
+
+def saved_unchecked(why: str) -> str:
+    return f"saved · could not check: {why}"
+
+
+def server_check(r) -> str:
+    """What Check saved server says (``#scheck``)."""
+    r = _dict(r)
+    if _truthy(r.get("ok")):
+        return "Server reachable" + server_versions(r)
+    return "Check failed: " + (js_text(r["detail"]) if _truthy(r.get("detail")) else "unavailable")
