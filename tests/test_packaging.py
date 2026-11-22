@@ -78,7 +78,7 @@ def test_smoke_test_and_running_app(home, tmp_path, monkeypatch):
     text = out.read_text()
     assert "solver OK" in text and f"aion2calc {__version__}: OK" in text
     assert "Native interface OK (Qt " in text and "the overlay 340x" in text      # the default since 0.2.426
-    assert "its party and radar windows 340x" in text and " and 232x" in text          # drawn natively since 0.2.497
+    assert "its party, radar and Pet Tracker windows 340x" in text and ", 232x" in text and ", 320x" in text
     assert "HTTPS certificates: system verifier and bundled roots OK" in text
     assert "HTTPS request" not in text
     srv = make_server("127.0.0.1", 0)

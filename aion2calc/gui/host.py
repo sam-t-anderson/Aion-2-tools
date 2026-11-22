@@ -47,6 +47,7 @@ class WindowHost(QObject):
         super().__init__(window)
         self.window, self.win32, self.clock = window, win32, clock
         self.place = place                        # where the window's place is kept: ``<place>_x``, ``_y``, ``_layout``
+        self.below = False                        # first placed below the meter overlay's corner (the Pet Tracker window)
         self.shown = True                         # as the game window last had it
         self.placed = False                       # opened at its remembered place, or the game's corner
         self.previous = self.previous_hwnd = None # the game window's bounds when the overlay last followed it
@@ -152,6 +153,8 @@ class WindowHost(QObject):
         if ui.get("overlay_remember_position") is not False:
             if not self.placed:                   # nothing kept yet: by the game window's corner, kept from now on
                 anchor = _follow_position(None, game.bounds, win32.rect(hwnd), snap=snap, expand_up=up)
+                if self.below:                    # it opens with or without the meter: below its corner, not on it
+                    anchor = (anchor[0], game.bounds[1] + max(48, int(game.bounds[3] * 0.4)))
                 self.move(*anchor)
                 self.placed = True
                 window.save_position()

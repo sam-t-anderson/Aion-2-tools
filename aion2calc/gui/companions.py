@@ -45,12 +45,12 @@ from .overlay import (BACKGROUND_LIMIT, DEFAULT_OPACITY, GRAPH_LIMIT, START_SCOP
                       filter_label, overlay_store)
 
 #: The companion windows and what each is called on the desktop (the web overlay host's titles).
-TITLES = {"party": "Aion 2 Calc Party Overlay", "radar": "Aion 2 Calc Radar Overlay"}
+TITLES = {"party": "Aion 2 Calc Party Overlay", "radar": "Aion 2 Calc Radar Overlay", "pets": "Aion 2 Calc Pet Tracker"}
 #: Where each keeps its place in the app's settings (the web overlay host's ``_save_overlay_position``).
-PLACES = {"party": "overlay_party_pos", "radar": "overlay_radar_pos"}
+PLACES = {"party": "overlay_party_pos", "radar": "overlay_radar_pos", "pets": "overlay_pets_pos"}
 #: Where each keeps its opacity among the overlay's own values: the party window the meter overlay's, as the web
 #: overlay keeps ``ovopacity`` for both, the radar's window its own (``ovopacity-radar``).
-OPACITY_KEYS = {"party": "opacity", "radar": "opacity-radar"}
+OPACITY_KEYS = {"party": "opacity", "radar": "opacity-radar", "pets": "opacity-pets"}
 #: The older layout's card (overlay.css ``.ovcard``): rgba(27, 32, 42) at the window's opacity.
 CARD = (27, 32, 42)
 RADAR_WIDTH = 232                         # ``#ov.ov-radar .ovcard { width: 232px }``
@@ -500,6 +500,10 @@ class CompanionWindow(QWidget):
     PADDING = (12, 10, 12, 9)                     # the card's edge and padding (``padding: 9px 11px 8px``)
     HEADER_GAP = 6                                # under the header (``.ovhd { margin-bottom: 6px }``)
     FOOT_TOP = 7
+    OPACITY = DEFAULT_OPACITY                     # its opacity until one is kept
+    FOLLOWS_LOOK = True                           # whether it takes the overlay's look (overlay.js ``syncColors``)
+    SETTINGS_MS = 3000                            # how often it reads the overlay's settings
+    LOCK_HOTKEY = True                            # whether the screenshot hotkey locks it
 
     def __init__(self, api: AppApi | None = None, parent_process=None, store=None, win32=None):
         super().__init__(None, Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
@@ -522,7 +526,7 @@ class CompanionWindow(QWidget):
         self._contrast_key, self._contrast = None, None
         self._perf = False
         self._still = True
-        self._sheet = ""
+        self._sheet = self._base_sheet = ""
         self._shown_look = None                   # the look as last handed out, to tell when it changes
         self._kept_opacity: float | None = None
         self._anim_start = time.monotonic()
@@ -550,8 +554,8 @@ class CompanionWindow(QWidget):
         self.buttons: dict[str, HeaderButton] = {}
         self.box.addWidget(self.header)
         self.box.addSpacing(self.HEADER_GAP)
+        self.foot = Foot(self.card, self.FOOT_TOP)   # made first, laid out last, under the window's own part
         self.build()
-        self.foot = Foot(self.card, self.FOOT_TOP)
         self.box.addWidget(self.foot)
         self.box.addStretch(1)                    # a card taller than its parts (``overlay_height``) ends empty
         self.requests = Requests(api, self) if api is not None else None
@@ -561,12 +565,12 @@ class CompanionWindow(QWidget):
         self._pollers: list[Poller] = []
         self._settings_poller = None
         if api is not None:
-            self._settings_poller = Poller(api, "/api/ui", 3000, self)
+            self._settings_poller = Poller(api, "/api/ui", self.SETTINGS_MS, self)
             self._settings_poller.answered.connect(self.apply_ui)
             commands = Poller(api, "/api/overlay/commands", 1000, self)   # the screenshot hotkey, Open overlay
             commands.answered.connect(self._commands)
             self._pollers = [self._settings_poller, commands]
-        self._kept_opacity = self._stored(OPACITY_KEYS[self.VIEW], DEFAULT_OPACITY)
+        self._kept_opacity = self._stored(OPACITY_KEYS[self.VIEW], self.OPACITY)
         self.set_opacity(self._kept_opacity)
         self.foot.slider.valueChanged.connect(lambda value: self.set_opacity(value / 100))
         if parent_process is not None and getattr(parent_process, "watched", lambda: False)():
@@ -622,13 +626,14 @@ class CompanionWindow(QWidget):
             return
         first = not self.ui
         self.ui = ui
-        self.text_look = TextLook(ui)
+        look = ui if self.FOLLOWS_LOOK else {}    # a window of its own look reads only its place and click-through
+        self.text_look = TextLook(look)
         self.setFixedWidth(self.WIDTH or theme.clamp_int(ui.get("overlay_width"), 260, 800, 340))
-        self.card.setMinimumHeight(theme.clamp_int(ui.get("overlay_height"), 0, 800, 0))
-        mode = ui.get("overlay_bg_mode")
+        self.card.setMinimumHeight(theme.clamp_int(look.get("overlay_height"), 0, 800, 0))
+        mode = look.get("overlay_bg_mode")
         self.card.mode = mode if mode in ("card", "top", "none") else "card"
-        self._perf = ui.get("performance_mode") is True
-        self._want_background(ui)
+        self._perf = look.get("performance_mode") is True
+        self._want_background(look)
         self.apply_settings(ui)
         self._apply_look()
         self.set_click_through(ui.get("overlay_click_through") is True)
@@ -687,9 +692,8 @@ class CompanionWindow(QWidget):
             f"QSlider#ovop::sub-page:horizontal {{ border: 1px solid {GOLD}; border-radius: 4px; background: {GOLD}; }}"
             f"QSlider#ovop::handle:horizontal {{ width: 14px; height: 14px; margin: -4px 0; border-radius: 7px;"
             f" background: {GOLD}; }}")
-        if sheet != self._sheet:                  # the settings come every 3 s: restyle only on a change
-            self._sheet = sheet
-            self.setStyleSheet(sheet)
+        self._base_sheet = sheet
+        self.restyle_sheet()
         self.look_settings(tl)
         changed = (vars(tl), self.card.mode) != self._shown_look
         self._shown_look = (dict(vars(tl)), self.card.mode)
@@ -699,6 +703,17 @@ class CompanionWindow(QWidget):
 
     def look_settings(self, tl: TextLook) -> None:
         """The window's own part in the look."""
+
+    def extra_sheet(self) -> str:
+        """The window's own rules, after the card's."""
+        return ""
+
+    def restyle_sheet(self) -> None:
+        """The window's style sheet, set again only when it changes (the settings come every few seconds)."""
+        sheet = self._base_sheet + self.extra_sheet()
+        if sheet != self._sheet:
+            self._sheet = sheet
+            self.setStyleSheet(sheet)
 
     def text_labels(self) -> list[tuple[QLabel, tuple | None, TextLook]]:
         """The labels that draw words through an effect, each with the shadow it takes where the card leaves it over
@@ -898,10 +913,10 @@ class CompanionWindow(QWidget):
             self._seqs[name] = seq if seen is None else max(seen, seq)
             if seen is None or seq <= seen:
                 continue
-            if name == "lock_seq":
-                self.toggle_lock()
-            else:
+            if name == "reload_seq":
                 self.refresh()
+            elif self.LOCK_HOTKEY:
+                self.toggle_lock()
 
     def refresh(self) -> None:
         self.show()
@@ -1375,12 +1390,20 @@ class RadarWindow(CompanionWindow):
             super()._failed(name, why)
 
 
-WINDOWS = {"party": PartyWindow, "radar": RadarWindow}
+VIEWS = ("party", "radar", "pets")
+
+
+def window_class(view: str):
+    """The window class of a companion's view: the Pet Tracker window's in a module of its own (0.2.498)."""
+    if view == "pets":
+        from .pets_window import PetsWindow
+        return PetsWindow
+    return {"party": PartyWindow, "radar": RadarWindow}.get(view)
 
 
 def view_of(url: str) -> str:
-    """The window an overlay address names (``?view=party``, ``?view=radar``), else ``meter``."""
-    for view in WINDOWS:
+    """The window an overlay address names (``?view=party``, ``?view=radar``, ``?view=pets``), else ``meter``."""
+    for view in VIEWS:
         if f"view={view}" in url:
             return view
     return "meter"
@@ -1394,7 +1417,7 @@ def main(argv=None) -> int:
     from ..overlay import _ParentProcess, _default_url, native_overlay
     url = args.url or _default_url()
     view = view_of(url)
-    if view not in WINDOWS:
+    if view not in VIEWS:
         from .overlay import main as meter
         return meter(argv)
     app = QApplication.instance() or QApplication(sys.argv[:1])
@@ -1402,8 +1425,8 @@ def main(argv=None) -> int:
     from . import interface
     base = _app_base(url.split("?")[0])
     interface.connect(AppApi(base))
-    window = WINDOWS[view](AppApi(base), _ParentProcess(os.environ.get("AION2CALC_PARENT_PID")), overlay_store(),
-                           native_overlay())
+    window = window_class(view)(AppApi(base), _ParentProcess(os.environ.get("AION2CALC_PARENT_PID")), overlay_store(),
+                                native_overlay())
     window.show()
     window.start()
     return app.exec()

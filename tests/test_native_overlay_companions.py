@@ -371,15 +371,14 @@ def test_the_app_opens_the_party_and_radar_windows_natively(monkeypatch):
     for view in ("party", "radar"):
         overlay_launch._spawn(f"http://127.0.0.1:8765/overlay?view={view}")
         assert spawned[-1] == ("overlay", f"http://127.0.0.1:8765/overlay?view={view}")
-    for view in ("players", "pets"):                                     # these are still pages in pywebview
-        with pytest.raises(OSError):
-            overlay_launch._spawn(f"http://127.0.0.1:8765/overlay?view={view}")
+    with pytest.raises(OSError):                                         # the player cards window is still a page
+        overlay_launch._spawn("http://127.0.0.1:8765/overlay?view=players")
     assert overlay_launch._view("http://x/overlay") == "meter" and overlay_launch._view("http://x/overlay?view=pets") == "pets"
     ran = []
     monkeypatch.setattr(cp, "main", lambda argv: ran.append(argv) or 7)
     assert native_overlay.main(["--url", "http://127.0.0.1:8765/overlay?view=radar"]) == 7
     assert ran == [["--url", "http://127.0.0.1:8765/overlay?view=radar"]]
-    assert cp.view_of("http://x/overlay?view=party") == "party" and cp.view_of("http://x/overlay?view=pets") == "meter"
+    assert cp.view_of("http://x/overlay?view=party") == "party" and cp.view_of("http://x/overlay?view=players") == "meter"
 
 
 def test_a_companion_window_ends_with_the_app(qapp, monkeypatch):
