@@ -14,8 +14,11 @@
   slot chosen's catalog items, searched by name; its item's enhancement, entered random rolls from the item's source
   pool and a card's skill levels from the class's pool, held until applied or discarded; the draft's other imported
   contributions to remove; the source profile's recorded equipment, read only.
-- Pantheon, Genus Insight, Evaluation / advanced inputs and Source character are still drawn on the web Builds page:
-  a saved draft opens there.
+- **Pantheon, Genus Insight, Evaluation / advanced inputs** (0.2.488): the deities' tiles with their draft points and
+  the source profile's totals; the draft's Genus lines in the Genus Insight editor, saved into the draft; the
+  equipment, Genus lines and enemy mix as JSON, applied to the draft; and an evaluation by the app's model
+  (``/api/build/evaluate``), with the priority search, as the web page asks for and shows it.
+- Source character is still drawn on the web Builds page: a saved draft opens there.
 
 The page starts afresh each time it is opened, as the web page does (its unsaved edits are not kept on leaving);
 the catalog is read once.
@@ -146,6 +149,69 @@ PENDING_SEARCH = "Apply or discard pending roll edits before searching."
 ITEM_APPLIED = "Draft item applied. Save or evaluate to update results."
 EDITS_DISCARDED = "Unapplied item edits discarded."
 NEED_VALUE = "Enter a value for every selected roll."
+# Pantheon, Genus Insight, Evaluation / advanced inputs (0.2.488)
+PANTHEON_HEAD = "Pantheon"
+PANTHEON_NOTE = ("Draft deity contributions use the same tiles as character advice. These totals do not reconstruct the "
+                 "in-game node board. Enter only separately known contributions: source profile totals may already include "
+                 "equipment and Daevanion points.")
+DRAFT_POINTS = "Draft points"
+NO_COEFFICIENT = "No damage coefficient in this model"
+PANTHEON_FOOT = ("Other imported primary/deity fields are retained. No deity artwork or node IDs are invented when absent from "
+                 "the source catalog.")
+POINTS_APPLIED = "Draft deity points applied. Save or evaluate explicitly."
+GENUS_HEAD = "Pet Genus Insight"
+GENUS_NOTE = ("Manual allocations are saved with this draft. Official profiles do not provide these lines. The damage model "
+              "applies supported lines only; defensive effects are retained as entered data.")
+GENUS_APPLIED = "Genus lines applied to this draft. Save or evaluate explicitly."
+INPUT_KEYS = ("loadout", "genus", "genus_mix")
+INPUTS_HEAD = "Equipment and stat contributions"
+INPUTS_NOTE = ("Edit modeled contributions by inventory slot. Percent stats use fractions (5% = 0.05). Do not enter final "
+               "character totals that already include class base stats, Daevanion or passives; the model adds those "
+               "separately. Bonus skill levels belong in Allocation draft, not equipment stats. Importing a supported "
+               "optimizer build copies its frozen loadout when available and moves skill bonuses into the allocation. Source "
+               "profiles remain unchanged.")
+NO_LOADOUT = "No equipment/stat loadout entered. Import an optimizer build or enter components below."
+ENTERED_COMPONENT = "Entered component"
+ENTERED_STATS = "Entered stats"
+NO_CONTRIBUTIONS = "No stat contributions"
+LOADOUT_LABEL = "Equipment/stat components JSON"
+LOADOUT_EXAMPLE = ('Example: {"components":[{"slot":"Weapon","item":"Entered weapon","stats":{"weapon_min":100,"weapon_max":150,'
+                   '"attack":25,"crit":100,"amp_pve":0.05}}]}. Supported stats follow the simulator Stats schema. '
+                   "Unknown/negative/non-finite values are rejected during evaluation; these limits are input safety bounds, "
+                   "not verified gear caps.")
+GENUS_INPUT_NOTE = ("Enter the five known genus names with level 0–10 and unlocked slot/stat/value lines. Values use the "
+                    "in-game text including %. Defensive and unsupported lines are retained but do not receive a damage "
+                    "coefficient. The official profile does not supply these allocations.")
+GENUS_LABEL = "Genus lines JSON"
+GENUS_EXAMPLE = 'Example: {"Cogni":{"level":4,"lines":[{"slot":4,"stat":"Cogni Damage Boost","value":"3.6%"}]}}.'
+MIX_LABEL = "Assumed PvE enemy mix JSON"
+MIX_NOTE = ("Nonnegative relative weights across Cogni, Fera, Natura, Varian and Special; at least one positive. Not used "
+            "for player targets.")
+APPLY_INPUTS = "Apply inputs to this draft"
+SEARCH_PRIORITY = "Search skill priority (fixed allocation)"
+EVALUATE = "Evaluate this draft"
+EVALUATING = "Evaluating…"
+EVALUATE_NOTE = ("Apply edited JSON before evaluation or saving/exporting the draft. Evaluation sends only allocation, entered "
+                 "budgets, equipment/stat contributions and Genus inputs to this desktop app; character references, names and "
+                 "private log links are excluded. Nothing is published or added to rankings. Optional priority search "
+                 "evaluates up to 96 candidates or 15 seconds per scenario over the full simulation window. Gear, Genus, "
+                 "allocations and supporting effects stay fixed. This local search does not model reactive PvP tactics. "
+                 "Evaluation currently supports level 45 only; lower-level drafts remain editable/exportable.")
+EVALUATION_HEAD = "Edited draft evaluation"
+EVALUATION_DETAIL = "Evaluation detail"
+EVALUATION_STALE = "Draft changed since its evaluation. Apply inputs and evaluate again."
+NO_EVALUATION = "No evaluation for this draft."
+INPUTS_EDITED = "Input edits have not been applied or evaluated."
+INPUTS_APPLIED = "Equipment/Genus inputs applied to the local draft. Save or evaluate explicitly."
+APPLY_BEFORE_EVALUATING = "Apply edited inputs before evaluating."
+FIX_BEFORE_EVALUATING = "Fix allocation validation errors before evaluating."
+TOO_BIG_TO_EVALUATE = "Evaluation input exceeds 128 KiB. Reduce equipment/Genus input."
+SEARCHING = "Searching full-window skill priorities… Up to 30 seconds of search plus baseline evaluation."
+EVALUATING_DRAFT = "Evaluating entered allocation and loadout…"
+EVALUATED = "Evaluation complete. Results are below; source character stats and rankings are unchanged."
+NO_CARD_EVALUATION = "Update the app/community server to evaluate card skill options."
+NO_PRIORITY_SEARCH = "Update the app/community server to use priority search."
+EVALUATION_TIMEOUT = 180.0                         # a priority search runs up to 30 s, then the baseline
 #: A picture the page shows (``icon``): one on these hosts, else the catalog's ◇.
 ICON = re.compile(r"https://(?:metabot\.gg/web/aion2/|assets\.playnccdn\.com/|profileimg\.plaync\.com/"
                   r"|gamers4\.life/aion-2/database/icons/)")
@@ -695,6 +761,11 @@ class BuildsPage(QWidget):
         if self.requests is not None:
             self.requests.replied.connect(self._replied)
             self.requests.failed.connect(self._failed)
+        # an evaluation: its own requests, answered after a priority search's 30 seconds and more
+        self.evaluations = Requests(api, self, timeout=EVALUATION_TIMEOUT) if api is not None else None
+        if self.evaluations is not None:
+            self.evaluations.replied.connect(self._evaluated)
+            self.evaluations.failed.connect(self._evaluation_failed)
         self.pictures = pictures if pictures is not None else (Pictures(api, self) if api is not None else None)
         if self.pictures is not None:
             self.pictures.changed.connect(self._bundled)
@@ -744,11 +815,13 @@ class BuildsPage(QWidget):
         self.reference = None
         self.source: dict = {}
         self.component_buffer = None
-        self.genus_dirty = False
-        self.input_buffer = None
-        self.evaluation = None
+        self.genus_editor = None
+        self.input_buffer = None                  # the advanced inputs' texts, and the draft they are for
+        self.evaluation = None                    # the last evaluation and the serial it was for
         self.gear_slot = ""                       # the slot chosen on Equipment or Arcana cards (``gearSlot``)
         self.gear_search = ""                     # its catalog search (``gearSearch``)
+        self.search_priority = False              # Search skill priority (``searchPriority``)
+        self.evaluating = False
 
     # ---------------------------------------------------------------- opening and leaving
     def showEvent(self, event) -> None:
@@ -811,7 +884,15 @@ class BuildsPage(QWidget):
 
     def pending_inputs(self) -> bool:
         """Edits not applied yet (``pendingInputs``): a card's rolls or skills, the Genus lines, the advanced JSON."""
-        return bool(self.component_buffer) or self.genus_dirty or bool(self.input_buffer)
+        editor = self.genus_editor
+        return (bool(self.component_buffer) or (editor is not None and _alive(editor) and editor.is_dirty())
+                or self._inputs_pending())
+
+    def _inputs_pending(self) -> bool:
+        """The advanced inputs edited and not applied (``inputBuffer``, kept for the draft shown)."""
+        held = self.input_buffer
+        return (isinstance(held, dict) and held.get("owner") == self.draft_turn
+                and any(held[key] != b.input_text(self.draft, key) for key in INPUT_KEYS))
 
     def render(self) -> None:
         catalog, draft = self.catalog or {}, self.draft
@@ -927,7 +1008,7 @@ class BuildsPage(QWidget):
 
     def _fresh_start(self, cls, mode, level) -> None:
         self.component_buffer = self.input_buffer = None
-        self.genus_dirty = False
+        self.genus_editor = None
         self.serial += 1
         self._put(b.fresh(self.catalog or {}, cls, mode, level))
         self.reference, self.source = None, {}
@@ -945,7 +1026,7 @@ class BuildsPage(QWidget):
             self.message(APPLY_FIRST_TAB)
             return
         self.tab = key
-        self.genus_dirty = False
+        self.genus_editor = None
         self.render()
 
     # ---------------------------------------------------------------- the drafts kept
@@ -973,7 +1054,7 @@ class BuildsPage(QWidget):
                 return
             entry = b.find_row(self.kept_text(), key)
             self.component_buffer = self.input_buffer = None
-            self.genus_dirty = False
+            self.genus_editor = None
             self.serial += 1
             if entry is None:
                 raise b.BuildError("Cannot read properties of undefined (reading 'draft')")
@@ -1060,7 +1141,7 @@ class BuildsPage(QWidget):
             if profile:
                 self.tab = "reference"
             self.component_buffer = self.input_buffer = None
-            self.genus_dirty = False
+            self.genus_editor = None
             self.serial += 1
             self._put(nxt)
             self.reference, self.source = nxt["reference"], nxt["source"]
@@ -1092,7 +1173,7 @@ class BuildsPage(QWidget):
             if isinstance(answer, dict) and b.truthy(answer.get("error")):
                 raise b.BuildError(js_string(answer["error"]))
             self.component_buffer = self.input_buffer = None
-            self.genus_dirty = False
+            self.genus_editor = None
             draft = b.from_summary(self.catalog or {}, b.get(answer, "build"))
             self._put(draft)
             self.reference, self.source = draft["reference"], draft["source"]
@@ -1191,6 +1272,15 @@ class BuildsPage(QWidget):
         self.shown_pictures = [p for p in self.shown_pictures if _alive(p)]
         if self.tab in ("equipment", "arcana"):
             self.draw_components(self.tab)
+            return
+        if self.tab == "pantheon":
+            self.draw_pantheon()
+            return
+        if self.tab == "genus":
+            self.draw_genus()
+            return
+        if self.tab == "inputs":
+            self.draw_inputs()
             return
         if self.tab not in ("active", "passive", "stigma", "daevanion"):
             self.body.addWidget(_note(_label(ON_THE_WEB)))
@@ -1810,6 +1900,287 @@ class BuildsPage(QWidget):
         del self.draft["loadout"]["components"][index]
         self._component_changed()
         self.draw_components(kind)
+
+    # ---------------------------------------------------------------- Pantheon (``pantheon``)
+    def draw_pantheon(self) -> None:
+        """The deities' tiles: each its draft points where the model scores it, and the source profile's total."""
+        _clear(self.body)
+        catalog, draft = self.catalog or {}, self.draft
+        rows = self.pantheon_rows = b.pantheon_rows(draft)
+        data = b.get(b.get(self.reference, "snapshot"), "data")
+        stats = b.get(b.get(data, "stat"), "statList")
+        self.body.addWidget(_head(PANTHEON_HEAD))
+        self.body.addWidget(_note(_label(PANTHEON_NOTE)))
+        tiles, self.deity_fields = [], {}
+        self.pantheon_words = []
+        for index, deity in enumerate(catalog.get("deities") or []):
+            letter, name, lord = b.deity_words(deity)
+            frame = QFrame()                                   # ``.dtile``
+            frame.setObjectName("dtile")
+            column = QVBoxLayout(frame)
+            column.setContentsMargins(6, 8, 6, 8)
+            column.setSpacing(2)
+            column.addWidget(advice_view.Sigil(letter, theme.COLORS["gold"]), 0, Qt.AlignHCenter)
+            for text, kind in ((name, "dn"), (lord.upper(), "dsl")):
+                label = _label(text, kind)
+                label.setAlignment(Qt.AlignHCenter)
+                column.addWidget(label)
+            words = {"name": name, "lord": lord}
+            if b.truthy(deity.get("field")):
+                field = NumberField(b.deity_total(rows, deity.get("field")), 110)
+                field.setAccessibleName(f"{DRAFT_POINTS} {name}")
+                field.changed.connect(lambda value, index=index, field=field: self._deity_points(index, value, field))
+                self.deity_fields[index] = field
+                box, line = _plain(spacing=2)
+                label = _label(DRAFT_POINTS)
+                label.setAlignment(Qt.AlignHCenter)
+                line.addWidget(label)
+                line.addWidget(field, 0, Qt.AlignHCenter)
+                column.addWidget(box)
+                words["points"] = field.text()
+            else:
+                label = _label(NO_COEFFICIENT, "small")
+                label.setAlignment(Qt.AlignHCenter)
+                column.addWidget(label)
+                words["points"] = None
+            recorded = b.recorded_stat(stats, deity)
+            if recorded is not None:
+                value = recorded.get("value")
+                text = f"Source total: {'' if value is None else js_string(value)} (read-only)"
+                label = _label(text, "small")
+                label.setAlignment(Qt.AlignHCenter)
+                column.addWidget(label)
+                words["recorded"] = text
+            column.addStretch(1)
+            self.pantheon_words.append(words)
+            tiles.append(advice_view._dimmed(frame, 0.55) if not b.truthy(deity.get("field")) else frame)
+        self.body.addWidget(advice_view.Columns(tiles, 10, 2, gap=8, below=1100))
+        self.body.addWidget(_label(PANTHEON_FOOT, "small"))
+        self.body.addStretch(1)
+
+    def _deity_points(self, index: int, value: str, field: NumberField) -> None:
+        deity = ((self.catalog or {}).get("deities") or [])[index]
+        n = js_number(value)
+        if value == "" or not math.isfinite(n) or n < 0 or n > 1000000:
+            field.reset(b.deity_total(self.pantheon_rows, deity.get("field")))
+            self.message(b.BAD_POINTS)
+            return
+        try:
+            b.with_deity_points(self.draft, self.pantheon_rows, deity, int(n) if float(n).is_integer() else n)
+        except b.BuildError as problem:
+            field.reset(b.deity_total(self.pantheon_rows, deity.get("field")))
+            self.message(str(problem))
+            return
+        self._component_changed()
+        self.message(POINTS_APPLIED)
+
+    # ---------------------------------------------------------------- Genus Insight (``genus``)
+    def draw_genus(self) -> None:
+        """The draft's Genus lines in the Genus Insight editor; saving it applies them to the draft."""
+        from .genus_editor import GenusEditor
+        _clear(self.body)
+        self.body.addWidget(_head(GENUS_HEAD))
+        self.body.addWidget(_note(_label(GENUS_NOTE)))
+        self.genus_editor = GenusEditor(self.draft["genus"], self._genus_saved)
+        self.body.addWidget(self.genus_editor)
+        self.body.addStretch(1)
+
+    def _genus_saved(self, state) -> None:
+        """Save genus lines: the lines put in the draft (``draft.genus = copy(value)``), and the editor told so."""
+        self.draft["genus"] = b.copy(state)
+        self.serial += 1
+        self.dirty = True
+        self.input_buffer = None
+        self.message(GENUS_APPLIED)
+        if self.genus_editor is not None and _alive(self.genus_editor):
+            self.genus_editor.saved(b.copy(self.draft["genus"]))
+
+    # ---------------------------------------------------------------- Evaluation / advanced inputs (``inputs``)
+    def draw_inputs(self) -> None:
+        """The draft's equipment, Genus and enemy mix as JSON, applied to it; Search skill priority; Evaluate this
+        draft and its evaluation."""
+        _clear(self.body)
+        draft = self.draft
+        held = self.input_buffer
+        if not isinstance(held, dict) or held.get("owner") != self.draft_turn:
+            held = self.input_buffer = {"owner": self.draft_turn, **{key: b.input_text(draft, key) for key in INPUT_KEYS}}
+        ev = self.evaluation
+        output = ev["value"] if ev is not None and ev["serial"] == self.serial and not self.pending_inputs() else None
+        self.body.addWidget(_head(INPUTS_HEAD))
+        self.body.addWidget(_note(_label(INPUTS_NOTE)))
+        components = draft["loadout"]["components"]
+        self.inputs_words = {"components": []}
+        if components:
+            cards = []
+            for c in components:
+                words = [js_string(b._or(b.get(c, "slot"), ENTERED_COMPONENT)), js_string(b._or(b.get(c, "item"), ENTERED_STATS)),
+                         ", ".join(js_string(k) for k in (b.keys(c["stats"]) if isinstance(b.get(c, "stats"), dict) else
+                                                          [k for k, _v in b.entries(b._or(b.get(c, "stats"), {}))])) or NO_CONTRIBUTIONS]
+                self.inputs_words["components"].append(words)
+                cards.append(self._words_card(*words))
+            self.body.addWidget(AutoGrid(cards, 240, 10))
+        else:
+            self.body.addWidget(_label(NO_LOADOUT))
+            self.inputs_words["components"] = NO_LOADOUT
+        self.input_edits = {}
+        for key, label, rows, note in (("loadout", LOADOUT_LABEL, 12, LOADOUT_EXAMPLE), ("genus", GENUS_LABEL, 8, GENUS_EXAMPLE),
+                                       ("genus_mix", MIX_LABEL, 3, MIX_NOTE)):
+            if key == "genus":
+                self.body.addWidget(_head(GENUS_HEAD))
+                self.body.addWidget(_label(GENUS_INPUT_NOTE, "small"))
+            edit = QPlainTextEdit()
+            edit.setObjectName("bwNotes")
+            edit.setPlainText(held[key])
+            edit.setAccessibleName(label)
+            edit.setFixedHeight(edit.fontMetrics().lineSpacing() * rows + 14)
+            edit.textChanged.connect(lambda key=key, edit=edit: self._input_edited(key, edit))
+            self.input_edits[key] = edit
+            box, column = _plain(spacing=6)
+            column.addWidget(_label(label))
+            column.addWidget(edit)
+            self.body.addWidget(box)
+            self.body.addWidget(_label(note, "small"))
+        self.apply_inputs_button = _button(APPLY_INPUTS, self.apply_inputs)
+        self.priority_box = QCheckBox(SEARCH_PRIORITY)
+        self.priority_box.setChecked(self.search_priority)
+        self.priority_box.setEnabled(not self.evaluating)
+        self.priority_box.toggled.connect(self._priority_toggled)
+        self.evaluate_button = _button(EVALUATING if self.evaluating else EVALUATE, self.evaluate, "primary")
+        self.evaluate_button.setEnabled(not self.evaluating and b.same(draft["level"], 45))
+        self.body.addWidget(_row(self.apply_inputs_button, self.priority_box, self.evaluate_button))
+        self.body.addWidget(_label(EVALUATE_NOTE, "small"))
+        holder, self.evaluation_box = _plain(spacing=8)
+        self.body.addWidget(holder)
+        self._draw_evaluation(output, ev)
+        self.body.addStretch(1)
+
+    def _words_card(self, small: str, strong: str, line: str) -> QFrame:
+        """A card of words alone (``.cr-profile-card`` without a picture)."""
+        frame = QFrame()
+        frame.setObjectName("bwCard")
+        column = QVBoxLayout(frame)
+        column.setContentsMargins(12, 12, 12, 12)
+        column.setSpacing(1)
+        for text, kind in ((small, "bwKind"), (strong, "bwName"), (line, "bwLine")):
+            column.addWidget(_label(text, kind))
+        return frame
+
+    def _draw_evaluation(self, output, ev) -> None:
+        """The evaluation's words (``data-evaluation``)."""
+        _clear(self.evaluation_box)
+        box = self.evaluation_box
+        if output is not None:
+            words = self.evaluation_shown = b.evaluation_words(output)
+            box.addWidget(_head(EVALUATION_HEAD))
+            box.addWidget(_label(words["source"]))
+            box.addWidget(_row(*[_note(_label(line, "strong", wrap=False)) for line in words["scenarios"]]))
+            for search in words["searches"]:
+                box.addWidget(_label(search["title"], "bwH4"))
+                box.addWidget(_label(search["line"]))
+                for number, action in enumerate(search["actions"], 1):
+                    box.addWidget(_label(f"{number}. {action}"))
+                box.addWidget(_label(search["note"], "small"))
+            box.addWidget(_label(words["note"], "small"))
+            fold = Fold(EVALUATION_DETAIL)
+            detail = _label(words["detail"], "profileJson", wrap=False)
+            detail.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            detail.setStyleSheet("font-family: monospace;")
+            fold.add(detail)
+            box.addWidget(fold)
+        else:
+            self.evaluation_shown = EVALUATION_STALE if ev is not None else NO_EVALUATION
+            box.addWidget(_label(self.evaluation_shown))
+
+    def _input_edited(self, key: str, edit: QPlainTextEdit) -> None:
+        """An advanced input typed in (``oninput``): held until applied; the evaluation says so."""
+        if not isinstance(self.input_buffer, dict):
+            return
+        self.input_buffer[key] = edit.toPlainText()
+        self.dirty = True
+        _clear(self.evaluation_box)
+        self.evaluation_shown = INPUTS_EDITED
+        self.evaluation_box.addWidget(_label(INPUTS_EDITED))
+
+    def apply_inputs(self) -> None:
+        """Apply inputs to this draft (``data-input-apply``): the three JSON texts read into the draft, checked."""
+        try:
+            values = {key: b.parse(self.input_edits[key].toPlainText()) for key in INPUT_KEYS}
+            local_id = self.draft.get("local_id")
+            draft = b.normalize(self.catalog or {}, {**self.draft, **values})
+        except (b.BuildError, ValueError, RecursionError) as problem:
+            self.message("Inputs not applied: " + str(problem))
+            return
+        if local_id:
+            draft["local_id"] = local_id
+        self._put(draft)
+        self.input_buffer = None
+        self.serial += 1
+        self.dirty = True
+        self.evaluation = None
+        self.draw_inputs()
+        self.message(INPUTS_APPLIED)
+
+    def _priority_toggled(self, checked: bool) -> None:
+        self.search_priority = checked
+        self.evaluation = None
+        self.serial += 1
+        self.draw_inputs()
+
+    def evaluate(self) -> None:
+        """Evaluate this draft (``data-evaluate``): the allocation, budgets, loadout and Genus input sent to the app's
+        model, nothing else."""
+        draft = self.draft
+        if any(self.input_edits[key].toPlainText() != b.input_text(draft, key) for key in INPUT_KEYS):
+            self.message(APPLY_BEFORE_EVALUATING)
+            return
+        if b.assessment(self.catalog or {}, draft)["errors"]:
+            self.message(FIX_BEFORE_EVALUATING)
+            return
+        request = b.evaluation_request(draft, self.search_priority)
+        if b.size(request) > b.EVALUATION_MOST:
+            self.message(TOO_BIG_TO_EVALUATE)
+            return
+        self.evaluating = True
+        self.evaluated_for = (self.serial, self.mount_turn, self.search_priority,
+                              any(b.truthy(b.get(c, "arcana_skills")) and len(c["arcana_skills"]) for c in draft["loadout"]["components"]
+                                  if isinstance(b.get(c, "arcana_skills"), dict)))
+        self.draw_inputs()
+        self.message(SEARCHING if self.search_priority else EVALUATING_DRAFT)
+        if self.evaluations is None:
+            self._evaluation_failed(f"evaluate:{self.serial}:{self.mount_turn}", "Evaluation is unavailable on this host.")
+            return
+        self.evaluations.post(f"evaluate:{self.serial}:{self.mount_turn}", "/api/build/evaluate", request)
+
+    def _evaluated(self, name: str, answer) -> None:
+        serial, mount = (int(x) for x in name.split(":")[1:3])
+        if isinstance(answer, dict) and b.truthy(answer.get("error")):
+            self._evaluation_failed(name, js_string(answer["error"]))
+            return
+        if mount == self.mount_turn and self.mounted and serial == self.serial:
+            _serial, _mount, search, cards = self.evaluated_for
+            if cards and b.get(answer, "arcana_options_supported") is not True:
+                self._evaluation_failed(name, NO_CARD_EVALUATION)
+                return
+            if search and b.get(answer, "search_priority") is not True:
+                self._evaluation_failed(name, NO_PRIORITY_SEARCH)
+                return
+            self.evaluation = {"serial": serial, "value": answer}
+            self.message(EVALUATED)
+        self._evaluation_done(mount)
+
+    def _evaluation_failed(self, name: str, why: str) -> None:
+        serial, mount = (int(x) for x in name.split(":")[1:3])
+        if mount == self.mount_turn and self.mounted and serial == self.serial:
+            self.message("Evaluation failed: " + why)
+        self._evaluation_done(mount)
+
+    def _evaluation_done(self, mount: int) -> None:
+        """``finally``: evaluating no more; the tab drawn again when it is the one shown."""
+        if mount != self.mount_turn:
+            return
+        self.evaluating = False
+        if self.mounted and self.tab == "inputs" and self.body is not None:
+            self.draw_inputs()
 
     # ---------------------------------------------------------------- pictures
     def _picture(self, url: str, size: int) -> Picture:

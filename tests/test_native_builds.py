@@ -413,7 +413,7 @@ def test_the_other_tabs_open_the_web_page(made):
     page, *_rest = made
     opened = []
     page.open_web = opened.append
-    page.tab_buttons["pantheon"].click()
+    page.tab_buttons["reference"].click()
     texts = [w.text() for w in page.findChildren(bp.QLabel)]
     assert bp.ON_THE_WEB in texts
     next(btn for btn in page.findChildren(bp.QPushButton) if btn.text() == bp.OPEN_WEB).click()
@@ -590,3 +590,132 @@ def test_imported_contributions_and_recorded_equipment(made, tmp_path):
     assert page.component_words["source"] == [["MainHand", "Recorded Sword", "+5 · Unique"], ["Helmet", "Helm", "+0 · "]]
     page.tab_buttons["arcana"].click()
     assert page.component_words["source"] == [["ArcanaChalice", "99", "+0 · Epic"]]
+
+
+# ------------------------------------------------------------------ Pantheon, Genus Insight and evaluation (0.2.488)
+EVALUATED = {"format": "a2build-evaluation", "version": 1, "evaluator": "0.2.488", "input_sha256": "0123456789abcdef" * 4,
+             "arcana_options_supported": True, "search_priority": False, "note": "Modelled, not measured.",
+             "scenarios": {"pve_boss": {"dps": 123456.78}, "pvp_duel": {"dps": 9876.04}}}
+
+
+def test_the_pantheon_points_and_the_evaluations_words():
+    d = b.fresh(CATALOG, "gladiator", "pve", 45)
+    zikel = CATALOG["deities"][0]
+    assert b.deity_words(zikel) == ("Z", "Destruction", "Zikel") and b.deity_words({"name": "Plain"}) == ("P", "Plain", "Plain")
+    d["loadout"]["components"] = [{"slot": "Deity points", "item": "x", "stats": {"destruction": "4", "death": None}},
+                                  {"slot": "Helmet", "item": "y", "stats": {"destruction": 9}}]
+    rows = b.pantheon_rows(d)
+    assert rows == [d["loadout"]["components"][0]] and b.deity_total(rows, "destruction") == 4 and b.deity_total(rows, "death") == 0
+    b.with_deity_points(d, rows, zikel, 12.5)
+    assert d["loadout"]["components"][0]["stats"] == {"death": None}                       # taken off every deity row
+    assert d["loadout"]["components"][2] == {"slot": "Pantheon", "item": "Draft deity contributions", "stats": {"destruction": 12.5}}
+    assert rows[-1] is d["loadout"]["components"][2] and b.deity_total(rows, "destruction") == 12.5
+    full = b.fresh(CATALOG, "gladiator", "pve", 45)
+    full["loadout"]["components"] = [{"slot": f"C{i}", "stats": {}} for i in range(64)]
+    with pytest.raises(b.BuildError, match="64 component limit"):
+        b.with_deity_points(full, b.pantheon_rows(full), zikel, 1)
+    stats = [{"type": "Destruction", "value": 120}, {"name": "Life [Yustiel]", "value": 5}, None]
+    assert b.recorded_stat(stats, zikel)["value"] == 120 and b.recorded_stat(stats, CATALOG["deities"][7])["value"] == 5
+    assert b.recorded_stat(stats, CATALOG["deities"][1]) is None
+    request = b.evaluation_request(d, True)
+    assert list(request) == ["search_priority", "format", "version", "class", "mode", "level", "build", "budgets", "loadout",
+                             "genus", "genus_mix"] and request["build"] is not d["build"] and request["search_priority"] is True
+    assert [b.dps(x) for x in (123456.78, 9876.04, 1400.05, 0, -2.25, 1e21)] == ["123,456.8", "9,876", "1,400.1", "0", "-2.3",
+                                                                                 "1,000,000,000,000,000,000,000"]
+    words = b.evaluation_words(dict(EVALUATED, scenarios={"pve_boss": {"dps": 1500.25, "priority_search": {
+        "evaluations": 96, "stop_reason": "budget", "baseline_dps": 1400.06, "note": "Fixed.",
+        "actions": [{"name": "Keen Strike"}, {"name": "Rending Blow", "condition": "after a crit"}]}}}))
+    assert words["source"] == "Evaluator 0.2.488 · input 0123456789abcdef"
+    assert words["scenarios"] == ["pve_boss: 1,500.3 modeled DPS"] and words["note"] == "Modelled, not measured."
+    assert words["searches"] == [{"title": "pve_boss priority search", "line": "96 evaluated priorities · budget · default 1,400.1 DPS",
+                                  "actions": ["Keen Strike", "Rending Blow (after a crit)"], "note": "Fixed."}]
+    assert words["detail"].startswith('{\n  "format": "a2build-evaluation",')
+
+
+def test_the_pantheon_tab(made, tmp_path):
+    page, _fake, _store, _asked, chosen = made
+    _gladiator(page)
+    profile = tmp_path / "profile.json"
+    profile.write_text(json.dumps({"data": {"profile": {"characterName": "A"}, "stat": {"statList": [
+        {"type": "Destruction", "value": 120}, {"name": "Life [Yustiel]", "value": 5}]}}}), encoding="utf-8")
+    chosen["file"] = str(profile)
+    page.import_file()
+    page.tab_buttons["pantheon"].click()
+    words = page.pantheon_words
+    assert [w["name"] for w in words][:3] == ["Destruction", "Death", "Wisdom"] and words[0]["lord"] == "Zikel"
+    assert words[0]["recorded"] == "Source total: 120 (read-only)" and words[7]["recorded"] == "Source total: 5 (read-only)"
+    assert [w["points"] is None for w in words] == [d["field"] is None for d in CATALOG["deities"]]
+    field = page.deity_fields[0]
+    field.setText("12.5")
+    field.editingFinished.emit()
+    assert page.message_label.text() == bp.POINTS_APPLIED and page.dirty
+    assert b.pantheon_rows(page.draft) == [{"slot": "Pantheon", "item": "Draft deity contributions", "stats": {"destruction": 12.5}}]
+    field.setText("-1")
+    field.editingFinished.emit()
+    assert page.message_label.text() == b.BAD_POINTS and field.text() == "12.5"
+    page.deity_fields[1].setText("3")
+    page.deity_fields[1].editingFinished.emit()
+    assert b.pantheon_rows(page.draft)[0]["stats"] == {"destruction": 12.5, "death": 3}
+
+
+def test_genus_lines_saved_into_the_draft(made):
+    page, *_rest = made
+    page.tab_buttons["genus"].click()
+    editor = page.genus_editor
+    editor.level.setText("4")
+    editor.level.setModified(True)
+    editor.level.editingFinished.emit()
+    page.genus_editor.fields[(1, "stat")].setText("Cogni Damage Boost")
+    page.genus_editor.fields[(1, "stat")].textEdited.emit("Cogni Damage Boost")
+    page.tab_buttons["active"].click()
+    assert page.message_label.text() == bp.APPLY_FIRST_TAB and page.tab == "genus"
+    page.genus_editor.save_button.click()
+    assert page.message_label.text() == bp.GENUS_APPLIED and page.genus_editor.message.startswith("Genus lines saved.")
+    assert page.draft["genus"] == {"Cogni": {"level": 4, "lines": [{"slot": 1, "stat": "Cogni Damage Boost", "value": ""}]}}
+    page.tab_buttons["active"].click()
+    assert page.tab == "active"
+
+
+def test_the_advanced_inputs_and_an_evaluation(made):
+    page, fake, *_rest = made
+    _gladiator(page)
+    fake.answers[("POST", "/api/build/evaluate", None)] = [
+        EVALUATED, dict(EVALUATED), _refused("/api/build/evaluate", 400, "Another model calculation is running"),
+        dict(EVALUATED, arcana_options_supported=False)]
+    page.tab_buttons["inputs"].click()
+    assert page.inputs_words["components"] == bp.NO_LOADOUT and page.evaluation_shown == bp.NO_EVALUATION
+    assert page.input_edits["genus_mix"].toPlainText() == b.stringify(b.GENUS_MIX, 2)
+    page.input_edits["loadout"].setPlainText('{"components": [{"slot": "Weapon", "item": "Mine", "stats": {"attack": 25}}]}')
+    assert page.evaluation_shown == bp.INPUTS_EDITED and page.pending_inputs()
+    page.tab_buttons["active"].click()
+    assert page.message_label.text() == bp.APPLY_FIRST_TAB
+    page.evaluate()
+    assert page.message_label.text() == bp.APPLY_BEFORE_EVALUATING
+    page.apply_inputs()
+    assert page.message_label.text() == bp.INPUTS_APPLIED and not page.pending_inputs()
+    assert page.inputs_words["components"] == [["Weapon", "Mine", "attack"]]
+    page.input_edits["genus_mix"].setPlainText("[1]")
+    page.apply_inputs()
+    assert page.message_label.text() == "Inputs not applied: Invalid genus_mix input."
+    page.input_edits["genus_mix"].setPlainText("{bad")
+    page.apply_inputs()
+    assert page.message_label.text().startswith("Inputs not applied: ")
+    page.input_edits["genus_mix"].setPlainText(b.stringify(b.GENUS_MIX, 2))
+    page.evaluate()
+    assert page.evaluate_button.text() == bp.EVALUATING and not page.evaluate_button.isEnabled()
+    assert settle(lambda: page.message_label.text() == bp.EVALUATED)
+    sent = [body for m, p, body in fake.calls if p == "/api/build/evaluate"]
+    assert sent[-1]["search_priority"] is False and sent[-1]["loadout"]["components"][0]["stats"] == {"attack": 25}
+    assert "reference" not in sent[-1] and "name" not in sent[-1]
+    assert page.evaluation_shown["scenarios"] == ["pve_boss: 123,456.8 modeled DPS", "pvp_duel: 9,876 modeled DPS"]
+    page.priority_box.setChecked(True)
+    assert page.evaluation_shown == bp.NO_EVALUATION
+    page.evaluate()
+    assert settle(lambda: page.message_label.text() == "Evaluation failed: " + bp.NO_PRIORITY_SEARCH)
+    page.priority_box.setChecked(False)
+    page.evaluate()
+    assert settle(lambda: page.message_label.text() == "Evaluation failed: Another model calculation is running")
+    assert page.evaluate_button.isEnabled() and page.evaluate_button.text() == bp.EVALUATE
+    page.level_edit.setText("30")
+    page.level_edit.editingFinished.emit()
+    assert not page.evaluate_button.isEnabled()

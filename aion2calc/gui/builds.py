@@ -745,3 +745,113 @@ def with_item(catalog: dict, draft: dict, slot, item: dict, level, rolls=None, a
 def without_slot(draft: dict, slot) -> list:
     """The draft's components with the slot cleared (``data-unequip``)."""
     return [c for c in draft["loadout"]["components"] if not same(get(c, "slot", _MISSING), slot)]
+
+
+# ------------------------------------------------------------------ Pantheon and evaluation (0.2.488)
+PANTHEON_SLOT = "Pantheon"
+PANTHEON_ITEM = "Draft deity contributions"
+BAD_POINTS = "Enter a finite point total from 0 to 1,000,000."
+PANTHEON_FULL = "Remove an imported contribution before adding Pantheon points (64 component limit)."
+EVALUATION_MOST = 128 * 1024
+
+
+def pantheon_rows(draft: dict) -> list:
+    """The draft's deity contributions (``componentKind(c) === 'pantheon'``)."""
+    return [c for c in draft["loadout"]["components"] if component_kind(c) == "pantheon"]
+
+
+def deity_total(rows: list, field) -> float:
+    """A deity's points over the rows (``Number(c.stats?.[field]) || 0``, added)."""
+    total = 0
+    for c in rows:
+        stats = get(c, "stats")
+        key = js_string(field)
+        n = js_number(stats[key]) if isinstance(stats, dict) and key in stats else math.nan
+        total += n if truthy(n) else 0
+    return total
+
+
+def deity_words(deity: dict) -> tuple[str, str, str]:
+    """A deity tile's sigil letter, name and lord (``Destruction [Zikel]``: Z, Destruction, Zikel)."""
+    name = js_string(deity.get("name"))
+    found = re.search(r"\[([^\]]+)\]", name)
+    lord = found.group(1) if found else name
+    return (js_slice(lord, 1) if lord else ""), name.split(" [")[0], lord
+
+
+def recorded_stat(source_stats, deity: dict):
+    """The source profile's total for a deity, when it records one (``statList``), else none."""
+    if not isinstance(source_stats, list):
+        return None
+    for s in source_stats:
+        if not is_object(s):
+            continue
+        kind = s.get("type", _MISSING)
+        if (same(kind, deity.get("field", _MISSING)) or same(kind, deity.get("profile_type", _MISSING))
+                or js_string(_or(s.get("name"), "")) == deity.get("name")):
+            return s
+    return None
+
+
+def with_deity_points(draft: dict, rows: list, deity: dict, value) -> None:
+    """A deity's draft points kept (the ``data-deity`` change): its field taken off every deity row, then put on the
+    draft's own Pantheon contribution, made when it has none. ``rows`` gains it, as the web page's list does."""
+    components = draft["loadout"]["components"]
+    if len(components) >= MOST_COMPONENTS and not any(same(get(c, "slot", _MISSING), PANTHEON_SLOT) for c in components):
+        raise BuildError(PANTHEON_FULL)
+    field = deity.get("field")
+    for c in rows:
+        if truthy(get(c, "stats")) and is_object(c["stats"]):
+            c["stats"].pop(js_string(field), None)
+    comp = next((c for c in components if same(get(c, "slot", _MISSING), PANTHEON_SLOT)), None)
+    if comp is None:
+        comp = {"slot": PANTHEON_SLOT, "item": PANTHEON_ITEM, "stats": {}}
+        components.append(comp)
+        rows.append(comp)
+    comp["stats"][js_string(field)] = value
+
+
+def input_text(draft: dict, key: str) -> str:
+    """An advanced input as its text area shows it (``JSON.stringify(draft[key], null, 2)``)."""
+    return stringify(draft[key], 2)
+
+
+def evaluation_request(draft: dict, search: bool) -> dict:
+    """What the evaluation is sent (``request``): the allocation, budgets, loadout and Genus input, no reference."""
+    return {"search_priority": search, "format": draft["format"], "version": draft["version"], "class": draft["class"],
+            "mode": draft["mode"], "level": draft["level"], "build": copy(draft["build"]), "budgets": copy(draft["budgets"]),
+            "loadout": copy(draft["loadout"]), "genus": copy(draft["genus"]), "genus_mix": copy(draft["genus_mix"])}
+
+
+def dps(value) -> str:
+    """``Number(x).toLocaleString(undefined, {maximumFractionDigits: 1})`` in English: grouped, a tenth at most."""
+    x = js_number(value)
+    if not math.isfinite(x):
+        return "NaN" if math.isnan(x) else ("∞" if x > 0 else "-∞")
+    tenths = math.floor(abs(x) * 10 + 0.5) / 10            # half away from zero, as Intl rounds
+    whole, _, fraction = f"{tenths:,.1f}".partition(".")
+    text = whole if fraction == "0" else f"{whole}.{fraction}"
+    return ("-" if x < 0 and tenths else "") + text
+
+
+def evaluation_words(output: dict) -> dict:
+    """An evaluation's words (``data-evaluation``): who evaluated which input, each scenario's modelled DPS, each
+    priority search, the note."""
+    sha = get(output, "input_sha256")
+    scenarios = entries(get(output, "scenarios") or {}) if truthy(get(output, "scenarios")) else []
+    searches = []
+    for name, r in scenarios:
+        search = get(r, "priority_search")
+        if not truthy(search):
+            continue
+        actions = [js_string(get(a, "name")) + (f" ({js_string(get(a, 'condition'))})" if truthy(get(a, "condition")) else "")
+                   for a in (get(search, "actions") or [])]
+        searches.append({"title": f"{name} priority search",
+                         "line": (f"{js_string(get(search, 'evaluations'))} evaluated priorities · "
+                                  f"{js_string(get(search, 'stop_reason'))} · default {dps(get(search, 'baseline_dps'))} DPS"),
+                         "actions": actions, "note": js_string(_or(get(search, "note"), ""))})
+    return {"source": (f"Evaluator {'' if get(output, 'evaluator') is None else js_string(get(output, 'evaluator'))} · input "
+                       f"{js_slice(js_string(sha), 16) if isinstance(sha, str) else ''}"),
+            "scenarios": [f"{name}: {dps(get(r, 'dps'))} modeled DPS" for name, r in scenarios],
+            "searches": searches, "note": "" if get(output, "note") is None else js_string(get(output, "note")),
+            "detail": stringify(output, 2)}

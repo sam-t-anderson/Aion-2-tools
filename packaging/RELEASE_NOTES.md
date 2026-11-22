@@ -1,3 +1,11 @@
+## Builds in the native interface, third part (0.2.488)
+
+**The app's window now draws the Builds page's Pantheon, Genus Insight and Evaluation / advanced inputs tabs too.**
+- **Pantheon:** the deities' tiles, each with your draft points where the model scores it, and the source profile's recorded total.
+- **Genus Insight:** the same editor as My Character's; **Save genus lines** puts the lines in the draft.
+- **Evaluation / advanced inputs:** the draft's equipment, Genus lines and enemy mix as JSON to edit and apply, **Search skill priority**, and **Evaluate this draft** with the app's model: each scenario's modelled DPS, the priority search's order, and the full detail. As on the web page, only the allocation, budgets, equipment and Genus inputs are sent, and nothing is published.
+- The Source character tab is still drawn on the web Builds page.
+
 ## Builds in the native interface, second part (0.2.487)
 
 **The app's window now draws the Builds page's Equipment and Arcana cards tabs too.**
