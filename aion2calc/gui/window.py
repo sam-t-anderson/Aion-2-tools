@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, Q
 from . import theme
 from .account_page import AccountPage
 from .combat_review import read_page
-from .api import AppApi
+from .api import AppApi, Requests
 from .news import NewsPage
 from .crafting_page import CraftingPage
 from .database_page import DatabasePage
@@ -37,7 +37,8 @@ from .meter_page import MeterPage
 from .planner_page import PlannerPage
 from .pets_page import PetsPage
 from .timers_page import TimersPage
-from .settings_page import SettingsPage
+from .settings_page import SettingsPage, show_patch_notes
+from .settings_words import patch_notes, text_scale
 
 #: The web interface's navigation (index.html): each section's pages, then Settings and Account.
 SECTIONS = (
@@ -192,6 +193,36 @@ class MainWindow(QMainWindow):
     def start(self) -> None:
         self.page("meter").start()
         self.page("settings").start()
+        self._whats_new()
+
+    def _whats_new(self) -> None:
+        """What's new, once after an update (patch-notes.js ``check``): closing it tells the app, which then never
+        shows it again (0.2.475)."""
+        if self.api is None:
+            return
+        self._notes = Requests(self.api, self)
+        self._notes.replied.connect(self._notes_read)
+        self._notes.get("notes", "/api/patch-notes")
+
+    def _notes_read(self, _name: str, answer) -> None:
+        notes = patch_notes(answer)
+        if notes["show"] and notes["notes"]:
+            self.notes_dialog = show_patch_notes(self.api, self, notes, webbrowser.open, seen=True)
+
+
+def scale_text(api: AppApi) -> None:
+    """The window at the app's text size (Settings → Text size, ``app_text_scale``), every word and the layout with it
+    as a browser's zoom scales them (0.2.475). Qt takes it as the window opens (``QT_SCALE_FACTOR``), so a new size
+    shows the next time the window opens; a size set by hand in the environment is left as it is."""
+    if os.environ.get("QT_SCALE_FACTOR"):
+        return
+    try:
+        ui = api.get("/api/ui")
+    except (OSError, ValueError):
+        return
+    size = text_scale(ui if isinstance(ui, dict) else {})
+    if size != 100:
+        os.environ["QT_SCALE_FACTOR"] = f"{size / 100:g}"
 
 
 def main(argv=None) -> int:
@@ -201,6 +232,8 @@ def main(argv=None) -> int:
     from ..overlay import _ParentProcess
     base, _, fragment = args.url.partition("#")
     page = fragment.strip("/") or "meter"
+    if QApplication.instance() is None:
+        scale_text(AppApi(base))
     app = QApplication.instance() or QApplication(sys.argv[:1])
     window = MainWindow(AppApi(base), base, page, _ParentProcess(os.environ.get("AION2CALC_PARENT_PID")))
     window.show()

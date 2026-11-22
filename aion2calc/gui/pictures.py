@@ -15,7 +15,7 @@ import time
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QImage, QPixmap
 
-from . import theme
+from . import image_health, theme
 from .api import AppApi, Requests
 
 #: Where the web pages find a class's emblem (overlay.js ``classArt``); the asset map gives its bundled file.
@@ -64,6 +64,14 @@ class Pictures(QObject):
         self._map_state = "unread"                # "asking", "read", or the monotonic time it failed at
         self._kept: dict[str, QPixmap | None] = {}
         self._failed_at: dict[str, float] = {}
+        image_health.watch(self)                  # Settings' Retry images asks again at once (0.2.475)
+
+    def retry_pictures(self) -> None:
+        """Retry images: the map and the pictures the app could not give asked for again when next wanted, rather
+        than a while after they failed."""
+        self._failed_at.clear()
+        if isinstance(self._map_state, float):
+            self._map_state = "unread"
 
     def stop(self) -> None:
         if self.requests is not None:

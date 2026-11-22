@@ -5,6 +5,9 @@ Each control saves one setting through the app's ``/api/ui``, as the web page's 
 full yet (``web``: the log server, profiles and backups, hotkeys, colours and fonts, the background image) shows
 what it can and opens the web Settings page for the rest. Generated from ``pages/settings.js``'s controls and the
 keys their handlers save, then kept by hand; ``tests/test_native_settings.py`` checks every key is a setting.
+
+Since 0.2.475 the page draws App & data as the web page does (settings_page.py, settings_words.py), so its rows are no
+longer here; the others follow, a tab at a time.
 """
 from __future__ import annotations
 
@@ -42,22 +45,12 @@ class Row:
     web: bool = False                         # part of the row is only on the web Settings page so far
 
 
-#: The web page's groups, in its order (its filter buttons).
-GROUPS = [('appearance', 'Appearance'), ('system', 'App'), ('server', 'Log server'), ('overlay', 'Overlay'), ('pettracker', 'Pet Tracker'), ('meter', 'Combat records'), ('backup', 'Backup')]
+#: The web page's groups, in its order (its tabs, ``data-settab``).
+GROUPS = [('appearance', 'Appearance'), ('overlay', 'Overlay'), ('pettracker', 'Pet Tracker'), ('meter', 'Meter'), ('server', 'Server'), ('backup', 'Profiles & backup'), ('system', 'App & data')]
 
 ROWS = (
     Row('appearance', 'Theme', (), web=True),
     Row('appearance', 'Accent colour', (), web=True),
-    Row('system', 'Native interface', (Bool('interface_native', 'open the app and the meter overlay in the native interface, drawn in Python instead of a browser'),), web=False),
-    Row('system', 'Open as its own window', (Bool('app_window', 'start in a separate app window (Edge or Chrome) instead of a browser tab; closing it stops the app'),), web=False),
-    Row('system', 'Text size', (Choice('app_text_scale', "Size of the app's text", ((70, '70%'), (80, '80%'), (90, '90%'), (100, '100%'), (110, '110%'), (120, '120%'), (130, '130%'), (140, '140%'), (150, '150%')), int),), web=False),
-    Row('system', 'Performance mode', (Bool('performance_mode', 'Lighter on a low-spec PC (off by default)'),), web=False),
-    Row('system', 'Language', (), web=True),
-    Row('system', 'Page at launch', (Choice('app_default_page', 'Open the app on', (('meter', 'Live Meter'), ('combat', 'Combat Logs'), ('raid', 'Raid Planner'), ('planner', 'Build Planner'), ('builds', 'Builds'), ('character', 'My Character'), ('gear', 'Gear & Advice'), ('history', 'Saved Results'), ('timers', 'Timers'), ('maps', 'Maps'), ('database', 'Database'), ('crafting', 'Crafting'), ('gathering', 'Gathering'), ('pets', 'Pet Tracker'), ('news', 'News'), ('settings', 'Settings')), str),), web=False),
-    Row('system', 'My Character at launch', (Bool('character_auto_open', 'Show the character you opened last when My Character opens (off by default)'),
-         Bool('character_auto_refresh', 'Refresh that character from the official site when the app opens, instead of showing the last snapshot (off by default; needs the setting above)')), web=False),
-    Row('system', 'Collapse to tray', (Bool('tray_on_close', 'keep running in the system tray when the window is closed (Windows, macOS, Linux); Quit from the tray icon. Takes effect on next launch.'),), web=False),
-    Row('system', 'Your data', (), web=True),
     Row('server', 'Log server', (), web=True),
     Row('server', 'Community stats', (Bool('community_heartbeat', 'Contribute to the anonymous daily-active-meters count (on by default)'),
          Bool('community_contribute_character', "Share your build's point totals when you collect a character (on by default)")), web=False),
@@ -158,11 +151,4 @@ ROWS = (
     Row('overlay', 'Overlay look presets', (), web=True),
     Row('overlay', 'Hotkeys (Windows)', (), web=True),
     Row('appearance', 'Combat class colors', (), web=True),
-    Row('system', 'Storage maintenance', (), web=True),
-    Row('system', 'Updates', (Bool('auto_update', 'download new versions in the background'),
-         Bool('update_on_close', 'install a downloaded update when the app closes')), web=False),
-    Row('system', 'Version', (), web=True),
-    Row('system', 'Patch notes', (), web=True),
-    Row('system', 'Community', (), web=True),
-    Row('system', 'Stop the app', (), web=True),
 )
