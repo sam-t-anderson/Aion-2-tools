@@ -1,3 +1,13 @@
+## The Settings page in the native interface, part 7 (0.2.481)
+
+**Settings in the app's window now has the Combat class colors and the Settings backup as the web page draws them.**
+- **Combat class colors** (Appearance): the log review's own panel, with class colours on or off, a palette applied with **Apply**, a colour for each class, and **Reset class colors**. It is saved to the app as it changes, so the log review and the Combat Logs pages use it.
+- **Settings backup** (Profiles & backup):
+  - **Export settings** saves them to a file in your data folder and says where;
+  - **Import settings** reads a file, imports the settings it recognises, then draws the page again and says what was imported.
+- **On the web Settings page,** an import now says what it imported once the page is drawn again; until now the words went with the row an instant after the import.
+- The theme, the accent colour and the customization profiles are kept by the browser the web page runs in, so they are still on the web Settings page.
+
 ## The Settings page in the native interface, part 6 (0.2.480)
 
 **Settings in the app's window now has the rest of the Overlay tab as the web page draws it: the overlay's colours and fonts, its text effects and each text's own font, its background, and the look presets.**

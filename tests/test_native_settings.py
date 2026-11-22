@@ -56,8 +56,10 @@ LOOK_KEYS = (("overlay_text_colors", "overlay_font_family", "overlay_font_scale"
              + tuple(item[1] for item in looks.FONT_LINE + looks.EFFECTS)
              + ("overlay_text_fonts",) + tuple(key for key, *_rest in looks.BG_NUMBERS)
              + ("overlay_text_autocontrast", "overlay_presets"))
-DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS + PET_KEYS + OVERLAY_KEYS + RADAR_KEYS + LOOK_KEYS
+DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS + PET_KEYS + OVERLAY_KEYS + RADAR_KEYS + LOOK_KEYS + ("combat_colors",)
 DRAWN_GROUPS = ("system", "meter", "server", "pettracker", "overlay")
+#: The rows drawn in the tabs still partly on the web page (0.2.481).
+DRAWN_ROWS = (("appearance", "Combat class colors"), ("backup", "Settings backup"))
 T0 = 1700000000
 STATUS = {"home": "/data/aion2calc", "version": "0.2.475", "db": {"items": 12345, "last_sync": {"at": T0}},
           "update": None, "update_state": {"checked_at": T0}, "update_download": {}}
@@ -180,17 +182,17 @@ def _row(page, title):
 # ------------------------------------------------------------------ the rows drawn, and those still on the web page
 def test_the_drawn_rows_save_the_apps_settings_and_the_others_open_the_web_page(home):
     defaults = server.ui_settings()
-    assert len(ROWS) == 5             # Appearance and Profiles & backup still on the web page; the other tabs drawn here
+    assert len(ROWS) == 3             # the theme, the accent colour and the profiles still on the web page; the rest here
     assert {row.group for row in ROWS} <= {key for key, _title in GROUPS} - set(DRAWN_GROUPS)
     assert [key for key, _title in GROUPS] == [key for key, _title in sw.TABS]
-    for key in DRAWN_KEYS:                    # the drawn rows' saves; the text's colours are the overlay's own until chosen
-        assert key in defaults or key == "overlay_text_colors", key
+    for key in DRAWN_KEYS:     # the drawn rows' saves; the text's and the classes' colours are their own until chosen
+        assert key in defaults or key in ("overlay_text_colors", "combat_colors"), key
     assert len(DRAWN_KEYS) == len(set(DRAWN_KEYS))                                     # one control each
     for key, (_words, _unit, low, high, shown) in {**sw.RECORD_NUMBERS, "meter_log_cache_mb": sw.LOG_CACHE}.items():
         assert low <= defaults[key] <= high and low <= shown <= high, key
     for key, _words, low, high, shown, _rule in looks.BG_NUMBERS:
         assert low <= defaults[key] <= high and low <= shown <= high, key
-    drawn = {r for r in sw.ROW_ORDER if r[0] in DRAWN_GROUPS}
+    drawn = {r for r in sw.ROW_ORDER if r[0] in DRAWN_GROUPS or r in DRAWN_ROWS}
     assert len(OVERLAY_KEYS) == len(set(OVERLAY_KEYS)) == 62                 # 24 + 5 + 33, one each
     on_the_web = {(row.group, row.title) for row in ROWS}
     assert on_the_web | drawn == set(sw.ROW_ORDER) and not on_the_web & drawn and len(sw.ROW_ORDER) == 39
@@ -243,8 +245,7 @@ def test_the_tabs_and_the_rows_on_the_web(qapp, home):
     store.setValue(sw.TAB_KEY, "nowhere")
     assert _page(home, store=store).tab == "appearance"
     web = list(ROWS)
-    assert {row.title for row in web} == {"Theme", "Accent colour", "Customization profiles", "Settings backup",
-                                          "Combat class colors"}
+    assert {row.title for row in web} == {"Theme", "Accent colour", "Customization profiles"}
     buttons = [b for b in page.findChildren(QPushButton) if b.text() == "Open the web Settings page"]
     assert len(buttons) == len(web) + 1                                               # and Language's
     buttons[0].click()
@@ -1210,6 +1211,95 @@ def test_the_settings_words():
     assert sw.hotkeys_to_save({"quit": " ", "radar_learn_other": " "}) == ({"radar_learn_other": ""}, "")
 
 
+# ------------------------------------------------------------------ Appearance and Profiles & backup (0.2.481)
+def test_the_combat_class_colours(qapp, home):
+    from aion2calc.gui import combat_review as cw
+    app = FakeApp(_answers({("GET", "/api/ui", None): {**server.ui_settings(),
+                                                        "combat_colors": {"enabled": False, "colors": {"ranger": "#112233"}}}}))
+    page = _page(home, app)
+    page.ask_colour, asked = _colours("#445566")
+    settle(lambda: page.ui)
+    panel = page.class_colours                                                       # Appearance, the first tab
+    assert panel.isVisibleTo(page) and not panel.enabled.isChecked() and panel.palette.currentIndex() == 0
+    assert panel.colours["ranger"] == "#112233" and panel.colours["cleric"] == "#ffffff"
+    # a class's colour chosen: the preference kept by the app, as the review pages read it; nothing said
+    panel.swatches["cleric"].click()
+    settle(lambda: app.sent("POST", "/api/ui"))
+    sent = app.sent("POST", "/api/ui")[0][2]["combat_colors"]
+    assert asked == [("#ffffff", "cleric colour")] and sent["enabled"] is False
+    assert sent["colors"]["cleric"] == "#445566" and sent["colors"]["ranger"] == "#112233" and page.toast.text() == ""
+    # a palette: chosen, nothing saved; applied, class colours on with its colours
+    panel.palette.setCurrentIndex(1)
+    assert len(app.sent("POST", "/api/ui")) == 1
+    _button(panel, "Apply").click()
+    settle(lambda: len(app.sent("POST", "/api/ui")) == 2)
+    sent = app.sent("POST", "/api/ui")[1][2]["combat_colors"]
+    palette = cw.PALETTES[panel.palette.currentData()]
+    assert sent["enabled"] is True and all(sent["colors"][cls] == colour for cls, colour in palette.items()
+                                           if cls in sent["colors"])
+    # Reset: the review's own colours, nothing kept
+    _button(panel, cw.RESET_COLOURS).click()
+    settle(lambda: len(app.sent("POST", "/api/ui")) == 3)
+    assert app.sent("POST", "/api/ui")[2][2] == {"combat_colors": {}}
+    # the app refusing: said, as the page says a save it could not make
+    app.answers[("POST", "/api/ui", None)] = _refused("/api/ui", 400, "ValueError: combat_colors must be an object")
+    panel.enabled.setChecked(False)                                                   # on again since Reset
+    settle(lambda: page.toast.text() == "Could not save it: ValueError: combat_colors must be an object")
+    # the page shown again: the app's preference, and the palette list as a fresh panel has it
+    before = page.ui
+    page.start()
+    _drawn_again(page, before)
+    assert not panel.enabled.isChecked() and panel.palette.currentIndex() == 0 and panel.colours["ranger"] == "#112233"
+    page.radar_poll.stop()
+
+
+def test_the_settings_backup(qapp, home, tmp_path):
+    good = tmp_path / "backup.json"
+    good.write_bytes(b"\xef\xbb\xbf" + json.dumps({"format": "a backup", "settings": {"overlay_font_scale": 110.0,
+                                                                                       "tray_on_close": True}}).encode())
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json", encoding="utf-8")
+    chosen = ["", str(broken), str(good), str(good)]
+    saved_to = "/data/aion2calc-settings-20261122-030000.json"
+    app = FakeApp(_answers({("POST", "/api/ui/export", None): [{"file": saved_to, "settings": {}},
+                                                               _refused("/api/ui/export", 500, "OSError: no room")],
+                            ("POST", "/api/ui/import", None): [
+                                {"imported": ["overlay_font_scale", "tray_on_close"], "settings": {}},
+                                _refused("/api/ui/import", 400, "ValueError: No recognised settings to import")]}))
+    page = _page(home, app)
+    page.choose_backup = lambda: chosen.pop(0)
+    page.show_tab("backup")
+    settle(lambda: page.ui)
+    words = page.backup_message
+    assert sw.BACKUP_NOTE in _texts(page) and words.text() == ""
+    # Export: the button waits, then where the file went is said; a refusal said
+    _button(page, sw.BACKUP_EXPORT).click()
+    assert words.text() == sw.EXPORTING and not page.backup_export.isEnabled()
+    settle(lambda: words.text() == "Saved to " + saved_to)
+    assert page.backup_export.isEnabled() and app.sent("POST", "/api/ui/export")[0][2] == {}
+    _button(page, sw.BACKUP_EXPORT).click()
+    settle(lambda: words.text() == "OSError: no room")
+    assert page.backup_export.isEnabled()
+    # Import: nothing chosen, nothing; a file that is not JSON said in Python's words, nothing sent
+    _button(page, sw.BACKUP_IMPORT).click()
+    assert words.text() == "OSError: no room"
+    _button(page, sw.BACKUP_IMPORT).click()
+    assert words.text().startswith("Could not import: Expecting property name") and not app.sent("POST", "/api/ui/import")
+    # a file read as a browser reads it (its byte-order mark off, 110.0 a whole number), imported, then the page drawn
+    # again, saying what was imported
+    before = page.ui
+    _button(page, sw.BACKUP_IMPORT).click()
+    assert words.text() == sw.IMPORTING
+    _drawn_again(page, before)
+    document = app.sent("POST", "/api/ui/import")[0][2]["document"]
+    assert document == {"format": "a backup", "settings": {"overlay_font_scale": 110, "tray_on_close": True}}
+    assert type(document["settings"]["overlay_font_scale"]) is int
+    assert words.text() == "Imported: overlay_font_scale, tray_on_close. Reopen the overlay to apply."
+    _button(page, sw.BACKUP_IMPORT).click()
+    settle(lambda: words.text() == "Could not import: ValueError: No recognised settings to import")
+    page.radar_poll.stop()
+
+
 def test_the_look_words():
     import base64
     import re
@@ -1268,7 +1358,7 @@ def test_the_look_words():
                 base64.b64encode(b'{"name":"a","settings":{"other":1}}').decode()):
         with pytest.raises(ValueError):
             looks.decode_preset(bad)
-    assert looks.js_trim("﻿ a 　") == "a" and looks.js_trim(None) == ""
+    assert looks.js_trim("\ufeff a \u3000") == "a" and looks.js_trim(None) == ""
     assert looks.js_units("a😀") == 3 and looks.js_slice("ab😀c", 3) == "ab" and looks.js_slice("ab😀c", 4) == "ab😀"
 
 
