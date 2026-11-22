@@ -1,3 +1,15 @@
+## The Live Meter page in the native interface, part 3 (0.2.473)
+
+**The Live Meter page in the app's window now has the session's live review under the fight**, as on the web page: once the fight has players, the session's log review, read again every few seconds (less often when exporting the session takes longer), and never while the window is minimized.
+- It is the log review Combat Logs shows, in its look, with everything it has: the summary with parses, the graph, the views, the abilities and casts, the death recaps, the insights, the comparisons, the builds and the movement replay;
+- **Follow latest encounter** (ticked at first) keeps it on the newest encounter of the combat mode chosen as the session goes on; choosing an encounter or a run stops following, and ticking it again goes back to the newest;
+- a live session has no other parts to list, metadata to save or recording to upload, so the review leaves them out;
+- **Clear session** clears it with the session, and it starts afresh each time you come back to the page.
+
+A log review's choices (combat mode, run, encounter, player, class colours, insights) now go on as many lines as the window needs, in Combat Logs too, as on the web page; on a narrow window they no longer push the review wider than the window.
+
+The Live Meter page is now whole in the app's window, but for what the log review itself still opens in the web interface: the movement replay's Raid Planner file.
+
 ## The Live Meter page in the native interface, part 2 (0.2.472)
 
 **Advanced capture on the Live Meter page in the app's window is now whole**, as on the web page:

@@ -53,8 +53,6 @@ FINAL_NOTE = ("Final-boss order and PvP match-end packets are not yet verified. 
 ENGINE_NOTE = ("Live Capture uses the included A2Tools protocol engine. It needs Npcap in WinPcap-compatible mode, Scapy, "
                "and capture permission. {}Export writes an open a2log file; Upload uses the log server configured in "
                "Settings.")
-ELSEWHERE_REVIEW = "The live review of this session is in the web interface's Live Meter for now."
-ELSEWHERE_OPEN = "Open in the web interface"
 NPCAP_OFF = "Npcap setup is only needed on Windows."
 NPCAP_ON = ("Npcap is installed. Live Capture may need administrator permissions if Npcap was installed with "
             "administrator-only access.")

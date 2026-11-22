@@ -54,6 +54,36 @@ from .planner_page import interface_store
 from .result_windows import STYLE as RESULT_STYLE, GridTable
 
 
+def stylesheet() -> str:
+    """Combat Logs' look: its windows, notes and folds, the featured encounters and the parse card; a log's review
+    drawn elsewhere (the Live Meter's live review, 0.2.473) takes it too."""
+    return GatheringPage._stylesheet() + RESULT_STYLE + f"""
+            QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
+                border: 1px solid rgba(233, 203, 128, 0.65); color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
+            QPushButton#primary:disabled {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(107, 85, 35, 0.5),
+                stop:1 rgba(63, 50, 21, 0.5)); border-color: rgba(233, 203, 128, 0.33); color: rgba(255, 243, 207, 0.5); }}
+            QPushButton#small[chosen="true"] {{ font-weight: 700; text-decoration: underline; }}
+            QLabel#combatHead {{ color: {theme.COLORS['text']}; font-size: 15px; font-weight: 700; margin-top: 6px; }}
+            QLabel#combatMessage {{ color: {theme.COLORS['muted']}; }}
+            QLabel#faint {{ color: {theme.COLORS['faint']}; }}
+            QLabel#small, QFrame#note QLabel#small {{ color: {theme.COLORS['muted']}; font-size: 12px; }}
+            QLabel#empty {{ color: {theme.COLORS['faint']}; padding: 18px; }}
+            QLabel#slBadge {{ color: rgba(233, 230, 223, 0.85); border: 1px solid rgba(233, 230, 223, 0.85);
+                border-radius: 9px; padding: 0px 6px; }}
+            QToolButton#fold {{ color: {theme.COLORS['text']}; font-weight: 600; border: none; background: transparent;
+                padding: 2px 0px; }}
+            QFrame#note {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
+                border-radius: 5px; padding: 9px 12px; }}
+            QFrame#note QLabel, QFrame#note QCheckBox {{ background: transparent; color: #f1d4a3; }}
+            QFrame#note QWidget#plain {{ background: transparent; }}
+            QFrame#note QLabel#queueHead {{ color: #f1d4a3; font-size: 15px; font-weight: 700; }}
+            QLabel#bucketHead {{ font-weight: 700; margin-top: 4px; }}
+            QFrame#rowNote {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
+                border-radius: 5px; padding: 6px 9px; }}
+            QFrame#note QToolButton#fold {{ color: #f1d4a3; }}
+            """ + FEATURED_STYLE + ANALYSIS_STYLE + Toast.STYLE
+
+
 class CombatPage(QWidget):
     """Combat Logs. ``open_web`` opens a page of the web interface; ``choose_file``, ``choose_recovery``,
     ``choose_backup`` and ``save_file`` stand in for the file dialogs (a log to analyze, a recovery file or a private
@@ -82,31 +112,7 @@ class CombatPage(QWidget):
             self.job.logged.connect(lambda log: self._say(cb.last_line(log)))
             self.job.done.connect(self._analyzed)
             self.job.failed.connect(self._say)
-        self.setStyleSheet(GatheringPage._stylesheet() + RESULT_STYLE + f"""
-            QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
-                border: 1px solid rgba(233, 203, 128, 0.65); color: #fff3cf; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
-            QPushButton#primary:disabled {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(107, 85, 35, 0.5),
-                stop:1 rgba(63, 50, 21, 0.5)); border-color: rgba(233, 203, 128, 0.33); color: rgba(255, 243, 207, 0.5); }}
-            QPushButton#small[chosen="true"] {{ font-weight: 700; text-decoration: underline; }}
-            QLabel#combatHead {{ color: {theme.COLORS['text']}; font-size: 15px; font-weight: 700; margin-top: 6px; }}
-            QLabel#combatMessage {{ color: {theme.COLORS['muted']}; }}
-            QLabel#faint {{ color: {theme.COLORS['faint']}; }}
-            QLabel#small, QFrame#note QLabel#small {{ color: {theme.COLORS['muted']}; font-size: 12px; }}
-            QLabel#empty {{ color: {theme.COLORS['faint']}; padding: 18px; }}
-            QLabel#slBadge {{ color: rgba(233, 230, 223, 0.85); border: 1px solid rgba(233, 230, 223, 0.85);
-                border-radius: 9px; padding: 0px 6px; }}
-            QToolButton#fold {{ color: {theme.COLORS['text']}; font-weight: 600; border: none; background: transparent;
-                padding: 2px 0px; }}
-            QFrame#note {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
-                border-radius: 5px; padding: 9px 12px; }}
-            QFrame#note QLabel, QFrame#note QCheckBox {{ background: transparent; color: #f1d4a3; }}
-            QFrame#note QWidget#plain {{ background: transparent; }}
-            QFrame#note QLabel#queueHead {{ color: #f1d4a3; font-size: 15px; font-weight: 700; }}
-            QLabel#bucketHead {{ font-weight: 700; margin-top: 4px; }}
-            QFrame#rowNote {{ background: rgba(233, 164, 58, 0.07); border: 1px solid rgba(233, 164, 58, 0.35);
-                border-radius: 5px; padding: 6px 9px; }}
-            QFrame#note QToolButton#fold {{ color: #f1d4a3; }}
-            """ + FEATURED_STYLE + ANALYSIS_STYLE + Toast.STYLE)
+        self.setStyleSheet(stylesheet())
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.NoFrame)

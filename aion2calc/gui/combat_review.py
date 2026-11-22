@@ -195,6 +195,9 @@ def matches_mode(doc: dict, segment: dict, mode: str) -> bool:
     return not mode or mode_of(doc, segment) == mode
 
 
+FOLLOW_LATEST = "Follow latest encounter"     # the live session's review (``data-control="followLatest"``)
+
+
 def fresh_state(mode=None, segment=None) -> dict:
     """The review's choices as it opens (``state``)."""
     return {"mode": mode if mode in ("pve", "pvp") else "", "run": "", "segment": segment if isinstance(segment, int) else 0,

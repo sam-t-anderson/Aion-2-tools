@@ -105,7 +105,7 @@ class MainWindow(QMainWindow):
                 self.nav.addItem(item)
                 self.page_rows[key] = self.nav.count() - 1
                 if key == "meter":
-                    widget = MeterPage(api, open_page=self.show_page, open_in_web=self.open_in_web)
+                    widget = MeterPage(api, open_page=self.show_page, open_in_web=self.open_in_web, open_web=self.open_web)
                 elif key == "settings":
                     widget = SettingsPage(api, self.open_web)
                 elif key == "news":

@@ -24,7 +24,10 @@
 
 The page reads ``/api/meter`` while it is shown: every 0.7 s while capturing (1.5 s in performance mode), every 1.2 s
 otherwise (2 s), every 0.3 s for its first six seconds to catch a start at launch, and every 3 s while its window is
-minimized. The session's live review is still in the web interface's Live Meter, and says so.
+minimized. Since 0.2.473, once the fight has players, the session's live review is under it: the log review of the
+session as the app exports it (``/api/meter/log``), read again every 4 s or eight times what its last export took when
+that is longer (with what drawing it took here), never while the window is minimized; it follows the latest encounter
+until another is chosen, starts afresh on each visit and goes with Clear session.
 """
 from __future__ import annotations
 
@@ -45,7 +48,10 @@ from . import theme
 from .api import AppApi, Job, Poller, Requests, why
 from .chrome import FlowLayout, icon
 from .combat import safe_link
+from . import combat_review as cw
 from .combat_analysis_page import STYLE as ANALYSIS_STYLE, Bar, ParseCard
+from .combat_page import stylesheet as combat_stylesheet
+from .combat_review_page import ReviewPage
 from .combat_community import _note
 from .combat_saved import _button, _clear, _label
 from .database_page import Window
@@ -257,10 +263,11 @@ class MeterPage(QWidget):
 
     def __init__(self, api: AppApi | None, parent: QWidget | None = None, open_page=None, open_link=None,
                  open_in_web=None, open_window=None, pictures: Pictures | None = None, store=None, ask=None,
-                 choose_file=None):
+                 choose_file=None, open_web=None):
         super().__init__(parent)
         self.api = api
         self.open_page, self.open_in_web = open_page, open_in_web
+        self.open_web = open_web                 # a page of the app, here where the window draws it (the review's links)
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.open_window = open_window or _browser_window
         self.store = store if store is not None else interface_store()
@@ -290,6 +297,10 @@ class MeterPage(QWidget):
         self.diag_export: dict | None = None     # the diagnostic ZIP saved last (``st.diagnosticExport``)
         self.diag_file = None                    # the one shown
         self.install_refusal: str | None = None  # why an installation was not chosen, said once the list is read again
+        self.review: ReviewPage | None = None    # the session's live review (``st.liveReview``)
+        self.review_loading = False              # its document on its way (``st.reviewLoading``)
+        self.review_at = -1e9                    # when it was last asked for (``st.reviewAt``)
+        self.review_cost = 0.0                   # what the last export took, in seconds (``review_cost_ms``)
         self.setObjectName("plain")
         self.setStyleSheet(GatheringPage._stylesheet() + RESULT_STYLE + STYLE + ANALYSIS_STYLE + Toast.STYLE)
 
@@ -317,7 +328,13 @@ class MeterPage(QWidget):
             slot.hide()
             self.slots[key] = box
             self.column.addWidget(slot)
-        self.column.addWidget(self._elsewhere(lm.ELSEWHERE_REVIEW))           # ``#mlog-review``
+        self.review_slot = QWidget()                                         # ``#mlog-review``
+        self.review_slot.setObjectName("plain")
+        self.review_box = QVBoxLayout(self.review_slot)
+        self.review_box.setContentsMargins(0, 0, 0, 0)
+        self.review_box.setSpacing(0)
+        self.review_slot.hide()
+        self.column.addWidget(self.review_slot)
         self.column.addStretch(1)
         self.toast = Toast(self)
 
@@ -325,6 +342,11 @@ class MeterPage(QWidget):
         if self.requests is not None:
             self.requests.replied.connect(self._replied)
             self.requests.failed.connect(self._failed)
+        # the live review's document on a way of its own, so a long export never holds up an action
+        self.review_requests = Requests(api, self, timeout=WAIT_S) if api is not None else None
+        if self.review_requests is not None:
+            self.review_requests.replied.connect(lambda _name, doc: self._review_arrived(doc))
+            self.review_requests.failed.connect(lambda _name, _why: self._review_refused())
         self.upload_job = self._job(self._uploaded, self._upload_failed)
         self.stop_job = self._job(self._stop_uploaded, self._stop_upload_failed)
         self.poller = Poller(api, "/api/meter", 300, self, timeout=READ_S, explain=why) if api is not None else None
@@ -649,19 +671,6 @@ class MeterPage(QWidget):
         inner.addWidget(self.diag_errors)
         body.addWidget(self.diagnostics)
 
-    def _elsewhere(self, words: str) -> QWidget:
-        """What is not drawn here yet, with a way to it in the web interface."""
-        box = QWidget()
-        box.setObjectName("plain")
-        line = QHBoxLayout(box)
-        line.setContentsMargins(0, 0, 0, 0)
-        line.setSpacing(10)
-        line.addWidget(_label(words, "small"), 1)
-        button = _button(lm.ELSEWHERE_OPEN, lambda: self.open_in_web("meter") if self.open_in_web else None)
-        button.setEnabled(self.open_in_web is not None)
-        line.addWidget(button, 0, Qt.AlignVCenter)
-        return box
-
     def _source_shown(self) -> None:
         """The source's own rows (``live``): Advanced capture's for a capture, a decoder's file for a custom decoder."""
         source = self.source.currentData()
@@ -742,6 +751,7 @@ class MeterPage(QWidget):
             return
         self.mounted = True
         self.first = True                             # the source the app captures from, as each visit shows it
+        self._drop_review()                           # a fresh review for each visit (``st.liveReviewRoot``)
         self.started_at = time.monotonic()
         self.parts.clear()                            # drawn afresh (``st.lastMeterRender = null``)
         self.mark_tick = 0
@@ -755,9 +765,10 @@ class MeterPage(QWidget):
 
     def stop(self) -> None:
         """The window closing: no more readings or requests."""
-        for worker in (self.poller, self.requests):
+        for worker in (self.poller, self.requests, self.review_requests):
             if worker is not None:
                 worker.stop()
+        self._drop_review()
 
     def _pace(self) -> int:
         """How soon the meter is read again (``poll``'s pace)."""
@@ -843,6 +854,7 @@ class MeterPage(QWidget):
             self.segments.setCurrentIndex(self.segments.findData(lm.segment_chosen(snap, self.pinned)))
         self.message.setText(lm.status_text(s))
         self._fight(s, snap)
+        self._review_due(snap)
 
     def _line(self, key: str, words: str) -> None:
         label = self.lines[key]
@@ -954,6 +966,57 @@ class MeterPage(QWidget):
         if 0 <= index < len(players):
             self.chosen_key = _dict(players[index]).get("key") or _dict(players[index]).get("id")
             self._fight(self.answer, _dict(self.answer.get("snapshot")))
+
+    # ---------------------------------------------------------------- the live review (0.2.473)
+    def _review_due(self, snap: dict) -> None:
+        """The live review read again when it is due: once the fight has players, every 4 s, or eight times what the
+        last export and its drawing took when that is longer, and never while the window is minimized or a reading is
+        on its way."""
+        if (self.review_requests is None or not _list(snap.get("players")) or self.review_loading
+                or (self.window() is not None and self.window().isMinimized())
+                or time.monotonic() - self.review_at <= max(4.0, 8 * self.review_cost)):
+            return
+        self.review_loading = True
+        self.review_at = time.monotonic()
+        self.review_requests.get("review", "/api/meter/log")
+
+    def _review_arrived(self, doc) -> None:
+        """The session's document: the review drawn from it the first time, given it after (``update``)."""
+        self.review_loading = False
+        doc = _dict(doc)
+        cost = doc.get("review_cost_ms")
+        self.review_cost = cost / 1000 if isinstance(cost, (int, float)) and not isinstance(cost, bool) and cost > 0 else 0.0
+        if not cw.segments(doc):                      # no document to review (an answer without the session)
+            return
+        started = time.monotonic()
+        self._review_drawn(doc)
+        # the window's drawing counts too: a long review is read less often rather than taking most of the window's time
+        self.review_cost += time.monotonic() - started
+
+    def _review_drawn(self, doc: dict) -> None:
+        if self.review is None:
+            self.review = ReviewPage(self.api, self.open_web, self.open_in_web, pictures=self.pictures, store=self.store,
+                                     live=True)
+            self.review.setStyleSheet(combat_stylesheet())
+            self.review_box.addWidget(self.review)
+            self.review_slot.show()
+            self.review.show_live(doc)
+        else:
+            self.review.update_live(doc)
+
+    def _review_refused(self) -> None:
+        """A document that did not come: the review stays as it was, read again when next due."""
+        self.review_loading = False
+
+    def _drop_review(self) -> None:
+        """The live review let go (``dispose``): Clear session, or the page opened again."""
+        if self.review is not None:
+            self.review.stop()
+            _clear(self.review_box)
+            self.review = None
+        self.review_slot.hide()
+        self.review_loading = False
+        self.review_at = -1e9
 
     # ---------------------------------------------------------------- the rest of Advanced capture (0.2.472)
     def read_installations(self) -> None:
@@ -1166,6 +1229,7 @@ class MeterPage(QWidget):
         """Clear session (``#mclear``), asked first."""
         if self.requests is None or not self.ask(lm.CLEAR_ASK):
             return
+        self._drop_review()
         self.pinned = ""
         self.requests.post("clear", "/api/meter", {"action": "clear"})
 
