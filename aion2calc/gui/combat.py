@@ -553,7 +553,6 @@ OWNED_VISIBILITY = (("", "any"), ("public", "Public"), ("unlisted", "Unlisted"),
 OWNED_CHOICES = ("unlisted", "public", "private")
 NO_OWNED = "No saved upload credentials. New desktop uploads are saved automatically."
 NO_OWNED_MATCH = "No uploads match these filters."
-OWNED_REVIEW = "Reviewing an upload's log opens in the web interface for now."
 ASK_IMPORT = "Import private upload credentials? Keep this backup private. No server will be contacted until you use its controls."
 ASK_FORGET = ("Forget this local credential? The uploaded log remains on the server. Export a backup first if you need future "
               "access.")

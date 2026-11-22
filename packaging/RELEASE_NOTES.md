@@ -1,3 +1,12 @@
+## An upload's log reviewed in the native interface (0.2.474)
+
+**My Uploads in the app's window now has each upload's Review**, as on the web page: it reads the upload's log from its original server with the upload's private credential, a private upload's too, and opens it on its own page in Combat Logs, with **← Back to combat logs** returning to My Uploads as you left it.
+- The log is reviewed as any other, with its summary and parses, graph, views, abilities and casts, death recaps, insights, comparisons, builds and movement replay; its parses are asked for with the log itself.
+- As on the web page, such a log has no other parts to list or combine, metadata to save, upload, report or other recordings of the fight; a recording's part is named, and the log is kept as it was read while you look at other pages.
+- If the server refuses, why shows in My Uploads, where the upload's state was.
+
+My Uploads no longer sends you to the web interface to review an upload. The movement replay's Raid Planner file still opens there; for an upload's log, the page's button opens the web interface's My Uploads, which reviews it there too.
+
 ## The Live Meter page in the native interface, part 3 (0.2.473)
 
 **The Live Meter page in the app's window now has the session's live review under the fight**, as on the web page: once the fight has players, the session's log review, read again every few seconds (less often when exporting the session takes longer), and never while the window is minimized.
