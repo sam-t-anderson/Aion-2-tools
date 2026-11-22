@@ -7,9 +7,12 @@
   is done; the line under the controls, and the note at the page's foot for a while, say what it did. Start checks
   the packet-capture support first, offering to install it, and opens the overlay when asked; Stop saves the session
   and uploads it unless Settings says not to;
-- **Advanced capture**, the part Start reads: the network interface, the game host, the game port found or fixed, the
-  name override, and the final bosses whose death finishes a run. The game installation, the game version and capture
-  context and the capture diagnostics are still in the web interface's Live Meter, and say so;
+- **Advanced capture**: the network interface, the game host, the game port found or fixed, the name override, and the
+  final bosses whose death finishes a run, which Start reads; since 0.2.472 the game installation (one to choose opens
+  Advanced capture) and a folder added by hand, the installed game version and capture context (folded), and the
+  capture diagnostics (folded): the capture's counters and stage, Record TCP payloads, Export capture diagnostics, Open
+  diagnostics folder and the ZIP saved, what went wrong, and, while recording raw TCP, the moments marked and the
+  candidates the app noticed;
 - **the view**: the players' scope (kept), Combine pets with owner, Automatic splits and the time without outgoing
   damage that splits a fight, the combat retained to view, All enemies and Follow latest combat;
 - **the state**: Recording or Stopped with the packets and combat events so far, Npcap's setup while it is missing,
@@ -63,7 +66,8 @@ WARMING_S = 6                            # the first seconds read briskly, to ca
 ADVANCED_KEY = "meter-advanced-open"     # whether Advanced capture was left open
 #: The requests to ``/api/meter``, whose answer is the meter's state: an ``error`` in it is part of what it reports
 #: (why a capture did not start), not a refusal.
-METER_ASKS = {"view", "clear", "start", "stop", "region", "act:save", "act:export", "act:split", "act:finish"}
+METER_ASKS = {"view", "clear", "start", "stop", "region", "act:save", "act:export", "act:split", "act:finish",
+              "record-status:0", "record-status:1"}
 COUNTER_GOLD = "#e8cf8e"                 # a counter's icon (``.keyicon``, ``.ticketicon``, ``.runicon``)
 STYLE = f"""
     QPushButton#primary {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #6b5523, stop:1 #3f3215);
@@ -71,7 +75,9 @@ STYLE = f"""
     QPushButton#danger {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #a32c36, stop:1 #682029);
         border: 1px solid #d75c66; color: #fff; border-radius: 4px; padding: 5px 12px; font-weight: 600; }}
     QPushButton#primary:disabled, QPushButton#danger:disabled {{ color: rgba(255, 243, 207, 0.5); }}
-    QLabel#small, QFrame#note QLabel#small, QCheckBox#small {{ color: {C['muted']}; font-size: 12px; }}
+    QFrame#note QCheckBox {{ color: #f1d4a3; }}
+    QLabel#small, QFrame#note QLabel#small, QCheckBox#small, QFrame#note QCheckBox#small {{ color: {C['muted']};
+        font-size: 12px; }}
     QLabel#faintSmall {{ color: {C['faint']}; font-size: 12px; }}
     QLabel#status {{ font-size: 12px; }}
     QFrame#win QLabel#empty {{ color: {C['faint']}; padding: 18px; }}
@@ -83,6 +89,8 @@ STYLE = f"""
     QFrame#pm {{ background: transparent; border: none; }}
     QFrame#pm QLabel {{ background: transparent; }}
     QWidget#counter, QWidget#counter QLabel {{ background: transparent; }}
+    QFrame#note QLabel#noteSmall {{ color: #f1d4a3; font-size: 12px; }}
+    QFrame#note QLabel#faintSmall {{ color: {C['faint']}; }}
 """
 
 
@@ -127,7 +135,7 @@ class Details(QFrame):
 
     toggled = Signal(bool)
 
-    def __init__(self, title: str, sub: str, opened: bool = False, parent: QWidget | None = None):
+    def __init__(self, title: str, sub: str, opened: bool = False, parent: QWidget | None = None, sub_name: str = "small"):
         super().__init__(parent)
         self.setObjectName("note")
         column = QVBoxLayout(self)
@@ -144,10 +152,10 @@ class Details(QFrame):
         self.button.setCheckable(True)
         self.button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.button.setAutoRaise(True)
-        self.button.setAccessibleName(title)
+        self.button.setAccessibleName(title or sub)
         line.addWidget(self.button)
         self.sub = _Summary(sub)
-        self.sub.setObjectName("small")
+        self.sub.setObjectName(sub_name)
         self.sub.setWordWrap(True)
         self.sub.setCursor(Qt.PointingHandCursor)
         self.sub.clicked.connect(self.button.toggle)
@@ -277,6 +285,11 @@ class MeterPage(QWidget):
         self.no_overlay_window = False           # the app could not open its overlay window (``nativeOverlayUnavailable``)
         self.acting: dict[str, str] = {}         # the actions under way, each with what its button says meanwhile
         self.shot_scaled = False
+        self.record_busy = False                 # Record TCP payloads being changed (``st.recordBusy``)
+        self.mark_tick = 0                       # the readings counted, the marks read every third (``st.markTick``)
+        self.diag_export: dict | None = None     # the diagnostic ZIP saved last (``st.diagnosticExport``)
+        self.diag_file = None                    # the one shown
+        self.install_refusal: str | None = None  # why an installation was not chosen, said once the list is read again
         self.setObjectName("plain")
         self.setStyleSheet(GatheringPage._stylesheet() + RESULT_STYLE + STYLE + ANALYSIS_STYLE + Toast.STYLE)
 
@@ -516,6 +529,11 @@ class MeterPage(QWidget):
         self.character.editingFinished.connect(self._character_chosen)
         line.addWidget(self.character)
         body.addWidget(self.live)
+        self._installations(body)
+        self.meta = Details("", lm.META_HEAD, False, sub_name="noteSmall")       # ``#mautometa-sum``
+        self.meta_words = _label("", "noteSmall")                                # ``#mautometa``
+        self.meta.body.addWidget(self.meta_words)
+        body.addWidget(self.meta)
 
         row = QWidget()
         row.setObjectName("plain")
@@ -533,9 +551,103 @@ class MeterPage(QWidget):
         line.addWidget(self.final_bosses)
         body.addWidget(row)
         body.addWidget(_label(lm.FINAL_NOTE, "small"))
-        self.engine = _label(lm.ENGINE_NOTE.format(""), "faintSmall")        # with ``#npcapinfo``
+        self.engine = _label(lm.engine_note(""), "faintSmall")              # with ``#npcapinfo``
         body.addWidget(self.engine)
-        body.addWidget(self._elsewhere(lm.ELSEWHERE_ADVANCED))
+        self._diagnostics(body)
+
+    def _installations(self, body) -> None:
+        """The game's installation (``#minstall``) and a folder added by hand (``#minstallpath``)."""
+        line = self._row(body)
+        line.addWidget(_label("Game installation", "status", wrap=False))
+        self.install = QComboBox()
+        self.install.setAccessibleName("Game installation")
+        self.install.addItem(lm.INSTALL_AUTO, "")
+        self.install.activated.connect(lambda _i: self._install_chosen())
+        line.addWidget(self.install)
+        line.addWidget(_button("Refresh installations", self.read_installations))
+        self.install_words = InlineLabel()                                       # ``#minstallstatus``
+        line.addWidget(self.install_words)
+        line = self._row(body)
+        line.addWidget(_label("Add install folder manually", "status", wrap=False))
+        self.install_path = QLineEdit()
+        self.install_path.setAccessibleName("Add install folder manually")
+        self.install_path.setPlaceholderText(lm.INSTALL_PLACEHOLDER)
+        self.install_path.setMinimumWidth(366)
+        line.addWidget(self.install_path)
+        line.addWidget(_button("Add path", self.add_install_path))
+        self.install_path_words = InlineLabel()                                  # ``#minstalladdstatus``
+        line.addWidget(self.install_path_words)
+
+    def _diagnostics(self, body) -> None:
+        """Capture diagnostics (folded): the counters, Record TCP payloads, the diagnostic ZIP, the marks and what went
+        wrong."""
+        self.diagnostics = Details(lm.DIAGNOSTICS, lm.DIAGNOSTICS_SUB)
+        inner = self.diagnostics.body
+        self.driver = _label("", "small")                                        # ``#mdriverstats``
+        inner.addWidget(self.driver)
+        line = self._row(inner)
+        self.record = QCheckBox(lm.RECORD)                                       # ``#mrecord``
+        self.record.clicked.connect(self._record_chosen)
+        line.addWidget(self.record)
+        for key in ("diagnostics", "folder"):
+            self.actions[key] = _button(lm.ACTIONS[key][0], lambda key=key: self.act(key))
+            line.addWidget(self.actions[key])
+        self.record_words = InlineLabel()                                        # ``#mrecordstatus``
+        line.addWidget(self.record_words)
+        inner.addWidget(_label(lm.DIAGNOSTICS_NOTE, "faintSmall"))
+        self.mark_box = QWidget()                                                # ``#mmarkbox``: while recording
+        self.mark_box.setObjectName("plain")
+        column = QVBoxLayout(self.mark_box)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(8)
+        line = FlowLayout(align=Qt.AlignLeft, gap=(12, 8))
+        holder = QWidget()
+        holder.setObjectName("plain")
+        holder.setLayout(line)
+        line.addWidget(_label("Mark this moment", "status", wrap=False))
+        self.mark_label = QComboBox()
+        self.mark_label.setAccessibleName("What happened")
+        for value, words in lm.MARK_LABELS:
+            self.mark_label.addItem(words, value)
+        line.addWidget(self.mark_label)
+        self.mark_note = QLineEdit()
+        self.mark_note.setAccessibleName("Note")
+        self.mark_note.setPlaceholderText(lm.MARK_NOTE_HINT)
+        self.mark_note.setMaxLength(200)
+        self.mark_note.setFixedWidth(220)
+        line.addWidget(self.mark_note)
+        line.addWidget(_button("Mark", self.mark))
+        relabel = _button("Label the latest", self.relabel)
+        relabel.setToolTip(lm.RELABEL_TIP)
+        line.addWidget(relabel)
+        column.addWidget(holder)
+        column.addWidget(_label(lm.MARKS_NOTE, "faintSmall", rich=True))
+        self.marks_words = _label("", "status", rich=True)                       # ``#mmarks``
+        column.addWidget(self.marks_words)
+        self.candidates = QWidget()                                              # ``#mcands``
+        self.candidates.setObjectName("plain")
+        self.candidates_column = QVBoxLayout(self.candidates)
+        self.candidates_column.setContentsMargins(0, 0, 0, 0)
+        self.candidates_column.setSpacing(4)
+        column.addWidget(self.candidates)
+        self.mark_box.hide()
+        inner.addWidget(self.mark_box)
+        self.diag_result = QWidget()                                             # ``#mdiagresult``: the ZIP saved
+        self.diag_result.setObjectName("plain")
+        column = QVBoxLayout(self.diag_result)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(2)
+        self.download = _button(lm.DOWNLOAD_ZIP, self.download_zip, name="primary")
+        column.addWidget(self.download, 0, Qt.AlignLeft)
+        self.diag_lines = _label("", "status")
+        self.diag_lines.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        column.addWidget(self.diag_lines)
+        self.diag_result.hide()
+        inner.addWidget(self.diag_result)
+        self.diag_errors = _label("", "status")                                  # ``#mdiagerror``
+        self.diag_errors.hide()
+        inner.addWidget(self.diag_errors)
+        body.addWidget(self.diagnostics)
 
     def _elsewhere(self, words: str) -> QWidget:
         """What is not drawn here yet, with a way to it in the web interface."""
@@ -632,9 +744,12 @@ class MeterPage(QWidget):
         self.first = True                             # the source the app captures from, as each visit shows it
         self.started_at = time.monotonic()
         self.parts.clear()                            # drawn afresh (``st.lastMeterRender = null``)
+        self.mark_tick = 0
         self.requests.get("ui", "/api/ui")
+        self.read_installations()
         self.read_npcap()
         self.requests.get("interfaces", "/api/meter/interfaces")
+        self.read_marks()
         self.poller.set_interval(self._pace())
         self.poller.start()
 
@@ -672,6 +787,10 @@ class MeterPage(QWidget):
             if index >= 0:
                 self.source.setCurrentIndex(index)
                 self._source_shown()
+        if _truthy(answer.get("running")) and self.record.isChecked():   # the marks and candidates, every third reading
+            self.mark_tick += 1
+            if self.mark_tick % 3 == 0:
+                self.read_marks()
         self.render(answer)
         if self.poller is not None:
             self.poller.set_interval(self._pace())
@@ -681,6 +800,18 @@ class MeterPage(QWidget):
         self.answer = s = _dict(s)
         running, finalizing = _truthy(s.get("running")), _truthy(s.get("finalizing"))
         self.combine_pets.setChecked(s.get("combine_pets") is not False)
+        self.install.setEnabled(not _truthy(s.get("installation_locked")))
+        self.meta.sub.setText(lm.meta_summary(s))
+        self.meta_words.setText(lm.meta_text(s))
+        self.driver.setText(lm.driver_text(s))
+        if _truthy(s.get("diagnostic_export")):
+            self.diag_export = _dict(s["diagnostic_export"])
+        self._export_shown(self.diag_export)
+        errors = lm.diagnostic_errors(s)
+        self.diag_errors.setText(errors)
+        self.diag_errors.setVisible(bool(errors))
+        self.record.setEnabled(not finalizing and not self.record_busy)
+        self.record_words.setText(lm.record_text(s))
         self.region_button.setVisible(lm.region_retry_shown(s))
         self._region_shown()
         run = lm.run_text(s)
@@ -824,6 +955,120 @@ class MeterPage(QWidget):
             self.chosen_key = _dict(players[index]).get("key") or _dict(players[index]).get("id")
             self._fight(self.answer, _dict(self.answer.get("snapshot")))
 
+    # ---------------------------------------------------------------- the rest of Advanced capture (0.2.472)
+    def read_installations(self) -> None:
+        if self.requests is not None:
+            self.requests.get("installations", "/api/meter/installations")
+
+    def _installations_shown(self, r: dict) -> None:
+        """The game's installations (``renderInstallations``): one to choose opens Advanced capture."""
+        found = lm.installations(r)
+        self.install.clear()
+        for value, words in found["options"]:
+            self.install.addItem(words, value)
+        self.install.setCurrentIndex(self.install.findData(found["selected"]))
+        if found["required"]:
+            self.advanced.set_open(True)
+        self.install_words.setText(found["status"])
+
+    def _install_chosen(self) -> None:
+        if self.requests is not None:
+            self.requests.post("install-choice", "/api/meter", {"action": "installation", "id": self.install.currentData()})
+
+    def add_install_path(self) -> None:
+        """Add path (``#minstalladd``): a folder the game is installed in, checked by the app and chosen."""
+        path = self.install_path.text().strip()
+        if not path:
+            self.install_path_words.setText(lm.INSTALL_PATH_FIRST)
+            return
+        self.install_path_words.setText(lm.INSTALL_CHECKING)
+        if self.requests is not None:
+            self.requests.post("install-path", "/api/meter", {"action": "install-path", "path": path})
+
+    def _record_chosen(self, on: bool) -> None:
+        """Record TCP payloads (``#mrecord``): a setting the app keeps, which every capture follows."""
+        if self.requests is None:
+            return
+        self.record_busy = True
+        self.record.setEnabled(False)
+        self.requests.post(f"record:{int(on)}", "/api/ui", {"meter_record_packets": on})
+
+    def _record_done(self) -> None:
+        self.record_busy = False
+        self.record.setEnabled(not _truthy(self.answer.get("finalizing")))
+
+    def read_marks(self) -> None:
+        if self.requests is not None:
+            self.requests.get("marks", "/api/meter/marks")
+
+    def mark(self) -> None:
+        """Mark (``#mmark``): this moment, with what was seen."""
+        if self.requests is not None:
+            self.requests.post("mark", "/api/meter", {"action": "mark", "label": self.mark_label.currentData(),
+                                                      "note": self.mark_note.text()})
+
+    def relabel(self) -> None:
+        """Label the latest (``#mrelabel``): the newest mark given this label and note."""
+        if self.requests is not None:
+            self.requests.post("relabel", "/api/meter", {"action": "relabel", "index": -1,
+                                                         "label": self.mark_label.currentData(),
+                                                         "note": self.mark_note.text()})
+
+    def decide(self, mark_id, accept: bool, choice: QComboBox) -> None:
+        """A candidate confirmed as a mark (as the label chosen) or dismissed."""
+        if self.requests is None:
+            return
+        body = {"action": "decide", "id": mark_id, "accept": accept}
+        if accept:
+            body["label"] = choice.currentData()
+        self.requests.post(f"decide:{int(accept)}", "/api/meter", body)
+
+    def _marks_shown(self, marks) -> None:
+        """The latest marks (``renderMarks``) and the candidates waiting (``renderCandidates``)."""
+        rows = lm.marks_line(marks)
+        if rows:
+            self.marks_words.setText("Marked: " + " ".join(
+                f"{html.escape(m['when'])} · <b>{html.escape(m['label'])}</b>"
+                + (f" · {html.escape(m['note'])}" if m["note"] else "") + html.escape(m["fight"]) for m in rows))
+        else:
+            self.marks_words.setText("No marks yet in this capture.")
+        pending, decided = lm.candidates(marks)
+        _clear(self.candidates_column)
+        head = lm.candidates_head(pending, decided)
+        if head:
+            self.candidates_column.addWidget(_label(head, "small"))
+        for c in pending:
+            row = QWidget()
+            row.setObjectName("plain")
+            line = FlowLayout(row, align=Qt.AlignLeft, gap=(6, 4))
+            line.addWidget(_label(f"{html.escape(c['when'])} · <b>{html.escape(c['label'])}?</b> · {html.escape(c['why'])}",
+                                  "status", rich=True, wrap=False))
+            choice = QComboBox()
+            choice.setAccessibleName("Confirm as")
+            for value, words in lm.MARK_LABELS:
+                choice.addItem(words, value)
+            choice.setCurrentIndex(max(0, choice.findData(c["label"])))
+            line.addWidget(choice)
+            line.addWidget(_button("Confirm", lambda i=c["id"], box=choice: self.decide(i, True, box)))
+            line.addWidget(_button("Dismiss", lambda i=c["id"], box=choice: self.decide(i, False, box)))
+            self.candidates_column.addWidget(row)
+        self.candidates.setVisible(bool(head))
+
+    def _export_shown(self, r: dict | None) -> None:
+        """A diagnostic ZIP saved (``renderDiagnosticExport``): drawn once for each file."""
+        if not r or self.diag_file == r.get("file"):
+            return
+        self.diag_file = r.get("file")
+        self.diag_lines.setText("\n".join(lm.export_lines(r)))
+        self.download.setProperty("url", js_text(r.get("download_url")))
+        self.diag_result.show()
+
+    def download_zip(self) -> None:
+        """Download diagnostic ZIP: the app's copy of it, in the browser."""
+        address = self.download.property("url") or ""
+        if self.api is not None and address.startswith("/"):
+            self.open_link(self.api.url(address))
+
     # ---------------------------------------------------------------- Npcap and the region
     def read_npcap(self) -> None:
         if self.requests is not None:
@@ -833,7 +1078,7 @@ class MeterPage(QWidget):
         """Npcap's state (``refreshNpcap``): what to do above the meter, or a line under Advanced capture."""
         if not state["shown"]:
             self.npcap.hide()
-            self.engine.setText(lm.ENGINE_NOTE.format(state["info"]))
+            self.engine.setText(lm.engine_note(state["info"]))
             return
         self.npcap.show()
         self.npcap_words.setText(state["text"])
@@ -959,6 +1204,10 @@ class MeterPage(QWidget):
             self._open_overlay("act:overlay")
         elif key == "interfaces":
             self.requests.get("act:interfaces", "/api/meter/interfaces")
+        elif key == "diagnostics":
+            self.requests.post("act:diagnostics", "/api/meter", {"action": "diagnostics"})
+        elif key == "folder":
+            self.requests.post("act:folder", "/api/meter", {"action": "diagnostics-folder"})
 
     def _acted(self, key: str, failed: str | None = None) -> None:
         """An action done (``finally``): its button back, and what it did said, for a while at the page's foot too. An
@@ -1041,6 +1290,37 @@ class MeterPage(QWidget):
         if kind == "ui":
             self.overlay_on_start.setChecked(a.get("overlay_on_start") is not False)
             self.light = a.get("performance_mode") is True
+            self.record.setChecked(a.get("meter_record_packets") is True)
+            self.mark_box.setVisible(a.get("meter_record_packets") is True)
+        elif kind == "installations":
+            self._installations_shown(a)
+            if self.install_refusal is not None:
+                self.install_words.setText(self.install_refusal)
+                self.install_refusal = None
+        elif kind == "install-choice":
+            self._installations_shown(a)
+        elif kind == "install-path":
+            self._installations_shown(a)
+            self.install_path.clear()
+            self.install_path_words.setText(lm.INSTALL_ADDED)
+        elif kind == "record":
+            self._toast(lm.RECORDING_ON if rest == "1" else lm.RECORDING_OFF)
+            self.requests.get(f"record-status:{rest}", "/api/meter")
+        elif kind == "record-status":
+            self.render(a)
+            self.mark_box.setVisible(rest == "1")
+            if rest == "1":
+                self.read_marks()
+            self._record_done()
+        elif kind == "marks":
+            self.mark_box.setVisible(_truthy(a.get("enabled")))
+            self._marks_shown(a.get("marks"))
+        elif kind in ("mark", "relabel", "decide"):
+            self._marks_shown(a.get("marks"))
+            if kind == "mark":
+                self.mark_note.clear()
+            self._say(lm.MARKED if kind == "mark" else lm.RELABELLED if kind == "relabel"
+                      else lm.CONFIRMED if rest == "1" else lm.DISMISSED)
         elif kind == "npcap":
             self._npcap(lm.npcap_state(a))
         elif kind == "npcap-install":
@@ -1149,11 +1429,37 @@ class MeterPage(QWidget):
             return
         elif key == "interfaces":
             self._interfaces(a)
+        elif key == "diagnostics":
+            self.diag_export = a
+            self._export_shown(a)
+            self._say(lm.exported_zip_words(a))
+        elif key == "folder":
+            self._say(f"Diagnostics folder requested: {js_text(a.get('folder'))}")
         self._acted(key)
 
     def _failed(self, name: str, why: str) -> None:
         kind, _, rest = name.partition(":")
-        if kind == "ui":
+        if kind in ("ui", "marks"):                   # the capture may not have started
+            return
+        if kind == "installations":
+            self.install_words.setText(why)
+            self.install_refusal = None
+            return
+        if kind == "install-choice":                  # the list read again, then why
+            self.install_refusal = why
+            self.read_installations()
+            return
+        if kind == "install-path":
+            self.install_path_words.setText(why)
+            return
+        if kind in ("record", "record-status"):
+            self.record.setChecked(rest != "1")
+            self._say(f"Could not change TCP recording: {why}")
+            self._record_done()
+            return
+        if kind in ("mark", "relabel", "decide"):
+            self._say({"mark": "Could not mark: ", "relabel": "Could not label the mark: ",
+                       "decide": "Could not decide the candidate: "}[kind] + why)
             return
         if kind == "overlay-choice":
             self.overlay_on_start.setChecked(not bool(int(rest or 0)))
@@ -1185,6 +1491,10 @@ class MeterPage(QWidget):
                 self._overlay_refused(name, why)
             elif rest == "interfaces":
                 self._say(f"Could not list capture interfaces: {why}")
+                self._acted(rest)
+            elif rest in ("diagnostics", "folder"):
+                self._say(("Diagnostic export failed: " if rest == "diagnostics" else
+                           "Could not open diagnostics folder: ") + why)
                 self._acted(rest)
             elif rest in ("split", "hide"):            # their handlers let the failure through
                 self._acted(rest, why)

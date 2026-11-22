@@ -510,10 +510,9 @@ def test_the_sources_rows_and_advanced_capture(qapp, tmp_path):
     opened = []
     page = _page(tmp_path, store=store, open_in_web=opened.append)
     buttons = [b for b in page.findChildren(QPushButton) if b.text() == "Open in the web interface"]
-    assert len(buttons) == 2 and all(b.isEnabled() for b in buttons)
+    assert len(buttons) == 1 and buttons[0].isEnabled()                     # the live review alone, since 0.2.472
     buttons[0].click()
-    buttons[1].click()
-    assert opened == ["meter", "meter"]
+    assert opened == ["meter"]
     assert lm.ELSEWHERE_REVIEW in _visible_texts(page)
 
 
@@ -989,3 +988,258 @@ def test_a_request_can_name_the_apps_own_origin_and_tell_silence_from_refusal(qa
         poller.stop()
     finally:
         srv.shutdown()
+
+
+# ------------------------------------------------------------------ the rest of Advanced capture (0.2.472)
+def test_the_rest_of_advanced_captures_words():
+    assert lm.driver_text({}) == (
+        "Driver counters: unavailable or not sampled. TCP reassembly monitoring is separate. Last forwarded game data: not "
+        "observed. Last decoded effect: not observed. Idle time alone does not establish a capture failure.")
+    d = {"pcap_stats_sampled": True, "pcap_stats_partial": True, "pcap_received": 1200, "pcap_dropped": 3,
+         "pipeline": {"stage": "waiting_for_tcp", "visible_players": 2}, "payload_packets": 40, "forwarded": 9,
+         "decoded_events": 5, "last_packet_age_seconds": 1.25, "last_combat_age_seconds": 0,
+         "capture_processing": {"decoder_errors": 1234.4, "shutdown_discarded_payloads": None, "capture_errors": 0}}
+    assert lm.driver_text({"diagnostics": d}) == (
+        "Driver counters (partial coverage): 1200 received, 3 capture-buffer drops, 0 interface/driver drops. Zero does "
+        "not prove loss-free capture; counts can include other traffic. Capture stage: No TCP packets observed. Payload "
+        "packets 40; forwarded chunks 9; decoded effects 5; visible players 2. This summarizes retained counters, not proof "
+        "of current activity. Raw payload recording is optional. Last forwarded game data: 1.3s ago. Last decoded effect: "
+        "0.0s ago. Idle time alone does not establish a capture failure. Session processing: 1,234 decoder failures; not "
+        "recorded shutdown payload discards; not recorded payloads retained during shutdown. Legacy error/discard count 0 "
+        "overlaps these counters.")
+    assert "Capture stage: new_stage." in lm.driver_text({"diagnostics": {"pipeline": {"stage": "new_stage"}}})
+    m = {"installed_build": "2.0.6.0", "installed_build_source": "game files", "game_patch": "version:product:2.0.6",
+         "region": "KR", "server_name": "Zikel", "reason": "Read from the game files."}
+    context = {"zone": "Test Isle", "encounter_type": "dungeon", "difficulty": "hard",
+               "classification": {"conflicts": ["zone A", "zone B"], "basis": "npc_only"}}
+    s = {"automatic_metadata": m, "automatic_context": context,
+         "catalog_coverage": {"map_id": 600073, "instance_id": 12, "unmapped": [1, 2, 3], "npc_entities_without_type": 4}}
+    assert lm.meta_summary(s) == ("Installed game version: 2.0.6.0 (game files) · Test Isle · expand for the comparison "
+                                  "version, region and catalog coverage")
+    assert lm.meta_text(s) == (
+        "Installed game version: 2.0.6.0 (game files). Comparison version: 2.0.6. Automatic region: KR. World: Zikel. Zone: "
+        "Test Isle. Content: dungeon. Difficulty: hard. Map / instance IDs: 600073 / 12. 3 unmapped catalog IDs and 4 enemy "
+        "references without an NPC type in this view (included in diagnostics). Context conflict: zone A; zone B. NPC-only "
+        "instance suggestion; entry remains unverified. Read from the game files. Product version identifies comparison "
+        "groups across launchers; legacy capture metadata is retained.")
+    assert lm.meta_summary({"automatic_metadata": {"status": "not installed"}}).startswith(
+        "Installed game version: not installed · zone not identified · ")
+    ready = lm.meta_text({"automatic_metadata": {"region_status": "ready"}})
+    assert "Automatic region: waiting for recorded server ID. World: waiting for recorded server ID." in ready
+    assert "Automatic region: failed. World: unavailable." in lm.meta_text({"automatic_metadata": {"region_status": "failed"}})
+    assert lm.record_text({}) == "Raw TCP recording is off · not required for live combat capture"
+    assert lm.record_text({"recording": {"enabled": True, "records": 532, "disk_bytes": 3 * 1048576}}) == \
+        "Recording raw TCP · 532 TCP payload records · 3.0 MiB on disk · no record limit"
+    assert lm.record_text({"recording": {"records": 5, "disk_bytes": 1000}}) == \
+        "Raw TCP recording off · 5 TCP payload records · 0.0 MiB on disk, kept for this capture's diagnostic ZIP"
+    assert lm.diagnostic_errors({}) == ""
+    assert lm.diagnostic_errors({"recording": {"error": "disk full"},
+                                 "diagnostics": {"decoder_warning": "Unknown opcode burst", "archive_deferred": "Later.",
+                                                 "archive_error": "denied", "recording_cleanup_error": "busy"},
+                                 "snapshot": {"decode_backlog": {"catching_up": True, "queue_depth": 4200}}}) == (
+        "TCP recording stopped writing: disk full. 0 records were not saved. Free disk space and export the retained data. "
+        "Unknown opcode burst. Capture continues; affected data remains unranked. Later. Could not save diagnostic ZIP: "
+        "denied. Use Export capture diagnostics to retry before starting another capture. Raw diagnostic cleanup failed: "
+        "busy. The raw file remains in the diagnostics folder. Live view is catching up (4200 packets queued) during a heavy "
+        "fight; final totals are unaffected.")
+    zip_ = {"file": "C:/diag/a.zip", "size_bytes": 23456, "records": 0, "capture_packets": 9, "decoded_events": 3,
+            "retained_effects": 1}
+    assert lm.export_lines(zip_) == [
+        "Saved ZIP: 23,456 bytes · 0 raw TCP records.", "Capture packets: 9 · decoded events: 3 · retained effects: 1.",
+        "Saved on this computer: C:/diag/a.zip", "Contains a readable capture-summary.txt and diagnostics.json.",
+        "Raw TCP recording was off or empty, so tcp-payloads.jsonl is intentionally empty. The ZIP still contains capture "
+        "status, counters and errors. Use Open diagnostics folder to find it."]
+    assert len(lm.export_lines({**zip_, "records": 7})) == 4
+    assert lm.exported_zip_words(zip_) == ("Diagnostic ZIP saved (23,456 bytes) to C:/diag/a.zip. Metadata-only ZIP; raw "
+                                           "TCP recording is off or empty.")
+    assert lm.exported_zip_words({**zip_, "records": 7}).endswith(". 7 raw TCP records.")
+    found = lm.installations({"installations": [{"id": "a", "label": "C:/Games/AION2"}], "selected": "gone"})
+    assert found == {"options": [("", "Auto (one installed copy)"), ("a", "C:/Games/AION2"),
+                                 ("gone", "Selected installation unavailable")],
+                     "selected": "gone", "required": False, "status": lm.INSTALL_NEXT}
+    assert lm.installations({"installations": [{"id": "a"}, {"id": "b"}], "selection_required": True})["status"] == \
+        "Multiple copies found: choose the copy you play."
+    assert lm.installations({})["status"] == lm.INSTALL_NONE and lm.installations({})["options"] == [("", lm.INSTALL_AUTO)]
+    marks = [{"kind": "mark", "at": f"2026-11-21T22:15:0{i}.123Z", "label": "shield", "note": "", "fight_t": None}
+             for i in range(9)]
+    marks.append({"at": "2026-11-21T22:16:00Z", "label": "miss", "note": "big hit", "fight_t": 41.6, "boss": "Testlord"})
+    marks.append({"kind": "candidate", "status": "pending", "id": 4, "at": "2026-11-21T22:17:00Z", "label": "hot"})
+    rows = lm.marks_line(marks)
+    assert len(rows) == 8 and rows[0] == {"when": "2026-11-21 22:16:00Z", "label": "miss", "note": "big hit",
+                                          "fight": " · 42s into Testlord"}
+    assert rows[1] == {"when": "2026-11-21 22:15:08Z", "label": "shield", "note": "", "fight": ""}
+    assert lm.marks_line([{"label": "x", "fight_t": 3}])[0]["fight"] == " · 3s into the fight"
+    marks += [{"kind": "candidate", "status": "confirmed"}, {"kind": "candidate", "status": "dismissed"}]
+    pending, decided = lm.candidates(marks)
+    assert pending == [{"id": 4, "when": "2026-11-21 22:17:00Z", "label": "hot", "why": ""}] and decided == 2
+    assert lm.candidates_head(pending, decided) == \
+        "Candidates the app noticed (confirm what you saw, dismiss what you did not; 2 decided):"
+    assert lm.candidates_head([], 2) == "No candidate waiting (2 decided this capture)." and lm.candidates_head([], 0) == ""
+    assert lm.engine_note("") == lm.engine_note("x").replace("x ", "")                    # one space either way
+    assert "capture permission. Export writes" in lm.engine_note("")
+
+
+def test_the_game_installation_is_chosen_or_added_by_hand(qapp, tmp_path):
+    two = {"installations": [{"id": "a", "label": "C:/Games/AION2"}, {"id": "b", "label": "D:/AION2"}], "selected": "",
+           "selection_required": True}
+    app = FakeApp({("GET", "/api/meter/installations", None): two,
+                   ("POST", "/api/meter", "installation"): [{**two, "selected": "b", "selection_required": False},
+                                                            _refused("/api/meter", 400, "ValueError: Save and clear first")],
+                   ("POST", "/api/meter", "install-path"): [{**two, "selected": "c", "selection_required": False},
+                                                            _refused("/api/meter", 400, "ValueError: no game there")]})
+    page = _page(tmp_path, app)
+    assert not page.advanced.is_open()
+    page.read_installations()
+    settle(lambda: page.install.count() == 3)
+    assert [page.install.itemText(i) for i in range(3)] == ["Auto (one installed copy)", "C:/Games/AION2", "D:/AION2"]
+    assert page.advanced.is_open() and page.store.value("meter-advanced-open") == "1"      # a copy to choose: opened
+    assert page.install_words.text() == "Multiple copies found: choose the copy you play."
+    page.install.setCurrentIndex(2)
+    page.install.activated.emit(2)
+    settle(lambda: page.install_words.text() == lm.INSTALL_NEXT)
+    assert app.sent("POST")[-1][2] == {"action": "installation", "id": "b"} and page.install.currentData() == "b"
+    page.install.setCurrentIndex(1)
+    page.install.activated.emit(1)
+    settle(lambda: page.install_words.text() == "ValueError: Save and clear first")       # the list read again first
+    assert app.sent("GET", "/api/meter/installations")[-1] and page.install.currentData() == ""
+    page.add_install_path()
+    assert page.install_path_words.text() == "Enter the game’s install folder."
+    page.install_path.setText("  E:/AION 2  ")
+    page.add_install_path()
+    assert page.install_path_words.text() == "Checking…"
+    settle(lambda: page.install_path_words.text() == "Added and selected.")
+    assert app.sent("POST")[-1][2] == {"action": "install-path", "path": "E:/AION 2"} and page.install_path.text() == ""
+    assert page.install.itemText(3) == "Selected installation unavailable" and page.install.currentData() == "c"
+    page.install_path.setText("F:/nothing")
+    page.add_install_path()
+    settle(lambda: page.install_path_words.text() == "ValueError: no game there")
+    page.apply({**IDLE, "installation_locked": True})
+    assert not page.install.isEnabled()
+    app.answers[("GET", "/api/meter/installations", None)] = _refused("/api/meter/installations", 403, "PermissionError: x")
+    page.read_installations()
+    settle(lambda: page.install_words.text() == "PermissionError: x")
+
+
+def test_capture_diagnostics(qapp, tmp_path):
+    reading = {**IDLE, "diagnostics": {"pcap_stats_sampled": True, "pcap_received": 1200, "decoder_warning": "Unknown burst"},
+               "recording": {"enabled": True, "records": 532, "disk_bytes": 3 * 1048576},
+               "automatic_metadata": {"installed_build": "2.0.6.0"}, "automatic_context": {"zone": "Test Isle"},
+               "diagnostic_export": {"file": "C:/diag/a.zip", "size_bytes": 23456, "records": 0, "capture_packets": 9,
+                                     "decoded_events": 3, "retained_effects": 1,
+                                     "download_url": "/api/meter/diagnostics?name=a.zip"}}
+    saved = {"file": "C:/diag/b.zip", "size_bytes": 99, "records": 4, "capture_packets": 1, "decoded_events": 1,
+             "retained_effects": 1, "download_url": "/api/meter/diagnostics?name=b.zip"}
+    app = FakeApp({("POST", "/api/meter", "diagnostics"): [saved, _refused("/api/meter", 500, "OSError: disk full")],
+                   ("POST", "/api/meter", "diagnostics-folder"): [{"folder": "C:/diag"}, _refused("/api/meter", 500, "OSError: x")]})
+    opened = []
+    page = _page(tmp_path, app, reading=reading, open_link=opened.append)
+    assert not page.meta.is_open() and not page.diagnostics.is_open()                   # both folded
+    assert page.meta.sub.text().startswith("Installed game version: 2.0.6.0 · Test Isle · expand for")
+    assert page.meta_words.text().startswith("Installed game version: 2.0.6.0. Comparison version: unavailable.")
+    assert page.driver.text().startswith("Driver counters: 1200 received, 0 capture-buffer drops")
+    assert page.record_words.text() == "Recording raw TCP · 532 TCP payload records · 3.0 MiB on disk · no record limit"
+    assert page.diag_errors.text() == "Unknown burst. Capture continues; affected data remains unranked."
+    assert not page.diag_errors.isHidden() and not page.diag_result.isHidden()
+    assert page.diag_lines.text().split("\n")[:3] == ["Saved ZIP: 23,456 bytes · 0 raw TCP records.",
+                                                      "Capture packets: 9 · decoded events: 3 · retained effects: 1.",
+                                                      "Saved on this computer: C:/diag/a.zip"]
+    page.download.click()
+    assert opened == ["http://127.0.0.1:9/api/meter/diagnostics?name=a.zip"]
+    shown = page.diag_lines.text()
+    page.apply({**reading, "diagnostic_export": {**reading["diagnostic_export"], "size_bytes": 1}})   # the same file: kept
+    assert page.diag_lines.text() == shown
+    page.apply(IDLE)                                                                       # still shown, nothing wrong
+    assert not page.diag_result.isHidden() and page.diag_errors.isHidden()
+    for key, words in (("diagnostics", "Diagnostic ZIP saved (99 bytes) to C:/diag/b.zip. 4 raw TCP records."),
+                       ("folder", "Diagnostics folder requested: C:/diag"),
+                       ("diagnostics", "Diagnostic export failed: OSError: disk full"),
+                       ("folder", "Could not open diagnostics folder: OSError: x")):
+        page.actions[key].click()
+        assert page.actions[key].text() == lm.ACTIONS[key][1] and not page.actions[key].isEnabled()
+        settle(lambda: not page.acting)
+        assert page.notice_text == words and page.toast.text() == words and page.actions[key].text() == lm.ACTIONS[key][0]
+    assert "Saved on this computer: C:/diag/b.zip" in page.diag_lines.text()
+    page.download.click()
+    assert opened[-1] == "http://127.0.0.1:9/api/meter/diagnostics?name=b.zip"
+
+
+def test_record_tcp_payloads_and_the_marks(qapp, tmp_path):
+    marks = [{"kind": "mark", "at": "2026-11-21T22:15:03.123Z", "label": "shield", "note": "big hit", "fight_t": 41.6,
+              "boss": "Testlord"},
+             {"kind": "candidate", "status": "pending", "id": 4, "at": "2026-11-21T22:16:00Z", "label": "miss",
+              "why": "an attack without damage"},
+             {"kind": "candidate", "status": "dismissed", "id": 3}]
+    app = FakeApp({("GET", "/api/ui", None): {"meter_record_packets": True},
+                   ("GET", "/api/meter/marks", None): {"marks": marks, "enabled": True},
+                   ("POST", "/api/ui", None): [{"meter_record_packets": False}, {"meter_record_packets": True},
+                                               _refused("/api/ui", 500, "OSError: read-only")],
+                   ("GET", "/api/meter", None): IDLE,
+                   ("POST", "/api/meter", "mark"): [{"marks": marks[:1] * 2}, _refused("/api/meter", 400, "ValueError: Tick")],
+                   ("POST", "/api/meter", "relabel"): {"marks": marks},
+                   ("POST", "/api/meter", "decide"): [{"marks": marks[:1]}, {"marks": []},
+                                                      _refused("/api/meter", 400, "ValueError: no such mark")]})
+    page = _page(tmp_path, app)
+    page.requests.get("ui", "/api/ui")
+    page.read_marks()
+    settle(lambda: page.record.isChecked() and page.marks_words.text().startswith("Marked:"))
+    assert not page.mark_box.isHidden()
+    assert page.marks_words.text() == "Marked: 2026-11-21 22:15:03Z · <b>shield</b> · big hit · 42s into Testlord"
+    labels = [w.text() for w in page.candidates.findChildren(QLabel)]
+    assert labels == ["Candidates the app noticed (confirm what you saw, dismiss what you did not; 1 decided):",
+                      "2026-11-21 22:16:00Z · <b>miss?</b> · an attack without damage"]
+    choice = page.candidates.findChildren(type(page.mark_label))[0]
+    assert choice.currentData() == "miss"
+    choice.setCurrentIndex(choice.findData("mitigation"))
+    next(b for b in page.candidates.findChildren(QPushButton) if b.text() == "Confirm").click()
+    settle(lambda: page.notice_text == "Candidate confirmed as a mark.")
+    assert app.sent("POST")[-1][2] == {"action": "decide", "id": 4, "accept": True, "label": "mitigation"}
+    assert page.candidates.isHidden()                                                    # none waiting, none decided
+    page._marks_shown(marks)
+    next(b for b in page.candidates.findChildren(QPushButton) if b.text() == "Dismiss").click()
+    settle(lambda: page.notice_text == "Candidate dismissed.")
+    assert app.sent("POST")[-1][2] == {"action": "decide", "id": 4, "accept": False}       # no label
+    assert page.marks_words.text() == "No marks yet in this capture."
+    page._marks_shown(marks)
+    next(b for b in page.candidates.findChildren(QPushButton) if b.text() == "Dismiss").click()
+    settle(lambda: page.notice_text == "Could not decide the candidate: ValueError: no such mark")
+    # a moment marked, the latest labelled
+    page.mark_label.setCurrentIndex(page.mark_label.findData("interrupt"))
+    page.mark_note.setText("cast stopped")
+    next(b for b in page.mark_box.findChildren(QPushButton) if b.text() == "Mark").click()
+    settle(lambda: page.notice_text == "Moment marked.")
+    assert app.sent("POST")[-1][2] == {"action": "mark", "label": "interrupt", "note": "cast stopped"}
+    assert page.mark_note.text() == ""
+    page.mark_note.setText("again")
+    next(b for b in page.mark_box.findChildren(QPushButton) if b.text() == "Label the latest").click()
+    settle(lambda: page.notice_text == "Latest mark labelled.")
+    assert app.sent("POST")[-1][2] == {"action": "relabel", "index": -1, "label": "interrupt", "note": "again"}
+    assert page.mark_note.text() == "again"
+    next(b for b in page.mark_box.findChildren(QPushButton) if b.text() == "Mark").click()
+    settle(lambda: page.notice_text == "Could not mark: ValueError: Tick")
+    # Record TCP payloads off, on again, then refused
+    page.record.click()
+    assert not page.record.isEnabled()
+    settle(lambda: page.record.isEnabled())
+    assert app.sent("POST", "/api/ui")[-1][2] == {"meter_record_packets": False}
+    assert page.toast.text() == "TCP recording off" and page.mark_box.isHidden() and not page.record.isChecked()
+    count = len(app.sent("GET", "/api/meter/marks"))
+    page.record.click()
+    settle(lambda: page.record.isEnabled() and not page.mark_box.isHidden())
+    assert page.toast.text() == "TCP recording on: every capture records raw TCP from now on"
+    settle(lambda: len(app.sent("GET", "/api/meter/marks")) == count + 1)               # and the marks read
+    page.record.click()
+    settle(lambda: page.notice_text == "Could not change TCP recording: OSError: read-only")
+    assert page.record.isChecked() and page.record.isEnabled()                            # put back
+    # the marks read every third reading while a capture records raw TCP
+    count = len(app.sent("GET", "/api/meter/marks"))
+    for _ in range(6):
+        page.apply(_fight())
+    settle(lambda: len(app.sent("GET", "/api/meter/marks")) == count + 2)
+    page.record.setChecked(False)
+    for _ in range(3):
+        page.apply(_fight())
+    _shown()
+    assert len(app.sent("GET", "/api/meter/marks")) == count + 2
+    page.apply({**_fight(), "finalizing": True})
+    assert not page.record.isEnabled()
+

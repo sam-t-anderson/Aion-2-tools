@@ -1,3 +1,13 @@
+## The Live Meter page in the native interface, part 2 (0.2.472)
+
+**Advanced capture on the Live Meter page in the app's window is now whole**, as on the web page:
+- **the game installation:** the copy of the game the capture reads its version from, with **Refresh installations**; when several copies are found, Advanced capture opens for you to choose. **Add path** adds a folder the game is installed in by hand;
+- **the installed game version and capture context** (folded): the version, the comparison version, the region, world, zone, content and difficulty, the map and instance, and the catalog's coverage;
+- **Capture diagnostics** (folded): the capture's counters and how far the game data got, **Record TCP payloads for diagnostics** (kept by the app), **Export capture diagnostics** and **Open diagnostics folder**, the ZIP saved last with **Download diagnostic ZIP**, and what went wrong with the recording or the decoder;
+- **the marks**, while TCP payloads are recorded: **Mark this moment** with what you saw and a note, **Label the latest**, the latest marks, and the candidates the app noticed to confirm or dismiss.
+
+The session's live review still opens in the web interface, from the button on the page.
+
 ## The Live Meter page in the native interface, part 1 (0.2.471)
 
 **The Live Meter page in the app's window is now the web page's**, in place of its short list of the fight:
