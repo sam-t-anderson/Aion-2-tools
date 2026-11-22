@@ -1,3 +1,21 @@
+## The Settings page in the native interface, part 1 (0.2.475)
+
+**Settings in the app's window now has the web page's tabs, and App & data as the web page draws it.**
+- **The tabs:** Appearance, Overlay, Pet Tracker, Meter, Server, Profiles & backup and App & data show one group of settings at a time, and the page opens on the tab you chose last.
+- **App & data**, with each setting's explanation as on the web page:
+  - the native interface, the app's own window, the text size, performance mode, the page at launch, My Character at launch and the tray; each choice is saved as you make it and says so;
+  - **Your data:** the data folder, and buttons that open it, the combat logs and the results;
+  - **Game database:** its items and last update, **Check now**, **Re-index cached icons** with its progress, **Export image coverage** (saved where you choose, with the pictures this window could not read) and **Retry images**;
+  - **Storage maintenance:** the cache and update files listed, and the old ones cleaned;
+  - **Updates and Version:** the version, **Check now**, and when a newer version is out, **Update now** and its release notes;
+  - **Patch notes:** this version's notes in a window, and the link to every version's;
+  - the Discord, **Quit aion2calc** and the author.
+- The language is still chosen on the web Settings page, from a button on the row: the app's window is in English for now. The other tabs' settings are as before, and each part still on the web Settings page has its button.
+
+The app's window now shows what's new once after an update, as the web interface does; closing it means it does not show again. It also opens at the text size chosen under App & data. As Qt can't zoom a window that is already open, a new size shows the next time the window opens.
+
+The web Settings page's note on the native interface now says what is native: every page but Raid Planner and Builds.
+
 ## An upload's log reviewed in the native interface (0.2.474)
 
 **My Uploads in the app's window now has each upload's Review**, as on the web page: it reads the upload's log from its original server with the upload's private credential, a private upload's too, and opens it on its own page in Combat Logs, with **← Back to combat logs** returning to My Uploads as you left it.

@@ -65,7 +65,7 @@ from . import combat_replay as rp
 from . import combat_review as cw
 from . import combat_records as cr
 from . import combat_views as cv
-from . import theme
+from . import image_health, theme
 from .account import TIER_COLOURS
 from .account_page import _parse_pill
 from .api import AppApi, Requests
@@ -160,6 +160,10 @@ class OfficialPictures(QObject):
         else:
             self.failed.emit(url)
 
+    def forget(self, url: str) -> None:
+        """A picture to be asked for again (Retry images)."""
+        self._asked.discard(url)
+
     def stop(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
 
@@ -233,6 +237,7 @@ class ReviewPage(QWidget):
         self.official.loaded.connect(self._official_picture)
         self.official.failed.connect(self._official_failed)
         self.official_kept: dict[str, QPixmap | None] = {}
+        image_health.watch(self)                         # Settings' Retry images reads them again (0.2.475)
         self.open_web = open_web or (lambda page: None)
         self.open_in_web = open_in_web or self.open_web
         self.pictures = pictures
@@ -2102,13 +2107,22 @@ class ReviewPage(QWidget):
     def _official_picture(self, url: str, data: bytes) -> None:
         picture = QPixmap()
         self.official_kept[url] = picture if picture.loadFromData(data) else None
+        if self.official_kept[url] is None:
+            image_health.failed(url)
         self.awaiting = True
         self.soon.start()
 
     def _official_failed(self, url: str) -> None:
         self.official_kept[url] = None
+        image_health.failed(url)                         # among the window's picture failures (``A2AssetHealth``)
         self.awaiting = True
         self.soon.start()
+
+    def retry_pictures(self) -> None:
+        """Retry images: the characters' pictures that could not be read are read again the next time they show."""
+        for url in [u for u, picture in self.official_kept.items() if picture is None]:
+            self.official_kept.pop(url)
+            self.official.forget(url)
 
     def _details_view(self, details: dict) -> QWidget:
         """A recorded character (character-view.js ``details``): the portrait and its lines, then each part's cards."""
