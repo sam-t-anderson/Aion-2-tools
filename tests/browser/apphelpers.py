@@ -19,8 +19,24 @@ class Watch:
         return [p for p in self.problems if not any(a in p for a in self.allowed)]
 
 
-def open_context(browser, base: str, scheme: str = "dark", width: int = 1600):
-    """A fresh browser profile (its own storage) that reaches only the app."""
+def forget_interface_data(base: str) -> None:
+    """The interfaces' data the app keeps (0.2.482) forgotten: what a browser kept in its storage until then, the app
+    keeps for every browser, and the tests share one app."""
+    import json
+    import urllib.request
+    with urllib.request.urlopen(base + "api/interface", timeout=10) as answer:
+        kept = json.load(answer)["values"]
+    if kept:
+        forget = json.dumps({"set": {key: None for key in kept}}).encode()
+        request = urllib.request.Request(base + "api/interface", forget, {"Content-Type": "application/json"})
+        urllib.request.urlopen(request, timeout=10).close()
+
+
+def open_context(browser, base: str, scheme: str = "dark", width: int = 1600, forget: bool = True):
+    """A fresh browser profile (its own storage, and none of the app's interface data unless ``forget`` is false: a
+    second browser of the same player) that reaches only the app."""
+    if forget:
+        forget_interface_data(base)
     context = browser.new_context(viewport={"width": width, "height": 1000}, color_scheme=scheme)
     context.route("**/*", lambda r: r.continue_() if r.request.url.startswith((base, "data:", "blob:")) else r.abort())
     return context

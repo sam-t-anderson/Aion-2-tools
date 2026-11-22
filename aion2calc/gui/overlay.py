@@ -3614,10 +3614,11 @@ def _app_base(url: str) -> str:
     return url.split("/overlay")[0] if "/overlay" in url else url
 
 
-def overlay_store() -> QSettings:
-    """Where the overlay keeps its opacity and metric: the user's own settings file, as the web overlay keeps them
-    in its page's storage."""
-    return QSettings(QSettings.IniFormat, QSettings.UserScope, "Aion 2 Calc", "native-overlay")
+def overlay_store():
+    """Where the overlay keeps its opacity and metric: since 0.2.482 the app's interface data, under the overlay's own
+    keys (``interface.OVERLAY``), where until then it was a settings file of the overlay's own."""
+    from . import interface
+    return interface.store(interface.OVERLAY)
 
 
 def main(argv=None) -> int:
@@ -3628,6 +3629,8 @@ def main(argv=None) -> int:
     url = args.url or _default_url()
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setQuitOnLastWindowClosed(True)
+    from . import interface
+    interface.connect(AppApi(_app_base(url)))
     window = MeterOverlay(AppApi(_app_base(url)), _ParentProcess(os.environ.get("AION2CALC_PARENT_PID")),
                           overlay_store(), native_overlay())
     window.show()
