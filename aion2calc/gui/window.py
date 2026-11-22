@@ -46,7 +46,7 @@ from .pets_page import PetsPage, Toast
 from .results import _dict, _truthy, js_text
 from .timers_page import TimersPage
 from .settings_page import SettingsPage, show_patch_notes
-from .settings_words import patch_notes, text_scale
+from .settings_words import launch_page, patch_notes, text_scale
 from .update_bar import CLOSING as UPDATE_CLOSING, UpdateBar, UpdateWatch, available, bar_state
 from .update_bar import stylesheet as update_stylesheet
 
@@ -195,6 +195,7 @@ class MainWindow(QMainWindow):
         self.header.change_theme.connect(self.change_theme)
         self.header.quit_app.connect(self.quit_app)
         self.header.capture.connect(self.capture)
+        self.page("settings").ui_saved.connect(self._ui_saved)
         from . import interface
         self.header.show_theme(theme.chosen_theme(interface.store()))
         self.shot_scaled = False
@@ -327,6 +328,17 @@ class MainWindow(QMainWindow):
         self.watch.start()
         if self.requests is not None:                    # the header's account, as its menu reads it at first
             self.requests.get("account", "/api/account")
+        self.read_ui()
+
+    def read_ui(self) -> None:
+        """The app's interface settings as the web page reads them as it loads: performance mode
+        (``applyPerformanceMode``)."""
+        if self.requests is not None:
+            self.requests.get("ui", "/api/ui")
+
+    def _ui_saved(self, key: str, value) -> None:
+        if key == "performance_mode":                   # Settings' check box, applied as it is saved
+            self.header.calm(value is True)
 
     def _status(self, s) -> None:
         """The app's status (``syncPill``): the game database's line and Quit's version in the header, the update's
@@ -412,6 +424,8 @@ class MainWindow(QMainWindow):
     def _replied(self, name: str, answer) -> None:
         if name == "account":
             self._account_read(answer)
+        elif name == "ui":
+            self.header.calm(_dict(answer).get("performance_mode") is True)
         elif name == "quit":
             self._stopped()
         elif name == "shot":
@@ -484,19 +498,32 @@ def _follow_the_computer(app) -> None:
         pass
 
 
-def scale_text(api: AppApi) -> None:
-    """The window at the app's text size (Settings → Text size, ``app_text_scale``), every word and the layout with it
-    as a browser's zoom scales them (0.2.475). Qt takes it as the window opens (``QT_SCALE_FACTOR``), so a new size
-    shows the next time the window opens; a size set by hand in the environment is left as it is."""
-    if os.environ.get("QT_SCALE_FACTOR"):
-        return
+def ui_settings(api: AppApi) -> dict:
+    """The app's interface settings as the web page reads them as it starts (``/api/ui``); none where it does not
+    answer."""
     try:
         ui = api.get("/api/ui")
     except (OSError, ValueError):
+        return {}
+    return ui if isinstance(ui, dict) else {}
+
+
+def scale_text(api: AppApi, ui: dict | None = None) -> None:
+    """The window at the app's text size (Settings → Text size, ``app_text_scale``), every word and the layout with it
+    as a browser's zoom scales them (0.2.475). Qt takes it as the window opens (``QT_SCALE_FACTOR``), so a new size
+    shows the next time the window opens; a size set by hand in the environment is left as it is. ``ui``: the settings
+    already read."""
+    if os.environ.get("QT_SCALE_FACTOR"):
         return
-    size = text_scale(ui if isinstance(ui, dict) else {})
+    size = text_scale(ui if ui is not None else ui_settings(api))
     if size != 100:
         os.environ["QT_SCALE_FACTOR"] = f"{size / 100:g}"
+
+
+def first_page(fragment: str, ui: dict) -> str:
+    """The page the window opens on (app.js's launch, 0.2.495): the one its address names (``#/settings`` from the
+    tray's Settings), else the one Settings → App & data → **Page at launch** chose, else the Live Meter."""
+    return fragment.strip("/") or launch_page(ui)
 
 
 def main(argv=None) -> int:
@@ -505,9 +532,10 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     from ..overlay import _ParentProcess
     base, _, fragment = args.url.partition("#")
-    page = fragment.strip("/") or "meter"
+    ui = ui_settings(AppApi(base))
+    page = first_page(fragment, ui)
     if QApplication.instance() is None:
-        scale_text(AppApi(base))
+        scale_text(AppApi(base), ui)
     app = QApplication.instance() or QApplication(sys.argv[:1])
     from . import interface
     interface.connect(AppApi(base))                  # the window's choices, kept by the app with the web pages' (0.2.482)

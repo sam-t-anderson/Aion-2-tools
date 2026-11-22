@@ -1410,3 +1410,44 @@ def test_the_window_opens_at_the_text_size(monkeypatch):
     scale_text(FakeApp({("GET", "/api/ui", None): {"app_text_scale": 100}}))           # the size it ships with: none
     scale_text(FakeApp())                                                               # the app not answering: none
     assert "QT_SCALE_FACTOR" not in os.environ
+    scale_text(FakeApp(), {"app_text_scale": 90})                                      # the settings already read
+    assert os.environ["QT_SCALE_FACTOR"] == "0.9"
+
+
+def test_the_window_opens_on_the_page_chosen(qapp, monkeypatch):
+    from aion2calc.gui import i18n, interface, theme
+    from aion2calc.gui import window as native_window
+    # Settings → App & data → Page at launch; the page the address names wins (the tray's Settings)
+    assert native_window.first_page("", {"app_default_page": "raid"}) == "raid"
+    assert native_window.first_page("/settings", {"app_default_page": "raid"}) == "settings"
+    assert native_window.first_page("", {"app_default_page": "account"}) == "meter"      # not one to open on
+    assert native_window.first_page("", {}) == native_window.first_page("", {"app_default_page": None}) == "meter"
+    assert native_window.ui_settings(FakeApp({("GET", "/api/ui", None): {"app_default_page": "news"}})) == {
+        "app_default_page": "news"}
+    assert native_window.ui_settings(FakeApp()) == {} and native_window.ui_settings(FakeApp({("GET", "/api/ui", None): ["x"]})) == {}
+    # the window started on it, the settings read once
+    opened, read = [], []
+
+    class Window:
+        def __init__(self, api, base, page, parent_process):
+            opened.append((base, page))
+
+        def show(self):
+            pass
+
+        def start(self):
+            pass
+    monkeypatch.setattr(native_window, "MainWindow", Window)
+    monkeypatch.setattr(native_window, "ui_settings", lambda api: read.append(api.base) or {"app_default_page": "raid"})
+    monkeypatch.setattr(native_window, "_follow_the_computer", lambda app: None)
+    monkeypatch.setattr(interface, "_shared", interface._Shared())
+    monkeypatch.setattr(interface, "connect", lambda api, old=None: None)
+    monkeypatch.setattr(QApplication, "exec", lambda self: 0)
+    try:
+        assert native_window.main(["--url", "http://127.0.0.1:9/"]) == 0
+        assert native_window.main(["--url", "http://127.0.0.1:9/#/settings"]) == 0
+    finally:
+        i18n.uninstall()
+        theme.apply_look("dark")
+    assert opened == [("http://127.0.0.1:9/", "raid"), ("http://127.0.0.1:9/", "settings")]
+    assert read == ["http://127.0.0.1:9/"] * 2

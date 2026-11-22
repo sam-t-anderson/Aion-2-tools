@@ -1,3 +1,8 @@
+## The native window opens on the page chosen in Settings (0.2.495)
+
+**Settings → App & data → Page at launch now applies to the app's own window too.** The window opens on that page when the app starts, and when the tray icon or the Open-app hotkey brings it back, as the web interface does; until now it always opened on the Live Meter. The tray's **Settings** still opens on Settings.
+- With **Performance mode** on, the header's database dot holds still while the database updates, as the web page stops its animations; the check box applies at once.
+
 ## The web pages' header in the native window (0.2.494)
 
 **The app's own window now has the web pages' header across its top.**
