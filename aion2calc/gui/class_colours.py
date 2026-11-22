@@ -73,11 +73,13 @@ class ClassColours(QWidget):
         self.enabled.toggled.connect(lambda _on: self.save())       # any change but the palette's saves (``onchange``)
 
     def show_preference(self, preference: dict) -> None:
-        """The panel as the preference reads: on unless turned off, each class in its colour."""
+        """The panel as the preference reads: on unless turned off, each class in its colour, in lower case as a colour
+        picker gives it (0.2.481)."""
         self.enabled.blockSignals(True)
         self.enabled.setChecked(preference.get("enabled") is not False)
         self.enabled.blockSignals(False)
-        self.colours = {cls: cr.class_colour(cls, {"colors": preference.get("colors") or {}}) for cls in cr.CLASS_COLOURS}
+        self.colours = {cls: cr.class_colour(cls, {"colors": preference.get("colors") or {}}).lower()
+                        for cls in cr.CLASS_COLOURS}
         for cls, colour in self.colours.items():
             self._paint(cls, colour)
 
@@ -115,6 +117,8 @@ class ClassColours(QWidget):
         self.save()
 
     def reset(self) -> None:
-        """The class colours as the review's own (``data-reset``): nothing kept."""
+        """The class colours as the review's own (``data-reset``): nothing kept, and the panel as one drawn afresh, its
+        palette list on its first choice (0.2.481)."""
         self.show_preference({})
+        self.palette.setCurrentIndex(0)
         self.saved.emit({})

@@ -1215,19 +1215,19 @@ def test_the_settings_words():
 def test_the_combat_class_colours(qapp, home):
     from aion2calc.gui import combat_review as cw
     app = FakeApp(_answers({("GET", "/api/ui", None): {**server.ui_settings(),
-                                                        "combat_colors": {"enabled": False, "colors": {"ranger": "#112233"}}}}))
+                                                        "combat_colors": {"enabled": False, "colors": {"ranger": "#11AA33"}}}}))
     page = _page(home, app)
     page.ask_colour, asked = _colours("#445566")
     settle(lambda: page.ui)
     panel = page.class_colours                                                       # Appearance, the first tab
     assert panel.isVisibleTo(page) and not panel.enabled.isChecked() and panel.palette.currentIndex() == 0
-    assert panel.colours["ranger"] == "#112233" and panel.colours["cleric"] == "#ffffff"
+    assert panel.colours["ranger"] == "#11aa33" and panel.colours["cleric"] == "#ffffff"      # in lower case, as a picker
     # a class's colour chosen: the preference kept by the app, as the review pages read it; nothing said
     panel.swatches["cleric"].click()
     settle(lambda: app.sent("POST", "/api/ui"))
     sent = app.sent("POST", "/api/ui")[0][2]["combat_colors"]
     assert asked == [("#ffffff", "cleric colour")] and sent["enabled"] is False
-    assert sent["colors"]["cleric"] == "#445566" and sent["colors"]["ranger"] == "#112233" and page.toast.text() == ""
+    assert sent["colors"]["cleric"] == "#445566" and sent["colors"]["ranger"] == "#11aa33" and page.toast.text() == ""
     # a palette: chosen, nothing saved; applied, class colours on with its colours
     panel.palette.setCurrentIndex(1)
     assert len(app.sent("POST", "/api/ui")) == 1
@@ -1237,10 +1237,10 @@ def test_the_combat_class_colours(qapp, home):
     palette = cw.PALETTES[panel.palette.currentData()]
     assert sent["enabled"] is True and all(sent["colors"][cls] == colour for cls, colour in palette.items()
                                            if cls in sent["colors"])
-    # Reset: the review's own colours, nothing kept
+    # Reset: the review's own colours, nothing kept, and the palette list as a panel drawn afresh has it
     _button(panel, cw.RESET_COLOURS).click()
     settle(lambda: len(app.sent("POST", "/api/ui")) == 3)
-    assert app.sent("POST", "/api/ui")[2][2] == {"combat_colors": {}}
+    assert app.sent("POST", "/api/ui")[2][2] == {"combat_colors": {}} and panel.palette.currentIndex() == 0
     # the app refusing: said, as the page says a save it could not make
     app.answers[("POST", "/api/ui", None)] = _refused("/api/ui", 400, "ValueError: combat_colors must be an object")
     panel.enabled.setChecked(False)                                                   # on again since Reset
@@ -1249,7 +1249,7 @@ def test_the_combat_class_colours(qapp, home):
     before = page.ui
     page.start()
     _drawn_again(page, before)
-    assert not panel.enabled.isChecked() and panel.palette.currentIndex() == 0 and panel.colours["ranger"] == "#112233"
+    assert not panel.enabled.isChecked() and panel.palette.currentIndex() == 0 and panel.colours["ranger"] == "#11aa33"
     page.radar_poll.stop()
 
 
