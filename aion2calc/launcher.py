@@ -255,8 +255,8 @@ def _https_check(url: str) -> tuple[bool, str]:
 
 def _native_check() -> str:
     """The native interface as the installed app has it: PySide6 bundled with its Qt, the toolbar's icons drawn (Qt's
-    SVG), a class emblem read from the bundled art (WebP, Qt's or Pillow's), and the meter overlay and its party and
-    radar windows drawn off screen."""
+    SVG), a class emblem read from the bundled art (WebP, Qt's or Pillow's), and the meter overlay and its party, radar
+    and Pet Tracker windows drawn off screen."""
     from . import gui
     if not gui.available():
         raise RuntimeError("PySide6 is not in the app")
@@ -281,22 +281,25 @@ def _native_check() -> str:
     image = window.grab().toImage()
     window.close()
     from .gui.companions import PartyWindow, RadarWindow   # its party and radar windows (0.2.497)
-    party, radar = PartyWindow(), RadarWindow()
+    from .gui.pets_window import PetsWindow                # and the Pet Tracker window (0.2.498)
+    party, radar, pets = PartyWindow(), RadarWindow(), PetsWindow()
     party.apply_ui({"overlay_width": 340, "overlay_show_events": False})
     party.apply_meter({"running": True, "snapshot": {"boss": "Smoke", "players": [{"dps": 1000.0, "damage": 30000.0}]}})
     radar.apply_ui({"radar_enabled": True})
     radar.show_radar({"supported": True, "ready": True, "heard": True, "since": 0.2, "proximity": 0.6, "angle": 30})
-    companions = [w.grab().toImage() for w in (party, radar)]
-    for w in (party, radar):
+    pets.apply_ui({})
+    companions = [w.grab().toImage() for w in (party, radar, pets)]
+    for w in (party, radar, pets):
         w.close()
     app.processEvents()
     chrome.forget_icons()
     if image.isNull() or image.width() != 340 or image.height() < 60:
         raise RuntimeError(f"the overlay drew {image.width()}x{image.height()}")
-    if [c.width() for c in companions] != [340, 232] or min(c.height() for c in companions) < 60:
-        raise RuntimeError("its party and radar windows drew " + " and ".join(f"{c.width()}x{c.height()}" for c in companions))
-    return (f"OK (Qt {qVersion()}, the overlay {image.width()}x{image.height()}, its party and radar windows "
-            + " and ".join(f"{c.width()}x{c.height()}" for c in companions) + ")")
+    if [c.width() for c in companions] != [340, 232, 320] or min(c.height() for c in companions) < 60:
+        raise RuntimeError("its party, radar and Pet Tracker windows drew "
+                           + ", ".join(f"{c.width()}x{c.height()}" for c in companions))
+    return (f"OK (Qt {qVersion()}, the overlay {image.width()}x{image.height()}, its party, radar and Pet Tracker "
+            "windows " + ", ".join(f"{c.width()}x{c.height()}" for c in companions) + ")")
 
 
 def smoke_test(out: str | None = None) -> int:

@@ -1,3 +1,11 @@
+## The Pet Tracker window in the native interface (0.2.498)
+
+**The Pet Tracker window is now the app's own window, as the meter overlay is.** Until now it was a web page in a window of its own; it looks as it did.
+- Pet Tracker's status, **Recent** and **Nearby**, **Hide maxed**, and your pets with their portraits, ranks, souls, families, notices, bars and pins, in Pet Tracker's accent colour and compact rows when those are on.
+- The character Pet Tracker waits to link to its account, with its **Link** button.
+- Its own **Lock**, **Hide** (which turns the window's setting off) and opacity, and its own place, first below the meter overlay's.
+- The PvP player cards window is still a web page for now.
+
 ## The overlay's Party-DPS and radar windows in the native interface (0.2.497)
 
 **The overlay's Party-DPS window and the Hidden Cube radar's window are now the app's own windows, as the meter overlay is.** Until now each was a web page in a window of its own; they look as they did.

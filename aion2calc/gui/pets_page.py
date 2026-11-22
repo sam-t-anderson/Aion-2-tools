@@ -353,6 +353,7 @@ class Bar(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.ratio, self.colour = 0.0, ACCENTS["Gold"]
+        self.track = TRACK                        # the page's theme's; the overlay window's own on its card
         self.setFixedHeight(4)
 
     def set(self, ratio: float, colour: str) -> None:
@@ -364,7 +365,7 @@ class Bar(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor(str(TRACK)))
+        painter.setBrush(self.track if isinstance(self.track, QColor) else QColor(str(self.track)))
         painter.drawRoundedRect(self.rect(), 2, 2)
         if self.ratio > 0:
             painter.setBrush(QColor(self.colour))
