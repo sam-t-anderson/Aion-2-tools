@@ -3,9 +3,10 @@ identity.js draw them.
 
 - **My uploads:** the private credentials of the logs this computer uploaded (kept by the app, never in a log), each
   refreshed with its original server to show its visibility and link, its visibility changed (public once asked), its
-  private link replaced, a moderation hold appealed, the upload deleted, or the credential forgotten. Filters by title
-  or ID, server and the visibility last seen; twenty-five to a page. Credentials can be exported to a private backup,
-  imported from one, or recovered one at a time with an older upload's delete token.
+  private link replaced, a moderation hold appealed, its log reviewed (read with its credential, since 0.2.474), the
+  upload deleted, or the credential forgotten. Filters by title or ID, server and the visibility last seen;
+  twenty-five to a page. Credentials can be exported to a private backup, imported from one, or recovered one at a
+  time with an older upload's delete token.
 - **My Character Identities:** the characters your public recordings on the share server can claim (three where you
   were the recording player), each claimed, renewed, recovered or challenged with newer recordings, released, hidden in
   other uploaders' public logs, or appealed after a revocation. Claims are proven by the credentials above and the
@@ -190,14 +191,16 @@ class _Appeal(Section):
 
 
 class OwnedUploads(QFrame):
-    """My Uploads (log-ownership.js). ``open_web`` opens a page of the web interface; ``confirm``, ``choose_file`` and
-    ``save_file`` stand in for the questions and the file dialogs."""
+    """My Uploads (log-ownership.js). ``open_log`` reviews an upload's log, as its server gave it to the upload's
+    credential (``io.open``): without it no upload has a Review, as the web page draws none without ``io.open``.
+    ``open_link`` opens a shared link in the browser; ``confirm``, ``choose_file`` and ``save_file`` stand in for the
+    questions and the file dialogs."""
 
-    def __init__(self, api: AppApi | None, open_web=None, open_link=None, confirm=None, choose_file=None, save_file=None,
+    def __init__(self, api: AppApi | None, open_log=None, open_link=None, confirm=None, choose_file=None, save_file=None,
                  parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("note")
-        self.api, self.open_web = api, open_web
+        self.api, self.open_log = api, open_log
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.confirm = confirm or (lambda words: _ask(self, words))
         self.choose_file = choose_file or self._ask_file
@@ -318,8 +321,6 @@ class OwnedUploads(QFrame):
         self.table_box.setSpacing(6)
         self.list_box.addWidget(holder)
         self._table()
-        review = _button("Open My Uploads on the web page", lambda: self.open_web("combat/owned") if self.open_web else None)
-        self.list_box.addWidget(_row(_label(cb.OWNED_REVIEW, "small", wrap=False), review))
 
     def _enable(self) -> None:
         for widget in (*self.tools, self.recover_save):
@@ -449,6 +450,7 @@ class OwnedUploads(QFrame):
             _button("Refresh", lambda: self.act(index, "refresh", seen), enabled=not busy), seen,
             _button("Save visibility", lambda: self.act(index, "visibility", seen), enabled=allowed["editable"] and not busy),
             _button("Rotate private link", lambda: self.act(index, "rotate", seen), enabled=allowed["rotate"] and not busy),
+            *([_button("Review", lambda: self.act(index, "open", seen), enabled=not busy)] if self.open_log else []),
             _button("Delete upload", lambda: self.act(index, "delete", seen), enabled=not busy),
             _button("Forget credential", lambda: self.forget(index), enabled=not busy)]
         for place, widget in enumerate(widgets):
@@ -458,7 +460,8 @@ class OwnedUploads(QFrame):
 
     # ---------------------------------------------------------------- actions
     def act(self, index: int, action: str, seen: QComboBox) -> None:
-        """An upload refreshed, its visibility saved, its private link replaced, or the upload deleted."""
+        """An upload refreshed, its visibility saved, its private link replaced, its log reviewed, or the upload
+        deleted."""
         row = self.rows[index]
         visibility = "private" if action == "rotate" else seen.currentText()
         if action == "delete" and not self.confirm(cb.ASK_DELETE):
@@ -488,12 +491,21 @@ class OwnedUploads(QFrame):
                 return {"deleted": True}
             if action == "appeal":
                 return {"status": self._post(cb.owner_request(row, "refresh"))}
+            if action == "open":
+                if isinstance(result, dict) and _truthy(result.get("error")):   # ``api()``: an answer with an error failed
+                    raise ValueError(js_text(result["error"]))
+                return {"log": result}
             return {"status": result}
         self._run("acted", work)
 
     def _acted(self, answer) -> None:
         key, action = self.acting or ("", "")
         self.acting, self.busy = None, False
+        if action == "open":                                    # its log reviewed; the upload's state and the words kept
+            self.render()
+            if self.open_log is not None:
+                self.open_log(_dict(answer).get("log"))
+            return
         if action == "delete":
             self.status.pop(key, None)
             self.message = cb.owned_done("delete")

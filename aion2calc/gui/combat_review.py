@@ -62,6 +62,10 @@ OPPONENT_NOTE = ("The review below reads the fight from their side: the summary,
 REFRESH = "Refresh rankings"
 ELSEWHERE = "The movement replay's Raid Planner file opens in the web interface for now."
 OPEN_WEB = "Open the full review in the web interface"
+#: an upload's log, opened with its credential, is not at an address the web interface can open: its My Uploads reviews it
+ELSEWHERE_OPENED = ("The movement replay's Raid Planner file opens in the web interface for now: its My Uploads "
+                    "reviews this upload too.")
+OPEN_WEB_OPENED = "Open My Uploads in the web interface"
 SUMMARY_COLUMNS = ["Player / server", "Class", "Damage done", "DPS", "Damage taken", "Healing", "HPS", "Deaths"]
 
 

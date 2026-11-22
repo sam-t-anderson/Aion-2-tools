@@ -24,6 +24,8 @@
 - Since 0.2.457 a **log's own page** too (combat_review_page.py), a recorded or shared log's review, shown in place of
   the views likewise: its encounters, notes and summary with parses. Its other sections open in the web interface for
   now, from a button on it.
+- Since 0.2.474 an upload's log too, read with its credential from My Uploads' **Review**, as the web page opens it
+  (``#/combat-log/opened``).
 """
 from __future__ import annotations
 
@@ -219,8 +221,8 @@ class CombatPage(QWidget):
         return kind(self.api, self.shared, self.open_web, self.pictures)
 
     def _owned(self) -> OwnedUploads:
-        """My Uploads."""
-        return OwnedUploads(self.api, self.open_web, open_link=self.open_link, confirm=self.confirm,
+        """My Uploads, each upload's log reviewed here."""
+        return OwnedUploads(self.api, self.open_upload, open_link=self.open_link, confirm=self.confirm,
                             choose_file=self.choose_backup, save_file=self.save_file)
 
     def _identities(self) -> Identities:
@@ -262,13 +264,23 @@ class CombatPage(QWidget):
         self.analysis_page.show_encounter(identifier)
         self._in_place(self.analysis_page)
 
-    def open_review(self, kind: str, value: str, mode=None, segment=None) -> None:
-        """A log's own page in place of the views (``#/combat-log/local/<file>``, ``#/combat-log/shared/<id>``)."""
+    def _review(self) -> ReviewPage:
+        """A log's own page, drawn when first opened and kept."""
         if self.review_page is None:
             self.review_page = ReviewPage(self.api, self.open_web, self.open_in_web, pictures=self.pictures, store=self.store)
             self.review_page.uploaded.connect(self._uploaded)          # My Uploads read again (``a2log-uploaded``)
             self.featured_line.addWidget(self.review_page)
-        self.review_page.show_log(kind, value, mode, segment)
+        return self.review_page
+
+    def open_review(self, kind: str, value: str, mode=None, segment=None) -> None:
+        """A log's own page in place of the views (``#/combat-log/local/<file>``, ``#/combat-log/shared/<id>``)."""
+        self._review().show_log(kind, value, mode, segment)
+        self._in_place(self.review_page)
+
+    def open_upload(self, doc) -> None:
+        """An upload's log as its server gave it to the upload's credential, from My Uploads' Review (``io.open``,
+        ``#/combat-log/opened/<time>``): its page in place of the views."""
+        self._review().show_opened(doc)
         self._in_place(self.review_page)
 
     def _in_place(self, shown: QWidget) -> None:

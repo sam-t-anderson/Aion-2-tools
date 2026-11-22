@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import sys
+import threading
 import urllib.parse
 from datetime import datetime
 
@@ -466,6 +467,8 @@ class FakeApp:
         self.states: dict[str, dict] = {}                  # what the log server says of an upload when asked
         self.owner_refusal = None
         self.asked: list[dict] = []                        # what was asked of the uploads' servers
+        self.opened_log = json.loads(json.dumps(REVIEW_LOG))   # an upload's log, as its server gives it to its credential
+        self.hold: threading.Event | None = None           # set: an upload's log is given only once it is
         self.claims = json.loads(json.dumps(CLAIMS))
         self.log_server = LogServer()
         self.share_refusal = None
@@ -512,6 +515,10 @@ class FakeApp:
         self.asked.append(json.loads(json.dumps(body)))
         if self.owner_refusal:
             raise ValueError(self.owner_refusal)
+        if body["action"] == "open":
+            if self.hold is not None:
+                self.hold.wait(10)
+            return json.loads(json.dumps(self.opened_log))
         state = self.states.setdefault(owner["id"], {"visibility": "unlisted", "url": f"{owner['server']}/log/{owner['id']}"})
         if body["action"] in ("visibility", "rotate"):
             state.update(visibility=body["visibility"],
@@ -1256,9 +1263,9 @@ def _visibility_boxes(widget):
 
 
 def test_my_uploads(qapp, tmp_path):
-    opened, links = [], []
+    links = []
     app = FakeApp()
-    widget = _owned(app, tmp_path, open_web=opened.append, open_link=links.append)
+    widget = _owned(app, tmp_path, open_link=links.append)
     texts = _labels(widget)
     assert widget.fold.button.text() == "My uploads · 3 saved credentials"
     assert "Raid night · abc123\nhttps://logs.example" in texts and texts.count("Refresh to check") == 3
@@ -1338,8 +1345,99 @@ def test_my_uploads(qapp, tmp_path):
     _row_buttons(widget, "Forget credential")[1].click()
     settle(lambda: len(widget.rows) == 1)
     assert widget.asked[-1] == cb.ASK_FORGET and widget.said.text() == "Local credential forgotten; server log unchanged."
-    _find(widget, QPushButton, lambda b: b.text() == "Open My Uploads on the web page").click()
-    assert opened == ["combat/owned"]
+    # no review to open an upload's log in: no Review (``io.open``), and nothing left to the web page
+    assert not _row_buttons(widget, "Review")
+    assert not [b for b in widget.findChildren(QPushButton) if "web" in b.text()]
+
+
+def test_an_uploads_log_reviewed(qapp, tmp_path):
+    """My Uploads' Review (``data-action="open"``): the upload's log read with its credential and handed to the review,
+    as the web page hands it to ``io.open``; a refusal said where the upload's state was."""
+    opened = []
+    app = FakeApp()
+    widget = _owned(app, tmp_path, open_log=opened.append)
+    # each upload's Review, among its controls in the web page's order
+    _shown()
+    controls = [b.text() for b in widget.findChildren(QPushButton) if b.isVisibleTo(widget)
+                and b.text() in ("Refresh", "Save visibility", "Rotate private link", "Review", "Delete upload",
+                                 "Forget credential")]
+    assert controls[:6] == ["Refresh", "Save visibility", "Rotate private link", "Review", "Delete upload", "Forget credential"]
+    assert [b.isEnabled() for b in _row_buttons(widget, "Review")] == [True, True, True]
+    widget.message = "Credentials imported. Refresh an upload to verify access."
+    widget.render()
+    app.hold = threading.Event()
+    _row_buttons(widget, "Review")[1].click()
+    assert widget.busy and not any(b.isEnabled() for b in _row_buttons(widget, "Review"))   # every control waits
+    app.hold.set()
+    settle(lambda: opened)
+    assert app.asked[-1] == {"owner": OWNERS[1], "action": "open", "visibility": "unlisted"}
+    assert opened == [REVIEW_LOG] and not widget.busy
+    assert [b.isEnabled() for b in _row_buttons(widget, "Review")] == [True, True, True]
+    # the upload's state and the words as they were: the log is opened, not the upload's state read
+    assert widget.said.text() == "Credentials imported. Refresh an upload to verify access."
+    assert cb.owner_key(OWNERS[1]) not in widget.status and _labels(widget).count("Refresh to check") == 3
+    # refused by the app, or answered with an error (``api()``): said, and shown as the upload's state; nothing opened
+    app.owner_refusal = "Upload management refused (403); check the original server and private credential"
+    _row_buttons(widget, "Review")[0].click()
+    settle(lambda: widget.message == app.owner_refusal)
+    assert app.owner_refusal in _labels(widget) and len(opened) == 1
+    app.owner_refusal = None
+    app.opened_log = {"error": "This log was deleted."}
+    _row_buttons(widget, "Review")[2].click()
+    settle(lambda: widget.message == "This log was deleted.")
+    assert widget.status[cb.owner_key(OWNERS[2])] == {"error": "This log was deleted."} and len(opened) == 1
+
+
+def test_an_uploads_log_on_its_page(qapp, tmp_path):
+    """An upload's log from My Uploads' Review on its own page (``#/combat-log/opened``): reviewed from what its server
+    gave, its parses asked for with the log sent whole, with the review's own choices alone (``localReviewOptions()``):
+    no other parts listed or joined, no metadata form, upload, report, combined fight or other recordings."""
+    from aion2calc.gui.combat_saved import Section
+    app = FakeApp()
+    app.opened_log = _parted()                                  # part 2 of a recording
+    web = []
+    page = _page(app, open_in_web=web.append)
+    page.show_list("owned")
+    settle(lambda: page.owned is not None and _row_buttons(page.owned, "Review"))
+    read = len(app.calls)
+    _row_buttons(page.owned, "Review")[0].click()
+    settle(lambda: page.review_page is not None and page.review_page.doc is not None and not page.review_page.awaiting)
+    view = page.review_page
+    assert view.isVisibleTo(page) and not page.frame.isVisibleTo(page)          # in place of the views
+    assert view.where == {"kind": "opened", "value": ""} and view.doc == _parted() and view.state["segment"] == 0
+    assert not view.live and not [b for b in view.findChildren(QCheckBox) if b.text() == cw.FOLLOW_LATEST]
+    assert not [c for c in app.calls[read:] if "/raw" in c or c.startswith("/api/sessions")]   # no log read for it
+    # its parses: the log sent whole, as for a recording on this computer
+    settle(lambda: view.ranks is not None)
+    assert [b for p_, b in app.log_server.posted if p_ == "/api/v1/rankings"] == [{"segment": 0, "log": _parted()}]
+    assert _find(view, QLabel, lambda label: label.text() == "99").toolTip().startswith("Parse 98.6 · rank 2 of 12")
+    # the recording's part named, none of its parts looked for, listed or joined; nothing to save, upload or report
+    labels = _labels(view)
+    assert cw.archive_note(_parted()) in labels and "This is part 2 of a recording in 2 parts." not in labels
+    assert not [c for c in app.calls if "paged=1" in c or "/parts?" in c]
+    folds = [f.button.accessibleName() for f in view.findChildren(Section) if f.isVisibleTo(view)]
+    assert not [f for f in folds if f in (cw.PARTS_HEAD, cw.METADATA_HEAD, cw.PUBLISH_HEAD, cw.REPORT_HEAD)]
+    assert cw.context_line(view.doc, cw.segments(view.doc)[0]) in labels             # the metadata's line alone
+    # the replay's Raid Planner file: the web interface's My Uploads, which reviews the upload there too
+    assert cw.ELSEWHERE_OPENED in labels and cw.ELSEWHERE not in labels
+    _click(view, cw.OPEN_WEB_OPENED)
+    assert web == ["combat/owned"]
+    # another encounter chosen: its parses asked for with the log again
+    view.open_segment(1)
+    settle(lambda: len([p_ for p_, _b in app.log_server.posted if p_ == "/api/v1/rankings"]) == 2)
+    assert app.log_server.posted[-1][1]["segment"] == 1
+    # the page shown again: the log kept as it was given (reading it again needs its credential)
+    asked = len(app.asked)
+    page.hide()
+    page.show()
+    _shown()
+    settle(lambda: not view.awaiting)
+    assert view.doc == _parted() and view.state["segment"] == 1 and len(app.asked) == asked
+    assert not [c for c in app.calls[read:] if "/raw" in c or c.startswith("/api/sessions?file=")]
+    # back: My Uploads as it was left
+    _click(page, cf.BACK)
+    assert page.frame.isVisibleTo(page) and page.owned.isVisibleTo(page) and not view.isVisibleTo(page)
+    assert [b.isEnabled() for b in _row_buttons(page.owned, "Review")] == [True, True, True]
 
 
 def test_my_uploads_backups_and_recovery(qapp, tmp_path):

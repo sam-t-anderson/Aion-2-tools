@@ -41,8 +41,12 @@ Drawn here so far:
   each document of the session as the meter reads it (``show_live``, then ``update_live``), it follows the latest
   encounter until another is chosen (**Follow latest encounter**), and has no other parts to list, metadata to save or
   recording to upload.
+- Since 0.2.474 an upload's log, as its server gave it to the upload's credential from My Uploads' **Review**
+  (``#/combat-log/opened``, ``show_opened``): reviewed with the review's own choices alone, so without other parts,
+  metadata to save, an upload, a report or the fight's other recordings.
 
-The replay's Raid Planner file opens in the web interface for now, from a button on the page.
+The replay's Raid Planner file opens in the web interface for now, from a button on the page (for an upload's log, the
+web interface's My Uploads, which reviews it there too).
 """
 from __future__ import annotations
 
@@ -334,14 +338,12 @@ class ReviewPage(QWidget):
         path, proxied = cw.log_path(kind, value)
         self._ask("log", path, proxied)
 
-    def show_live(self, doc: dict) -> None:
-        """The live session's review (``mount`` with ``live``): its document as the meter reads it, at its latest
-        encounter, followed until another is chosen."""
-        self.live = True
-        self.where = {"kind": "live", "value": ""}
+    def _given(self, kind: str) -> None:
+        """A log given whole rather than read (``kind`` ``live`` or ``opened``): the page as a log's opens, at its first
+        encounter, everything asked for the log shown before let go."""
+        self.where = {"kind": kind, "value": ""}
         self.doc, self.ranks = None, None
         self.state = cw.fresh_state()
-        self.state["follow_latest"] = True
         self._forget_timeline()
         self._forget_forms()
         self._stop_replay()
@@ -356,8 +358,26 @@ class ReviewPage(QWidget):
             self._ask("names", "/api/v1/npc-portraits", proxied=True)
         if self.aoe_shapes is None and not self.asked.get("aoe"):
             self._ask("aoe", "/static/aoe-shapes.json")
+
+    def show_live(self, doc: dict) -> None:
+        """The live session's review (``mount`` with ``live``): its document as the meter reads it, at its latest
+        encounter, followed until another is chosen."""
+        self.live = True
+        self._given("live")
+        self.state["follow_latest"] = True
         self.doc = _dict(doc)
         self._select_latest()
+        self.draw()
+        self.ask_ranks()
+
+    def show_opened(self, doc) -> None:
+        """An upload's log as its server gave it to the upload's credential, from My Uploads' Review
+        (``#/combat-log/opened``, 0.2.474): reviewed as the web page reviews it, with the review's own choices alone
+        (``localReviewOptions()``). It has no parts to list or join, no metadata to save, no upload, report, combined
+        fight or other recordings' movement; its parses are asked for with the log sent whole."""
+        self.live = False
+        self._given("opened")
+        self.doc = _dict(doc)
         self.draw()
         self.ask_ranks()
 
@@ -391,8 +411,9 @@ class ReviewPage(QWidget):
         return True
 
     def reload(self) -> None:
-        """The log read again, the choices kept."""
-        if self.where:
+        """The log read again, the choices kept. An upload's log is kept as it was given, as the web page keeps it
+        (``S.combat.openedLog``): reading it again needs its credential."""
+        if self.where.get("kind") in ("local", "shared"):
             path, proxied = cw.log_path(self.where["kind"], self.where["value"])
             self._ask("ui", "/api/ui")
             self._ask("log", path, proxied)
@@ -620,6 +641,9 @@ class ReviewPage(QWidget):
         if self.where["kind"] == "live":                             # the live session's: the web interface's Live Meter
             self.open_in_web("meter")
             return
+        if self.where["kind"] == "opened":                           # an upload's: My Uploads there, to review it again
+            self.open_in_web("combat/owned")
+            return
         if self.where["kind"] == "local":
             page = cw.local_page(self.where["value"], self.state["mode"], self.state["segment"])
         else:
@@ -762,9 +786,10 @@ class ReviewPage(QWidget):
         line = QVBoxLayout(elsewhere)
         line.setContentsMargins(0, 0, 0, 0)
         line.setSpacing(6)
-        line.addWidget(_label(cw.ELSEWHERE))
+        opened = self.where.get("kind") == "opened"
+        line.addWidget(_label(cw.ELSEWHERE_OPENED if opened else cw.ELSEWHERE))
         row, row_line = _plain(QHBoxLayout)
-        row_line.addWidget(_button(cw.OPEN_WEB, self.full_review))
+        row_line.addWidget(_button(cw.OPEN_WEB_OPENED if opened else cw.OPEN_WEB, self.full_review))
         row_line.addStretch(1)
         line.addWidget(row)
         body.addWidget(elsewhere)
@@ -1552,6 +1577,11 @@ class ReviewPage(QWidget):
     def _local(self) -> bool:
         return self.where.get("kind") == "local"
 
+    def _parts(self) -> bool:
+        """Whether the recording's other parts can be listed and joined (``options.archiveParts``): a recording on this
+        computer or a shared log, not the live session or an upload's log opened with its credential."""
+        return not self.live and self.where.get("kind") in ("local", "shared")
+
     def _open_part(self, row: dict) -> None:
         """Another part of the recording (``openArchivePart``): a recording on this computer by its file, a shared one by
         its ID."""
@@ -1577,7 +1607,7 @@ class ReviewPage(QWidget):
         """The recording's other parts looked for as it opens (``autoCombine``), for the offer to review them together;
         a recording still being written with no earlier part, a combined review, or a log of one part asks nothing."""
         archive = _dict(_dict(self.doc).get("meta")).get("archive")
-        if self.live or self.source_view is not None or cw.reconstructed(self.doc) or not isinstance(archive, dict):
+        if not self._parts() or self.source_view is not None or cw.reconstructed(self.doc) or not isinstance(archive, dict):
             return
         part = archive.get("part")
         if not ((isinstance(part, (int, float)) and not isinstance(part, bool) and part > 1) or _truthy(archive.get("closed"))):
@@ -1691,7 +1721,7 @@ class ReviewPage(QWidget):
         note = cw.archive_note(self.doc)
         if not note:
             return None
-        if self.live:                                                # no parts to list or join (``options.live``)
+        if not self._parts():                                        # no parts to list or join (``options.live``, an upload's)
             return _note(note)
         a = self.archive
         box, column = _plain(spacing=8)
