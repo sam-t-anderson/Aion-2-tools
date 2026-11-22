@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 
 from aion2calc.gui import timers  # noqa: E402
 from aion2calc.gui.news import when  # noqa: E402
-from aion2calc.gui.timers_page import TimersPage  # noqa: E402
+from aion2calc.gui.timers_page import CHOICES_KEY, TimersPage, kept_choices  # noqa: E402
 from aion2calc.gui.window import MainWindow, WebPage  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -279,9 +279,19 @@ class FakeApp:
         return {"ok": True}
 
 
+def _store(**values):
+    """The interface data of a page of its own, as the app gives it (each value a text)."""
+    from aion2calc.gui import interface
+    store = interface.InterfaceStore(shared=interface._Shared())
+    for key, value in values.items():
+        store.setValue(key, value)
+    return store
+
+
 def _page(app: FakeApp, clock=None, **kwargs) -> TimersPage:
     clock = clock if clock is not None else {"now": NOW}
     opened, links = [], []
+    kwargs.setdefault("store", _store())
     page = TimersPage(app, open_web=opened.append, open_link=links.append, now=lambda: clock["now"], **kwargs)
     page.opened, page.links, page.clock_ = opened, links, clock
     page.resize(1040, 900)
@@ -293,7 +303,7 @@ def _page(app: FakeApp, clock=None, **kwargs) -> TimersPage:
 
 def test_the_page_reads_the_region_and_schedules_once_shown_and_counts_down(qapp):
     app = FakeApp()
-    page = TimersPage(app, open_web=lambda page: None, open_link=lambda url: None)
+    page = TimersPage(app, open_web=lambda page: None, open_link=lambda url: None, store=_store())
     assert app.calls == [] and not page.loading.isHidden()                        # nothing before it is shown
     page = _page(app)
     assert app.calls[:4] == [("GET", "/api/ui"), ("GET", "/static/event-schedules.json"),
@@ -328,6 +338,9 @@ def test_choosing_a_region_and_a_korean_group_keeps_them_and_works_the_schedule_
     assert len(waiting) == 3 and all(not card.unavailable.isHidden() and card.countdown.isHidden() for card in waiting)
     page.group_box.setCurrentIndex(page.group_box.findData("2"))
     assert ("POST", "/api/ui", {"event_region": "kr", "event_group": "2"}) in app.calls
+    kept = json.loads(page.store.value(CHOICES_KEY))                              # with the web page's choices
+    assert (kept["region"], kept["group"], kept["killFaction"]) == ("kr", "2", "mine")
+    assert list(kept) == ["region", "group", "killServer", "killFaction"]
     assert not any(card.item["unavailable"] for card in page.cards)
     siege = next(card for card in page.cards if card.item["event"]["id"] == "siege")
     assert siege.schedule.text() == "Wed, Sat · 21:50 · Asia/Seoul · matching group 2"
@@ -375,11 +388,35 @@ def test_the_kills_of_your_server_load_as_the_live_meter_tells_it(qapp):
     assert page.opened == ["combat-log/shared/abcDEF1234?mode=pve"]                # in the web interface
     page.server_box.setCurrentIndex(page.server_box.findData("1101"))
     assert len(page.kill_folds) == 1 and page.kill_server == "1101"
+    assert json.loads(page.store.value(CHOICES_KEY))["killServer"] == "1101"
     page.faction_box.setCurrentIndex(page.faction_box.findData("asmodian"))
+    assert json.loads(page.store.value(CHOICES_KEY))["killFaction"] == "asmodian"
     assert page.kill_folds == [] and page.no_kills.text().startswith("No kills recorded for this server in asmodian")
     page.kills_button.click()
     settle(lambda: page.kills_button.isEnabled())
     assert len([call for call in app.calls if "boss-kills" in urllib.parse.unquote(call[1])]) == 2
+
+
+def test_the_choices_the_web_page_keeps_come_first(qapp):
+    kept = {"region": "kr", "group": "2", "killServer": 1101, "killFaction": "all"}
+    app = FakeApp()                                                               # the app keeps Europe
+    page = _page(app, store=_store(**{CHOICES_KEY: json.dumps(kept)}))
+    settle(lambda: page.kill_data is not None)
+    assert (page.region, page.group) == ("kr", "2") and page.region_box.currentData() == "kr"
+    assert page.group_box.currentData() == "2" and page.kill_faction == "all"
+    assert page.kill_server == "1101" and page.server_box.currentData() == "1101"   # not the live meter's
+    assert page.faction_box.currentData() == "all" and len(page.kill_folds) == 1
+    assert not [call for call in app.calls if call[0] == "POST"]                  # nothing chosen, nothing kept
+    # kept choices it cannot read: its first ones, then the server the live meter names, kept
+    page = _page(FakeApp(), store=_store(**{CHOICES_KEY: "not json"}))
+    settle(lambda: page.kill_data is not None)
+    assert (page.region, page.group, page.kill_faction) == ("", "", "mine") and page.kill_server == "2102"
+    assert json.loads(page.store.value(CHOICES_KEY)) == {"region": "", "group": "", "killServer": "2102",
+                                                         "killFaction": "mine"}
+    assert kept_choices(None) is None and kept_choices("null") == kept_choices("[]") == {
+        "region": "", "group": "", "server": "", "faction": "mine"}
+    assert kept_choices('{"killServer": true, "killFaction": "mars", "region": 5}') == {
+        "region": "", "group": "", "server": "true", "faction": "mine"}
 
 
 def test_without_the_live_meter_the_kills_wait_for_the_button_and_say_what_failed(qapp):
@@ -435,7 +472,7 @@ def test_the_recorded_defeats_load_by_region_and_are_searched(qapp):
 
 
 def test_a_schedule_that_cannot_be_read_says_why(qapp):
-    page = TimersPage(FakeApp(fail={"catalog"}), open_web=lambda page: None)
+    page = TimersPage(FakeApp(fail={"catalog"}), open_web=lambda page: None, store=_store())
     page.show()
     settle(lambda: "Could not" in page.loading.text())
     assert page.loading.text() == "Could not load schedules: the schedule file is missing"

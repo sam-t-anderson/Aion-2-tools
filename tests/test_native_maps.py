@@ -72,7 +72,17 @@ class FakeApp:
         return self.heat if self.heat is not None else _heat(urllib.parse.parse_qs(urllib.parse.urlparse(asked).query))
 
 
+def _store(**values):
+    """The interface data of a page of its own, as the app gives it (each value a text)."""
+    from aion2calc.gui import interface
+    store = interface.InterfaceStore(shared=interface._Shared())
+    for key, value in values.items():
+        store.setValue(key, value)
+    return store
+
+
 def _page(api=None, **kwargs):
+    kwargs.setdefault("store", _store())
     page = MapsPage(api if api is not None else FakeApp(), now=lambda: NOW, **kwargs)
     page.resize(1100, 1400)
     page.show()
@@ -169,7 +179,7 @@ def test_the_routes_words():
 
 def test_the_page_reads_the_routes_and_the_busiest_matchups_heat_map(qapp):
     app = FakeApp()
-    page = MapsPage(app, now=lambda: NOW)
+    page = MapsPage(app, now=lambda: NOW, store=_store())
     assert app.calls == []
     page.resize(1100, 1400)
     page.show()
@@ -227,10 +237,12 @@ def test_the_matchup_square_size_and_refresh(qapp):
     page.cell_box.activated.emit(page.cell_box.currentIndex())
     settle(lambda: page.heat["cell_size"] == 4000)
     assert app.asked[-1] == "/api/v1/pvp-heat?map=20&cell=4000&matchup=nae-1"
+    assert page.store.value(m.CELL_KEY) == "4000" and page.store.value(m.MATCHUP_KEY) is None   # the busiest: no choice
     page.matchup_box.setCurrentIndex(page.matchup_box.findData("nae-2"))
     page.matchup_box.activated.emit(page.matchup_box.currentIndex())
     settle(lambda: not page.heat.get("available"))
     assert app.asked[-1] == "/api/v1/pvp-heat?map=20&cell=4000&matchup=nae-2"
+    assert page.store.value(m.MATCHUP_KEY) == "nae-2"                            # with the web page's choices
     assert page.heat_status.text().startswith("Not enough recorded Abyss PvP for Siel vs Nezekan (NA East) yet")
     assert not page.squares.isVisibleTo(page) and page.frame.isVisibleTo(page)            # the ground, without squares
     assert m.described(page.heat) == page.map.accessibleName()
@@ -242,6 +254,17 @@ def test_the_matchup_square_size_and_refresh(qapp):
     page.matchup_box.activated.emit(page.matchup_box.currentIndex())
     settle(lambda: app.asked[-1].endswith("matchup=all") and page.heat.get("matchup") is None)
     assert page.heat_status.text().startswith("Every server, the last 24 hours")
+
+
+def test_the_heat_maps_size_and_matchup_kept_here_or_on_the_web_page(qapp):
+    app = FakeApp()
+    page = _page(app, store=_store(**{m.CELL_KEY: "1000", m.MATCHUP_KEY: "nae-2"}))
+    settle(lambda: page.heat is not None)
+    assert app.asked == ["/api/v1/pvp-heat?map=20&cell=1000&matchup=nae-2"]        # asked for at once, not the busiest
+    assert page.cell_box.currentData() == 1000 and page.matchup_box.currentData() == "nae-2"
+    assert [m.kept_cell(x) for x in (None, "", "4000", " 1000 ", "1e3", "3000", "x")] == [2000, 2000, 4000, 1000, 1000,
+                                                                                           2000, 2000]
+    assert m.kept_matchup(None) == "" and m.kept_matchup("all") == "all"
 
 
 def test_a_heat_map_the_log_server_does_not_give(qapp):

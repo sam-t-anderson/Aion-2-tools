@@ -168,7 +168,17 @@ class FakeApp:
         raise AssertionError((method, path))
 
 
+def _store(**values):
+    """The interface data of a page of its own, as the app gives it (each value a text)."""
+    from aion2calc.gui import interface
+    store = interface.InterfaceStore(shared=interface._Shared())
+    for key, value in values.items():
+        store.setValue(key, value)
+    return store
+
+
 def _page(app, **kwargs):
+    kwargs.setdefault("store", _store())
     page = AccountPage(app, **kwargs)
     page.resize(1100, 1600)
     page.show()
@@ -491,6 +501,7 @@ def test_top_parses(qapp):
         size = next(box for box in page.findChildren(QComboBox) if box.accessibleName() == "Per page")
         size.setCurrentIndex(size.findData(50))
         size.activated.emit(size.currentIndex())
+        assert page.store.value(ac.PER_PAGE_KEY) == "50"                          # with the web page's choice
         def asked():
             return [p["path"] for p in app.posts if p.get("path", "").startswith("/api/v1/account/top-parses")]
         settle(lambda: old_server or len(asked()) == 5)                          # the page size asked for
@@ -505,6 +516,19 @@ def test_top_parses(qapp):
     settle(lambda: page.body is not None)
     next(b for b in page.findChildren(QPushButton) if b.accessibleName() == "Top parses").click()
     settle(lambda: ac.NOT_LISTED in _texts(page))
+
+
+def test_top_parses_open_at_the_page_size_kept(qapp):
+    assert [ac.kept_per_page(x) for x in (None, "", "50", "100", " 25 ", "75", "x")] == [25, 25, 50, 100, 25, 25, 25]
+    store = _store(**{ac.PER_PAGE_KEY: "100"})                                    # here or on the web page
+    page = AccountPage(None, store=store)
+    assert page.parses["limit"] == 100
+    page.parses_per_page(50)
+    assert store.value(ac.PER_PAGE_KEY) == "50" and page.parses["limit"] == 50
+    page.parses["page"] = 3
+    page.open("parses")                                                          # opened afresh: page 1, the size kept
+    assert page.parses["limit"] == 50 and page.parses["page"] == 1 and page.tab == "parses"
+    assert AccountPage(None, store=_store()).parses["limit"] == 25
 
 
 LEGION = "lg_00000000000a"

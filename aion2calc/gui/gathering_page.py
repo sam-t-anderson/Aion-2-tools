@@ -33,6 +33,9 @@ RESULTS = {"normal": "Normal", "better": "Better grade", "failed": "Failed"}
 KINDS = {"dungeon": "dungeon node", "open_world": "open-world node"}
 PLACES_SHOWN = 5
 TABS = (("nodes", "Gathering"), ("dungeons", "Dungeon materials"), ("log", "Your log"))
+#: Where the web page keeps the tab shown (gathering.js), with the app's interface data since 0.2.482: the native page
+#: keeps it there too since 0.2.496.
+TAB_KEY = "a2-gathering-tab"
 #: The grade dots' colours (app.css ``.gt-dot``); any other grade is muted.
 DOTS = {"Rare": "#3fb37a", "Epic": "#49a0e0", "Unique": "#e0a030", "Heroic": "#a07ce0", "Special": "#e06aa0"}
 NODES_NOTE = ("How often each kind of node gives each grade, and how many a gather gives. A better-grade result gives "
@@ -254,12 +257,21 @@ def table(headers: list[str], rows: list[list], right: tuple[int, ...] = (), str
 
 
 class GatheringPage(QWidget):
-    """Game → Gathering. It reads your records and everyone's each time it is shown."""
+    """Game → Gathering. It reads your records and everyone's each time it is shown; it opens on the tab shown last,
+    here or on the web page (``a2-gathering-tab``, in ``store``)."""
 
-    def __init__(self, api: AppApi | None, show_page=None, parent: QWidget | None = None):
+    def __init__(self, api: AppApi | None, show_page=None, parent: QWidget | None = None, store=None):
         super().__init__(parent)
+        from .planner_page import interface_store
         self.api, self.show_page = api, show_page
+        self.store = store if store is not None else interface_store()
         self.tab, self.source, self.show_all = "nodes", "everyone", False
+        try:
+            kept = self.store.value(TAB_KEY)
+        except Exception:                        # a store that cannot be read: the first tab
+            kept = None
+        if kept in dict(TABS):
+            self.tab = kept
         self.mine: dict | None = None
         self.community: dict | None = None
         self.mine_error = self.community_error = ""
@@ -384,6 +396,7 @@ class GatheringPage(QWidget):
     # ------------------------------------------------------------------ choices
     def set_tab(self, tab: str) -> None:
         self.tab = tab if tab in dict(TABS) else "nodes"
+        self.store.setValue(TAB_KEY, self.tab)
         self.render()
 
     def set_source(self, source: str) -> None:

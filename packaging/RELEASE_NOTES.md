@@ -1,3 +1,12 @@
+## The native pages keep your choices with the web pages' (0.2.496)
+
+**What you choose on these pages is now kept in one place for the app's window and its web pages, so each shows the same choice.**
+- **News**: the region. The window kept its own as one of the app's settings; it now keeps the web page's, and reads its old one only where neither has chosen a region.
+- **Timers**: the region and matching group, and now also the field-boss server and faction, which the window did not keep before.
+- **Gathering**: the tab shown last (Gathering, Dungeon materials or Your log).
+- **Maps**: the Abyss PvP heat map's square size and matchup.
+- **Account → Top parses**: the page size (25, 50 or 100), which the window kept only until it closed.
+
 ## The native window opens on the page chosen in Settings (0.2.495)
 
 **Settings → App & data → Page at launch now applies to the app's own window too.** The window opens on that page when the app starts, and when the tray icon or the Open-app hotkey brings it back, as the web interface does; until now it always opened on the Live Meter. The tray's **Settings** still opens on Settings.

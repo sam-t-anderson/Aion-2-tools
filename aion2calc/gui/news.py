@@ -35,6 +35,9 @@ REGIONS = {"global": ("Global (English)", "https://aion2.plaync.com/en-us"),
            "kr": ("Korea (Korean)", "https://aion2.plaync.com/ko-kr"),
            "tw": ("Taiwan (Traditional Chinese)", "https://tw.ncsoft.com/aion2")}
 FILTERS = ("All", "Notices", "Updates")
+#: Where the web page keeps the region chosen (news.js), with the app's interface data since 0.2.482: the native page
+#: keeps it there too since 0.2.496, so the two show the same region.
+REGION_KEY = "a2-news-region"
 MOST = 20                                         # the headlines the page shows, newest first
 PREVIEW = 320                                     # a preview's characters
 NOTE = ("Official regional headlines in their original language. This preference does not change your game region "
@@ -302,13 +305,16 @@ class Card(QFrame):
 
 class NewsPage(QWidget):
     """The News page (Game → News): the official headlines of the region chosen, their category to show, and a
-    button to read the feed again. The region is the app's setting ``news_region``; the page reads the feed the
-    first time it is shown."""
+    button to read the feed again. The region is the web page's (``a2-news-region``, in ``store``), else the one this
+    page kept in the app's settings before (``news_region``, still written for a settings backup); the page reads the
+    feed the first time it is shown."""
 
     def __init__(self, api: AppApi | None, open_link=webbrowser.open, read_picture=_read,
-                 parent: QWidget | None = None):
+                 parent: QWidget | None = None, store=None):
         super().__init__(parent)
+        from .planner_page import interface_store
         self.api, self.open_link = api, open_link
+        self.store = store if store is not None else interface_store()
         self.region, self.category = "global", "All"
         self.data, self.busy, self.error, self.serial = None, False, "", 0
         self.started = False
@@ -426,15 +432,29 @@ class NewsPage(QWidget):
         path = "/api/community?path=" + urllib.parse.quote(f"/api/v1/news?region={self.region}", safe="")
         self.requests.get(f"news:{self.serial}:{self.region}", path)
 
+    def _kept(self, ui) -> str | None:
+        """The region chosen: the web page's (``a2-news-region``), else the one the app keeps for this page."""
+        try:
+            kept = self.store.value(REGION_KEY)
+        except Exception:                        # a store that cannot be read: the app's setting
+            kept = None
+        if kept in REGIONS:
+            return kept
+        region = ui.get("news_region") if isinstance(ui, dict) else None
+        return region if region in REGIONS else None
+
+    def _settings(self, ui) -> None:
+        region = self._kept(ui)
+        if region is not None and region != self.region:
+            self.region = region
+            self.region_box.blockSignals(True)
+            self.region_box.setCurrentIndex(list(REGIONS).index(region))
+            self.region_box.blockSignals(False)
+        self.load()
+
     def _replied(self, name: str, answer) -> None:
         if name == "ui":
-            region = answer.get("news_region") if isinstance(answer, dict) else None
-            if region in REGIONS and region != self.region:
-                self.region = region
-                self.region_box.blockSignals(True)
-                self.region_box.setCurrentIndex(list(REGIONS).index(region))
-                self.region_box.blockSignals(False)
-            self.load()
+            self._settings(answer)
             return
         if not name.startswith("news:"):
             return
@@ -452,7 +472,7 @@ class NewsPage(QWidget):
 
     def _failed(self, name: str, why: str) -> None:
         if name == "ui":
-            self.load()                          # the app's settings did not come: the global news, then
+            self._settings(None)                 # the app's settings did not come: the region the web page keeps
             return
         if not name.startswith("news:") or int(name.split(":", 2)[1]) != self.serial:
             return
@@ -465,6 +485,7 @@ class NewsPage(QWidget):
         if region not in REGIONS or region == self.region:
             return
         self.region, self.data = region, None
+        self.store.setValue(REGION_KEY, region)
         if self.requests is not None:
             self.requests.post("save", "/api/ui", {"news_region": region})
         self.load()
