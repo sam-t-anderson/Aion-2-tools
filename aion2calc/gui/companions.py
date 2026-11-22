@@ -1390,19 +1390,24 @@ class RadarWindow(CompanionWindow):
             super()._failed(name, why)
 
 
-VIEWS = ("party", "radar", "pets")
+VIEWS = ("party", "radar", "pets", "players")
 
 
 def window_class(view: str):
-    """The window class of a companion's view: the Pet Tracker window's in a module of its own (0.2.498)."""
+    """The window class of a companion's view: the Pet Tracker window's (0.2.498) and the player cards window's
+    (0.2.499) in modules of their own."""
     if view == "pets":
         from .pets_window import PetsWindow
         return PetsWindow
+    if view == "players":
+        from .players_window import PlayersOverlay
+        return PlayersOverlay
     return {"party": PartyWindow, "radar": RadarWindow}.get(view)
 
 
 def view_of(url: str) -> str:
-    """The window an overlay address names (``?view=party``, ``?view=radar``, ``?view=pets``), else ``meter``."""
+    """The window an overlay address names (``?view=party``, ``?view=radar``, ``?view=pets``, ``?view=players``), else
+    ``meter``."""
     for view in VIEWS:
         if f"view={view}" in url:
             return view
