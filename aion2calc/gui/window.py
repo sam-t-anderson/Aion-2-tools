@@ -178,12 +178,20 @@ class MainWindow(QMainWindow):
         i18n.install(lang)
         self.redraw()
 
-    def change_look(self) -> None:
+    def change_look(self, then=None) -> None:
         """Another theme or accent chosen (kept with the web pages' choice by Settings): the window drawn again in it,
-        as the web page draws itself again (0.2.484)."""
+        as the web page draws itself again (0.2.484); with the same look, the Settings page alone drawn again (0.2.485,
+        a customization profile applied). ``then`` is given the Settings page drawn, to say what was done there."""
         from . import interface
+        before = dict(theme.LOOK)
         theme.apply_look(*theme.look_of(interface.store()))
-        self.redraw()
+        if theme.LOOK == before:
+            page = self.page("settings")
+            page.rerender()
+        else:
+            page = self.redraw().page("settings")
+        if then is not None:
+            then(page)
 
     def computer_look_changed(self) -> None:
         """The computer turned light or dark: the window drawn again where the theme follows it."""

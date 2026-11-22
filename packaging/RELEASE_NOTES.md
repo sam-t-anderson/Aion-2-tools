@@ -1,3 +1,11 @@
+## Customization profiles in the native interface (0.2.485)
+
+**Settings in the app's window now has the Customization profiles (Profiles & backup), the last of the web Settings page's rows: the whole Settings page is native.**
+- **Save current as…** keeps your whole look under a name: the theme, the accent colour, the class colours, the overlay's look and its background picture, at a reduced size.
+- **Apply** puts a profile back, and the window draws itself again in its theme and accent; a profile with a picture also shows as a square to apply in a click. **Delete** removes one.
+- **Copy share code** and **Paste a shared code…** share a profile's colours and settings, never its picture.
+- The profiles are the web page's own, kept by the app with your other interface choices, so the window and the web page share them.
+
 ## The native interface in your theme and accent colour (0.2.484)
 
 **The app's window now draws itself in the web pages' theme and accent colour: Follow computer, Light or Dark, and Gold, Crimson, Emerald, Azure, Amethyst or Rose.**

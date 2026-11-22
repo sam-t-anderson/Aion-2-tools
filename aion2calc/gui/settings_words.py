@@ -49,8 +49,8 @@ NATIVE = "open the app and the meter overlay in the native interface, drawn in P
 NATIVE_NOTE = ("On by default since 0.2.426. Every page but Raid Planner and Builds is native so far: the meter overlay, "
                "the Live Meter page, Combat Logs with a log's own page and its movement replay, Build Planner, My "
                "Character, Gear & Advice, Saved Results, Timers, Maps, Database, Crafting, Gathering, Pet Tracker, News, "
-               "Settings (in part) and Account. Raid Planner, Builds, the movement replay's Raid Planner file and the "
-               "rest of Settings open in the web interface from the app's window. It takes effect the next time the app "
+               "Settings and Account. Raid Planner, Builds and the movement replay's Raid Planner file open in the web "
+               "interface from the app's window. It takes effect the next time the app "
                "or the overlay opens. The app comes with what it needs, and installs it with its other requirements when "
                "run from source.")
 APP_WINDOW = "start in a separate app window (Edge or Chrome) instead of a browser tab; closing it stops the app"
