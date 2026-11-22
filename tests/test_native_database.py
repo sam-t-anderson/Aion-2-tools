@@ -200,7 +200,7 @@ def test_an_items_values_are_text_not_markup(qapp):
 def test_the_window_draws_the_database_page_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("database"), DatabasePage) and not isinstance(window.page("database"), WebPage)
-    assert isinstance(window.page("raid"), WebPage)                               # not moved over yet
+    assert not isinstance(window.page("raid"), WebPage)                               # every page native (0.2.490)
 
 
 def test_a_window_with_a_subtitle_shows_no_window_of_its_own(qapp):

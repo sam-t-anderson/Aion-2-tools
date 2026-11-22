@@ -331,4 +331,4 @@ def test_the_character_opened_last_at_launch(qapp, view, tmp_path):
 def test_the_window_draws_my_character_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("character"), CharacterPage) and not isinstance(window.page("character"), WebPage)
-    assert isinstance(window.page("raid"), WebPage)                           # not moved over yet
+    assert not isinstance(window.page("raid"), WebPage)                           # every page native (0.2.490)

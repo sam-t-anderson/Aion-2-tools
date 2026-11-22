@@ -267,4 +267,4 @@ def test_a_build_that_cannot_be_read(qapp, view, tmp_path):
 def test_the_window_draws_the_planner_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("planner"), PlannerPage) and not isinstance(window.page("planner"), WebPage)
-    assert isinstance(window.page("raid"), WebPage)                             # not moved over yet
+    assert not isinstance(window.page("raid"), WebPage)                             # every page native (0.2.490)

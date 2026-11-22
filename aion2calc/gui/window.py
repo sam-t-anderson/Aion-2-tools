@@ -36,6 +36,7 @@ from .combat_page import CombatPage
 from .maps_page import MapsPage
 from .meter_page import MeterPage
 from .planner_page import PlannerPage
+from .raid_page import RaidPage
 from .pets_page import PetsPage
 from .timers_page import TimersPage
 from .settings_page import SettingsPage, show_patch_notes
@@ -150,6 +151,8 @@ class MainWindow(QMainWindow):
                     widget = CombatPage(api, self.open_web, open_in_web=self.open_in_web, open_builds=self.open_builds)
                 elif key == "builds":
                     widget = BuildsPage(api)
+                elif key == "raid":
+                    widget = RaidPage(api, self.open_in_web)
                 else:
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)

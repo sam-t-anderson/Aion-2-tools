@@ -1,3 +1,13 @@
+## Raid Planner in the native interface, first part (0.2.490)
+
+**The app's window now draws the Raid Planner itself: your plans, the map, the playback, the party buffs and the notes.**
+- **Your plans:** choose one, or **New**, **Duplicate** or **Delete** one; its name, author, length, arena and the boss it is for, so the overlay plays it in that fight. **Export file**, **Import file** (a plan, or a private ownership backup with its credential) and the share code to copy and load, as on the web page.
+- **The map:** add players (of the class chosen), enemies, markers and AoE zones; drag a token to place it at the moment the slider shows, and the planner moves it in between. The selected token's path and keyframes are drawn, with the one the moment is at.
+- **The selected token:** its label, colour and class, an area's radius, its keyframes to go to or delete, **Set position**, whether the map shows it, and **Remove token**. **Shown on the map** chooses by kind, or one by one.
+- **The playback and the buffs:** play at ½×, 1×, 2× or 4×, or move the slider; the party buffs' lane with what is on at the moment, and the buffs to add and edit.
+- The plans are the web planner's own, kept by the app, and each change is kept at once and handed to the overlay's plan view, as there.
+- Publishing and browsing plans, a saved fight compared and recorded movement imported are still on the web Raid Planner: **Open the web Raid Planner** opens it on the same plans.
+
 ## Builds in the native interface, last part (0.2.489)
 
 **The app's window now draws the Builds page's Source character tab: the whole Builds page is native.**

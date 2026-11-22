@@ -342,4 +342,4 @@ def test_a_result_imported(qapp, view, tmp_path):
 def test_the_window_draws_saved_results_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("history"), HistoryPage) and not isinstance(window.page("history"), WebPage)
-    assert isinstance(window.page("raid"), WebPage)                                        # not moved over yet
+    assert not isinstance(window.page("raid"), WebPage)                                        # every page native (0.2.490)
