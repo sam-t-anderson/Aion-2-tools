@@ -1,3 +1,18 @@
+## The Settings page in the native interface, part 2 (0.2.476)
+
+**Settings in the app's window now has the Meter and Server tabs as the web page draws them.**
+- **Meter → Combat records**, with each setting's explanation:
+  - the live meter cleared after a battle or when a boss fight starts, with the reset delay and how many past combats to keep;
+  - the combat records saved, and the logs folder's size cap, with the recordings uploaded before the oldest are deleted to make room;
+  - the meter started with the app, each player's server name, and the automatic uploads: when the meter stops, catching up at the next launch, and after each boss fight;
+  - the world-boss kills, enemy HP, gathering and drop data, and diagnostics shared with the community;
+  - the training-dummy parse and its window.
+- Each choice is saved as you make it and says so. A number is saved once you have typed it and left the field, or stepped it. The logs folder's cap says how much it keeps, or that auto-delete is off at 0.
+- **Server → Log server:** the server your uploads go to, its upload key and who sees your uploads. When the community default server is in use, it is named in the address field and a line says so. **Save** saves them and checks the server answers, with its name and versions. **Check saved server** checks it again.
+- **Server → Community stats:** the anonymous daily count of active meters, and your build's point totals when you collect a character.
+
+On the web Settings page, a log server whose name holds characters such as "&" is now named as it is after Save, not with HTML codes.
+
 ## The Settings page in the native interface, part 1 (0.2.475)
 
 **Settings in the app's window now has the web page's tabs, and App & data as the web page draws it.**

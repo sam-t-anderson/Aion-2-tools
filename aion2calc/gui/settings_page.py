@@ -7,6 +7,8 @@
   game database with its check, the cached icons' re-index, the image coverage and the pictures read again; the
   storage maintenance; the updates and the version, checked and installed from here; the patch notes; the Discord;
   stopping the app; and the author. The language is the web interface's own, chosen on its Settings page.
+- Since 0.2.476 **Meter** (Combat records, its numbers checked and saved as the web page checks them) and **Server**
+  (the log server, saved and probed from this computer, and the community stats) too.
 - **The other tabs' rows** are still the early ones, drawn from ``settings_schema``: each control saves its one
   setting, and a row the native page does not draw in full yet opens the web Settings page for the rest.
 
@@ -22,7 +24,8 @@ import os
 from PySide6.QtCore import QSize, QStandardPaths, Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QFileDialog, QFrame, QHBoxLayout, QLabel,
-                               QMessageBox, QPushButton, QScrollArea, QSpinBox, QTextBrowser, QVBoxLayout, QWidget)
+                               QLineEdit, QMessageBox, QPushButton, QScrollArea, QSpinBox, QTextBrowser, QVBoxLayout,
+                               QWidget)
 
 from . import image_health
 from . import settings_words as sw
@@ -87,12 +90,14 @@ def _html(text: str) -> str:
     return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
 
 
-def _note(text: str) -> QLabel:
-    """A row's note (``p.small.muted``)."""
+def _note(text: str, indent: int = 0) -> QLabel:
+    """A row's note (``p.small.muted``), set in by ``indent`` where the web page sets it in (``margin-left``)."""
     label = QLabel(text)
     label.setObjectName("setnote")
     label.setTextFormat(Qt.PlainText)
     label.setWordWrap(True)
+    if indent:
+        label.setContentsMargins(indent, 0, 0, 0)
     return label
 
 
@@ -289,11 +294,14 @@ class SettingsPage(QWidget):
                   "Storage maintenance": self._maintenance, "Updates": self._updates, "Version": self._version,
                   "Patch notes": self._patch_notes, "Community": self._community, "Stop the app": self._quit,
                   "Author": self._author}
+        drawn = {("system", title): build for title, build in system.items()}
+        drawn.update({("meter", "Combat records"): self._records, ("server", "Log server"): self._log_server,
+                      ("server", "Community stats"): self._community_stats})
         schema = {(row.group, row.title): row for row in ROWS}
         for group, title in sw.ROW_ORDER:
             row = SetRow(group, title, top=title == "Author")
-            if group == "system":
-                system[title](row)
+            if (group, title) in drawn:
+                drawn[(group, title)](row)
             else:
                 self._schema_row(row, schema[(group, title)])
             self.frame.body.addWidget(row)
@@ -414,6 +422,155 @@ class SettingsPage(QWidget):
     def _author(self, row: SetRow) -> None:
         row.body.addWidget(_words(sw.AUTHOR, "muted"))
 
+    # ---------------------------------------------------------------- Meter (0.2.476)
+    def _records(self, row: SetRow) -> None:
+        """Combat records: the live meter's resets, the records kept and uploaded, what is shared, the dummy's parse."""
+        checks = {key: (words, muted, saved) for key, words, muted, _on, saved in sw.RECORD_CHECKS}
+
+        def check(key):
+            words, muted, saved = checks[key]
+            self._check(row, key, words, muted, saved or sw.SAVED)
+        check("meter_reset_after_battle")
+        check("meter_reset_on_boss_start")
+        self.records_message = _words("", "setnote")
+        self.records_message.setAccessibleName("Combat records status")
+        row.body.addWidget(_flow(self._record_number("meter_reset_delay"), self._record_number("meter_max_records"),
+                                 self.records_message, gap=(14, 10)))
+        check("meter_save_records")
+        words, unit, low, high, _shown = sw.LOG_CACHE
+        box = self._spin("meter_log_cache_mb", words, low, high, step=128)
+        box.valueChanged.connect(self._save_log_cache)
+        self.log_cache_message = _words("", "setnote")
+        self.log_cache_message.setAccessibleName("Logs folder status")
+        self._log_cache_clear = QTimer(self)
+        self._log_cache_clear.setSingleShot(True)
+        self._log_cache_clear.timeout.connect(lambda: self.log_cache_message.setText(""))
+        row.body.addWidget(_flow(_flow(_words(words), box, _words(unit), gap=(4, 4)), self.log_cache_message,
+                                 gap=(14, 10)))
+        row.body.addWidget(_note(sw.LOG_CACHE_NOTE, indent=14))
+        check("meter_upload_before_prune")
+        row.body.addWidget(_note(sw.PRUNE_NOTE, indent=14))
+        for key in ("meter_autostart", "meter_show_server_name", "meter_auto_upload", "meter_catch_up_uploads",
+                    "meter_upload_per_fight"):
+            check(key)
+        row.body.addWidget(_note(sw.PER_FIGHT_NOTE, indent=14))
+        for key, note in (("meter_report_boss_kills", sw.BOSS_KILLS_NOTE), ("meter_report_enemy_hp", sw.ENEMY_HP_NOTE),
+                          ("share_gathering", sw.GATHERING_NOTE), ("meter_report_diagnostics", sw.DIAGNOSTICS_NOTE)):
+            check(key)
+            row.body.addWidget(_note(note, indent=14))
+        check("meter_show_dummy_parse")
+        row.body.addWidget(_flow(self._record_number("meter_dummy_record_seconds")))
+        row.body.addWidget(_note(sw.RECORDS_NOTE))
+
+    def _spin(self, key: str, words: str, low: int, high: int, step: int = 1) -> QSpinBox:
+        """A number field (``input type=number``) that tells its value once it is typed and left, or stepped."""
+        box = QSpinBox()
+        box.setRange(low, high)
+        box.setSingleStep(step)
+        box.setKeyboardTracking(False)                 # ``change``: once typed and left, or at each step
+        box.setAccessibleName(words)
+        self.controls[key] = box
+        return box
+
+    def _record_number(self, key: str) -> QWidget:
+        """One of the numbers checked before they are saved (``saveRecNum``), its words around it."""
+        words, unit, low, high, _shown = sw.RECORD_NUMBERS[key]
+        box = self._spin(key, words, low, high)
+        box.valueChanged.connect(lambda value, key=key: self._save_number(key, value))
+        return _flow(_words(words), box, _words(unit), gap=(4, 4))
+
+    def _save_number(self, key: str, value) -> None:
+        if self._loading:
+            return
+        _words_, _unit, low, high, _shown = sw.RECORD_NUMBERS[key]
+        number, why = sw.number_check(value, low, high)
+        if number is None:
+            self.records_message.setText(why)
+            return
+        self.saved.append((key, number))
+        self.ui[key] = number
+        if self.requests is None:
+            self.records_message.setText(sw.SAVED)
+            return
+        self.requests.post(f"number:{key}", "/api/ui", {key: number})
+
+    def _save_log_cache(self, value) -> None:
+        """The logs folder's cap, kept within its bounds, then said for a moment (``#rec-logcache``)."""
+        if self._loading:
+            return
+        number = sw.log_cache_value(value)
+        self.saved.append(("meter_log_cache_mb", number))
+        self.ui["meter_log_cache_mb"] = number
+        if self.requests is None:
+            self._log_cache_said(number)
+            return
+        self.requests.post(f"cache:{number}", "/api/ui", {"meter_log_cache_mb": number})
+
+    def _log_cache_said(self, number: int) -> None:
+        self.log_cache_message.setText(sw.log_cache_saved(number))
+        self._log_cache_clear.start(2500)
+
+    # ---------------------------------------------------------------- Server (0.2.476)
+    def _log_server(self, row: SetRow) -> None:
+        """The log server uploads go to: its address, its upload key, who sees the uploads; saved and checked."""
+        self.server_url = QLineEdit()
+        self.server_url.setPlaceholderText(sw.SERVER_PLACEHOLDER)
+        self.server_url.setAccessibleName("Log server address")
+        self.server_url.setMinimumWidth(320)
+        self.server_key = QLineEdit()
+        self.server_key.setEchoMode(QLineEdit.Password)
+        self.server_key.setPlaceholderText(sw.KEY_OPTIONAL)
+        self.server_key.setAccessibleName("Upload key")
+        self.server_key.setMinimumWidth(229)
+        self.server_visibility = QComboBox()
+        for value, words in sw.VISIBILITIES:
+            self.server_visibility.addItem(words, value)
+        self.server_visibility.setAccessibleName(sw.VISIBILITY_LABEL)
+        self.server_visibility.setToolTip(sw.VISIBILITY_TIP)
+        self.server_save = _button(sw.SAVE, self.save_server)
+        self.server_check_button = _button(sw.CHECK_SERVER, self.check_server)
+        self.server_message = _words("", "setnote")
+        self.server_message.setAccessibleName("Log server status")
+        row.body.addWidget(_flow(self.server_url, self.server_key, self.server_visibility, self.server_save,
+                                 self.server_check_button, self.server_message, gap=(14, 10)))
+        self.server_default = _note(sw.DEFAULT_SERVER)
+        self.server_default.setVisible(False)
+        row.body.addWidget(self.server_default)
+
+    def _community_stats(self, row: SetRow) -> None:
+        self._check(row, "community_heartbeat", sw.HEARTBEAT)
+        row.body.addWidget(_note(sw.HEARTBEAT_NOTE))
+        self._check(row, "community_contribute_character", sw.CONTRIBUTE)
+        row.body.addWidget(_note(sw.CONTRIBUTE_NOTE))
+
+    def apply_server(self, server) -> None:
+        """The log server's form as the page opens (``srv``)."""
+        self.server = _dict(server)
+        form = sw.server_form(self.server)
+        self.server_url.setText(form["url"])
+        self.server_url.setPlaceholderText(form["placeholder"])
+        self.server_key.setPlaceholderText(form["key"])
+        index = self.server_visibility.findData(form["visibility"])
+        self.server_visibility.setCurrentIndex(index)               # none of them: none chosen, as a list shows it
+        self.server_default.setVisible(form["default"])
+
+    def save_server(self) -> None:
+        """The log server saved, then probed from this computer (``#ssave``)."""
+        if self.requests is None:
+            return
+        visibility = self.server_visibility.currentData() if self.server_visibility.currentIndex() >= 0 else ""
+        self.requests.post("server-save", "/api/logserver", {"url": self.server_url.text(),
+                                                             "key": self.server_key.text() or None,
+                                                             "visibility": visibility})
+
+    def check_server(self) -> None:
+        """The saved server probed (``#scheck``)."""
+        if self.slow is None:
+            return
+        self.server_check_button.setEnabled(False)
+        self.server_message.setText(sw.CHECKING_SERVER)
+        self.slow.get("server-check", "/api/logserver/check")
+
     # the rows of the tabs not drawn as the web page draws them yet (settings_schema)
     def _schema_row(self, row: SetRow, spec) -> None:
         for control in spec.controls:
@@ -487,7 +644,19 @@ class SettingsPage(QWidget):
         if kind == "status":
             self.apply_status(answer)
         elif kind == "server":
-            self.server = _dict(answer)
+            self.apply_server(answer)
+        elif kind == "number":
+            self.records_message.setText(sw.SAVED)
+        elif kind == "cache":
+            self._log_cache_said(int(key))
+        elif kind == "server-save":
+            self.server_message.setText(sw.SAVED_CHECKING)
+            self.slow.get("server-saved", "/api/logserver/check")
+        elif kind == "server-saved":
+            self.server_message.setText(sw.saved_check(answer))
+        elif kind == "server-check":
+            self.server_check_button.setEnabled(True)
+            self.server_message.setText(sw.server_check(answer))
         elif kind == "ui":
             self.apply(_dict(answer))
         elif kind == "save":
@@ -522,6 +691,15 @@ class SettingsPage(QWidget):
         kind, _, key = name.partition(":")
         if kind == "save":
             self.toast.say(f"Could not save it: {why}")
+        elif kind == "number":
+            self.records_message.setText(why)
+        elif kind in ("cache", "server-save"):                     # the web page says nothing; the page says why
+            self.toast.say(f"Could not save it: {why}")
+        elif kind == "server-saved":
+            self.server_message.setText(sw.saved_unchecked(why))
+        elif kind == "server-check":
+            self.server_check_button.setEnabled(True)
+            self.server_message.setText(why)
         elif kind == "open":
             self.toast.say(why)
         elif kind == "assets":
@@ -583,13 +761,18 @@ class SettingsPage(QWidget):
                   "character_auto_refresh": ui.get("character_auto_refresh") is True,
                   "tray_on_close": _truthy(ui.get("tray_on_close")), "auto_update": ui.get("auto_update") is not False,
                   "update_on_close": ui.get("update_on_close") is not False}
+            for key, _words_, _muted, default_on, _saved in sw.RECORD_CHECKS:
+                on[key] = ui.get(key) is not False if default_on else ui.get(key) is True
+            on["community_heartbeat"] = ui.get("community_heartbeat") is not False
+            on["community_contribute_character"] = ui.get("community_contribute_character") is not False
             for key, value in on.items():
                 self.controls[key].box.setChecked(value)
             self._choose(self.controls["app_text_scale"], sw.text_scale(ui))
             self._choose(self.controls["app_default_page"], sw.launch_page(ui))
+            for key in sw.RECORD_NUMBERS:
+                self.controls[key].setValue(sw.record_number(ui, key))
+            self.controls["meter_log_cache_mb"].setValue(sw.log_cache(ui))
             for spec in ROWS:
-                if spec.group == "system":
-                    continue
                 for control in spec.controls:
                     widget, value = self.controls[control.key], ui.get(control.key)
                     if isinstance(control, Bool):

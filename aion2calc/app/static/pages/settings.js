@@ -2285,8 +2285,8 @@ async function pageSettings() {
     try {
       const r = await api("/api/logserver/check");
       $("#smsg").textContent = r.ok
-        ? "saved · server reachable" + (r.name ? " — " + esc(r.name) : "") + serverVersionText(r)
-        : "saved · can't reach the server" + (r.detail ? " (" + esc(r.detail) + ")" : "");
+        ? "saved · server reachable" + (r.name ? " — " + r.name : "") + serverVersionText(r)
+        : "saved · can't reach the server" + (r.detail ? " (" + r.detail + ")" : "");
     } catch (e) {
       $("#smsg").textContent = "saved · could not check: " + e.message;
     }

@@ -29,9 +29,13 @@ from aion2calc.gui.window import MainWindow, scale_text  # noqa: E402
 from test_native_overlay_toolbar import settle  # noqa: E402
 
 CONTROLS = [control for row in ROWS for control in row.controls]
-#: App & data's controls and the settings they save, as the web page's handlers save them.
+#: The controls drawn as the web page draws them (App & data since 0.2.475, Meter and Server since 0.2.476) and the
+#: settings they save, as the web page's handlers save them.
 SYSTEM_KEYS = ("interface_native", "app_window", "app_text_scale", "performance_mode", "app_default_page",
                "character_auto_open", "character_auto_refresh", "tray_on_close", "auto_update", "update_on_close")
+RECORD_KEYS = tuple(key for key, *_rest in sw.RECORD_CHECKS) + tuple(sw.RECORD_NUMBERS) + ("meter_log_cache_mb",)
+SERVER_KEYS = ("community_heartbeat", "community_contribute_character")
+DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS
 T0 = 1700000000
 STATUS = {"home": "/data/aion2calc", "version": "0.2.475", "db": {"items": 12345, "last_sync": {"at": T0}},
           "update": None, "update_state": {"checked_at": T0}, "update_download": {}}
@@ -154,9 +158,9 @@ def _row(page, title):
 # ------------------------------------------------------------------ the rows still drawn from the schema
 def test_every_control_saves_one_of_the_apps_settings_and_its_default_fits(home):
     defaults = server.ui_settings()
-    assert len(ROWS) == 22 and len(CONTROLS) == 89                                     # App & data's are drawn here
+    assert len(ROWS) == 19 and len(CONTROLS) == 69                     # App & data's, Meter's and Server's drawn here
     assert len({control.key for control in CONTROLS}) == len(CONTROLS)                 # one control per setting
-    assert not {control.key for control in CONTROLS} & set(SYSTEM_KEYS)
+    assert not {control.key for control in CONTROLS} & set(DRAWN_KEYS)
     for control in CONTROLS:
         assert control.key in defaults, control.key
         value = defaults[control.key]
@@ -166,12 +170,14 @@ def test_every_control_saves_one_of_the_apps_settings_and_its_default_fits(home)
             assert control.cast(value) in [option for option, _text in control.options], control.key
         else:
             assert control.minimum <= value <= control.maximum, control.key
-    assert {row.group for row in ROWS} <= {key for key, _title in GROUPS} - {"system"}
+    assert {row.group for row in ROWS} <= {key for key, _title in GROUPS} - {"system", "meter", "server"}
     assert [key for key, _title in GROUPS] == [key for key, _title in sw.TABS]
-    for key in SYSTEM_KEYS:                                                            # App & data's saves too
+    for key in DRAWN_KEYS:                                                             # the drawn rows' saves too
         assert key in defaults, key
-    assert {(row.group, row.title) for row in ROWS} | {r for r in sw.ROW_ORDER if r[0] == "system"} == set(sw.ROW_ORDER)
-    assert len(sw.ROW_ORDER) == 39
+    for key, (_words, _unit, low, high, shown) in {**sw.RECORD_NUMBERS, "meter_log_cache_mb": sw.LOG_CACHE}.items():
+        assert low <= defaults[key] <= high and low <= shown <= high, key
+    drawn = {r for r in sw.ROW_ORDER if r[0] in ("system", "meter", "server")}
+    assert {(row.group, row.title) for row in ROWS} | drawn == set(sw.ROW_ORDER) and len(sw.ROW_ORDER) == 39
 
 
 def test_the_page_shows_the_settings_without_saving_them_back(qapp, home):
@@ -226,7 +232,7 @@ def test_the_tabs_and_the_rows_on_the_web(qapp, home):
     store.setValue(sw.TAB_KEY, "nowhere")
     assert _page(home, store=store).tab == "appearance"
     web = [row for row in ROWS if row.web]
-    assert {row.title for row in web} >= {"Log server", "Hotkeys (Windows)", "Settings backup", "Overlay colors & fonts"}
+    assert {row.title for row in web} >= {"Hotkeys (Windows)", "Settings backup", "Overlay colors & fonts"}
     buttons = [b for b in page.findChildren(QPushButton) if b.text() == "Open the web Settings page"]
     assert len(buttons) == len(web) + 1                                               # and Language's
     buttons[0].click()
@@ -430,6 +436,124 @@ def test_the_patch_notes_and_quitting(qapp, home):
     assert app.sent("POST", "/api/quit")[0][2] == {}
 
 
+# ------------------------------------------------------------------ Meter and Server (0.2.476)
+def test_combat_records_as_the_web_page_draws_it(qapp, home):
+    app = FakeApp(_answers({("GET", "/api/ui", None): {**server.ui_settings(), "meter_reset_after_battle": True,
+                                                        "meter_auto_upload": False, "meter_reset_delay": "7",
+                                                        "meter_max_records": None, "meter_log_cache_mb": 0}}))
+    page = _page(home, app)
+    page.show_tab("meter")
+    settle(lambda: page.ui)
+    assert [r.title for r in page.rows if r.isVisibleTo(page)] == ["Combat records"]
+    row = _row(page, "Combat records")
+    texts = _texts(row)
+    for _key, words, _muted, _on, _saved in sw.RECORD_CHECKS:
+        assert any(t.startswith(words.replace("&", "&amp;")) or t == words for t in texts), words
+    for note in (sw.LOG_CACHE_NOTE, sw.PRUNE_NOTE, sw.PER_FIGHT_NOTE, sw.BOSS_KILLS_NOTE, sw.ENEMY_HP_NOTE,
+                 sw.GATHERING_NOTE, sw.DIAGNOSTICS_NOTE, sw.RECORDS_NOTE):
+        assert note in texts, note
+    for words in ("Reset delay", "Keep up to", "past combats", "Keep the logs folder under", "MB",
+                  "Training-dummy parse window"):
+        assert words in texts, words
+    # shown by the web page's rules: on unless false, on only when true; a number the app has none of, its default
+    checked = {key: page.controls[key].box.isChecked() for key, *_rest in sw.RECORD_CHECKS}
+    assert checked["meter_reset_after_battle"] and not checked["meter_auto_upload"] and checked["meter_upload_per_fight"]
+    assert not checked["meter_show_server_name"]
+    assert page.controls["meter_reset_delay"].value() == 7 and page.controls["meter_max_records"].value() == 20
+    assert page.controls["meter_log_cache_mb"].value() == 0 and page.controls["meter_dummy_record_seconds"].value() == 60
+    assert page.controls["meter_log_cache_mb"].singleStep() == 128
+    # each checkbox saves its setting and says what the web page says
+    page.controls["meter_save_records"].box.setChecked(False)
+    settle(lambda: page.toast.text() == "Saved · applies to the next capture")
+    page.controls["meter_autostart"].box.setChecked(False)
+    settle(lambda: page.toast.text() == sw.SAVED_NEXT_LAUNCH)
+    page.controls["share_gathering"].label.mousePressEvent(None)
+    settle(lambda: page.toast.text() == "Saved" and len(app.sent("POST", "/api/ui")) == 3)
+    assert [b for _m, _p, b in app.sent("POST", "/api/ui")] == [{"meter_save_records": False}, {"meter_autostart": False},
+                                                                {"share_gathering": False}]
+    # a number saved once typed and left, or stepped; said beside them
+    delay = page.controls["meter_reset_delay"]
+    assert not delay.keyboardTracking() and (delay.minimum(), delay.maximum()) == (1, 120)
+    delay.setValue(12)
+    settle(lambda: page.records_message.text() == "Saved")
+    assert app.sent("POST", "/api/ui")[-1][2] == {"meter_reset_delay": 12}
+    page.controls["meter_dummy_record_seconds"].setValue(90)
+    settle(lambda: app.sent("POST", "/api/ui")[-1][2] == {"meter_dummy_record_seconds": 90})
+    app.answers[("POST", "/api/ui", None)] = _refused("/api/ui", 400, "ValueError: busy")
+    page.controls["meter_max_records"].setValue(30)
+    settle(lambda: page.records_message.text() == "ValueError: busy")
+    app.answers[("POST", "/api/ui", None)] = {"ok": True}
+    # the logs folder's cap: saved, then said for a moment; 0 turns auto-delete off
+    cache = page.controls["meter_log_cache_mb"]
+    cache.setValue(2048)
+    settle(lambda: page.log_cache_message.text() == "Saved · logs kept under 2048 MB")
+    assert app.sent("POST", "/api/ui")[-1][2] == {"meter_log_cache_mb": 2048} and page._log_cache_clear.isActive()
+    page._log_cache_clear.timeout.emit()
+    assert page.log_cache_message.text() == ""
+    cache.setValue(0)
+    settle(lambda: page.log_cache_message.text() == "Saved · auto-delete off")
+    # shown again: the values set from the app without saving them back
+    sent = len(app.sent("POST", "/api/ui"))
+    page.apply(server.ui_settings())
+    assert len(app.sent("POST", "/api/ui")) == sent
+
+
+def test_the_log_server_and_community_stats(qapp, home):
+    default = {"url": "https://logs.example", "is_default": True, "has_key": False, "visibility": "unlisted"}
+    app = FakeApp(_answers({("GET", "/api/logserver", None): default,
+                            ("POST", "/api/logserver", None): [{"url": "https://mine.example"}, {"url": "https://mine.example"},
+                                                              _refused("/api/logserver", 400, "Enter an https address")],
+                            ("GET", "/api/logserver/check", None): [
+                                {"ok": True, "name": "A&B logs", "software": {"server": "1.4", "analyzer": "2.0"}},
+                                {"ok": False, "detail": "timed out"},
+                                {"ok": True, "software": {}},
+                                {"ok": False},
+                                _refused("/api/logserver/check", 500, "Probe failed")]}))
+    page = _page(home, app)
+    page.show_tab("server")
+    settle(lambda: page.server)
+    assert [r.title for r in page.rows if r.isVisibleTo(page)] == ["Log server", "Community stats"]
+    # the community default in use: its address as the hint, the field empty, and the line saying so
+    assert page.server_url.text() == "" and page.server_url.placeholderText() == "https://logs.example (default)"
+    assert page.server_key.placeholderText() == "upload key (optional)" and page.server_key.echoMode() == page.server_key.EchoMode.Password
+    assert page.server_visibility.currentData() == "unlisted" and page.server_default.isVisibleTo(page)
+    assert [page.server_visibility.itemText(i) for i in range(4)] == ["public", "unlisted", "legion only", "private"]
+    assert page.server_visibility.toolTip() == sw.VISIBILITY_TIP
+    # saved, then probed from this computer: reachable with its name and versions, else why not
+    page.server_url.setText("https://mine.example")
+    page.server_key.setText("s3cret")
+    page.server_visibility.setCurrentIndex(page.server_visibility.findData("private"))
+    page.server_save.click()
+    settle(lambda: page.server_message.text().startswith("saved · server reachable"))
+    assert app.sent("POST", "/api/logserver")[0][2] == {"url": "https://mine.example", "key": "s3cret", "visibility": "private"}
+    assert page.server_message.text() == "saved · server reachable — A&B logs · server 1.4 · analyzer 2.0"
+    page.server_key.setText("")
+    page.server_save.click()
+    settle(lambda: page.server_message.text() == "saved · can't reach the server (timed out)")
+    assert app.sent("POST", "/api/logserver")[1][2]["key"] is None                     # no key typed: none sent
+    page.server_save.click()                                                           # refused: said, nothing checked
+    settle(lambda: page.toast.text() == "Could not save it: Enter an https address")
+    # the saved server checked
+    page.server_check_button.click()
+    assert page.server_message.text() == sw.CHECKING_SERVER and not page.server_check_button.isEnabled()
+    settle(lambda: page.server_message.text() == "Server reachable · runtime versions not reported by this server")
+    assert page.server_check_button.isEnabled()
+    page.server_check_button.click()
+    settle(lambda: page.server_message.text() == "Check failed: unavailable")
+    page.server_check_button.click()
+    settle(lambda: page.server_message.text() == "Probe failed")
+    # a server of your own: its address, its key saved, no default line
+    page.apply_server({"url": "https://mine.example", "has_key": True, "visibility": "legion"})
+    assert page.server_url.text() == "https://mine.example" and page.server_key.placeholderText() == "key saved"
+    assert page.server_visibility.currentData() == "legion" and not page.server_default.isVisibleTo(page)
+    # Community stats
+    row = _row(page, "Community stats")
+    assert all(w in _texts(row) for w in (sw.HEARTBEAT, sw.HEARTBEAT_NOTE, sw.CONTRIBUTE, sw.CONTRIBUTE_NOTE))
+    assert page.controls["community_heartbeat"].box.isChecked()
+    page.controls["community_contribute_character"].box.setChecked(False)
+    settle(lambda: app.sent("POST", "/api/ui") and app.sent("POST", "/api/ui")[-1][2] == {"community_contribute_character": False})
+
+
 def test_the_settings_words():
     assert sw.chosen_tab("pettracker") == "pettracker" and sw.chosen_tab(None) == "appearance"
     assert sw.text_scale({"app_text_scale": "120abc"}) == 120 and sw.text_scale({}) == 100
@@ -444,6 +568,15 @@ def test_the_settings_words():
     assert sw.maintenance({})["rows"] == [] and sw.maintenance({"groups": [{"bytes": "x"}]})["rows"][0][2] == "NaN"
     notes = sw.patch_notes({"version": "9", "notes": [{"title": "T", "version": "9", "html": "<p>x</p>"}]})
     assert notes["title"] == "What's new in Aion 2 Calc 9" and notes["notes"][0]["html"] == "<p>x</p>"
+    # Meter and Server (0.2.476)
+    assert sw.record_number({"meter_reset_delay": 0}, "meter_reset_delay") == 5 and sw.record_number({}, "meter_max_records") == 20
+    assert sw.log_cache({"meter_log_cache_mb": None}) == 0 and sw.log_cache({"meter_log_cache_mb": "x"}) == 1024
+    assert sw.number_check("500", 1, 120) == (None, "Enter a whole number from 1 to 120.") and sw.number_check(7, 1, 120) == (7, "")
+    assert sw.log_cache_value(2_000_000) == 1048576 and sw.log_cache_value(-3) == 0 and sw.log_cache_value("127.5") == 128
+    assert sw.server_form({})["placeholder"] == sw.SERVER_PLACEHOLDER and sw.server_form({})["visibility"] == "public"
+    assert sw.server_versions({"software": {"analyzer": "2"}}) == " · server not reported · analyzer 2"
+    assert sw.saved_check({"ok": True}) == "saved · server reachable · runtime versions not reported by this server"
+    assert sw.server_check({"ok": False, "detail": "refused"}) == "Check failed: refused"
 
 
 def test_the_image_failures_kept_as_the_web_page_keeps_them():
