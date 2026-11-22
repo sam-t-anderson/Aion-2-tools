@@ -218,3 +218,17 @@ def test_a_shared_code_pasted_and_the_names_and_refusals_said(home):
     store.setValue(cp.KEY, "[]")
     page.apply_profile()
     assert page.profile_message.text() == cp.NOT_FOUND
+
+
+def test_the_class_colours_kept_where_the_web_log_review_reads_them(home):
+    store = interface.store()
+    colours = {"enabled": True, "colors": {"ranger": "#112233"}}
+    app = PictureApp(_answers({("GET", "/api/ui", None): {**LOOK, "combat_colors": colours}}))
+    page = _page(home, app, store=store)
+    # as the page draws the app's settings, as the web page does (``a2-combat-colors``)
+    assert settle(lambda: store.value("a2-combat-colors") == looks.js_json(colours))
+    page.class_colours.enabled.setChecked(False)                    # a change: kept there too, then sent to the app
+    assert looks.js_parse(store.value("a2-combat-colors").encode())["enabled"] is False
+    page.class_colours.reset()                                      # Reset: forgotten there, {} sent to the app
+    assert store.value("a2-combat-colors") is None
+    assert settle(lambda: ("POST", "/api/ui", {"combat_colors": {}}) in app.calls)

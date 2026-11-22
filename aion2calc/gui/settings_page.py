@@ -1768,7 +1768,13 @@ class SettingsPage(QWidget):
         row.body.addWidget(self.class_colours)
 
     def _save_class_colours(self, preference: dict) -> None:
-        """The class colours kept by the app (``/api/ui``'s ``combat_colors``); the web page says nothing of it."""
+        """The class colours kept by the app (``/api/ui``'s ``combat_colors``), and where the web log review reads them
+        (``a2-combat-colors``, forgotten once reset), as the panel's ``save`` keeps them; the web page says nothing of
+        it."""
+        if preference:
+            self.store.setValue("a2-combat-colors", looks.js_json(preference))
+        else:
+            self.store.remove("a2-combat-colors")
         self.saved.append(("combat_colors", preference))
         self.ui["combat_colors"] = preference
         if self.requests is not None:
@@ -2151,6 +2157,8 @@ class SettingsPage(QWidget):
             self._apply_look(ui)
             self.class_colours.show_preference(_dict(ui.get("combat_colors")))
             self.class_colours.palette.setCurrentIndex(0)
+            if _truthy(ui.get("combat_colors")):          # where the web log review reads them, as the web page does
+                self.store.setValue("a2-combat-colors", looks.js_json(ui["combat_colors"]))
         finally:
             self._loading = False
 
