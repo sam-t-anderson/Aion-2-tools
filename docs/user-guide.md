@@ -197,6 +197,7 @@ A new version downloads quietly while the app runs (0.2.353); no window pops up:
 - **Update now** closes the app and opens the installer, as before.
 - **Update when the app closes** is ticked unless you untick it. With it ticked, closing the app (Quit, the tray's Quit or the window) installs the update quietly, and the app does not start again until you open it. Untick it to wait for **Update now** instead.
 - A version released while the app runs replaces the waiting one, so the newest version is what installs, never the versions in between.
+- The native window (0.2.493) shows the same bar at its bottom left, and names a newer version under the language choice when nothing downloads it (a copy run from source, the background download turned off, or a download that failed), as the web page's header does.
 
 The same two choices are in Settings → App & data → **Updates**: **download new versions in the background** (on by default; off, the header only names a newer version) and **install a downloaded update when the app closes**. Settings → **Version** has **Update now** and **Check now**.
 

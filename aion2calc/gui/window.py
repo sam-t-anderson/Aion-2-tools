@@ -10,6 +10,7 @@ click away while the move goes on.
 from __future__ import annotations
 
 import argparse
+import html
 import os
 import re
 import sys
@@ -37,10 +38,12 @@ from .maps_page import MapsPage
 from .meter_page import MeterPage
 from .planner_page import PlannerPage
 from .raid_page import RaidPage
-from .pets_page import PetsPage
+from .pets_page import PetsPage, Toast
 from .timers_page import TimersPage
 from .settings_page import SettingsPage, show_patch_notes
 from .settings_words import patch_notes, text_scale
+from .update_bar import CLOSING as UPDATE_CLOSING, UpdateBar, UpdateWatch, available, bar_state
+from .update_bar import stylesheet as update_stylesheet
 
 #: The web interface's navigation (index.html): each section's pages, then Settings and Account.
 SECTIONS = (
@@ -101,6 +104,13 @@ class MainWindow(QMainWindow):
         # the language, at the top as on the web page's (i18n.js ``picker``; 0.2.483)
         self.language = i18n.picker(self.change_language)
         column.addWidget(self.language)
+        # a newer release where nothing downloads it (app.js's ``#update`` in the top bar), a link to its page
+        self.update_chip = QLabel()
+        self.update_chip.setObjectName("updchip")
+        self.update_chip.setTextFormat(Qt.RichText)
+        self.update_chip.setOpenExternalLinks(True)
+        self.update_chip.hide()
+        column.addWidget(self.update_chip)
         self.nav = QListWidget()
         self.nav.setObjectName("nav")
         column.addWidget(self.nav, 1)
@@ -160,7 +170,14 @@ class MainWindow(QMainWindow):
         layout.addWidget(side)
         layout.addWidget(self.pages, 1)
         self.setCentralWidget(central)
-        self.setStyleSheet(theme.app_stylesheet())
+        # the quiet update (0.2.493): the status asked for as the web pages' top bar asks, its bar at the bottom left
+        self.watch = UpdateWatch(api, self)
+        self.update_bar = UpdateBar(central, self.watch.update_now, self.watch.on_close)
+        self.toast = Toast(central)
+        self.watch.changed.connect(self._status)
+        self.watch.said.connect(self.toast.say)
+        self.watch.closing.connect(self._closing)
+        self.setStyleSheet(theme.app_stylesheet() + update_stylesheet() + str(Toast.STYLE))
         self.show_page(page if page in self.page_index else "meter")
         if parent_process is not None and getattr(parent_process, "watched", lambda: False)():
             self._parent_timer = QTimer(self)
@@ -282,6 +299,37 @@ class MainWindow(QMainWindow):
         self.page("meter").start()
         self.page("settings").start()
         self._whats_new()
+        self.watch.start()
+
+    def _status(self, s) -> None:
+        """The app's status (``syncPill``): the update's bar, else the newer release named where nothing downloads."""
+        quiet = self.update_bar.show_state(bar_state(s))
+        newer = available(s, quiet)
+        if newer is None:
+            self.update_chip.hide()
+            return
+        self.update_chip.setText(f'<a href="{html.escape(newer["url"])}" style="color: {theme.COLORS["gold"]}; '
+                                 f'text-decoration: none;">{html.escape(newer["words"])}</a>')
+        self.update_chip.show()
+
+    def _closing(self) -> None:
+        """The app closes for its installer: the window says so in place of everything (the web page's body)."""
+        closing = QLabel(UPDATE_CLOSING)
+        closing.setObjectName("muted")
+        closing.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        closing.setContentsMargins(0, int(self.height() * 0.2), 0, 0)
+        self.kept_while_closing = self.takeCentralWidget()       # the pages kept, unseen, as the app closes
+        self.setCentralWidget(closing)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        if getattr(self, "update_bar", None) is not None and self.update_bar.isVisible():
+            self.update_bar.place()
+
+    def closeEvent(self, event) -> None:
+        if getattr(self, "watch", None) is not None:
+            self.watch.stop()
+        super().closeEvent(event)
 
     def _whats_new(self) -> None:
         """What's new, once after an update (patch-notes.js ``check``): closing it tells the app, which then never
