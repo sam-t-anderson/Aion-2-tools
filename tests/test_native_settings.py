@@ -787,6 +787,10 @@ def test_the_hidden_cube_radar(qapp, home):
                             ("POST", "/api/radar", "clear"): {"error": "The radar is learning"},
                             ("POST", "/api/radar", "forget"): {"ok": True}}))
     page = _page(home, app, confirm=lambda words: (asked.append(words), answers.pop(0))[1])
+    # read twice a second while the tab shows it: the test takes the poll's turns itself, so that a slow run (CI's, with
+    # coverage) is not read again between its steps by the page's own timer
+    assert page.radar_poll.isActive() and page.radar_poll.interval() == 500
+    page.radar_poll.stop()
     page.show_tab("overlay")
     settle(lambda: page.ui and page.radar_message.text().startswith("Nothing learned yet"))
     assert page.radar_message.text() == "Nothing learned yet: step 1, then step 2. Off."
@@ -795,9 +799,7 @@ def test_the_hidden_cube_radar(qapp, home):
     notes = page.radar_notes.text()
     assert "<b>Ctrl+1</b> where no cube" in notes and "<b>Alt+F2</b> facing a Hidden Cube" in notes
     assert "<b>Ctrl+3</b> from where" in notes and "The “not a cube” button while" in notes
-    # read twice a second while the tab shows it
-    assert page.radar_poll.isActive() and page.radar_poll.interval() == 500
-    page.radar_poll.timeout.emit()
+    page.radar_poll.timeout.emit()                                                      # the poll's turn
     settle(lambda: page.radar_message.text() == "Learning the background in 5 s: switch to the game.")
     assert page.radar_cancel.isVisibleTo(page)
     page.show_tab("system")                                                             # not shown: not read
