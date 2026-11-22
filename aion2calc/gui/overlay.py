@@ -431,6 +431,7 @@ class _Card(QWidget):
         super().__init__(parent)
         self.opacity = DEFAULT_OPACITY
         self.mode = "card"
+        self.colour = theme.OVERLAY_CARD          # the card's own colour (the companion windows' older card's another)
         self.rows_part: QWidget | None = None     # the rows' part: the top portion ends where it begins (``--ov-top-h``)
         self.locked = False                       # Lock: a dashed green edge (``#ov.ov-locked .ovcard``)
         self.hover = "off"                        # hover to interact: "arming" while it counts, "open" once open
@@ -454,7 +455,7 @@ class _Card(QWidget):
         path = QPainterPath()
         path.addRoundedRect(rect, radius, radius)
         if self.mode != "none":
-            r, g, b = theme.OVERLAY_CARD
+            r, g, b = self.colour
             painter.fillPath(path, QColor(r, g, b, int(255 * self.opacity)))
             if self.background is not None and not self.background.isNull():
                 box = QRectF(self.rect())         # the top portion's alone in the top-only mode (``--ov-top-h``)
@@ -3627,6 +3628,9 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     from ..overlay import _ParentProcess, _default_url, native_overlay
     url = args.url or _default_url()
+    from .companions import main as companion, view_of
+    if view_of(url) != "meter":                   # a companion window's address (0.2.497): its own window
+        return companion(["--url", url])
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setQuitOnLastWindowClosed(True)
     from . import interface

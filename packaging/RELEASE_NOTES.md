@@ -1,3 +1,11 @@
+## The overlay's Party-DPS and radar windows in the native interface (0.2.497)
+
+**The overlay's Party-DPS window and the Hidden Cube radar's window are now the app's own windows, as the meter overlay is.** Until now each was a web page in a window of its own; they look as they did.
+- **Party-DPS window**: the party's DPS, HPS, damage taken a second and total damage, with the events strip and the live graph when those are on, and Lock, New, Hide and Start/Stop.
+- **Hidden Cube radar**: where the cube's jingle comes from on a circle around you and how near it is, with Lock and Hide.
+- Each keeps its own place, shows and hides with the game, lets clicks through to it, takes the overlay's colours, fonts, effects and background, and locks with the screenshot hotkey. The party window shares the meter overlay's opacity; the radar's window keeps its own.
+- The Pet Tracker window and the PvP player cards window are still web pages for now.
+
 ## The native pages keep your choices with the web pages' (0.2.496)
 
 **What you choose on these pages is now kept in one place for the app's window and its web pages, so each shows the same choice.**
