@@ -10,18 +10,19 @@ click away while the move goes on.
 from __future__ import annotations
 
 import argparse
-import html
+import base64
 import os
 import re
 import sys
 import urllib.parse
 import webbrowser
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow, QPushButton,
-                               QStackedWidget, QVBoxLayout, QWidget)
+from PySide6.QtCore import QBuffer, QByteArray, QCoreApplication, QEvent, QIODevice, Qt, QTimer
+from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow, QMessageBox,
+                               QPushButton, QStackedWidget, QVBoxLayout, QWidget)
 
 from . import i18n, theme
+from . import live_meter as lm
 from .account_page import AccountPage
 from .builds_page import BuildsPage
 from .combat_review import read_page
@@ -31,6 +32,9 @@ from .crafting_page import CraftingPage
 from .database_page import DatabasePage
 from .gathering_page import GatheringPage
 from .gear_page import GearPage
+from .header import (ASK_QUIT, SHOT_FAILED, STOPPED, Header, account_name, database_state, left_out, picture_scale,
+                     window_picture)
+from .header import stylesheet as header_stylesheet
 from .history_page import HistoryPage
 from .character_page import CharacterPage
 from .combat_page import CombatPage
@@ -39,6 +43,7 @@ from .meter_page import MeterPage
 from .planner_page import PlannerPage
 from .raid_page import RaidPage
 from .pets_page import PetsPage, Toast
+from .results import _dict, _truthy, js_text
 from .timers_page import TimersPage
 from .settings_page import SettingsPage, show_patch_notes
 from .settings_words import patch_notes, text_scale
@@ -91,26 +96,29 @@ class MainWindow(QMainWindow):
         self.shown_look = theme.LOOK["shown"]              # the theme drawn: the computer's, while it follows it
         self.setWindowTitle("Aion 2 Calc")
         self.resize(1280, 820)
+        self.leave_app = QApplication.quit                 # once the app has stopped (Quit)
+        self.confirm = self._confirm
         central = QWidget()
-        layout = QHBoxLayout(central)
+        outer = QVBoxLayout(central)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        # the header over everything, as the web pages' top bar (0.2.494): the game database, a newer version, the
+        # account, the Discord, Application screenshot, the language (i18n.js ``picker``; 0.2.483), the theme and Quit
+        self.language = i18n.picker(self.change_language)
+        self.header = Header(self.language)
+        self.update_chip = self.header.update_chip
+        outer.addWidget(self.header)
+        body = QWidget()
+        layout = QHBoxLayout(body)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        side = QWidget()
+        outer.addWidget(body, 1)
+        side = self.side = QWidget()
         side.setObjectName("navside")
         side.setFixedWidth(200)
         column = QVBoxLayout(side)
         column.setContentsMargins(0, 0, 0, 0)
         column.setSpacing(0)
-        # the language, at the top as on the web page's (i18n.js ``picker``; 0.2.483)
-        self.language = i18n.picker(self.change_language)
-        column.addWidget(self.language)
-        # a newer release where nothing downloads it (app.js's ``#update`` in the top bar), a link to its page
-        self.update_chip = QLabel()
-        self.update_chip.setObjectName("updchip")
-        self.update_chip.setTextFormat(Qt.RichText)
-        self.update_chip.setOpenExternalLinks(True)
-        self.update_chip.hide()
-        column.addWidget(self.update_chip)
         self.nav = QListWidget()
         self.nav.setObjectName("nav")
         column.addWidget(self.nav, 1)
@@ -177,7 +185,24 @@ class MainWindow(QMainWindow):
         self.watch.changed.connect(self._status)
         self.watch.said.connect(self.toast.say)
         self.watch.closing.connect(self._closing)
-        self.setStyleSheet(theme.app_stylesheet() + update_stylesheet() + str(Toast.STYLE))
+        # the header's account: the Account page's own status read, its actions and its messages at the window's foot
+        account = self.page("account")
+        account.toast = self.toast
+        account.status_read.connect(self._account_read)
+        self.header.account_tab.connect(self.open_account)
+        self.header.account_item.connect(lambda key: account.approve() if key == "approve" else account.website())
+        self.header.sign_out.connect(account.sign_out)
+        self.header.change_theme.connect(self.change_theme)
+        self.header.quit_app.connect(self.quit_app)
+        self.header.capture.connect(self.capture)
+        from . import interface
+        self.header.show_theme(theme.chosen_theme(interface.store()))
+        self.shot_scaled = False
+        self.requests = Requests(api, self) if api is not None else None
+        if self.requests is not None:
+            self.requests.replied.connect(self._replied)
+            self.requests.failed.connect(self._failed)
+        self.setStyleSheet(theme.app_stylesheet() + header_stylesheet() + update_stylesheet() + str(Toast.STYLE))
         self.show_page(page if page in self.page_index else "meter")
         if parent_process is not None and getattr(parent_process, "watched", lambda: False)():
             self._parent_timer = QTimer(self)
@@ -300,17 +325,113 @@ class MainWindow(QMainWindow):
         self.page("settings").start()
         self._whats_new()
         self.watch.start()
+        if self.requests is not None:                    # the header's account, as its menu reads it at first
+            self.requests.get("account", "/api/account")
 
     def _status(self, s) -> None:
-        """The app's status (``syncPill``): the update's bar, else the newer release named where nothing downloads."""
-        quiet = self.update_bar.show_state(bar_state(s))
-        newer = available(s, quiet)
-        if newer is None:
-            self.update_chip.hide()
+        """The app's status (``syncPill``): the game database's line and Quit's version in the header, the update's
+        bar, else the newer release named where nothing downloads. A status the database's line cannot read changes
+        nothing, as the web page's stops there."""
+        if database_state(s) is None:
             return
-        self.update_chip.setText(f'<a href="{html.escape(newer["url"])}" style="color: {theme.COLORS["gold"]}; '
-                                 f'text-decoration: none;">{html.escape(newer["words"])}</a>')
-        self.update_chip.show()
+        self.header.show_status(s)
+        quiet = self.update_bar.show_state(bar_state(s))
+        self.header.show_newer(available(s, quiet))
+
+    # ---------------------------------------------------------------- the header
+    def _account_read(self, s) -> None:
+        self.header.show_account(account_name(s))
+
+    def open_account(self, tab) -> None:
+        """A tab of the Account page from the header's menu, opened afresh (``None``: Sign in, the page's sign-in)."""
+        self.page("account").open(tab)
+        self.show_page("account")
+
+    def change_theme(self, chosen: str) -> None:
+        """The header's theme button (``setTheme``): the next theme kept with the web pages' and shown."""
+        from . import interface
+        interface.store().setValue("theme", chosen)
+        self.header.show_theme(chosen)
+        self.change_look()
+
+    def quit_app(self) -> None:
+        """Quit (app.js ``#quit``): once asked, the app stops, the window says so in place of everything and closes."""
+        if not self.confirm(ASK_QUIT):
+            return
+        if self.requests is None:
+            self._stopped()
+        else:
+            self.requests.post("quit", "/api/quit", {})
+
+    def _stopped(self) -> None:
+        self.watch.stop()
+        stopped = QLabel(STOPPED)
+        stopped.setObjectName("muted")
+        stopped.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        stopped.setContentsMargins(0, int(self.height() * 0.2), 0, 0)
+        self.kept_while_closing = self.takeCentralWidget()
+        self.setCentralWidget(stopped)
+        QTimer.singleShot(250, self._leave)
+
+    def _leave(self) -> None:
+        self.close()
+        self.leave_app()
+
+    def capture(self) -> None:
+        """Application screenshot (``A2Screenshot.capture``): the window with the page shown whole, below the fold too,
+        shrunk to fit a PNG's limits, which the app saves among its screenshots; its button and what it says left out
+        of the picture, as are a password's dots."""
+        header = self.header
+        header.shot.setEnabled(False)
+        header.say(lm.SHOT_RENDERING)
+        QCoreApplication.sendPostedEvents(None, QEvent.LayoutRequest)   # laid out as it is now
+        frame, page = self.centralWidget(), self.pages.currentWidget()
+        with left_out(header):
+            scale = picture_scale(frame, header, page)
+            image = window_picture(frame, header, self.side, page, scale) if scale >= 0.2 else None
+        if image is None:
+            self._shot_failed(lm.SHOT_TOO_LARGE)
+            return
+        data = QByteArray()
+        buffer = QBuffer(data)
+        buffer.open(QIODevice.WriteOnly)
+        image.save(buffer, "PNG")
+        buffer.close()
+        header.say(lm.SHOT_SAVING)
+        self.shot_scaled = scale < 1
+        png = "data:image/png;base64," + base64.b64encode(bytes(data)).decode("ascii")
+        if self.requests is None:
+            self._shot_failed("the app is not running")
+            return
+        self.requests.post("shot", "/api/screenshot", {"png": png}, origin=True)
+
+    def _shot_failed(self, why: str) -> None:
+        self.header.say(SHOT_FAILED + why)
+        self.header.shot.setEnabled(True)
+
+    def _replied(self, name: str, answer) -> None:
+        if name == "account":
+            self._account_read(answer)
+        elif name == "quit":
+            self._stopped()
+        elif name == "shot":
+            error = _dict(answer).get("error")
+            if _truthy(error):                            # refused in its answer (``api``)
+                self._shot_failed(js_text(error))
+                return
+            self.header.say(lm.shot_words(answer, self.shot_scaled))
+            self.header.shot.setEnabled(True)
+
+    def _failed(self, name: str, why: str) -> None:
+        if name == "account":
+            self.header.show_account(None)
+        elif name == "quit":
+            self._stopped()                               # the app may stop before it answers
+        elif name == "shot":
+            self._shot_failed(why)
+
+    def _confirm(self, question: str) -> bool:
+        return QMessageBox.question(self, "Aion 2 Calc", question) == QMessageBox.Yes
 
     def _closing(self) -> None:
         """The app closes for its installer: the window says so in place of everything (the web page's body)."""
@@ -323,12 +444,16 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
+        if getattr(self, "header", None) is not None:
+            self.header.fit(self.width())
         if getattr(self, "update_bar", None) is not None and self.update_bar.isVisible():
             self.update_bar.place()
 
     def closeEvent(self, event) -> None:
         if getattr(self, "watch", None) is not None:
             self.watch.stop()
+        if getattr(self, "requests", None) is not None:
+            self.requests.stop()
         super().closeEvent(event)
 
     def _whats_new(self) -> None:

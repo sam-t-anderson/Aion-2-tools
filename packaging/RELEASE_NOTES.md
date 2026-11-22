@@ -1,3 +1,12 @@
+## The web pages' header in the native window (0.2.494)
+
+**The app's own window now has the web pages' header across its top.**
+- **The game database**: its items, or its update and how far it is while it runs, with the web page's dot (green, red after errors, pulsing while it updates).
+- **The account**: **Sign in**, or your account's name with My logs, Top parses, Legions, Sign-in & security, **Approve a website sign-in**, **Open the website signed in** and **Sign out**, from any page. The Account page no longer has a Sign out beside the name: the header's menu has it, as on the web page.
+- **Application screenshot** saves the window with the page shown whole, below the fold too, among the app's screenshots, as the web page's button does.
+- The Discord, the language, the theme button (◐ follow the computer, ☀ light, ☾ dark) and **Quit**, which stops the app once asked, as the web page's does. A newer version where nothing downloads it is named here too, no longer under the language choice.
+- On a narrow window the header takes two lines, as the web page's top bar does.
+
 ## The quiet update in the native window (0.2.493)
 
 **The app's own window now shows a new version as the web pages do.**

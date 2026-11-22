@@ -47,10 +47,13 @@ def _words(value) -> str:
 
 def poll_ms(s) -> int:
     """When the window asks for the status again: sooner while the database updates, an update downloads or a release
-    check runs."""
+    check runs. A status without the database's count while it does not update is one the web page's line cannot read
+    (``s.db.items`` throws): asked for again in 20 s, as after a refusal."""
     s = _dict(s)
     if _truthy(_dict(s.get("sync")).get("running")):
         return SYNCING_MS
+    if s.get("db") is None:
+        return IDLE_MS
     if _dict(s.get("update_download")).get("state") == "downloading":
         return DOWNLOADING_MS
     if not _truthy(s.get("update")) and _truthy(_dict(s.get("update_state")).get("checking")):

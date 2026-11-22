@@ -39,6 +39,7 @@ CHOOSE_SERVER = "Choose a log server in Settings first."
 TABS = (("logs", "My logs"), ("parses", "Top parses"), ("legions", "Legions"), ("security", "Sign-in & security"))
 APPROVE = "Approve a website sign-in"
 WEBSITE = "Open the website signed in"
+SIGN_OUT_ASK = "Sign out of {0}?"
 WAYS_NOTE = ("On the website, choose Sign in → Approve in the app, then enter the code it shows here. Passkeys and Discord "
              "are added on the website (Sign-in & security there), and another computer's app joins with a code from the "
              "website.")
