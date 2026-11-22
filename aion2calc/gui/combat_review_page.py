@@ -31,9 +31,12 @@ Drawn here so far:
   its parts, runs and totals; the other uploads of the same fight, and the log server's combination of them.
 - Since 0.2.468 the movement replay (``combat_replay``, ``combat_replay_view``): the fight's positions on the ground
   they covered, played back, paused, rewound or scrubbed at the speed chosen, in the arena's shape chosen.
+- Since 0.2.469 the replay's boss casts with their measured areas (``aoe-shapes.json``, read once for the page), the
+  appearances, deaths, revives and add hits: drawn under the tokens and listed beside the arena, a row chosen going to
+  its time.
 
-The rest of the replay (the boss casts and events, the measured areas, its key, other recordings' movement and its
-Raid Planner file) opens in the web interface for now, from a button on the page.
+The rest of the replay (its key, other recordings' movement and its Raid Planner file) opens in the web interface for
+now, from a button on the page.
 """
 from __future__ import annotations
 
@@ -207,6 +210,7 @@ class ReviewPage(QWidget):
         super().__init__(parent)
         self.store = store if store is not None else interface_store()
         self.replay: ReplayPanel | None = None           # the movement replay drawn last, while it may be playing
+        self.aoe_shapes: dict | None = None              # the bosses' skills' measured areas (``aoeShapes``), read once
         self.setObjectName("plain")
         self.official = OfficialPictures(self, read_picture)          # a character's pictures off the official hosts
         self.official.loaded.connect(self._official_picture)
@@ -308,6 +312,8 @@ class ReviewPage(QWidget):
         self._ask("ui", "/api/ui")
         if self.names is None:
             self._ask("names", "/api/v1/npc-portraits", proxied=True)
+        if self.aoe_shapes is None and not self.asked.get("aoe"):   # the newer of the app's copy and the log server's
+            self._ask("aoe", "/static/aoe-shapes.json")
         path, proxied = cw.log_path(kind, value)
         self._ask("log", path, proxied)
 
@@ -325,6 +331,12 @@ class ReviewPage(QWidget):
         elif kind == "names":
             self.names = cw.community_names(answer)
             self.draw()
+        elif kind == "aoe":                                          # a catalog without shapes draws no areas
+            shapes = _dict(answer).get("shapes")
+            if isinstance(shapes, dict) and shapes:
+                self.aoe_shapes = shapes
+                if self.replay is not None:
+                    self.replay.set_shapes(shapes)
         elif kind == "log":
             if isinstance(answer, dict) and _truthy(answer.get("error")):
                 self._refused(js_text(answer["error"]))
@@ -1731,6 +1743,7 @@ class ReviewPage(QWidget):
     def _replay(self, d: dict) -> QWidget | None:
         """The fight's movement replay (``replay``); for a shared log that holds no movement, why not; else nothing."""
         model = rp.Replay(self.doc, d, self.colours, self.names)
+        model.shapes = self.aoe_shapes
         if not model.world and not model.flat:
             if self.where.get("kind") == "shared" and not cw.reconstructed(self.doc):   # ``options.movement``
                 box, column = _plain(spacing=8)
