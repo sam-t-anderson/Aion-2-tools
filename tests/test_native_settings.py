@@ -1,10 +1,9 @@
 """The native Settings page (0.2.414; as the web page draws it since 0.2.475, a part at a time).
 
-The page's tabs and App & data are pages/settings.js's (``aion2calc/gui/settings_words``): each row's words, its
-controls saving their settings through the app's ``/api/ui`` as the web page's do, and its actions asking the app what
-the web page asks it. The other tabs' rows are still drawn from ``aion2calc/gui/settings_schema``: every control the
-schema names saves one setting, so each key must be one of the app's settings and each default must fit its control;
-a row the native page does not draw in full opens the web page. Off screen, over a made-up app.
+The page's tabs and rows are pages/settings.js's (``aion2calc/gui/settings_words``, and since 0.2.480 the overlay's
+look in ``aion2calc/gui/settings_looks``): each row's words, its controls saving their settings through the app's
+``/api/ui`` as the web page's do, and its actions asking the app what the web page asks it. The rows not drawn yet
+(``aion2calc/gui/settings_schema``) open the web page. Off screen, over a made-up app.
 """
 import io
 import json
@@ -16,19 +15,19 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QCoreApplication, QElapsedTimer, QEvent, QSettings  # noqa: E402
+from PySide6.QtCore import QCoreApplication, QEvent, QSettings  # noqa: E402
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton  # noqa: E402
 
 from aion2calc.app import server  # noqa: E402
 from aion2calc.gui import image_health  # noqa: E402
+from aion2calc.gui import settings_looks as looks  # noqa: E402
 from aion2calc.gui import settings_words as sw  # noqa: E402
 from aion2calc.gui.result_windows import GridTable  # noqa: E402
 from aion2calc.gui.settings_page import PatchNotes, SettingsPage  # noqa: E402
-from aion2calc.gui.settings_schema import GROUPS, ROWS, Bool, Choice  # noqa: E402
+from aion2calc.gui.settings_schema import GROUPS, ROWS  # noqa: E402
 from aion2calc.gui.window import MainWindow, scale_text  # noqa: E402
 from test_native_overlay_toolbar import settle  # noqa: E402
 
-CONTROLS = [control for row in ROWS for control in row.controls]
 #: The controls drawn as the web page draws them (App & data since 0.2.475, Meter and Server since 0.2.476) and the
 #: settings they save, as the web page's handlers save them.
 SYSTEM_KEYS = ("interface_native", "app_window", "app_text_scale", "performance_mode", "app_default_page",
@@ -53,10 +52,12 @@ def _described(items):
 
 OVERLAY_KEYS = _described(sw.LIVE_OVERLAY) + _described(sw.RTSS) + _described(sw.LAYOUT)
 RADAR_KEYS = ("radar_enabled", "radar_sensitivity", "hotkeys")
-DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS + PET_KEYS + OVERLAY_KEYS + RADAR_KEYS
-DRAWN_GROUPS = ("system", "meter", "server", "pettracker")
-DRAWN_OVERLAY = ("Live meter overlay", "In-game (RTSS)", "Streaming (OBS / Discord)", "Overlay layout",
-                 "Hidden Cube radar", "Hotkeys (Windows)")
+LOOK_KEYS = (("overlay_text_colors", "overlay_font_family", "overlay_font_scale", "overlay_font_weight")
+             + tuple(item[1] for item in looks.FONT_LINE + looks.EFFECTS)
+             + ("overlay_text_fonts",) + tuple(key for key, *_rest in looks.BG_NUMBERS)
+             + ("overlay_text_autocontrast", "overlay_presets"))
+DRAWN_KEYS = SYSTEM_KEYS + RECORD_KEYS + SERVER_KEYS + PET_KEYS + OVERLAY_KEYS + RADAR_KEYS + LOOK_KEYS
+DRAWN_GROUPS = ("system", "meter", "server", "pettracker", "overlay")
 T0 = 1700000000
 STATUS = {"home": "/data/aion2calc", "version": "0.2.475", "db": {"items": 12345, "last_sync": {"at": T0}},
           "update": None, "update_state": {"checked_at": T0}, "update_download": {}}
@@ -176,30 +177,23 @@ def _row(page, title):
     return next(row for row in page.rows if row.title == title)
 
 
-# ------------------------------------------------------------------ the rows still drawn from the schema
-def test_every_control_saves_one_of_the_apps_settings_and_its_default_fits(home):
+# ------------------------------------------------------------------ the rows drawn, and those still on the web page
+def test_the_drawn_rows_save_the_apps_settings_and_the_others_open_the_web_page(home):
     defaults = server.ui_settings()
-    assert len(ROWS) == 9 and len(CONTROLS) == 2   # App & data, Meter, Server, Pet Tracker and most of Overlay drawn here
-    assert len({control.key for control in CONTROLS}) == len(CONTROLS)                 # one control per setting
-    assert not {control.key for control in CONTROLS} & set(DRAWN_KEYS)
-    for control in CONTROLS:
-        assert control.key in defaults, control.key
-        value = defaults[control.key]
-        if isinstance(control, Bool):
-            assert isinstance(value, bool), control.key
-        elif isinstance(control, Choice):
-            assert control.cast(value) in [option for option, _text in control.options], control.key
-        else:
-            assert control.minimum <= value <= control.maximum, control.key
+    assert len(ROWS) == 5             # Appearance and Profiles & backup still on the web page; the other tabs drawn here
     assert {row.group for row in ROWS} <= {key for key, _title in GROUPS} - set(DRAWN_GROUPS)
     assert [key for key, _title in GROUPS] == [key for key, _title in sw.TABS]
-    for key in DRAWN_KEYS:                                                             # the drawn rows' saves too
-        assert key in defaults, key
+    for key in DRAWN_KEYS:                    # the drawn rows' saves; the text's colours are the overlay's own until chosen
+        assert key in defaults or key == "overlay_text_colors", key
+    assert len(DRAWN_KEYS) == len(set(DRAWN_KEYS))                                     # one control each
     for key, (_words, _unit, low, high, shown) in {**sw.RECORD_NUMBERS, "meter_log_cache_mb": sw.LOG_CACHE}.items():
         assert low <= defaults[key] <= high and low <= shown <= high, key
-    drawn = {r for r in sw.ROW_ORDER if r[0] in DRAWN_GROUPS or (r[0] == "overlay" and r[1] in DRAWN_OVERLAY)}
+    for key, _words, low, high, shown, _rule in looks.BG_NUMBERS:
+        assert low <= defaults[key] <= high and low <= shown <= high, key
+    drawn = {r for r in sw.ROW_ORDER if r[0] in DRAWN_GROUPS}
     assert len(OVERLAY_KEYS) == len(set(OVERLAY_KEYS)) == 62                 # 24 + 5 + 33, one each
-    assert {(row.group, row.title) for row in ROWS} | drawn == set(sw.ROW_ORDER) and len(sw.ROW_ORDER) == 39
+    on_the_web = {(row.group, row.title) for row in ROWS}
+    assert on_the_web | drawn == set(sw.ROW_ORDER) and not on_the_web & drawn and len(sw.ROW_ORDER) == 39
 
 
 def test_the_page_shows_the_settings_without_saving_them_back(qapp, home):
@@ -228,13 +222,8 @@ def test_each_control_saves_its_setting(qapp, home):
     page.controls["app_text_scale"].setCurrentIndex(page.controls["app_text_scale"].findData(90))
     assert page.saved == [("overlay_show_weekly_runs", False), ("overlay_show_weekly_runs", True),
                           ("overlay_bg_mode", "none"), ("app_text_scale", 90)]
-    page.controls["overlay_font_scale"].setValue(110)                                 # a schema row's number:
-    page.controls["overlay_font_scale"].setValue(120)                                 # saved once, when still
-    clock = QElapsedTimer()
-    clock.start()
-    while len(page.saved) < 5 and clock.elapsed() < 3000:
-        QCoreApplication.processEvents()
-    assert page.saved[4:] == [("overlay_font_scale", 120)] and page.toast.text() == "Saved"
+    page.controls["overlay_font_scale"].setValue(120)                    # a number: saved once typed and left, or stepped
+    assert page.saved[4:] == [("overlay_font_scale", 120)] and page.look_messages["font"].text() == "Saved"
 
 
 def test_the_tabs_and_the_rows_on_the_web(qapp, home):
@@ -253,8 +242,9 @@ def test_the_tabs_and_the_rows_on_the_web(qapp, home):
     assert again.tab == "overlay"
     store.setValue(sw.TAB_KEY, "nowhere")
     assert _page(home, store=store).tab == "appearance"
-    web = [row for row in ROWS if row.web]
-    assert {row.title for row in web} >= {"Settings backup", "Overlay colors & fonts", "Overlay look presets"}
+    web = list(ROWS)
+    assert {row.title for row in web} == {"Theme", "Accent colour", "Customization profiles", "Settings backup",
+                                          "Combat class colors"}
     buttons = [b for b in page.findChildren(QPushButton) if b.text() == "Open the web Settings page"]
     assert len(buttons) == len(web) + 1                                               # and Language's
     buttons[0].click()
@@ -881,6 +871,298 @@ def test_the_hotkeys(qapp, home):
     page.radar_poll.stop()
 
 
+# ------------------------------------------------------------------ Overlay: the look (0.2.480)
+def _colours(*chosen):
+    """A colour dialog answering, in turn, each colour given (None: cancelled); and what it was asked."""
+    from PySide6.QtGui import QColor
+    answers, asked = [QColor(colour) if colour else None for colour in chosen], []
+
+    def ask(start, words):
+        asked.append((start, words))
+        return answers.pop(0)
+    return ask, asked
+
+
+def _drawn_again(page, before):
+    """The page drawn again from the app's settings (``apply`` replaces what it read)."""
+    settle(lambda: page.ui is not before)
+
+
+def test_the_overlay_colours_and_fonts(qapp, home):
+    app = FakeApp(_answers({("GET", "/api/ui", None): {
+        **server.ui_settings(), "overlay_text_colors": {"rate": "#AABBCC", "total": "teal", "ping": "#12345"},
+        "overlay_font_family": "Comic Sans", "overlay_font_scale": 0, "overlay_font_weight": 650, "overlay_glow": "yes",
+        "overlay_glow_color": "#ABCDEF", "overlay_hp_color": None, "overlay_text_outline": True}}))
+    page = _page(home, app)
+    page.ask_colour, asked = _colours("#102030", "#aabbcc", None, "#405060")
+    page.show_tab("overlay")
+    settle(lambda: page.ui)
+    colours = page.text_colours
+    assert list(colours) == [element for element, _words in looks.TEXT_COLOURS]
+    # shown by the web page's rules: a hex colour of the app's (in lower case), else the overlay's own
+    assert colours["rate"].value == "#aabbcc" and colours["total"].value == "#9bb1c1" and colours["ping"].value == "#76c59d"
+    assert colours["identity"].value == looks.TEXT_DEFAULTS["identity"] and colours["rate"].accessibleName() == "Rate text"
+    assert page.font_family.currentText() == looks.DEFAULT_FONT                      # none of the fonts: the first
+    assert page.controls["overlay_font_scale"].value() == 100 and page.font_weight.currentData() == 400
+    assert not page.controls["overlay_glow"].box.isChecked() and page.controls["overlay_text_outline"].box.isChecked()
+    assert page.controls["overlay_glow_color"].value == "#abcdef" and page.controls["overlay_hp_color"].value == "#e4808f"
+    assert page.controls["overlay_text_outline"].toolTip() == looks.OUTLINE_TIP
+    assert looks.COLOURS_NOTE in _texts(page) and page.saved == []
+    # a colour chosen: every text colour saved together, said in its row
+    colours["header"].click()
+    assert asked == [("#e8cf8e", "Header")] and page.look_messages["colour"].text() == looks.SAVING
+    settle(lambda: page.look_messages["colour"].text() == "Saved")
+    first = {**looks.text_colours({"overlay_text_colors": {"rate": "#aabbcc"}}), "header": "#102030"}
+    assert app.sent("POST", "/api/ui") == [("POST", "/api/ui", {"overlay_text_colors": first})]
+    colours["rate"].click()                                                            # the same colour: no change
+    colours["rate"].click()                                                            # cancelled
+    assert len(app.sent("POST", "/api/ui")) == 1
+    # Reset number colors: the rate's and the total's own again, then every colour saved
+    colours["rate"].set_value("#000000")
+    _button(page, looks.COLOURS_RESET).click()
+    settle(lambda: len(app.sent("POST", "/api/ui")) == 2)
+    assert app.sent("POST", "/api/ui")[-1][2] == {"overlay_text_colors": {**first, "rate": "#ffffff"}}
+    # the font, its size and weight, the checkboxes and colours: each saved and said where the fonts are
+    page.font_family.setCurrentIndex(page.font_family.findData("Consolas"))
+    assert page.look_messages["font"].text() == looks.SAVING
+    settle(lambda: page.look_messages["font"].text() == "Saved")
+    page.font_weight.setCurrentIndex(page.font_weight.findData(800))
+    page.controls["overlay_font_scale"].setValue(130)
+    page.controls["overlay_color_cycle"].box.setChecked(True)
+    page.controls["overlay_outline_color"].click()
+    settle(lambda: len(app.sent("POST", "/api/ui")) == 7)
+    assert [body for _m, _p, body in app.sent("POST", "/api/ui")[2:]] == [
+        {"overlay_font_family": "Consolas"}, {"overlay_font_weight": 800}, {"overlay_font_scale": 130},
+        {"overlay_color_cycle": True}, {"overlay_outline_color": "#405060"}]
+    # a refusal said in its row
+    app.answers[("POST", "/api/ui", None)] = _refused("/api/ui", 400, "ValueError: overlay_font_weight must be 400-800")
+    page.font_weight.setCurrentIndex(0)
+    settle(lambda: page.look_messages["font"].text() == "ValueError: overlay_font_weight must be 400-800")
+    page.radar_poll.stop()
+
+
+def test_the_text_effects_and_each_elements_font(qapp, home):
+    fonts = {"rate": {"family": "Arial", "scale": 120}, "name": {"weight": 650}, "ttk": {"family": "Papyrus", "weight": 700}}
+    app = FakeApp(_answers({("GET", "/api/ui", None): {**server.ui_settings(), "overlay_text_fonts": fonts,
+                                                        "overlay_text_halo": True}}))
+    page = _page(home, app)
+    page.ask_colour, _asked = _colours("#00ff00")
+    page.show_tab("overlay")
+    settle(lambda: page.ui)
+    assert page.controls["overlay_text_halo"].box.isChecked() and not page.controls["overlay_text_retro"].box.isChecked()
+    assert page.controls["overlay_text_retro"].toolTip() == looks.RETRO_TIP and looks.ELEMENTS_NOTE in _texts(page)
+    shown = lambda: (page.element_family.currentText(), page.element_size.text(), page.element_weight.currentText())
+    # the first element's own font, then another's: shown, nothing saved; a font or weight none of the list's: none
+    assert [page.element.itemText(i) for i in range(page.element.count())] == [words for _v, words in looks.ELEMENTS]
+    assert page.element.currentData() == "rate" and shown() == ("Arial", "120", looks.AUTO)
+    page.element.setCurrentIndex(page.element.findData("name"))
+    assert shown() == (looks.INHERIT, looks.AUTO_SIZE, "") and page.element_weight.currentIndex() == -1
+    page.element.setCurrentIndex(page.element.findData("ttk"))
+    assert page.element_family.currentIndex() == -1 and page.element_weight.currentData() == 700
+    assert not app.sent("POST", "/api/ui")
+    # an element's size, weight and font: its entry saved, every element's sent
+    page.element.setCurrentIndex(page.element.findData("hp"))
+    page.element_size.setValue(140)
+    assert page.look_messages["element"].text() == looks.SAVING
+    settle(lambda: page.look_messages["element"].text() == "Saved")
+    assert app.sent("POST", "/api/ui") == [("POST", "/api/ui", {"overlay_text_fonts": {**fonts, "hp": {"scale": 140}}})]
+    page.element_weight.setCurrentIndex(page.element_weight.findData(500))
+    page.element_family.setCurrentIndex(page.element_family.findData("Georgia"))
+    settle(lambda: len(app.sent("POST", "/api/ui")) == 3)
+    assert app.sent("POST", "/api/ui")[-1][2]["overlay_text_fonts"]["hp"] == {"family": "Georgia", "scale": 140, "weight": 500}
+    # Reset element: its fields emptied and the element left out
+    _button(page, looks.ELEMENT_RESET).click()
+    settle(lambda: len(app.sent("POST", "/api/ui")) == 4)
+    assert app.sent("POST", "/api/ui")[-1][2] == {"overlay_text_fonts": fonts} and shown() == (looks.INHERIT, "auto", "Auto")
+    # a size stepped down to auto: none kept
+    page.element.setCurrentIndex(page.element.findData("rate"))
+    page.element_size.setValue(80)
+    page.element_size.stepDown()
+    settle(lambda: len(app.sent("POST", "/api/ui")) == 6)
+    assert app.sent("POST", "/api/ui")[-1][2]["overlay_text_fonts"]["rate"] == {"family": "Arial"}
+    # the effects: said where the fonts are
+    page.controls["overlay_text_retro"].box.setChecked(True)
+    page.controls["overlay_halo_color"].click()
+    settle(lambda: len(app.sent("POST", "/api/ui")) == 8 and page.look_messages["font"].text() == "Saved")
+    assert [body for _m, _p, body in app.sent("POST", "/api/ui")[6:]] == [{"overlay_text_retro": True},
+                                                                       {"overlay_halo_color": "#00ff00"}]
+    # the page shown again: its words afresh, the first element's font
+    before = page.ui
+    page.start()
+    assert page.look_messages["element"].text() == "" and page.look_messages["font"].text() == ""
+    _drawn_again(page, before)
+    assert page.element.currentData() == "rate" and shown() == ("Arial", "120", "Auto")
+    page.radar_poll.stop()
+
+
+def test_the_overlay_background(qapp, home, tmp_path):
+    import base64
+    png, jpeg, big = tmp_path / "card.PNG", tmp_path / "card.jpeg", tmp_path / "huge.jpg"
+    png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\0" * 40)
+    jpeg.write_bytes(b"\xff\xd8\xff" + b"\0" * 20)
+    big.write_bytes(b"\0" * (8 * 1024 * 1024 + 1))
+    chosen = [str(big), str(png), str(jpeg), ""]
+    app = FakeApp(_answers({("GET", "/api/ui", None): {**server.ui_settings(), "overlay_bg_set": True, "overlay_bg_opacity": 0,
+                                                        "overlay_bg_zoom": 0, "overlay_bg_darken": None,
+                                                        "overlay_text_autocontrast": "nope"},
+                            ("POST", "/api/overlay/background", None): [
+                                {"overlay_bg_set": True},
+                                _refused("/api/overlay/background", 400, "ValueError: The image could not be decoded"),
+                                {"overlay_bg_set": False}]}))
+    page = _page(home, app)
+    page.choose_image = lambda: chosen.pop(0)
+    page.show_tab("overlay")
+    settle(lambda: page.ui)
+    words = page.look_messages["background"]
+    # shown by the web page's rules: ``v ?? d`` keeps a 0, ``Number(v) || d`` does not
+    assert words.text() == looks.BG_SET and page.controls["overlay_text_autocontrast"].currentData() == "off"
+    assert [page.controls[key].value() for key, *_rest in looks.BG_NUMBERS] == [0, 100, 20]
+    assert any("<strong>Auto-contrast</strong>" in t and "<code>mix-blend-mode</code>" in t for t in _texts(page))
+    # a number saved, then said, with no Saving… first
+    page.controls["overlay_bg_zoom"].setValue(150)
+    assert words.text() == looks.BG_SET
+    settle(lambda: words.text() == "Saved")
+    assert app.sent("POST", "/api/ui") == [("POST", "/api/ui", {"overlay_bg_zoom": 150})]
+    # an image: too big refused; a PNG and a JPEG sent as data addresses; nothing chosen, nothing sent
+    _button(page, looks.BG_CHOOSE).click()
+    assert words.text() == looks.BG_TOO_BIG and not app.sent("POST", "/api/overlay/background")
+    _button(page, looks.BG_CHOOSE).click()
+    assert words.text() == looks.BG_UPLOADING
+    settle(lambda: words.text() == looks.BG_UPLOADED)
+    data = app.sent("POST", "/api/overlay/background")[0][2]["data"]
+    assert data.startswith("data:image/png;base64,") and base64.b64decode(data.partition(",")[2]) == png.read_bytes()
+    _button(page, looks.BG_CHOOSE).click()
+    settle(lambda: words.text() == "ValueError: The image could not be decoded")
+    assert app.sent("POST", "/api/overlay/background")[1][2]["data"].startswith("data:image/jpeg;base64,")
+    _button(page, looks.BG_CHOOSE).click()
+    _button(page, looks.BG_REMOVE).click()
+    settle(lambda: words.text() == looks.BG_REMOVED)
+    assert app.sent("POST", "/api/overlay/background")[2:] == [("POST", "/api/overlay/background", {"clear": True})]
+    # auto-contrast saved, and said
+    box = page.controls["overlay_text_autocontrast"]
+    box.setCurrentIndex(box.findData("luminance"))
+    settle(lambda: app.sent("POST", "/api/ui")[-1][2] == {"overlay_text_autocontrast": "luminance"}
+           and page.toast.text() == "Saved")
+    page.radar_poll.stop()
+
+
+def test_the_look_presets(qapp, home):
+    mine = {"name": "Mine", "settings": {"overlay_glow": True, "overlay_font_scale": 120}}
+    night = {"name": "Night", "settings": {"overlay_bg_darken": 60}}
+    empty = {"name": "Empty", "settings": None}
+    ui = {**server.ui_settings(), "overlay_presets": [mine, night, empty], "overlay_glow": True,
+          "overlay_glow_color": "#123456"}
+    app = FakeApp(_answers({("GET", "/api/ui", None): ui}))
+    asked, answers = [], []
+
+    def ask(question, text=""):
+        asked.append((question, text))
+        return answers.pop(0)
+    page = _page(home, app)
+    page.ask_text = ask
+    page.show_tab("overlay")
+    settle(lambda: page.ui)
+    box, message = page.preset_box, page.look_messages["preset"]
+    # the starter presets, then yours, each group's name in bold and not to be chosen; the first chosen
+    items = [(box.itemText(i), box.itemData(i), box.model().item(i).isEnabled()) for i in range(box.count())]
+    assert len(looks.bundled()) == 17 and items[:2] == [(looks.STARTER, None, False),
+                                                        ("  Default (gold)", "b::Default (gold)", True)]
+    assert items[18:] == [(looks.SAVED_PRESETS, None, False), ("  Mine", "s::Mine", True), ("  Night", "s::Night", True),
+                          ("  Empty", "s::Empty", True)]
+    assert box.model().item(0).font().bold() and box.currentIndex() == 1 and message.text() == ""
+    assert any("<strong>Copy share code</strong>" in t for t in _texts(page))
+    # a preset chosen: what it looks like, or that it is yours
+    box.setCurrentIndex(box.findData("b::Neon"))
+    assert message.text() == looks.described()["Neon"]
+    box.setCurrentIndex(box.findData("s::Night"))
+    assert message.text() == looks.YOURS
+    # Apply: its settings saved, said, then the page drawn again from the app's; one with none is not found
+    box.setCurrentIndex(box.findData("s::Empty"))
+    _button(page, looks.APPLY).click()
+    assert message.text() == looks.NOT_FOUND and not app.sent("POST", "/api/ui")
+    box.setCurrentIndex(box.findData("b::Ember"))
+    _button(page, looks.APPLY).click()
+    assert message.text() == looks.APPLYING
+    before = page.ui
+    settle(lambda: page.toast.text() == looks.APPLIED)
+    assert app.sent("POST", "/api/ui") == [("POST", "/api/ui", looks.bundled()["Ember"])]
+    _drawn_again(page, before)
+    assert message.text() == "" and box.currentIndex() == 1
+    # Save current look as…: the look the app has now, under the name asked for; one of the same name replaced
+    answers += [None, "  " + "x" * 39 + "😀 ", "  mine  "]
+    _button(page, looks.SAVE_AS).click()                                              # cancelled: nothing
+    _button(page, looks.SAVE_AS).click()                                              # 41 of JavaScript's characters
+    assert message.text() == looks.NAME_TOO_LONG and asked[:2] == [(looks.NAME_IT, ""), (looks.NAME_IT, "")]
+    before = page.ui
+    _button(page, looks.SAVE_AS).click()
+    assert message.text() == looks.SAVING
+    settle(lambda: page.toast.text() == looks.SAVED_IT)
+    saved = app.sent("POST", "/api/ui")[-1][2]["overlay_presets"]
+    assert [p["name"] for p in saved] == ["Night", "Empty", "mine"] and saved[2]["settings"] == looks.look_of(ui)
+    assert saved[2]["settings"]["overlay_glow_color"] == "#123456" and "overlay_presets" not in saved[2]["settings"]
+    _drawn_again(page, before)
+    # Delete: a starter preset cannot be; a saved one is
+    _button(page, looks.DELETE).click()
+    assert message.text() == looks.PICK_SAVED
+    box.setCurrentIndex(box.findData("s::Night"))
+    before = page.ui
+    _button(page, looks.DELETE).click()
+    assert message.text() == looks.DELETING
+    settle(lambda: page.toast.text() == looks.DELETED)
+    assert app.sent("POST", "/api/ui")[-1][2] == {"overlay_presets": [mine, empty]}
+    _drawn_again(page, before)
+    # Copy share code: the chosen preset's, or with none to copy the look the app has now
+    box.setCurrentIndex(box.findData("b::Tournament"))
+    _button(page, looks.COPY).click()
+    assert message.text() == looks.COPIED
+    code = QApplication.clipboard().text()
+    assert code.startswith("A2P1:") and looks.decode_preset(code) == {"name": "Tournament",
+                                                                       "settings": looks.bundled()["Tournament"]}
+    box.setCurrentIndex(box.findData("s::Empty"))
+    message.setText("")
+    _button(page, looks.COPY).click()
+    settle(lambda: message.text() == looks.COPIED)
+    assert looks.decode_preset(QApplication.clipboard().text()) == {"name": looks.MY_LOOK, "settings": looks.look_of(ui)}
+    # Paste a shared code…: not a code said; a code saved under the name asked for, its own offered
+    shared = looks.encode_preset("From a friend", {"overlay_glow": False, "not_a_look": 1})
+    answers += [" ", "A2P1:not base64!", shared, None, shared, "Friend's"]
+    _button(page, looks.PASTE).click()                                                # nothing pasted: nothing
+    _button(page, looks.PASTE).click()
+    assert message.text() == looks.NOT_A_CODE
+    _button(page, looks.PASTE).click()                                                # its name not wanted: nothing
+    assert asked[-1] == (looks.SAVE_SHARED_AS, "From a friend")
+    before = page.ui
+    _button(page, looks.PASTE).click()
+    settle(lambda: page.toast.text() == looks.SHARED_SAVED)
+    assert app.sent("POST", "/api/ui")[-1][2] == {"overlay_presets": [mine, night, empty, {
+        "name": "Friend's", "settings": {"overlay_glow": False}}]}
+    _drawn_again(page, before)
+    # the app refusing: said in the row
+    app.answers[("POST", "/api/ui", None)] = _refused("/api/ui", 400, "ValueError: each overlay preset needs a name")
+    answers += [shared, "Again"]
+    _button(page, looks.PASTE).click()
+    settle(lambda: message.text() == "Could not save: ValueError: each overlay preset needs a name")
+    app.answers[("POST", "/api/ui", None)] = _refused("/api/ui", 400, "ValueError: each overlay preset needs a name")
+    answers += ["Late"]
+    _button(page, looks.SAVE_AS).click()
+    settle(lambda: message.text() == "ValueError: each overlay preset needs a name")
+    page.radar_poll.stop()
+
+
+def test_the_page_starts_afresh_as_the_web_page_draws_itself_again(qapp, home):
+    app = FakeApp(_answers({("POST", "/api/maintenance", "inspect"): MAINTENANCE}))
+    page = _page(home, app)
+    settle(lambda: page.ui)
+    page.hotkeys_message.setText("Saved")
+    page.records_message.setText("Enter a whole number from 1 to 120.")
+    page.look_messages["preset"].setText(looks.YOURS)
+    page.maintenance_box.addWidget(QLabel("a table"))
+    page.start()
+    assert page.hotkeys_message.text() == page.records_message.text() == page.look_messages["preset"].text() == ""
+    assert page.maintenance_box.count() == 0
+    page.radar_poll.stop()
+
+
 def test_the_settings_words():
     assert sw.chosen_tab("pettracker") == "pettracker" and sw.chosen_tab(None) == "appearance"
     assert sw.text_scale({"app_text_scale": "120abc"}) == 120 and sw.text_scale({}) == 100
@@ -926,6 +1208,68 @@ def test_the_settings_words():
                                         "(step 3) to tell ahead from behind.")
     assert sw.radar_sample({"kind": "other", "alike": True}) == "Not a cube · sounds the same as the cube, so it is not used"
     assert sw.hotkeys_to_save({"quit": " ", "radar_learn_other": " "}) == ({"radar_learn_other": ""}, "")
+
+
+def test_the_look_words():
+    import base64
+    import re
+    from aion2calc.app import settings_backup
+    from test_settings_backup import _extract_bundled_presets
+    # the web page's own constants, read from its script: the presets as the backup's test reads them, a description
+    # for each, the keys a preset carries as the backup takes them, and the pickers' colours as the page's
+    assert looks.bundled() == _extract_bundled_presets() and list(looks.described()) == list(looks.bundled())
+    assert set(looks.visual_keys()) == set(settings_backup._VISUAL_KEYS) and len(looks.visual_keys()) == 34
+    script = open(looks.SETTINGS_JS, encoding="utf-8").read()
+    defaults = looks.js_literal(script, re.search(r"const OVERLAY_TEXT_DEFAULTS\s*=\s*", script).end())[0]
+    assert defaults == looks.TEXT_DEFAULTS and list(defaults) == [element for element, _w in looks.TEXT_COLOURS]
+    for name, settings in looks.bundled().items():                         # each starter preset is one the app takes
+        assert settings_backup.clean_presets([{"name": name, "settings": settings}])[0]["settings"].keys() == settings.keys()
+    # the literals as a script writes them
+    text = """{a: 1, 'b c': "d\\"e\\u00e9", // a note
+        f: [true, false, null, -2.5e1,], /* more */ g: {}, }; rest"""
+    value, end = looks.js_literal(text)
+    assert value == {"a": 1, "b c": 'd"eé', "f": [True, False, None, -25.0], "g": {}} and text[end:] == "; rest"
+    for broken in ("{a 1}", "{a: 1", "[1 2]", "'open", "{a: undefined}"):
+        with pytest.raises(ValueError):
+            looks.js_literal(broken)
+    # the values shown
+    assert looks.hex_colour("#ABCDEF", "#000000") == "#abcdef" and looks.hex_colour("#abcdef\n", "#000000") == "#000000"
+    assert looks.hex_colour(123456, "#111111") == "#111111"
+    assert looks.font_weight({"overlay_font_weight": "700"}) == 700 and looks.font_weight({"overlay_font_weight": 0}) == 600
+    assert looks.font_weight({"overlay_font_weight": 650}) == 400                     # none of the list's: its first
+    assert looks.font_weight({}) == 600 and looks.font_family({"overlay_font_family": None}) == ""
+    assert looks.element_shown({"rate": {"scale": "120", "weight": 600.0}}, "rate") == ("", None, 600.0)
+    assert looks.element_shown({"rate": "x"}, "rate") == ("", None, None) and looks.element_entry("", None, None) == {}
+    assert sw.shown_number({"overlay_bg_opacity": 0}, "overlay_bg_opacity", 100, "nullish") == 0
+    assert sw.shown_number({"overlay_bg_opacity": "x"}, "overlay_bg_opacity", 100, "nullish") == 100
+    assert looks.autocontrast({"overlay_text_autocontrast": ""}) == "off" and looks.bg_message({}) == looks.BG_NONE
+    # the presets
+    ui = {"overlay_presets": [{"name": "Mine", "settings": {"overlay_glow": True}}, "junk"]}
+    assert looks.preset_groups(ui)[1] == (looks.SAVED_PRESETS, [("s::Mine", "Mine"), ("s::", "")])
+    assert looks.preset_settings("s::Mine", ui) == {"overlay_glow": True} and looks.preset_settings("b::Nope", ui) is None
+    assert looks.preset_said("b::Nope") == "" and looks.preset_said("s::Mine") == looks.YOURS
+    assert looks.with_preset(ui, "MINE", {}) == ["junk", {"name": "MINE", "settings": {}}]      # one of the same name, any case
+    assert looks.without_preset(ui, "Mine") == ["junk"]
+    # the share codes: the web page's JSON, a whole number without its .0, the name in JavaScript's characters
+    assert looks.js_json({"a": 1.0, "b": [0.5, None, True], "c": "é\n"}) == '{"a":1,"b":[0.5,null,true],"c":"é\\n"}'
+    assert looks.js_json("\ud83d") == '"\\ud83d"'
+    code = looks.encode_preset("Neon ✨", {"overlay_font_scale": 110})
+    assert base64.b64decode(code[5:]) == '{"name":"Neon ✨","settings":{"overlay_font_scale":110}}'.encode("utf-8")
+    assert looks.decode_preset(code) == {"name": "Neon ✨", "settings": {"overlay_font_scale": 110}}
+    raw = base64.b64encode(b'\xef\xbb\xbf' + ('{"name":"' + "x" * 39 + '😀","settings":{"overlay_font_scale":1.2e2}}').encode())
+    assert looks.decode_preset(" \n" + raw.decode().rstrip("=") + "\t") == {"name": "x" * 39,
+                                                                           "settings": {"overlay_font_scale": 120}}
+    named = lambda name: base64.b64encode(json.dumps({"name": name, "settings": {"overlay_glow": 1}}).encode()).decode()
+    assert looks.decode_preset(named(""))["name"] == looks.SHARED
+    for bad in ("", "A2P1:", "A2P1:abc", "%%%", base64.b64encode(b"[1]").decode(), base64.b64encode(b"NaN").decode(),
+                base64.b64encode(b'{"name":1,"settings":{}}').decode(),
+                base64.b64encode(b'{"name":"a","settings":"x"}').decode(),
+                base64.b64encode(b'{"name":"a","settings":["overlay_glow"]}').decode(),
+                base64.b64encode(b'{"name":"a","settings":{"other":1}}').decode()):
+        with pytest.raises(ValueError):
+            looks.decode_preset(bad)
+    assert looks.js_trim("﻿ a 　") == "a" and looks.js_trim(None) == ""
+    assert looks.js_units("a😀") == 3 and looks.js_slice("ab😀c", 3) == "ab" and looks.js_slice("ab😀c", 4) == "ab😀"
 
 
 def test_the_image_failures_kept_as_the_web_page_keeps_them():
