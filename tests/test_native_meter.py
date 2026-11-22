@@ -224,7 +224,8 @@ def _refused(path, status, message):
 
 class FakeApp:
     """The app's local API as the page asks it: ``answers`` maps ``(method, path, action)`` to what the app says (a
-    dict; an exception it raises; or a list of either, given in turn). Unknown requests are not found."""
+    dict; an exception it raises; or a list of either, given in turn). Unknown requests are not found, and the live
+    review's document (0.2.473), unless answered, is not counted among the calls."""
 
     base = "http://127.0.0.1:9/"
 
@@ -240,6 +241,8 @@ class FakeApp:
         if self.hold is not None:
             self.hold.wait(5)
         key = (method, path, (body or {}).get("action") if method == "POST" else None)
+        if key == ("GET", "/api/meter/log", None) and key not in self.answers:
+            raise _refused(path, 404, "not found")       # the live review's document: kept only where a test reviews it
         self.calls.append((method, path, body, origin))
         if key not in self.answers:
             raise _refused(path, 404, "not found")
@@ -506,14 +509,9 @@ def test_the_sources_rows_and_advanced_capture(qapp, tmp_path):
     page.final_bosses.setText("4004")
     page.final_bosses.editingFinished.emit()
     assert store.value(lm.FINAL_BOSS_KEY) == "4004"
-    # what is not drawn here yet opens in the web interface
-    opened = []
-    page = _page(tmp_path, store=store, open_in_web=opened.append)
-    buttons = [b for b in page.findChildren(QPushButton) if b.text() == "Open in the web interface"]
-    assert len(buttons) == 1 and buttons[0].isEnabled()                     # the live review alone, since 0.2.472
-    buttons[0].click()
-    assert opened == ["meter"]
-    assert lm.ELSEWHERE_REVIEW in _visible_texts(page)
+    # everything is drawn here since 0.2.473: nothing opens in the web interface
+    page = _page(tmp_path, store=store, open_in_web=lambda page: None)
+    assert not [b for b in page.findChildren(QPushButton) if b.text() == "Open in the web interface"]
 
 
 def test_the_overlay_choice_is_kept_by_the_app(qapp, tmp_path):
@@ -1243,3 +1241,118 @@ def test_record_tcp_payloads_and_the_marks(qapp, tmp_path):
     page.apply({**_fight(), "finalizing": True})
     assert not page.record.isEnabled()
 
+
+
+# ------------------------------------------------------------------ the live review (0.2.473)
+def _live_log(cost=120, **meta):
+    """The session's document as the app exports it for the live review: the Combat Logs tests' made-up log, its
+    recording still running."""
+    from test_native_combat import REVIEW_LOG
+    doc = json.loads(json.dumps(REVIEW_LOG))
+    doc["meta"].update(capture_active=True, **meta)
+    doc["review_cost_ms"] = cost
+    return doc
+
+
+def _follow(review):
+    from PySide6.QtWidgets import QCheckBox
+    return next(b for b in review.findChildren(QCheckBox) if b.text() == "Follow latest encounter")
+
+
+def _ranks_asked(app):
+    return [b["body"]["segment"] for m, p, b in app.sent("POST", "/api/community") if b.get("path") == "/api/v1/rankings"]
+
+
+def test_the_live_review_is_read_with_the_fight_and_follows_its_latest_encounter(qapp, tmp_path):
+    from test_native_combat import REVIEW_RANKS
+    log = _live_log()
+    app = FakeApp({("GET", "/api/meter/log", None): log, ("POST", "/api/community", None): REVIEW_RANKS})
+    page = _page(tmp_path, app)
+    assert page.review is None and page.review_slot.isHidden()
+    assert not app.sent("GET", "/api/meter/log")                              # no players yet: nothing to review
+    page.apply(_fight())
+    settle(lambda: page.review is not None)
+    review = page.review
+    assert review.live and not page.review_slot.isHidden() and review.styleSheet()   # in Combat Logs' look
+    assert review.where == {"kind": "live", "value": ""} and review.state["segment"] == 1      # the latest: the arena
+    assert _follow(review).isChecked()
+    settle(lambda: _ranks_asked(app) == [1])                                   # its parses, with the session's log
+    assert app.sent("POST", "/api/community")[0][2]["body"]["log"]["meta"]["title"] == "Frost Spire night"
+    page.apply(_fight())                                                       # read again only every 4 s
+    _shown()
+    assert len(app.sent("GET", "/api/meter/log")) == 1
+    # the next document: a newer encounter, followed, its parses asked for
+    newer = _live_log()
+    newer["segments"].append(json.loads(json.dumps(newer["segments"][0])))
+    newer["segments"][2]["label"] = "Ice Queen again"
+    app.answers[("GET", "/api/meter/log", None)] = newer
+    page.review_at -= 5
+    page.apply(_fight())
+    settle(lambda: review.state["segment"] == 2)
+    assert page.review is review                                               # the same review, given the document
+    settle(lambda: _ranks_asked(app) == [1, 2])
+    # an encounter chosen: no longer the latest's, and kept as documents come
+    pick = next(c for c in review.findChildren(type(page.segments)) if c.accessibleName() == "Encounter")
+    pick.setCurrentIndex(pick.findData(0))
+    pick.activated.emit(pick.currentIndex())
+    assert review.state["segment"] == 0 and not _follow(review).isChecked()
+    page.review_at -= 5
+    page.apply(_fight())
+    settle(lambda: len(app.sent("GET", "/api/meter/log")) == 3)
+    _shown()
+    assert review.state["segment"] == 0
+    _follow(review).setChecked(True)                                           # followed again: the latest
+    assert review.state["segment"] == 2 and review.state["follow_latest"]
+    mode = next(c for c in review.findChildren(type(page.segments)) if c.accessibleName() == "Combat mode")
+    mode.setCurrentIndex(mode.findData("pvp"))
+    mode.activated.emit(mode.currentIndex())
+    assert review.state["segment"] == 1                                        # the latest PvP encounter
+    # what a live session has not: other parts to list, metadata to save, a recording to upload
+    texts = _visible_texts(review)
+    assert not [t for t in texts if t in ("Save metadata", "Other parts of this recording")]
+    assert not [b for b in review.findChildren(QPushButton) if b.text() in ("Save metadata", "Upload")]
+    opened = []
+    review.open_in_web = opened.append
+    review.full_review()
+    assert opened == ["meter"]
+
+
+def test_the_live_review_waits_for_its_cost_and_goes_with_clear_session(qapp, tmp_path):
+    log = _live_log(cost=1500)                                                 # a slow export: eight times it, 12 s
+    app = FakeApp({("GET", "/api/meter/log", None): [_refused("/api/meter/log", 500, "OSError: busy"), log],
+                   ("POST", "/api/meter", "clear"): IDLE})
+    page = _page(tmp_path, app, answer=True)
+    page.apply(_fight())
+    settle(lambda: not page.review_loading)
+    assert page.review is None                                                 # refused: nothing shown, asked when due
+    page.review_at -= 5
+    page.apply(_fight())
+    settle(lambda: page.review is not None)
+    assert 1.5 < page.review_cost < 3                                          # the export, and drawing it here
+    page.review_at -= 5
+    page.apply(_fight())
+    _shown()
+    assert len(app.sent("GET", "/api/meter/log")) == 2                         # 12 s not yet passed
+    page.review_at -= 30
+    page.apply(_fight())
+    settle(lambda: len(app.sent("GET", "/api/meter/log")) == 3)
+    settle(lambda: not page.review_loading)
+    page.clear_button.setEnabled(True)
+    page.clear()                                                               # gone before the session is cleared
+    assert page.review is None and page.review_slot.isHidden()
+    settle(lambda: page.notice_text == "Combat history cleared.")
+    # a document without encounters makes no review; each visit starts the review afresh
+    app.answers[("GET", "/api/meter/log", None)] = {"segments": [], "review_cost_ms": 5}
+    page.apply(_fight())
+    settle(lambda: not page.review_loading and len(app.sent("GET", "/api/meter/log")) == 4)
+    assert page.review is None
+    app.answers[("GET", "/api/meter/log", None)] = log
+    page.review_at -= 20
+    page.apply(_fight())
+    settle(lambda: page.review is not None)
+    page.started = True                                                        # the page left, then opened again
+    page.hide()
+    page.show()
+    _shown()
+    assert page.review is None and page.review_slot.isHidden()
+    page.stop()

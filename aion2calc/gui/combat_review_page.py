@@ -37,6 +37,10 @@ Drawn here so far:
 - Since 0.2.470 the replay's key, each entry unticked hiding what it names while the log is open; and for a shared log
   the movement of the fight's other recordings, merged by the log server when asked for or when the parses name
   another upload of the fight.
+- Since 0.2.473 the live session's review under the Live Meter (``live``, ``A2CombatReview.mount`` with ``live``): given
+  each document of the session as the meter reads it (``show_live``, then ``update_live``), it follows the latest
+  encounter until another is chosen (**Follow latest encounter**), and has no other parts to list, metadata to save or
+  recording to upload.
 
 The replay's Raid Planner file opens in the web interface for now, from a button on the page.
 """
@@ -208,8 +212,9 @@ class ReviewPage(QWidget):
     uploaded = Signal()
 
     def __init__(self, api: AppApi | None, open_web=None, open_in_web=None, parent: QWidget | None = None,
-                 pictures: Pictures | None = None, read_picture=None, store=None):
+                 pictures: Pictures | None = None, read_picture=None, store=None, live: bool = False):
         super().__init__(parent)
+        self.live = live                                 # the live session's review (``options.live``, 0.2.473)
         self.store = store if store is not None else interface_store()
         self.replay: ReplayPanel | None = None           # the movement replay drawn last, while it may be playing
         self.aoe_shapes: dict | None = None              # the bosses' skills' measured areas (``aoeShapes``), read once
@@ -328,6 +333,62 @@ class ReviewPage(QWidget):
             self._ask("aoe", "/static/aoe-shapes.json")
         path, proxied = cw.log_path(kind, value)
         self._ask("log", path, proxied)
+
+    def show_live(self, doc: dict) -> None:
+        """The live session's review (``mount`` with ``live``): its document as the meter reads it, at its latest
+        encounter, followed until another is chosen."""
+        self.live = True
+        self.where = {"kind": "live", "value": ""}
+        self.doc, self.ranks = None, None
+        self.state = cw.fresh_state()
+        self.state["follow_latest"] = True
+        self._forget_timeline()
+        self._forget_forms()
+        self._stop_replay()
+        self.replay_hidden = set()
+        self.moves_by_doc, self.moving = {}, {}
+        for kind_of in [k for k in self.asked if k.startswith("movement.")]:
+            self.asked[kind_of] += 1
+        for kind_of in ("log", "ranks"):
+            self.asked[kind_of] = self.asked.get(kind_of, 0) + 1
+        self._ask("ui", "/api/ui")
+        if self.names is None:
+            self._ask("names", "/api/v1/npc-portraits", proxied=True)
+        if self.aoe_shapes is None and not self.asked.get("aoe"):
+            self._ask("aoe", "/static/aoe-shapes.json")
+        self.doc = _dict(doc)
+        self._select_latest()
+        self.draw()
+        self.ask_ranks()
+
+    def update_live(self, doc: dict) -> None:
+        """The session's next document (``update``): the choices kept, the latest encounter followed, and its parses
+        asked for when the review moves to it."""
+        self.fight = cw_fight()
+        self.doc = _dict(doc)
+        self.state["segment"] = min(self.state["segment"], len(cw.segments(self.doc)) - 1)
+        moved = self._select_latest()
+        self.draw()
+        if moved:
+            self.ask_ranks()
+
+    def _select_latest(self) -> bool:
+        """``selectLatest``: following the latest encounter, the newest of the mode chosen; whether the review moved."""
+        if not self.live or not self.state.get("follow_latest"):
+            return False
+        segments = cw.segments(self.doc)
+        index = len(segments) - 1
+        while index >= 0 and not cw.matches_mode(self.doc, segments[index], self.state["mode"]):
+            index -= 1
+        if index < 0:
+            return False
+        self.state["run"] = ""
+        if index == self.state["segment"]:
+            return False
+        self._forget_timeline()
+        self.state.update(segment=index, actor="", enemy="", page=0)
+        self.ranks = None
+        return True
 
     def reload(self) -> None:
         """The log read again, the choices kept."""
@@ -508,19 +569,22 @@ class ReviewPage(QWidget):
         state = self.state
         state[key] = value
         state["page"] = 0
+        if key in ("run", "segment"):                                # an encounter chosen: no longer the latest's
+            state["follow_latest"] = False
         if key == "mode":
             state["run"] = ""
             state["segment"] = max(0, next((i for i, s in enumerate(cw.segments(self.doc)) if cw.matches_mode(self.doc, s, value)), 0))
         if key == "run":
             state["segment"] = cw.first_of_run(self.doc, state)
-        if key in ("mode", "run", "segment"):
+        encounter = key in ("mode", "run", "segment", "follow_latest")
+        if encounter:
             state["enemy"] = state["actor"] = ""
             self.ranks = None
             self._forget_timeline()
-            self.draw()
+        self._select_latest()
+        self.draw()
+        if encounter:
             self.ask_ranks()
-        else:
-            self.draw()
 
     def choose_metric(self, key: str) -> None:
         """A metric chosen (``data-metric``). Not ``metric``: ``QWidget.metric()`` is Qt's own, asked for the page's paint
@@ -552,6 +616,9 @@ class ReviewPage(QWidget):
     def full_review(self) -> None:
         """The whole review, in the web interface (its graph, timeline, events and the rest)."""
         if not self.where:
+            return
+        if self.where["kind"] == "live":                             # the live session's: the web interface's Live Meter
+            self.open_in_web("meter")
             return
         if self.where["kind"] == "local":
             page = cw.local_page(self.where["value"], self.state["mode"], self.state["segment"])
@@ -722,9 +789,12 @@ class ReviewPage(QWidget):
         return box
 
     def _controls(self, d: dict, foes: list[dict]) -> QWidget:
-        """The mode, run, encounter and player (``data-control``)."""
+        """The mode, run, encounter and player (``data-control``), on as many lines as the window needs (``.row``'s
+        ``flex-wrap``, since 0.2.473)."""
         doc, state = self.doc, self.state
-        box, line = _plain(QHBoxLayout, 14)
+        box = QWidget()
+        box.setObjectName("plain")
+        line = FlowLayout(box, align=Qt.AlignLeft, gap=(14, 8))
         line.addWidget(self._pick("Combat mode", cw.MODES, state["mode"], lambda value: self._changed("mode", value)))
         runs = cw.runs(doc, state)
         if any(run != "legacy" for run in runs):
@@ -732,6 +802,11 @@ class ReviewPage(QWidget):
                                       lambda value: self._changed("run", value)))
             run = _label(cw.run_line(d), "small", wrap=False)
             line.addWidget(run)
+        if self.live:                                                # ``data-control="followLatest"``
+            follow = QCheckBox(cw.FOLLOW_LATEST)
+            follow.setChecked(bool(state.get("follow_latest")))
+            follow.toggled.connect(lambda checked: self._changed("follow_latest", checked))
+            line.addWidget(follow)
         line.addWidget(self._pick("Encounter", cw.segment_choices(doc, state), state["segment"],
                                   lambda value: self._changed("segment", int(value))))
         players = [(js_text(p.get("id")), cw.actor_label(p)) for p in d["rows"]]
@@ -743,7 +818,6 @@ class ReviewPage(QWidget):
         insights.setChecked(bool(state.get("insights")))
         insights.toggled.connect(lambda checked: self._changed("insights", checked))
         line.addWidget(insights)
-        line.addStretch(1)
         return box
 
     def _tabs(self) -> QWidget:
@@ -1503,7 +1577,7 @@ class ReviewPage(QWidget):
         """The recording's other parts looked for as it opens (``autoCombine``), for the offer to review them together;
         a recording still being written with no earlier part, a combined review, or a log of one part asks nothing."""
         archive = _dict(_dict(self.doc).get("meta")).get("archive")
-        if self.source_view is not None or cw.reconstructed(self.doc) or not isinstance(archive, dict):
+        if self.live or self.source_view is not None or cw.reconstructed(self.doc) or not isinstance(archive, dict):
             return
         part = archive.get("part")
         if not ((isinstance(part, (int, float)) and not isinstance(part, bool) and part > 1) or _truthy(archive.get("closed"))):
@@ -1617,6 +1691,8 @@ class ReviewPage(QWidget):
         note = cw.archive_note(self.doc)
         if not note:
             return None
+        if self.live:                                                # no parts to list or join (``options.live``)
+            return _note(note)
         a = self.archive
         box, column = _plain(spacing=8)
         if a["offer"]:
