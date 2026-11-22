@@ -1,3 +1,13 @@
+## The Live Meter page in the native interface, part 1 (0.2.471)
+
+**The Live Meter page in the app's window is now the web page's**, in place of its short list of the fight:
+- **the capture:** the source (Live Capture, the demo replay, or a custom decoder chosen as a file), Start and Stop, Show overlay when starting, Clear session, Save to Combat Logs, Export a2log, Upload, Screenshot, Split now, Finish run, Hide overlay and Open overlay. An action's button says what it is doing until it is done; what it did shows under the controls, and for a few seconds at the page's foot. Start checks the packet-capture support first and offers to install it; Stop saves the session and uploads it unless Settings says not to. Npcap's setup shows above the meter while it is missing, and **Retry region detection** when the official region lookup failed;
+- **Advanced capture**, the part Start uses: the network interface, the game host, the game port found or fixed, the name override and the final bosses whose death finishes a run;
+- **the view:** the players' scope, Combine pets with owner, Automatic splits and the time without outgoing damage that splits a fight, the combat to view, All enemies and Follow latest combat;
+- **the fight:** why there is nothing yet; the enemies, one chosen to show each player's damage against it; the players with their bars, one chosen to show their parse card under them; the ping; and your Odyle Energy, Shugo keys, Nightmare tickets and weekly runs.
+
+The app's window keeps the players' scope, the name override and the final bosses apart from the web page's. Advanced capture's game installation, game version and capture context and capture diagnostics, and the session's live review, still open in the web interface, from the buttons on the page.
+
 ## A combat log's own page in the native interface, part 14 (0.2.470)
 
 **A log's movement replay in the app's window now has its key, and adds the fight's other recordings**, as the web page's replay does:

@@ -166,29 +166,57 @@ def test_the_window_lists_the_web_navigation_and_draws_the_live_meter(qapp, monk
     assert opened == [("http://127.0.0.1:8765/#/raid", False)]                       # the web interface's page
 
 
-def test_the_live_meter_page_shows_the_fight_and_its_buttons(qapp):
-    page = MeterPage(None)
-    page.apply({**_meter(), "running": True})
-    assert page.table.rowCount() == 3
-    assert [page.table.item(row, 0).text() for row in range(3)] == ["Seraphel", "Nyxara", "Velmira"]
-    assert page.table.item(0, 2).text() == "23.40K" and page.table.item(0, 4).text() == "51.0%"
-    assert not page.start_button.isEnabled() and page.stop_button.isEnabled()
-    assert page.fight.text() == "Atiel · 75s · 45.70K raid DPS"
-    assert "Vakron Sky Island · hard: 4 runs left this week (3 + 1 bonus)" in page.lines.text()
+def test_the_live_meter_page_shows_the_fight_and_its_buttons(qapp, tmp_path):
+    """The page as the web page draws it since 0.2.471 (tests/test_native_meter.py has the rest)."""
+    from PySide6.QtCore import QSettings
+    from PySide6.QtWidgets import QLabel
+    from aion2calc.gui.meter_page import PlayerRow
+    from aion2calc.gui.pictures import Pictures
+    from test_native_overlay_toolbar import settle
+    store = QSettings(str(tmp_path / "interface.ini"), QSettings.IniFormat)
+    page = MeterPage(None, store=store)
+    meter = _meter()
+    meter["snapshot"]["dps"] = 45700
+    page.apply({**meter, "running": True})
+    players = page.slots["players"].itemAt(0).widget()
+    rows = players.findChildren(PlayerRow)
+    assert [row.accessibleName().split(" · ")[0] for row in rows] == ["Seraphel", "Nyxara", "Velmira"]
+    assert rows[0].bar.words == "23.40K/s · 51%" and rows[0].chosen
+    assert page.start_button.text() == "Stop" and page.start_button.isEnabled() and not page.clear_button.isEnabled()
+    assert players.subtitle.text() == "Atiel · 75s · 45.70K raid DPS"
+    assert "Vakron Sky Island · hard: 4 runs left this week (3 + 1 bonus)" in [l.text() for l in players.findChildren(QLabel)]
     page.apply({"running": False, "snapshot": {}})
-    assert page.table.rowCount() == 0 and page.start_button.isEnabled() and page.fight.text() == "No fight yet"
+    assert page.slots["players"].parentWidget().isHidden() and page.start_button.text() == "Start"
+    empty = page.slots["empty"].itemAt(0).widget()
+    assert empty.findChildren(QLabel)[-1].text() == "No data yet — choose a source and press Start."
 
     class Recorder:
         def __init__(self):
             self.calls = []
 
-        def post(self, path, payload):
+        def url(self, path):
+            return "http://127.0.0.1:9/" + path.lstrip("/")
+
+        def get(self, path, timeout=None):
+            self.calls.append((path, None))
+            return {"supported": False}
+
+        def get_bytes(self, path, timeout=None):
+            raise OSError("no pictures here")
+
+        def post(self, path, payload, timeout=None, origin=False):
             self.calls.append((path, payload))
-            return {}
+            return {"running": False, "snapshot": {"players": []}}
 
     app = Recorder()
-    MeterPage(app).start_capture()                    # Self + Party, as the web page starts (0.2.416)
-    assert app.calls == [("/api/meter", {"action": "start", "source": "a2tools", "auto_port": True, "scope": "party"})]
+    page = MeterPage(app, store=store, pictures=Pictures(None))
+    page.start_button.click()                         # Self + Party, as the web page starts (0.2.416), packet capture checked
+    settle(lambda: len(app.calls) == 2)
+    assert app.calls[0] == ("/api/capture/setup", None)
+    path, body = app.calls[1]
+    assert path == "/api/meter" and (body["action"], body["source"], body["auto_port"], body["scope"]) == (
+        "start", "a2tools", True, "party")
+    page.stop()
 
 
 # ------------------------------------------------------------------ the API and the poll

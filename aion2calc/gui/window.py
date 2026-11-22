@@ -2,9 +2,10 @@
 pages drawn by Qt.
 
 The navigation lists the web interface's sections and pages in its order (``SECTIONS``, after index.html). The
-pages are moved over one at a time: the Live Meter page first, then Settings (0.2.414), then News (0.2.427), Timers
-(0.2.428), Database (0.2.429) and Gathering (0.2.430). A page the native window does not draw yet says so and opens
-in the web interface, so every page stays a click away while the move goes on.
+pages are moved over one at a time: the Live Meter page first (as the web page draws it since 0.2.471,
+``meter_page``), then Settings (0.2.414), then News (0.2.427), Timers (0.2.428), Database (0.2.429) and Gathering
+(0.2.430). A page the native window does not draw yet says so and opens in the web interface, so every page stays a
+click away while the move goes on.
 """
 from __future__ import annotations
 
@@ -16,14 +17,13 @@ import urllib.parse
 import webbrowser
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHBoxLayout, QHeaderView, QLabel, QListWidget,
-                               QListWidgetItem, QMainWindow, QMessageBox, QPushButton, QStackedWidget,
-                               QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow, QPushButton,
+                               QStackedWidget, QVBoxLayout, QWidget)
 
 from . import theme
 from .account_page import AccountPage
 from .combat_review import read_page
-from .api import AppApi, Poller
+from .api import AppApi
 from .news import NewsPage
 from .crafting_page import CraftingPage
 from .database_page import DatabasePage
@@ -33,10 +33,10 @@ from .history_page import HistoryPage
 from .character_page import CharacterPage
 from .combat_page import CombatPage
 from .maps_page import MapsPage
+from .meter_page import MeterPage
 from .planner_page import PlannerPage
 from .pets_page import PetsPage
 from .timers_page import TimersPage
-from .overlay import START_SCOPE, counter_lines
 from .settings_page import SettingsPage
 
 #: The web interface's navigation (index.html): each section's pages, then Settings and Account.
@@ -76,132 +76,6 @@ class WebPage(QWidget):
         box.addStretch(1)
 
 
-class MeterPage(QWidget):
-    """The Live Meter page: the capture's state with Start, Stop and Open overlay, the players of the current fight
-    and the counter lines, from the app's ``/api/meter`` as the web page reads it."""
-
-    COLUMNS = ("Player", "Class", "DPS", "Damage", "Share", "Hits", "Crit")
-
-    def __init__(self, api: AppApi | None, parent=None):
-        super().__init__(parent)
-        self.api = api
-        self.answer: dict = {}
-        box = QVBoxLayout(self)
-        box.setContentsMargins(24, 20, 24, 20)
-        box.setSpacing(10)
-        heading = QLabel("Live Meter")
-        heading.setObjectName("heading")
-        box.addWidget(heading)
-        self.state = QLabel("Waiting for the app")
-        self.state.setObjectName("muted")
-        box.addWidget(self.state)
-        buttons = QHBoxLayout()
-        self.start_button = QPushButton("Start capture")
-        self.stop_button = QPushButton("Stop")
-        self.overlay_button = QPushButton("Open overlay")
-        self.start_button.clicked.connect(self.start_capture)
-        self.stop_button.clicked.connect(self.stop_capture)
-        self.overlay_button.clicked.connect(self.open_overlay)
-        for button in (self.start_button, self.stop_button, self.overlay_button):
-            buttons.addWidget(button)
-        buttons.addStretch(1)
-        box.addLayout(buttons)
-        self.fight = QLabel("")
-        box.addWidget(self.fight)
-        self.table = QTableWidget(0, len(self.COLUMNS))
-        self.table.setHorizontalHeaderLabels(self.COLUMNS)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        box.addWidget(self.table, 1)
-        self.lines = QLabel("")
-        self.lines.setWordWrap(True)
-        box.addWidget(self.lines)
-        self.ping = QLabel("")
-        self.ping.setObjectName("muted")
-        box.addWidget(self.ping)
-        self.apply({})
-        self.poller = None
-        if api is not None:
-            self.poller = Poller(api, "/api/meter", 1000, self)
-            self.poller.answered.connect(self.apply)
-            self.poller.failed.connect(lambda why: self.state.setText("The app does not answer: " + why))
-
-    def start(self) -> None:
-        if self.poller is not None:
-            self.poller.start()
-
-    def _post(self, payload: dict, path: str = "/api/meter") -> dict | None:
-        if self.api is None:
-            return None
-        try:
-            return self.api.post(path, payload)
-        except (OSError, ValueError) as exc:
-            QMessageBox.warning(self, "Live Meter", f"The app did not take it: {exc}")
-            return None
-
-    def start_capture(self) -> None:
-        # Self + Party, the web Live Meter page's own choice until one is picked there (0.2.416: the app took a
-        # start without one for Automatic)
-        self._post({"action": "start", "source": "a2tools", "auto_port": True, "scope": START_SCOPE})
-
-    def stop_capture(self) -> None:
-        self._post({"action": "stop"})
-
-    def open_overlay(self) -> None:
-        self._post({}, "/api/overlay")
-
-    def apply(self, answer: dict) -> None:
-        """Show the app's answer to ``/api/meter``."""
-        if not isinstance(answer, dict):
-            return
-        self.answer = answer
-        running = answer.get("running") is True
-        self.start_button.setEnabled(not running)
-        self.stop_button.setEnabled(running)
-        error = answer.get("error")
-        if error:
-            self.state.setText(f"Capture stopped: {error}")
-        else:
-            self.state.setText("Capturing" if running else "Not capturing")
-        snap = answer.get("snapshot") or {}
-        players = sorted((p for p in (snap.get("players") or []) if isinstance(p, dict)),
-                         key=lambda p: float(p.get("dps") or 0), reverse=True)
-        if players:
-            raid = sum(float(p.get("dps") or 0) for p in players)
-            self.fight.setText(f"{snap.get('boss') or 'Combat'} · {float(snap.get('duration') or 0):.0f}s · "
-                               f"{theme.kfmt(raid)} raid DPS")
-        else:
-            self.fight.setText("No fight yet")
-        self.table.setRowCount(len(players))
-        for row, player in enumerate(players):
-            crit = player.get("crit")
-            cells = (str(player.get("name") or "?"), str(player.get("class") or "").title(),
-                     theme.kfmt(player.get("dps")), theme.kfmt(player.get("damage")),
-                     f"{100 * float(player.get('share') or 0):.1f}%", f"{int(player.get('hits') or 0):,}",
-                     f"{100 * float(crit):.1f}%" if isinstance(crit, (int, float)) else "—")
-            for column, text in enumerate(cells):
-                item = self.table.item(row, column)
-                if item is None:
-                    item = QTableWidgetItem()
-                    self.table.setItem(row, column, item)
-                if item.text() != text:
-                    item.setText(text)
-                if column >= 2:
-                    item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        lines = counter_lines(snap)
-        self.lines.setText("\n".join(text for _key, text, _short in lines))
-        self.lines.setVisible(bool(lines))
-        ping = snap.get("ping")
-        if isinstance(ping, dict) and ping.get("samples"):
-            self.ping.setText(f"Ping {theme.kfmt(ping.get('current'))} ms now · {theme.kfmt(ping.get('avg'))} ms "
-                              f"capture avg · {theme.kfmt(ping.get('min'))}–{theme.kfmt(ping.get('max'))} ms range")
-            self.ping.show()
-        else:
-            self.ping.hide()
-
-
 class MainWindow(QMainWindow):
     """The app window: the navigation on the left, the page on the right."""
 
@@ -231,7 +105,7 @@ class MainWindow(QMainWindow):
                 self.nav.addItem(item)
                 self.page_rows[key] = self.nav.count() - 1
                 if key == "meter":
-                    widget = MeterPage(api)
+                    widget = MeterPage(api, open_page=self.show_page, open_in_web=self.open_in_web)
                 elif key == "settings":
                     widget = SettingsPage(api, self.open_web)
                 elif key == "news":

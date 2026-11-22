@@ -48,22 +48,35 @@ class AppApi:
         with urllib.request.urlopen(self.url(path), timeout=timeout or self.timeout) as response:
             return response.read()
 
-    def post(self, path: str, payload: dict, timeout: float | None = None) -> dict:
-        request = urllib.request.Request(self.url(path), json.dumps(payload).encode("utf-8"),
-                                         {"Content-Type": "application/json"})
+    def origin(self) -> str:
+        """The app's own address as a web page of it names it (``Origin``: ``http://127.0.0.1:8765``)."""
+        parts = urllib.parse.urlsplit(self.base)
+        return f"{parts.scheme}://{parts.netloc}"
+
+    def post(self, path: str, payload: dict, timeout: float | None = None, origin: bool = False) -> dict:
+        """Send ``payload`` to ``path``. ``origin`` names the app's own address as its pages do, for the few actions
+        the app takes from its own interface alone (an application screenshot, 0.2.471): a program that names no
+        origin is served everything else."""
+        headers = {"Content-Type": "application/json"}
+        if origin:
+            headers["Origin"] = self.origin()
+        request = urllib.request.Request(self.url(path), json.dumps(payload).encode("utf-8"), headers)
         with urllib.request.urlopen(request, timeout=timeout or self.timeout) as response:
             return json.loads(response.read().decode("utf-8") or "{}")
 
 
 class Poller(QObject):
-    """Ask the app for ``path`` every ``interval_ms`` and emit ``answered`` (the JSON) or ``failed`` (why)."""
+    """Ask the app for ``path`` every ``interval_ms`` and emit ``answered`` (the JSON) or ``failed`` (why). ``timeout``
+    is how long each answer may take when not the API's own few seconds (the Live Meter page's 8 s, 0.2.471);
+    ``explain`` words a failure (the Live Meter page gives ``why``, the app's own words, as its web page shows them)."""
 
     answered = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, api: AppApi, path: str, interval_ms: int, parent: QObject | None = None):
+    def __init__(self, api: AppApi, path: str, interval_ms: int, parent: QObject | None = None,
+                 timeout: float | None = None, explain=str):
         super().__init__(parent)
-        self.api, self.path = api, path
+        self.api, self.path, self.timeout, self.explain = api, path, timeout, explain
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gui-poll")
         self._busy = False
         self._timer = QTimer(self)
@@ -77,6 +90,10 @@ class Poller(QObject):
     def stop(self) -> None:
         self._timer.stop()
         self._pool.shutdown(wait=False, cancel_futures=True)
+
+    def pause(self) -> None:
+        """Ask no more until ``start`` asks again (a page put away, 0.2.471); ``stop`` ends the poller for good."""
+        self._timer.stop()
 
     def set_interval(self, interval_ms: int) -> None:
         """Ask at another pace from the next poll on (the overlay reads the meter less often out of a fight)."""
@@ -94,10 +111,10 @@ class Poller(QObject):
 
     def _ask(self) -> None:
         try:
-            answer = self.api.get(self.path)
+            answer = self.api.get(self.path) if self.timeout is None else self.api.get(self.path, timeout=self.timeout)
         except (OSError, ValueError, urllib.error.URLError) as exc:
             self._busy = False
-            self.failed.emit(str(exc))            # a signal emitted here is delivered on the interface's thread
+            self.failed.emit(self.explain(exc))   # a signal emitted here is delivered on the interface's thread
             return
         self._busy = False
         self.answered.emit(answer)
@@ -108,7 +125,9 @@ class Requests(QObject):
     is answered as ``replied(name, answer)`` or ``failed(name, why)``, ``name`` being what the window called it.
     Connect them to a window's own methods: those run on the interface's thread. ``timeout`` is how long each may
     take to answer when not the API's own few seconds: a page whose requests can take a while (My Character's search on
-    the official site, a large recording read, 0.2.441) waits as a browser would."""
+    the official site, a large recording read, 0.2.441) waits as a browser would. ``unanswered`` holds the names whose
+    last request had no answer from the app at all (no connection, or none in time), as a web page's ``fetch`` fails
+    with a ``TypeError``, rather than an answer refusing it (0.2.471)."""
 
     replied = Signal(str, object)
     failed = Signal(str, str)
@@ -116,6 +135,7 @@ class Requests(QObject):
     def __init__(self, api: AppApi, parent: QObject | None = None, timeout: float | None = None):
         super().__init__(parent)
         self.api, self.timeout = api, timeout
+        self.unanswered: set[str] = set()
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gui-call")
 
     def get(self, name: str, path: str) -> None:
@@ -125,28 +145,36 @@ class Requests(QObject):
         """As ``get``, answered with the body's bytes (an image) rather than its JSON."""
         self._submit(name, path, None, raw=True)
 
-    def post(self, name: str, path: str, payload: dict) -> None:
-        self._submit(name, path, payload)
+    def post(self, name: str, path: str, payload: dict, origin: bool = False) -> None:
+        """As ``get``, sending ``payload``; ``origin`` names the app's own address (``AppApi.post``)."""
+        self._submit(name, path, payload, origin=origin)
 
-    def _submit(self, name: str, path: str, payload: dict | None, raw: bool = False) -> None:
+    def _submit(self, name: str, path: str, payload: dict | None, raw: bool = False, origin: bool = False) -> None:
         try:
-            self._pool.submit(self._send, name, path, payload, raw)
+            self._pool.submit(self._send, name, path, payload, raw, origin)
         except RuntimeError:                     # stopped: its window has closed, and nothing waits for the answer
             pass
 
     def stop(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
 
-    def _send(self, name: str, path: str, payload: dict | None, raw: bool = False) -> None:
+    def _send(self, name: str, path: str, payload: dict | None, raw: bool = False, origin: bool = False) -> None:
         wait = {} if self.timeout is None else {"timeout": self.timeout}
         try:
             if raw:
                 answer = self.api.get_bytes(path, **wait)
+            elif payload is None:
+                answer = self.api.get(path, **wait)
             else:
-                answer = self.api.get(path, **wait) if payload is None else self.api.post(path, payload, **wait)
+                answer = self.api.post(path, payload, **wait, **({"origin": True} if origin else {}))
         except (OSError, ValueError, urllib.error.URLError) as exc:
+            if isinstance(exc, OSError) and not isinstance(exc, urllib.error.HTTPError):
+                self.unanswered.add(name)                   # before the signal: its slot reads it
+            else:
+                self.unanswered.discard(name)
             self.failed.emit(name, why(exc))
             return
+        self.unanswered.discard(name)
         self.replied.emit(name, answer)
 
 
