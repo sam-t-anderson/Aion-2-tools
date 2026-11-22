@@ -1,7 +1,8 @@
 """The native Settings page's words and figures (0.2.475), as pages/settings.js writes them: its tabs, and the rows of
 App & data with their notes, the game database's line, the storage maintenance's table, the version and its update,
 and the patch notes; since 0.2.476 the Meter tab's Combat records and the Server tab's log server and community stats;
-since 0.2.477 the Pet Tracker tab. The page (settings_page.py) draws them.
+since 0.2.477 the Pet Tracker tab; since 0.2.478 the Overlay tab's first half, described as the rows' controls in their
+order (``LIVE_OVERLAY``, ``RTSS``, ``LAYOUT``). The page (settings_page.py) draws them.
 """
 from __future__ import annotations
 
@@ -541,3 +542,238 @@ def pet_status(state) -> dict:
                 "install": None, "setup": "", "notice": update_notice(s), "busy": busy}
     return {"text": NOT_INSTALLED, "install": not busy or setup.get("status") == "started",
             "setup": setup_text(s.get("setup")), "notice": None, "busy": busy}
+
+
+# ------------------------------------------------------------------ Overlay, first part (0.2.478)
+#: How a row's controls read the app's value, as the web page's template writes them: ``on`` ``!== false``, ``true``
+#: ``=== true``; a number ``finite`` (``Number.isFinite(+v) ? +v : d``) or ``or`` (``Number(v) || d``).
+SAVED_RELAUNCH_OVERLAY = "Saved · reopen the overlay to apply"
+SAVED_OPEN_OVERLAY = "Saved · applies to the open overlay within 10s"
+COULD_NOT_SAVE_OVERLAY = "Could not save overlay preference: {}"
+#: The overlay's animated row effects (``OVERLAY_COSMETICS``).
+COSMETICS = (("none", "None"), ("gold", "Gold: a turning gold frame and a diamond"),
+             ("rainbow", "Rainbow: a glowing rainbow name"), ("ember", "Ember: a pulsing fire glow"),
+             ("frost", "Frost: an icy sheen"), ("aether", "Aether: a violet and teal aurora"),
+             ("starlight", "Starlight: twinkling stars"))
+
+
+def check(key, words, muted="", rule="on", saved=SAVED, tip="", indent=0):
+    return ("check", key, words, muted, rule, saved, tip, indent)
+
+
+def note(text, indent=0, rich=False):
+    return ("note", text, indent, rich)
+
+
+def number(key, before, after, low, high, fallback, shown="finite", save="clamp", step=1, muted="", name=""):
+    """A number field: ``save`` ``clamp`` (kept within its limits, ``parseInt(...) || fallback``, then "Saved") or
+    ``checked`` (``saveLayoutNum``: checked and said beside its row). ``name`` names a field without words before it."""
+    return ("number", key, before, after, low, high, fallback, shown, save, step, muted, name or before or after)
+
+
+def select(key, before, options, fallback):
+    return ("select", key, before, tuple(options), fallback)
+
+
+def row(*controls, indent=0, message=""):
+    return ("row", controls, indent, message)
+
+
+LIVE_OVERLAY = (
+    check("overlay_open_on_app_start", "Open the overlay when the app starts (on by default)", saved=SAVED_NEXT_LAUNCH),
+    note("The overlay opens with the app and waits for the game; it still follows the AION 2 window when that appears."),
+    check("overlay_on_start", "Show overlay when starting the live meter", saved="revert"),
+    note("Also available beside Start on the Live Meter page."),
+    check("overlay_close_on_stop", "Close the overlay when I stop the meter (off by default — the overlay stays up "
+          "showing the last fight, and its own Stop button never closes it)", rule="true"),
+    check("overlay_show_contribution", "Show your contribution (your share of the encounter's damage)"),
+    check("overlay_show_target", "Show the current target and each player's DPS to it"),
+    check("overlay_show_deaths", "Mark party members who are dead (row shows DEAD until they recover)"),
+    check("overlay_show_enemy_hp", "Show the current target's remaining HP as a percentage and bar (only when the game "
+          "reports it). The game's internal HP value is on a much larger scale than damage numbers, so it is shown as a "
+          "percentage, not a raw number that won't match your damage.", rule="true"),
+    check("overlay_show_ttk", "Show estimated time-to-kill for the current target, as a number and a progress bar (from "
+          "the target's observed HP-decline rate)", rule="true"),
+    check("overlay_show_break_gauge", "Show the current target's break (stagger) gauge, as a readout and a bar",
+          "(bosses and elites carry one; off by default)", rule="true"),
+    check("overlay_show_cooldowns", "Show a strip of your skills on cooldown, each counting down", OFF_BY_DEFAULT,
+          rule="true"),
+    row(number("overlay_cooldowns_min_s", "Shortest cooldown shown", "s", 1, 120, 3),
+        number("overlay_cooldowns_max", "Icons", "", 1, 16, 8),
+        select("overlay_cooldowns_position", "Position", (("bottom", "Below the meter"), ("top", "Above the player rows")),
+               "bottom"), indent=22),
+    note("Uses the cooldown the game sends with each of your casts, so your cooldown reduction is already included and "
+         "there is nothing to set up. It only knows skills you have used since Start. A skill lights up as it comes off "
+         "cooldown, and an open chain-skill window shows first. If a proc resets a cooldown, the strip catches up on your "
+         "next cast.", indent=22),
+    check("overlay_show_combat_power", "Show your combat power beside your name (when the game reports it)"),
+    check("overlay_show_odyle", "Show your Odyle Energy on the overlay and the Live Meter page", "(on by default)",
+          tip="The game's own count, sent when you enter the world, at every zone load and whenever it changes"),
+    check("overlay_show_shugo_keys", "Show your Shugo Festival keys on the overlay and the Live Meter page",
+          "(on by default)", tip="The game's own count of your Shugo Festival Reward Keys, sent with the same counters "
+          "as Odyle Energy"),
+    check("overlay_show_nightmare_tickets", "Show your Nightmare tickets on the overlay and the Live Meter page",
+          "(on by default)", tip="The game's own count of your Nightmare tickets, sent with the same counters as Odyle "
+          "Energy"),
+    check("overlay_show_weekly_runs", "Show the dungeon's weekly runs left on the overlay and the Live Meter page",
+          "(on by default)", tip="The game's own count of the runs you have left this week for the dungeon you are in. "
+          "The meter learns which of the game's counters is a dungeon's the first time a run there is rewarded, then "
+          "shows it whenever you are inside"),
+    check("overlay_show_community_rank", "Show your community rank for your last uploaded fight",
+          "(needs auto-upload; off by default)", rule="true",
+          tip="After a fight auto-uploads, show your community standing (e.g. “World Top 8%”) for that encounter "
+          "beside your name"),
+    check("overlay_live_community_rank", "Update the rank live after each fight", "(needs the rank badge on + a share "
+          "server; uploads each ranked fight at your upload visibility; off by default)", rule="true",
+          tip="While capturing, refresh your community-rank badge after each ranked fight by uploading it, instead of "
+          "only when you press Upload"),
+    check("overlay_show_events", "Show regional event notifications on the overlay",
+          "(uses the region you pick on the Timers page; community forecast, on by default)",
+          tip="Shows the next rift / Shugo / battlefield / field-boss windows for your region when one is active or "
+          "within 15 minutes"),
+    check("overlay_show_field_bosses", "Include observed field-boss timers in the event strip",
+          "(kills recorded on your server and faction; on by default)",
+          tip="Field and world bosses the live meter saw die on your server count down to their return in the event "
+          "strip"),
+    check("overlay_events_sound", "Play a sound when an event notification appears", OFF_BY_DEFAULT, rule="true",
+          tip="Play a short chime when an event notification appears on the overlay"),
+    ("sound",),
+    check("overlay_plan_autoplay", "Auto-play a saved raid plan on the overlay's Plan tab when you fight the boss it is "
+          "bound to, synced to the pull (on by default)"),
+    note("Bind a plan to a boss in the Raid planner (set its Boss / NPC id). When the meter is in that fight, the Plan tab "
+         "plays that plan at the encounter's elapsed time; otherwise it loops the latest plan as a preview."),
+)
+SOUND_UPLOAD = "Upload sound"
+SOUND_TEST = "Test"
+SOUND_DEFAULT = "Use default chime"
+SOUND_SET = "Custom sound set (≤2s recommended)."
+SOUND_BUILT_IN = "Built-in chime."
+SOUND_TOO_BIG = "Sound must be 1 MB or smaller — keep it short (~2s)."
+SOUND_UPLOADING = "Uploading…"
+SOUND_SAVED = "Custom sound set. Use Test to hear it."
+SOUND_CLEARED = "Using the built-in chime."
+SOUND_READ_FAILED = "Could not read the file"
+#: the native window has no audio player: Test plays the system's alert, as the native overlay does for an event
+SOUND_NATIVE = "This window has no audio of its own: Test plays your system's alert, as the native overlay does."
+SOUND_TYPES = {".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".wav": "audio/wav", ".webm": "audio/webm"}
+
+RTSS = (
+    check("rtss_enabled", "Draw the meter inside the game through RivaTuner Statistics Server",
+          "(Windows; off by default; needs RTSS running with its on-screen display enabled)", rule="true"),
+    row(number("rtss_rows", "Rows", "", 1, 24, 5),
+        select("rtss_metric", "Metric", (("dps", "DPS"), ("hps", "HPS"), ("dtps", "Damage taken")), "dps"),
+        select("rtss_style", "Style", (("plain", "Plain text"), ("colored", "Class colours (RTSS colour tags)")), "plain"),
+        number("rtss_interval_ms", "Refresh", "ms", 100, 5000, 500, step=50), indent=22),
+    ("rtss-status",),
+    note("The app writes the meter text into RTSS's own shared memory (an OSD slot named Aion2Calc); RTSS draws it inside "
+         "the game the way it draws its frame counter. Nothing is injected into or loaded by the game by this app; RTSS "
+         "does its own hooking under its own terms. Position, font and size come from RTSS's settings. A first draft: "
+         "please report what you see.", indent=22),
+)
+RTSS_UNKNOWN = "RTSS status unknown."
+RTSS_READ_MS = 800                                  # after In-game (RTSS) is saved, its state read again
+
+
+def rtss_status(state) -> str:
+    """What RTSS is doing (``rtssStatus``)."""
+    s = _dict(state)
+    if not _truthy(s.get("supported")):
+        return "RTSS output is available on Windows only."
+    if not _truthy(s.get("enabled")):
+        return "Off."
+    if _truthy(s.get("connected")):
+        return (f"Drawing in RTSS OSD slot {js_text(s.get('slot'))} (shared memory v{js_text(s.get('version'))}, "
+                f"{js_text(s.get('updates'))} updates).")
+    return js_text(s["error"]) if _truthy(s.get("error")) else "Waiting for RTSS…"
+
+
+RTSS_UNAVAILABLE = "RTSS status unavailable."
+STREAM_LABEL = "Overlay browser-source URL"
+STREAM_COPY = "Copy URL"
+STREAM_COPIED = "Copied — paste into an OBS Browser Source."
+STREAM_NOTES = (
+    "Add this as an <b>OBS / Streamlabs Browser Source</b> (it renders transparent) and composite it over your "
+    "game-capture scene, then stream that scene to Discord — the overlay shows on your stream. To go through Discord "
+    "<b>Go&nbsp;Live</b> directly instead, share your <b>whole screen</b> (not just the game window) so the always-on-top "
+    "overlay is included.",
+    "A game-<i>window</i>-only share will <b>not</b> show the overlay: it's a separate window layered on top, not part of "
+    "the game's own frame, so a per-window capture never includes it (the same reason most meter overlays don't appear "
+    "in window captures). Use a Browser Source or full-screen share.")
+
+LAYOUT = (
+    row(number("overlay_max_players", "Players shown", "", 1, 24, 8, shown="or", save="checked"),
+        number("overlay_width", "Width", "px", 260, 800, 340, shown="or", save="checked"),
+        number("overlay_height", "Height", "px", 0, 800, 0, shown="or", save="checked", muted="(0 = fit to contents)"),
+        number("overlay_row_height", "Row height", "px", 14, 48, 22, shown="or", save="checked"), message="layout"),
+    check("overlay_auto_expand", "Auto-expand to show every captured player (beyond the limit above)", rule="true"),
+    check("overlay_only_in_combat", "Show the meter only during combat (collapse between pulls)", rule="true"),
+    check("overlay_boss_only", "Boss damage only: count the damage dealt to bosses, mini-bosses, field and world bosses",
+          "(leaves out trash and, in the Abyss, other players)", rule="true"),
+    check("overlay_pvp_only", "Player (PvP) damage only: count the damage dealt to other players",
+          "(with Boss damage only on too, bosses count as well)", rule="true"),
+    row(select("overlay_name_mode", "Name display", (("name", "Character names"), ("class_number", "Class + party number"),
+                                                     ("number", "Party number only")), "name")),
+    check("overlay_long_names_scroll", "Scroll long names on hover", rule="true"),
+    row(select("overlay_bar_style", "Bar style", (("flat", "Flat class colour"), ("gradient", "Gradient")), "flat")),
+    row(select("overlay_bg_mode", "Background", (("card", "Whole card"),
+                                                 ("top", "Top portion only (header, boss panel, Odyle lines)"),
+                                                 ("none", "None: rows, bars and text alone over the game")), "card")),
+    row(select("overlay_me_cosmetic", "My row's effect", COSMETICS, "none")),
+    row(select("overlay_top_cosmetic", "Top row's effect", COSMETICS, "none")),
+    note("The effects are free for everyone and hold still in performance mode. Click a player's name on the overlay for "
+         "their details: totals, crit, front and back shares, their top skills and the buffs on them.", indent=14),
+    check("overlay_bar_rounded", "Rounded bar corners", rule="true"),
+    check("overlay_class_color_names", "Colour player names by class", rule="true"),
+    check("overlay_row_stripes", "Zebra-stripe the player rows", rule="true"),
+    check("overlay_class_swatch", "Show a class-colour swatch before each name", rule="true"),
+    check("overlay_compact_rows", "Compact rows (hide the total & percent, keep the per-second rate)", rule="true"),
+    check("overlay_rank_numbers", "Show rank numbers (1., 2., 3. …) before each name", rule="true"),
+    check("overlay_highlight_me", "Highlight my own row (accent bar, so you can find yourself at a glance)", rule="true"),
+    ("check-number", check("overlay_dps_interpolate", "Live-ticking DPS numbers (recompute between polls for a real-time "
+                           "feel; on by default)", rule="true"),
+     number("overlay_interpolate_ms", "", "ms", 50, 1000, 200, shown="or", save="checked", name="Live-ticking interval")),
+    check("overlay_dps_graph", "Show a live DPS/HPS graph (a sparkline of the party total over the fight, from real "
+          "per-poll readings)", rule="true"),
+    check("overlay_show_fps", "Show the overlay's own render FPS (the game's FPS can't be read from capture)", rule="true"),
+    check("overlay_click_through", "Click through the overlay — let the mouse pass through to the game, so the overlay "
+          "never eats a click", "(Windows; the overlay's own buttons/sliders still work when you hover them)",
+          rule="true", saved=SAVED_OPEN_OVERLAY),
+    check("overlay_hover_interact", "With click-through on, rest the pointer on the overlay for 5 seconds to click "
+          "anywhere on it", "(a ring fills in while it counts; clicks pass through again once the pointer leaves)",
+          rule="true", saved=SAVED_OPEN_OVERLAY, indent=22),
+    check("overlay_party_enabled", "Open a separate Party-DPS overlay (raid totals) alongside the meter", rule="true"),
+    note("These need the overlay reopened to apply:"),
+    check("overlay_always_visible", "Keep the overlay visible even when the game is not in focus (on by default; so "
+          "clicking another overlay, the app window or a game popup never hides it)", saved=SAVED_RELAUNCH_OVERLAY),
+    check("overlay_remember_position", "Remember where I drag the overlay and reopen it there, instead of following the "
+          "game window (on by default, Windows; each overlay remembers its own spot — uncheck to follow the game window "
+          "instead)", saved=SAVED_RELAUNCH_OVERLAY),
+    check("overlay_resizable", "Resize the overlay by dragging its edges/corners", rule="true",
+          saved=SAVED_RELAUNCH_OVERLAY),
+    check("overlay_snap_edge", "Snap to the game window's edges", rule="true", saved=SAVED_RELAUNCH_OVERLAY),
+    check("overlay_expand_up", "Expand upward (anchor the overlay near the bottom of the game window)", rule="true",
+          saved=SAVED_RELAUNCH_OVERLAY),
+    note("Applies to the live overlay; changes reach an open overlay within 10 seconds."),
+)
+
+
+def shown_number(ui, key: str, fallback: int, rule: str) -> int:
+    """A number field's value from the app's (``finite``: ``Number.isFinite(+v) ? +v : d``; ``or``:
+    ``Number(v) || d``)."""
+    ui = _dict(ui)
+    x = _js_number_or_nan(ui.get(key)) if key in ui else math.nan
+    if rule == "finite":
+        return int(x) if math.isfinite(x) else fallback
+    return int(x) if math.isfinite(x) and x else fallback
+
+
+def clamped(value, low: int, high: int, fallback: int) -> int:
+    """``Math.max(low, Math.min(high, parseInt(value, 10) || fallback))``."""
+    return max(low, min(high, parse_int(value) or fallback))
+
+
+def stream_url(base: str) -> str:
+    """The overlay's address for a browser source: the app's own, then ``/overlay`` (``location.origin``)."""
+    import urllib.parse
+    parts = urllib.parse.urlsplit(base)
+    return f"{parts.scheme}://{parts.netloc}/overlay"

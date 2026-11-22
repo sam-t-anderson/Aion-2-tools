@@ -11,6 +11,8 @@
   (the log server, saved and probed from this computer, and the community stats) too.
 - Since 0.2.477 **Pet Tracker**: whether it is installed and how it is doing, its install and update, its use with
   the app, its overlay and the folder of a copy unpacked by hand.
+- Since 0.2.478 the first half of **Overlay**: the live meter overlay (with the event sound), In-game (RTSS) with its
+  state, the streaming address to copy, and the overlay's layout.
 - **The other tabs' rows** are still the early ones, drawn from ``settings_schema``: each control saves its one
   setting, and a row the native page does not draw in full yet opens the web Settings page for the rest.
 
@@ -229,6 +231,7 @@ class SettingsPage(QWidget):
         self.store = store if store is not None else interface_store()
         self.confirm = confirm or self._ask
         self.save_file = save_file or self._ask_where
+        self.choose_sound = self._ask_sound                # where the event sound's file is (a test hands one over)
         self.open_link = open_link or (lambda url: QDesktopServices.openUrl(QUrl(url)))
         self.quit_app = quit_app or QApplication.quit
         # the readings, the saves and the quick actions; the long ones (an update's download, a scan of the cache, the
@@ -247,6 +250,11 @@ class SettingsPage(QWidget):
         self.status: dict = {}
         self.server: dict = {}
         self.ui: dict = {}
+        # the rows drawn from settings_words' descriptions: each control's key and how it reads the app's value
+        self.data_checks: list[tuple[str, str]] = []
+        self.data_numbers: list[tuple[str, int, str]] = []
+        self.data_selects: list[tuple[str, str]] = []
+        self.number_messages: dict[str, QLabel] = {}     # a checked number's row's words (``#ov-layout-msg``)
         self.controls: dict[str, QWidget] = {}          # each setting's control, by its key
         self.rows: list[SetRow] = []
         self.saved: list[tuple[str, object]] = []        # what this page saved, latest last
@@ -302,7 +310,11 @@ class SettingsPage(QWidget):
                       ("server", "Community stats"): self._community_stats, ("pettracker", "Pet Tracker"): self._pets,
                       ("pettracker", "Use Pet Tracker"): self._use_pets,
                       ("pettracker", "Pet Tracker overlay"): self._pet_overlay,
-                      ("pettracker", "Pet Tracker folder"): self._pet_folder})
+                      ("pettracker", "Pet Tracker folder"): self._pet_folder,
+                      ("overlay", "Live meter overlay"): lambda row: self._items(row, sw.LIVE_OVERLAY),
+                      ("overlay", "In-game (RTSS)"): lambda row: self._items(row, sw.RTSS),
+                      ("overlay", "Streaming (OBS / Discord)"): self._streaming,
+                      ("overlay", "Overlay layout"): lambda row: self._items(row, sw.LAYOUT)})
         schema = {(row.group, row.title): row for row in ROWS}
         for group, title in sw.ROW_ORDER:
             row = SetRow(group, title, top=title == "Author")
@@ -672,6 +684,177 @@ class SettingsPage(QWidget):
         if self.requests is not None:
             self.requests.post("pet-folder", "/api/ui", {"pettracker_path": self.pet_folder.text().strip()})
 
+    # ---------------------------------------------------------------- Overlay, first part (0.2.478)
+    def _items(self, row: SetRow, items) -> None:
+        """A row described in settings_words (its checkboxes, notes, number fields and lists), drawn as the web page's
+        template draws it."""
+        for item in items:
+            kind = item[0]
+            if kind == "check":
+                row.body.addWidget(self._data_check(item))
+            elif kind == "note":
+                _kind, text, indent, rich = item
+                label = _note(text, indent)
+                if rich:
+                    label.setTextFormat(Qt.RichText)
+                row.body.addWidget(label)
+            elif kind == "row":
+                _kind, controls, indent, message = item
+                parts = [self._data_control(control, message) for control in controls]
+                if message:
+                    words = _words("", "setnote")
+                    words.setAccessibleName("Overlay layout status")
+                    self.number_messages[message] = words
+                    parts.append(words)
+                holder = _flow(*parts, gap=(10, 6))
+                holder.setContentsMargins(indent, 0, 0, 0)
+                row.body.addWidget(holder)
+            elif kind == "check-number":
+                _kind, box_item, number_item = item
+                holder = _flow(self._data_check(box_item), self._data_control(number_item, "layout"), gap=(6, 4))
+                row.body.addWidget(holder)
+            elif kind == "sound":
+                self._sound(row)
+            elif kind == "rtss-status":
+                self.rtss_message = _note(sw.RTSS_UNKNOWN, indent=22)
+                self.rtss_message.setAccessibleName("RTSS status")
+                row.body.addWidget(self.rtss_message)
+                self.rtss_timer = QTimer(self)
+                self.rtss_timer.setSingleShot(True)
+                self.rtss_timer.timeout.connect(self.read_rtss)
+
+    def _data_check(self, item) -> WrapCheck:
+        _kind, key, words, muted, rule, saved, tip, indent = item
+        widget = WrapCheck(words, muted=muted)
+        if tip:
+            widget.setToolTip(tip)
+        if indent:
+            widget.setContentsMargins(indent, 0, 0, 0)
+        widget.box.toggled.connect(lambda on, key=key, saved=saved: self.save(key, bool(on), saved))
+        self.controls[key] = widget
+        self.data_checks.append((key, rule))
+        return widget
+
+    def _data_control(self, control, message: str = "") -> QWidget:
+        """A number field or a list with its words around it (a ``label`` in a ``.row``)."""
+        if control[0] == "select":
+            _kind, key, before, options, fallback = control
+            box = QComboBox()
+            box.setAccessibleName(before)
+            for value, words in options:
+                box.addItem(words, value)
+            box.currentIndexChanged.connect(lambda _i, key=key, b=box: self.save(key, b.currentData()))
+            self.controls[key] = box
+            self.data_selects.append((key, fallback))
+            return _flow(_words(before), box, gap=(4, 4))
+        _kind, key, before, after, low, high, fallback, shown, save, step, muted, name = control
+        box = self._spin(key, name, low, high, step=step)
+        if save == "checked":
+            box.valueChanged.connect(lambda value, key=key, low=low, high=high, message=message:
+                                     self._save_checked(key, value, low, high, message))
+        else:
+            box.valueChanged.connect(lambda value, key=key, low=low, high=high, fallback=fallback:
+                                     self.save(key, sw.clamped(value, low, high, fallback)))
+        self.data_numbers.append((key, fallback, shown))
+        parts = [w for w in (_words(before) if before else None, box, _words(after) if after else None) if w is not None]
+        if muted:
+            parts.append(_words(muted, "setnote"))
+        return _flow(*parts, gap=(4, 4))
+
+    def _save_checked(self, key: str, value, low: int, high: int, message: str) -> None:
+        """A number checked before it is saved (``saveLayoutNum``), said beside its row."""
+        if self._loading:
+            return
+        words = self.number_messages.get(message)
+        number, why = sw.number_check(value, low, high)
+        if number is None:
+            if words is not None:
+                words.setText(why)
+            return
+        self.saved.append((key, number))
+        self.ui[key] = number
+        if self.requests is None:
+            if words is not None:
+                words.setText(sw.SAVED)
+            return
+        self.requests.post(f"checked:{key}|{message}", "/api/ui", {key: number})
+
+    def _sound(self, row: SetRow) -> None:
+        """The event notification's sound: a file of your own uploaded, tried, or the built-in chime again."""
+        self.sound_message = _words(sw.SOUND_BUILT_IN, "setnote")
+        self.sound_message.setAccessibleName("Event sound status")
+        holder = _flow(_button(sw.SOUND_UPLOAD, self.upload_sound), _button(sw.SOUND_TEST, QApplication.beep),
+                       _button(sw.SOUND_DEFAULT, self.clear_sound), self.sound_message, gap=(6, 4))
+        holder.setContentsMargins(22, 0, 0, 0)
+        row.body.addWidget(holder)
+        row.body.addWidget(_note(sw.SOUND_NATIVE, indent=22))
+
+    def upload_sound(self) -> None:
+        """A short sound of your own for the event notification (``#ov-events-sound-file``): 1 MB at most."""
+        path = self.choose_sound()
+        if not path:
+            return
+        try:
+            size = os.path.getsize(path)
+        except OSError as problem:
+            self.sound_message.setText(str(problem))
+            return
+        if size > 1024 * 1024:
+            self.sound_message.setText(sw.SOUND_TOO_BIG)
+            return
+        self.sound_message.setText(sw.SOUND_UPLOADING)
+        try:
+            with open(path, "rb") as file:
+                raw = file.read()
+        except OSError:
+            self.sound_message.setText(sw.SOUND_READ_FAILED)
+            return
+        import base64
+        kind = sw.SOUND_TYPES.get(os.path.splitext(path)[1].lower(), "application/octet-stream")
+        data = f"data:{kind};base64,{base64.b64encode(raw).decode('ascii')}"
+        if self.requests is not None:
+            self.requests.post("sound", "/api/overlay/event-sound", {"data": data})
+
+    def clear_sound(self) -> None:
+        if self.requests is not None:
+            self.requests.post("sound-clear", "/api/overlay/event-sound", {"clear": True})
+
+    def _ask_sound(self) -> str:
+        path, _kind = QFileDialog.getOpenFileName(self, sw.SOUND_UPLOAD, "", "Audio (*.mp3 *.ogg *.wav *.webm)")
+        return path
+
+    def read_rtss(self) -> None:
+        """RTSS's state (``rtssStatus``)."""
+        self.rtss_timer.stop()
+        if self.requests is not None:
+            self.requests.get("rtss", "/api/rtss")
+
+    def _streaming(self, row: SetRow) -> None:
+        """The overlay's address for an OBS browser source, to copy."""
+        base = getattr(self.api, "base", "") or "http://127.0.0.1:8765/"
+        self.stream_url = QLineEdit(sw.stream_url(base))
+        self.stream_url.setReadOnly(True)
+        self.stream_url.setAccessibleName(sw.STREAM_LABEL)
+        self.stream_url.setMinimumWidth(343)
+        self.stream_message = _words("", "setnote")
+        self.stream_message.setAccessibleName("Streaming status")
+        self._stream_clear = QTimer(self)
+        self._stream_clear.setSingleShot(True)
+        self._stream_clear.timeout.connect(lambda: self.stream_message.setText(""))
+        row.body.addWidget(_flow(self.stream_url, _button(sw.STREAM_COPY, self.copy_stream), self.stream_message,
+                                 gap=(14, 10)))
+        for text in sw.STREAM_NOTES:
+            label = _note(text)
+            label.setTextFormat(Qt.RichText)
+            row.body.addWidget(label)
+
+    def copy_stream(self) -> None:
+        """The address copied (``#ov-stream-copy``), said for 2 s."""
+        self.stream_url.selectAll()
+        QApplication.clipboard().setText(self.stream_url.text())
+        self.stream_message.setText(sw.STREAM_COPIED)
+        self._stream_clear.start(2000)
+
     # the rows of the tabs not drawn as the web page draws them yet (settings_schema)
     def _schema_row(self, row: SetRow, spec) -> None:
         for control in spec.controls:
@@ -735,6 +918,7 @@ class SettingsPage(QWidget):
         for name, path in READINGS:
             self.requests.get(name, path)
         self.read_pets()
+        self.read_rtss()
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -749,6 +933,16 @@ class SettingsPage(QWidget):
             self.apply_server(answer)
         elif kind == "number":
             self.records_message.setText(sw.SAVED)
+        elif kind == "checked":
+            words = self.number_messages.get(key.partition("|")[2])
+            if words is not None:
+                words.setText(sw.SAVED)
+        elif kind == "sound":
+            self.sound_message.setText(sw.SOUND_SAVED)
+        elif kind == "sound-clear":
+            self.sound_message.setText(sw.SOUND_CLEARED)
+        elif kind == "rtss":
+            self.rtss_message.setText(sw.rtss_status(answer))
         elif kind == "cache":
             self._log_cache_said(int(key))
         elif kind == "server-save":
@@ -762,9 +956,12 @@ class SettingsPage(QWidget):
         elif kind == "ui":
             self.apply(_dict(answer))
         elif kind == "save":
-            self.toast.say(key.partition("|")[2] or sw.SAVED)
-            if key.partition("|")[0] == "pettracker_enabled":                   # Pet Tracker starting or stopping
+            setting, _, words = key.partition("|")
+            self.toast.say(sw.SAVED if words in ("", "revert") else words)
+            if setting == "pettracker_enabled":                                  # Pet Tracker starting or stopping
                 self.pet_timer.start(sw.PET_ENABLED_READ_MS)
+            elif setting == "rtss_enabled":                                      # RTSS drawing or not
+                self.rtss_timer.start(sw.RTSS_READ_MS)
         elif kind == "pets":
             self._pets_shown(answer)
         elif kind == "pet":
@@ -804,8 +1001,24 @@ class SettingsPage(QWidget):
 
     def _failed(self, name: str, why: str) -> None:
         kind, _, key = name.partition(":")
-        if kind == "save":
+        if kind == "save" and key.endswith("|revert"):                          # ``#ov-on-start``: put back, then said
+            setting = key.partition("|")[0]
+            self._loading = True
+            try:
+                self.controls[setting].box.setChecked(not self.controls[setting].box.isChecked())
+            finally:
+                self._loading = False
+            self.toast.say(sw.COULD_NOT_SAVE_OVERLAY.format(why))
+        elif kind == "save":
             self.toast.say(f"Could not save it: {why}")
+        elif kind == "checked":
+            words = self.number_messages.get(key.partition("|")[2])
+            if words is not None:
+                words.setText(why)
+        elif kind in ("sound", "sound-clear"):
+            self.sound_message.setText(why)
+        elif kind == "rtss":
+            self.rtss_message.setText(sw.RTSS_UNAVAILABLE)
         elif kind == "number":
             self.records_message.setText(why)
         elif kind in ("cache", "server-save"):                     # the web page says nothing; the page says why
@@ -901,6 +1114,13 @@ class SettingsPage(QWidget):
                 self.controls[key].setValue(sw.record_number(ui, key))
             self._choose(self.controls["pettracker_overlay_style"],
                          "pettracker" if ui.get("pettracker_overlay_style") == "pettracker" else "app")
+            for key, rule in self.data_checks:
+                self.controls[key].box.setChecked(ui.get(key) is not False if rule == "on" else ui.get(key) is True)
+            for key, fallback, shown in self.data_numbers:
+                self.controls[key].setValue(sw.shown_number(ui, key, fallback, shown))
+            for key, fallback in self.data_selects:
+                self._choose(self.controls[key], ui.get(key) if _truthy(ui.get(key)) else fallback)
+            self.sound_message.setText(sw.SOUND_SET if _truthy(ui.get("overlay_events_sound_set")) else sw.SOUND_BUILT_IN)
             self.pet_folder.setText(js_text(ui.get("pettracker_path")) if _truthy(ui.get("pettracker_path")) else "")
             self.controls["meter_log_cache_mb"].setValue(sw.log_cache(ui))
             for spec in ROWS:
