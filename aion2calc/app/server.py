@@ -696,10 +696,10 @@ class Handler(BaseHTTPRequestHandler):
     # ---------------------------------------------------------------- GET
     def route_get(self, path: str, q: dict):
         if path in ("/", "/index.html"):
-            return self._static("index.html")
+            return self._page("index.html")
         if path == "/overlay":
             # The Pet Tracker window (?view=pets) has a page of its own; every other view is the meter overlay's.
-            return self._static("pet-overlay.html" if q.get("view") == "pets" else "overlay.html")
+            return self._page("pet-overlay.html" if q.get("view") == "pets" else "overlay.html")
         if path == "/overlay-background":
             # The user's chosen overlay background photo, stored locally (never in ui.json).
             for name in ("overlay-background.png", "overlay-background.jpg"):
@@ -804,6 +804,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(last(*_inventory(q["character"])))
         if path == "/api/ui":
             return self._json(ui_settings())
+        if path == "/api/interface":
+            # What the interfaces keep (0.2.482): the browser's storage and the native window's, for this computer only.
+            if not self._local():
+                raise PermissionError("the interfaces' data is read only on the computer running the app")
+            from .interface_store import values
+            return self._json({"values": values()})
         if path == "/api/update":
             from .. import __version__
             from .. import update
@@ -1301,6 +1307,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/ping":
             PING["at"] = time.time()
             return self._json({"ok": True})
+        if path == "/api/interface":
+            if not self._local():
+                raise PermissionError("the interfaces' data is kept only from the computer running the app")
+            from .interface_store import update
+            return self._json(update(body.get("set")))
         if path == "/api/ui":
             from ..paths import write_user_json
             cur = ui_settings()
@@ -1611,6 +1622,18 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"error": str(err)}, 400)
 
     # -------------------------------------------------------------- files
+    def _local(self) -> bool:
+        return self.client_address[0] in ("127.0.0.1", "::1")
+
+    def _page(self, rel: str):
+        """A page of the web interface; on this computer, with the interfaces' data before its first script
+        (0.2.482), so the page finds in its storage what the app keeps."""
+        if not self._local():
+            return self._static(rel)
+        from .interface_store import page_with_store
+        html = (STATIC / rel).read_text(encoding="utf-8")
+        self._send(200, page_with_store(html).encode("utf-8"), "text/html; charset=utf-8")
+
     def _static(self, rel: str):
         from ..paths import within
         try:   # realpath + commonpath containment: the request cannot escape STATIC

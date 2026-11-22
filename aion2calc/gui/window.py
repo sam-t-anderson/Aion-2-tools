@@ -235,6 +235,8 @@ def main(argv=None) -> int:
     if QApplication.instance() is None:
         scale_text(AppApi(base))
     app = QApplication.instance() or QApplication(sys.argv[:1])
+    from . import interface
+    interface.connect(AppApi(base))                  # the window's choices, kept by the app with the web pages' (0.2.482)
     window = MainWindow(AppApi(base), base, page, _ParentProcess(os.environ.get("AION2CALC_PARENT_PID")))
     window.show()
     window.start()

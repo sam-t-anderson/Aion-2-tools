@@ -1,3 +1,11 @@
+## Your interface choices, kept by the app (0.2.482)
+
+**What the web pages kept in your browser, and what the app's window and overlay kept in settings files of their own, the app now keeps in one file in your data folder (`data\interface.json`).**
+- The theme, the accent colour, the language, the customization profiles, the raid plans, the builds, the screenshots and each page's choices are the same in the app's window, the web interface and every browser you open the app in: a language chosen in one opens the others in it.
+- The first time each browser opens the app after the update, what it kept goes to the app, where the app has none of it; the app's window and the overlay copy their old settings files the same way, once.
+- Nothing is lost on the way: a change the app had not kept yet when the next page opened (a new language reloads the page at once), or one made while the app was not answering, is kept by the browser and sent again.
+- A page opened from another computer keeps its choices in that computer's browser, as before.
+
 ## The Settings page in the native interface, part 7 (0.2.481)
 
 **Settings in the app's window now has the Combat class colors and the Settings backup as the web page draws them.**

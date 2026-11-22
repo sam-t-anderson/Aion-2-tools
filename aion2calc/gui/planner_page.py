@@ -39,9 +39,11 @@ def _label(text: str = "", name: str = "", rich: bool = False, wrap: bool = True
     return label
 
 
-def interface_store() -> QSettings:
-    """The native interface's own settings (what the web pages keep in their browser): the user's settings file."""
-    return QSettings(QSettings.IniFormat, QSettings.UserScope, "Aion 2 Calc", "native-interface")
+def interface_store():
+    """The native interface's own settings (what the web pages keep in their browser): since 0.2.482 the app's, with
+    the web pages' (``interface.store``), where until then they were a settings file of the window's own."""
+    from . import interface
+    return interface.store()
 
 
 class PlannerPage(QWidget):
