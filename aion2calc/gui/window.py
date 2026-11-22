@@ -20,7 +20,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow, QPushButton,
                                QStackedWidget, QVBoxLayout, QWidget)
 
-from . import theme
+from . import i18n, theme
 from .account_page import AccountPage
 from .combat_review import read_page
 from .api import AppApi, Requests
@@ -89,15 +89,24 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        side = QWidget()
+        side.setObjectName("navside")
+        side.setFixedWidth(200)
+        column = QVBoxLayout(side)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+        # the language, at the top as on the web page's (i18n.js ``picker``; 0.2.483)
+        self.language = i18n.picker(self.change_language)
+        column.addWidget(self.language)
         self.nav = QListWidget()
         self.nav.setObjectName("nav")
-        self.nav.setFixedWidth(200)
+        column.addWidget(self.nav, 1)
         self.pages = QStackedWidget()
         self.page_index: dict[str, int] = {}
         self.page_rows: dict[str, int] = {}
         for section, pages in SECTIONS:
             if section:
-                heading = QListWidgetItem(section.upper())
+                heading = QListWidgetItem(i18n.t(section).upper())
                 heading.setFlags(Qt.NoItemFlags)
                 self.nav.addItem(heading)
             for key, title in pages:
@@ -108,7 +117,8 @@ class MainWindow(QMainWindow):
                 if key == "meter":
                     widget = MeterPage(api, open_page=self.show_page, open_in_web=self.open_in_web, open_web=self.open_web)
                 elif key == "settings":
-                    widget = SettingsPage(api, self.open_web, open_page=self.show_page)
+                    widget = SettingsPage(api, self.open_web, open_page=self.show_page,
+                                          change_language=self.change_language)
                 elif key == "news":
                     widget = NewsPage(api)
                 elif key == "timers":
@@ -139,7 +149,7 @@ class MainWindow(QMainWindow):
                     widget = WebPage(key, title, self.open_web)
                 self.page_index[key] = self.pages.addWidget(widget)
         self.nav.currentItemChanged.connect(self._navigate)
-        layout.addWidget(self.nav)
+        layout.addWidget(side)
         layout.addWidget(self.pages, 1)
         self.setCentralWidget(central)
         self.setStyleSheet(theme.app_stylesheet())
@@ -151,6 +161,28 @@ class MainWindow(QMainWindow):
 
     def page(self, key: str) -> QWidget:
         return self.pages.widget(self.page_index[key])
+
+    def current_page(self) -> str:
+        item = self.nav.currentItem()
+        key = item.data(Qt.UserRole) if item is not None else None
+        return key if key in self.page_index else "meter"
+
+    def change_language(self, lang: str) -> None:
+        """Another language chosen: kept as the web pages keep it (``a2-lang``, in the app's interface data), and the
+        window drawn again in it on the page shown, as the web page reloads (i18n.js ``set``)."""
+        if not i18n.known(lang):
+            return
+        from . import interface
+        interface.store().setValue(i18n.KEY, lang)
+        i18n.install(lang)
+        again = MainWindow(self.api, self.web_base, self.current_page(), self.parent_process)
+        again.setGeometry(self.geometry())
+        again.setWindowState(self.windowState())
+        self.again = again
+        again.show()
+        again.start()
+        self.close()
+        self.deleteLater()
 
     def show_page(self, key: str) -> None:
         self.nav.setCurrentRow(self.page_rows[key])
@@ -237,6 +269,7 @@ def main(argv=None) -> int:
     app = QApplication.instance() or QApplication(sys.argv[:1])
     from . import interface
     interface.connect(AppApi(base))                  # the window's choices, kept by the app with the web pages' (0.2.482)
+    i18n.install(i18n.language())                    # in the language the web pages show (0.2.483)
     window = MainWindow(AppApi(base), base, page, _ParentProcess(os.environ.get("AION2CALC_PARENT_PID")))
     window.show()
     window.start()

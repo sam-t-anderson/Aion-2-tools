@@ -6,7 +6,8 @@
   the text size, performance mode, the page at launch, My Character at launch and the tray; your data's folders; the
   game database with its check, the cached icons' re-index, the image coverage and the pictures read again; the
   storage maintenance; the updates and the version, checked and installed from here; the patch notes; the Discord;
-  stopping the app; and the author. The language is the web interface's own, chosen on its Settings page.
+  stopping the app; and the author. Since 0.2.483 the language too, the web pages' own choice: choosing another
+  draws the window again in it, as the web page reloads.
 - Since 0.2.476 **Meter** (Combat records, its numbers checked and saved as the web page checks them) and **Server**
   (the log server, saved and probed from this computer, and the community stats) too.
 - Since 0.2.477 **Pet Tracker**: whether it is installed and how it is doing, its install and update, its use with
@@ -131,7 +132,7 @@ def _inline(text: str) -> QLabel:
 
 
 def _button(words: str, action) -> QPushButton:
-    button = QPushButton(words)
+    button = QPushButton(words.replace("&", "&&"))        # "&" alone would mark a shortcut, and not be shown
     button.setObjectName("small")
     button.clicked.connect(lambda _checked=False: action())
     return button
@@ -245,7 +246,13 @@ class SetRow(QFrame):
         self.line = QHBoxLayout(self)
         self.line.setContentsMargins(0, 10, 0, 10)
         self.line.setSpacing(14)
-        self.name = QLabel(title)
+        main, muted = sw.MUTED_TITLES.get(title, (title, ""))
+        if muted:                              # ``Hotkeys <span class="muted small">(Windows)</span>``: two texts
+            self.name = QLabel(f"{_html(main)} <span style='color: {theme.COLORS['muted']}; font-size: small;'>"
+                               f"{_html(muted)}</span>")
+            self.name.setTextFormat(Qt.RichText)
+        else:
+            self.name = QLabel(title)
         self.name.setObjectName("setlbl")
         self.name.setWordWrap(True)
         self.name.setFixedWidth(200)
@@ -318,11 +325,12 @@ class SettingsPage(QWidget):
     once the app has stopped."""
 
     def __init__(self, api: AppApi | None, open_web, parent=None, store=None, confirm=None, save_file=None,
-                 open_link=None, quit_app=None, open_page=None):
+                 open_link=None, quit_app=None, open_page=None, change_language=None):
         super().__init__(parent)
         from .planner_page import interface_store
         self.api, self.open_web = api, open_web
         self.open_page = open_page or open_web           # another page of the window (the Pet Tracker page)
+        self.change_language = change_language or self._language_kept   # the window draws itself again in it
         self.store = store if store is not None else interface_store()
         self.confirm = confirm or self._ask
         self.save_file = save_file or self._ask_where
@@ -385,7 +393,7 @@ class SettingsPage(QWidget):
         tabs_flow = FlowLayout(tabs, align=Qt.AlignLeft, gap=(6, 6))
         self.tab_buttons: dict[str, QPushButton] = {}
         for key, words in sw.TABS:
-            button = QPushButton(words)
+            button = QPushButton(words.replace("&", "&&"))   # "Profiles & backup", "App & data": no shortcut
             button.setObjectName("settab")
             button.setAccessibleName(words)
             button.clicked.connect(lambda _checked=False, key=key: self.show_tab(key))
@@ -468,8 +476,18 @@ class SettingsPage(QWidget):
         row.body.addWidget(_note(sw.PERFORMANCE_NOTE))
 
     def _language(self, row: SetRow) -> None:
-        row.body.addWidget(_flow(_words(sw.LANGUAGE_WEB, "setnote"),
-                                 _button(sw.OPEN_WEB_SETTINGS, lambda: self.open_web("settings"))))
+        """The language (i18n.js ``picker``), the same choice as at the top of the window."""
+        from . import i18n
+        self.language = i18n.picker(lambda code: self.change_language(code))
+        row.body.addWidget(_flow(self.language))
+        row.body.addWidget(_note(sw.LANGUAGE_NOTE))
+
+    def _language_kept(self, code: str) -> None:
+        """A language chosen with no window to draw again (a test): kept with the web pages' choice, and shown from
+        then on."""
+        from . import i18n
+        self.store.setValue(i18n.KEY, code)
+        i18n.install(code)
 
     def _launch(self, row: SetRow) -> None:
         box = QComboBox()
