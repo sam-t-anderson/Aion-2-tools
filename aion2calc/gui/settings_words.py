@@ -71,10 +71,9 @@ PERFORMANCE_NOTE = ("The live meter works out its numbers every second instead o
                     "few seconds, and from the next fight for the movement replay.")
 LANGUAGE_NOTE = ("The app's buttons, headings and short texts; the game's names, long explanations, the overlay and the "
                  "reports stay in English. The same choice as at the top of the page.")
-#: the language is the web interface's own (its words, kept in its browser): the native window is in English for now
-LANGUAGE_WEB = "The native window is in English for now; the language is chosen on the web Settings page."
-OPEN_WEB_SETTINGS = "Open the web Settings page"
 LAUNCH_LABEL = "Open the app on"
+#: The rows whose name the web page writes in two parts, the second muted (each part its own text to translate).
+MUTED_TITLES = {"Hotkeys (Windows)": ("Hotkeys", "(Windows)")}
 #: The pages the app can open on at launch (app.js ``LAUNCH_PAGES``): the navigation's, but Account.
 LAUNCH_PAGES = (("meter", "Live Meter"), ("combat", "Combat Logs"), ("raid", "Raid Planner"), ("planner", "Build Planner"),
                 ("builds", "Builds"), ("character", "My Character"), ("gear", "Gear & Advice"),

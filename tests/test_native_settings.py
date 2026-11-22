@@ -232,7 +232,7 @@ def test_the_tabs_and_the_rows_on_the_web(qapp, home):
     opened = []
     store = _store(home)
     page = _page(home, open_web=opened.append, store=store)
-    assert [b.text() for b in _shown(page, QPushButton)][:7] == [words for _key, words in sw.TABS]
+    assert [b.text() for b in _shown(page, QPushButton)][:7] == [words.replace("&", "&&") for _key, words in sw.TABS]
     assert page.tab == "appearance" and [r.title for r in page.rows if r.isVisibleTo(page)] == [
         "Theme", "Accent colour", "Combat class colors"]
     page.tab_buttons["overlay"].click()
@@ -247,9 +247,13 @@ def test_the_tabs_and_the_rows_on_the_web(qapp, home):
     web = list(ROWS)
     assert {row.title for row in web} == {"Theme", "Accent colour", "Customization profiles"}
     buttons = [b for b in page.findChildren(QPushButton) if b.text() == "Open the web Settings page"]
-    assert len(buttons) == len(web) + 1                                               # and Language's
+    assert len(buttons) == len(web)                                  # Language is the window's own since 0.2.483
     buttons[0].click()
     assert opened == ["settings"]
+    page.show_tab("system")
+    assert page.language.isVisibleTo(page) and page.language.currentData() == "en"
+    assert [page.language.itemText(i) for i in range(page.language.count())] == [
+        "English", "Deutsch", "Français", "Español", "Português (Brasil)", "日本語"]
 
 
 def test_a_narrow_page_puts_each_rows_name_above_it(qapp, home):
@@ -276,7 +280,7 @@ def test_app_and_data_as_the_web_page_draws_it(qapp, home):
                                                    ("GET", "/api/radar")}                # the radar's (0.2.479)
     texts = _texts(page)
     for words in (sw.NATIVE, sw.NATIVE_NOTE, sw.APP_WINDOW, sw.APP_WINDOW_NOTE, sw.TEXT_LABEL, sw.TEXT_NOTE,
-                  sw.TEXT_NATIVE, sw.PERFORMANCE_NOTE, sw.LANGUAGE_WEB, sw.LAUNCH_LABEL, sw.LAUNCH_NOTE,
+                  sw.TEXT_NATIVE, sw.PERFORMANCE_NOTE, sw.LANGUAGE_NOTE, sw.LAUNCH_LABEL, sw.LAUNCH_NOTE,
                   sw.CHARACTER_NOTE, sw.TRAY, "/data/aion2calc", sw.MAINTENANCE_NOTE, sw.AUTO_UPDATE,
                   sw.UPDATE_ON_CLOSE, sw.UPDATES_NOTE, "Aion 2 Calc 0.2.475", sw.PATCH_NOTE, sw.AUTHOR, "— questions, builds and help"):
         assert words in texts, words
@@ -335,7 +339,7 @@ def test_your_data_and_the_game_database(qapp, home, tmp_path):
     settle(lambda: len(app.sent("POST", "/api/open")) == 2)
     assert [b for _m, _p, b in app.sent("POST", "/api/open")] == [{"what": "data"}, {"what": "logs"}]
     settle(lambda: page.toast.text() == "No file manager")
-    assert _button(page, "Advice & results")
+    assert _button(page, "Advice && results")                        # a button writes "&" as "&&"
     # the game database checked
     _button(page, sw.CHECK_NOW).click()
     settle(lambda: page.toast.text() == sw.SYNCING)

@@ -1,3 +1,12 @@
+## The native interface in your language (0.2.483)
+
+**The app's window now speaks the languages the web pages speak: English, Deutsch, Français, Español, Português (Brasil) and 日本語.**
+- It uses the web pages' own word lists, so a button, a heading or a short text reads in the window as it reads on the web page: the navigation, the pages' tabs, buttons, labels, lists and tooltips. Long explanations, the game's names and players' names stay as they are, as on the web pages.
+- **Choosing a language:** at the top of the window's navigation, or in **Settings → App & data → Language**. The window draws itself again in it, on the page you were on. It is the same choice as the web pages', so choosing it in either is choosing it for both.
+- The overlay stays in English, as the web overlay does.
+- **Settings:** the **Profiles & backup** and **App & data** tabs and the **Advice & results** button showed their names without the "&" (Qt read it as a keyboard shortcut); they read in full now.
+- **Combat Logs:** an upload's visibility (public, unlisted or private) is sent as it is whatever language the list reads in.
+
 ## Your interface choices, kept by the app (0.2.482)
 
 **What the web pages kept in your browser, and what the app's window and overlay kept in settings files of their own, the app now keeps in one file in your data folder (`data\interface.json`).**

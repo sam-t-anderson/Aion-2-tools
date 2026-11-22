@@ -578,7 +578,7 @@ class UploadQueue(QFrame):
         """The queue uploaded (``Upload selected / retry remaining``)."""
         if self.busy or not self.selected:
             return
-        visibility = self.visibility.currentText() if _alive(getattr(self, "visibility", None)) else self.chosen
+        visibility = self.visibility.currentData() if _alive(getattr(self, "visibility", None)) else self.chosen
         self.busy, self.cancel = True, False
         self.render()
         self.batch_run = {"files": list(self.selected), "index": 0, "halted": False, "visibility": visibility}
@@ -768,10 +768,11 @@ class UploadQueue(QFrame):
         self.box.addWidget(self._table(busy))
         self.visibility = QComboBox()
         self.visibility.setAccessibleName("Visibility")
-        self.visibility.addItems(list(cb.QUEUE_VISIBILITY))
-        self.visibility.setCurrentText(self.chosen)
+        for value in cb.QUEUE_VISIBILITY:                       # each shown in the language chosen, sent as it is
+            self.visibility.addItem(value, value)
+        self.visibility.setCurrentIndex(max(0, self.visibility.findData(self.chosen)))
         self.visibility.setEnabled(not busy)
-        self.visibility.activated.connect(lambda _index: self.choose_visibility(self.visibility.currentText()))
+        self.visibility.activated.connect(lambda _index: self.choose_visibility(self.visibility.currentData()))
         self.box.addWidget(_row(_label(f"{len(self.selected)} selected", wrap=False), _label("Visibility", wrap=False),
                                 self.visibility,
                                 _button("Upload selected / retry remaining", self.run, "primary", enabled=not busy and has),

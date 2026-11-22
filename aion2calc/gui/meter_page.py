@@ -847,7 +847,8 @@ class MeterPage(QWidget):
         self.follow.setVisible(follow)
         if _truthy(snap.get("segments")) and not self.segments.hasFocus() and not self.segments.view().isVisible():
             options = lm.segment_options(snap)
-            if [(self.segments.itemData(i), self.segments.itemText(i)) for i in range(self.segments.count())] != options:
+            if getattr(self, "segment_list", None) != options or self.segments.count() != len(options):
+                self.segment_list = options                     # as drawn, before the words are in the language shown
                 self.segments.clear()
                 for value, text in options:
                     self.segments.addItem(text, value)
@@ -1147,6 +1148,7 @@ class MeterPage(QWidget):
         self.npcap_words.setText(state["text"])
         self.npcap_button.setText(state.get("button") or "")
         self.npcap_button.setVisible(bool(state.get("button")))
+        self.npcap_installs = state.get("button") == "Install Npcap"      # its action, whatever language it reads in
         self.npcap_after.setText(state.get("after") or "")
         self.npcap_after.setVisible(bool(state.get("after")))
         if state.get("again"):
@@ -1162,7 +1164,7 @@ class MeterPage(QWidget):
         """Check again, or Install Npcap once asked."""
         if self.requests is None:
             return
-        if self.npcap_button.text() != "Install Npcap":
+        if not getattr(self, "npcap_installs", False):
             self.read_npcap()
             return
         if not self.ask(lm.NPCAP_ASK):

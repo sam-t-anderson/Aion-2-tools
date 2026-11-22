@@ -433,8 +433,9 @@ class OwnedUploads(QFrame):
         busy = self.busy
         seen = QComboBox()
         seen.setAccessibleName("Upload visibility")
-        seen.addItems(list(cb.OWNED_CHOICES))
-        seen.setCurrentText(allowed["visibility"])
+        for value in cb.OWNED_CHOICES:                          # each shown in the language chosen, sent as it is
+            seen.addItem(value, value)
+        seen.setCurrentIndex(max(0, seen.findData(allowed["visibility"])))
         seen.setEnabled(allowed["editable"] and not busy)
         cell, column = _cell()
         cell.setProperty("fill", False)                     # the controls as wide as they need
@@ -463,7 +464,7 @@ class OwnedUploads(QFrame):
         """An upload refreshed, its visibility saved, its private link replaced, its log reviewed, or the upload
         deleted."""
         row = self.rows[index]
-        visibility = "private" if action == "rotate" else seen.currentText()
+        visibility = "private" if action == "rotate" else seen.currentData()
         if action == "delete" and not self.confirm(cb.ASK_DELETE):
             return
         if action == "rotate" and not self.confirm(cb.ASK_ROTATE):
