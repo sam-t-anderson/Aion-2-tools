@@ -1,3 +1,9 @@
+## The native windows' errors on record (0.2.503)
+
+**An error in one of the app's own windows is now written to `logs/native.log`** in the app's data folder, with where it happened, and **Export capture diagnostics** includes that log. The installed app has no console, so until now such an error went unseen: a button just did nothing, and nothing said why.
+- Each window says which it was: the app's window, the overlay, or one of the overlay's other windows.
+- The log is kept under a megabyte, as the overlay's own log is.
+
 ## The app's icon in the tray too (0.2.502)
 
 **The tray icon is now the app's logo**, the same icon its windows and taskbar button show, where it was a small gold mark of its own. If the logo cannot be read, the tray falls back to that mark.

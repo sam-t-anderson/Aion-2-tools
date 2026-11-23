@@ -5,6 +5,8 @@ on the window's title bar, the taskbar and the window switcher, where Qt drew it
 import hashlib
 import os
 import pathlib
+import sys
+import threading
 
 import pytest
 
@@ -107,6 +109,8 @@ def test_the_window_and_every_native_process_take_it(qapp, monkeypatch):
     window.close()
     app = QApplication.instance()
     monkeypatch.setattr(QApplication, "exec", lambda self: 0)
+    monkeypatch.setattr(sys, "excepthook", sys.excepthook)                # the processes' error hooks let go after
+    monkeypatch.setattr(threading, "excepthook", threading.excepthook)
     monkeypatch.setattr(interface, "connect", lambda api, old=None: None)
     # the app's window
     monkeypatch.setattr(native_window, "MainWindow", _Window)

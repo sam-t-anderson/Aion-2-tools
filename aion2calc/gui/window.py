@@ -590,6 +590,8 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="python -m aion2calc.gui", description="Aion 2 Calc native interface")
     parser.add_argument("--url", default="http://127.0.0.1:8765/", help="the app's address")
     args = parser.parse_args(argv)
+    from . import errors
+    errors.record("window")                          # its errors on record, with no console to show them (0.2.503)
     from ..overlay import _ParentProcess
     base, _, fragment = args.url.partition("#")
     ui = ui_settings(AppApi(base))

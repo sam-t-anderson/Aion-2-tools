@@ -3631,6 +3631,8 @@ def main(argv=None) -> int:
     from .companions import main as companion, view_of
     if view_of(url) != "meter":                   # a companion window's address (0.2.497): its own window
         return companion(["--url", url])
+    from . import errors
+    errors.record("overlay")                      # its errors on record, with no console to show them (0.2.503)
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setQuitOnLastWindowClosed(True)
     from .app_icon import apply as apply_icon

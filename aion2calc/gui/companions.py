@@ -1425,6 +1425,8 @@ def main(argv=None) -> int:
     if view not in VIEWS:
         from .overlay import main as meter
         return meter(argv)
+    from . import errors
+    errors.record(f"{view} window")               # its errors on record, with no console to show them (0.2.503)
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setQuitOnLastWindowClosed(True)
     from .app_icon import apply as apply_icon
