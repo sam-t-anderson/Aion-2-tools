@@ -225,6 +225,7 @@ class HistoryPage(QWidget):
         kind = doc.get("kind")
         if kind == "advice-text":
             text = QPlainTextEdit(str((doc.get("result") or {}).get("text") or ""))
+            text.setAccessibleName("The saved advice")    # (0.2.508)
             text.setObjectName("diff")
             text.setReadOnly(True)
             text.setFont(QFont("monospace"))

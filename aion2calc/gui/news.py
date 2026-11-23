@@ -348,6 +348,7 @@ class NewsPage(QWidget):
         head.addSpacing(8)
         head.addWidget(QLabel("News region"))
         self.region_box = QComboBox()
+        self.region_box.setAccessibleName("News region")      # the web page's <label> (0.2.508)
         for key, (label, _site) in REGIONS.items():
             self.region_box.addItem(label, key)
         self.region_box.currentIndexChanged.connect(self._region_chosen)
@@ -357,6 +358,7 @@ class NewsPage(QWidget):
         head.addWidget(self.refresh)
         head.addWidget(QLabel("Show"))
         self.filter_box = QComboBox()
+        self.filter_box.setAccessibleName("Show")
         self.filter_box.addItems(FILTERS)
         self.filter_box.currentTextChanged.connect(self._filtered)
         head.addWidget(self.filter_box)

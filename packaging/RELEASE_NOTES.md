@@ -1,3 +1,7 @@
+## Every choice named for a screen reader (0.2.508)
+
+**A screen reader now says what each choice in the app's own windows is for**, as on the web pages: News' **News region** and **Show**, Timers' **Game region**, **Korean matching group**, **Game server** and **Faction**, the overlay's options and its windows' **Opacity**, and the logs shown while a calculation runs. Until now these said only their value.
+
 ## Sharp pictures on a scaled screen (0.2.507)
 
 **The app's own windows now draw their pictures sharp on a scaled screen**, where Windows' display scaling (125 % or 150 %, common on laptops) or a larger **Size of the app's text** blew them up blurred: the logo in the header and on the Build Planner, items on Crafting and in the Database, a build's and a log's pictures, featured encounters' portraits, the parse card's emblems and skill icons, the Pet Tracker's portraits and the pictures of saved results and of Settings.

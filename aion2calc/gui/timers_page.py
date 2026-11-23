@@ -290,11 +290,13 @@ class TimersPage(QWidget):
         row.setSpacing(8)
         row.addWidget(QLabel("Game region"))
         self.region_box = QComboBox()
+        self.region_box.setAccessibleName("Game region")      # the web page's <label>s (0.2.508)
         self.region_box.currentIndexChanged.connect(self._region_chosen)
         row.addWidget(self.region_box)
         self.group_label = QLabel("Korean matching group")
         row.addWidget(self.group_label)
         self.group_box = QComboBox()
+        self.group_box.setAccessibleName("Korean matching group")
         self.group_box.addItem("Unknown — hide group-specific forecasts", "")
         for number in ("1", "2", "3"):
             self.group_box.addItem(f"Group {number}", number)
@@ -344,11 +346,13 @@ class TimersPage(QWidget):
         row.setSpacing(8)
         row.addWidget(QLabel("Game server"))
         self.server_box = QComboBox()
+        self.server_box.setAccessibleName("Game server")
         self.server_box.addItem("Load kills to choose a server", "")
         self.server_box.currentIndexChanged.connect(self._server_chosen)
         row.addWidget(self.server_box)
         row.addWidget(QLabel("Faction"))
         self.faction_box = QComboBox()
+        self.faction_box.setAccessibleName("Faction")
         for key, words in timers.KILL_FACTIONS:
             self.faction_box.addItem(words, key)
         self.faction_box.setCurrentIndex(max(0, self.faction_box.findData(self.kill_faction)))   # the one kept

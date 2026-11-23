@@ -325,6 +325,7 @@ class GearPage(QWidget):
             bar.setTextVisible(False)
             self.progress.addWidget(bar)
             log = QPlainTextEdit(tail)
+            log.setAccessibleName("The advice's log")    # (0.2.508)
             log.setObjectName("diff")
             log.setReadOnly(True)
             log.setFont(QFont("monospace"))
