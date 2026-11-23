@@ -255,8 +255,10 @@ def _https_check(url: str) -> tuple[bool, str]:
 
 def _native_check() -> str:
     """The native interface as the installed app has it: PySide6 bundled with its Qt, the app's icon read from its
-    bundled logo (0.2.501), the toolbar's icons drawn (Qt's SVG), a class emblem read from the bundled art (WebP, Qt's
-    or Pillow's), and the meter overlay and its party, radar, Pet Tracker and player cards windows drawn off screen."""
+    bundled logo (0.2.501), a window's local socket listening (Qt's network, which brings the window open forward for
+    the app opened again, 0.2.505), the toolbar's icons drawn (Qt's SVG), a class emblem read from the bundled art
+    (WebP, Qt's or Pillow's), and the meter overlay and its party, radar, Pet Tracker and player cards windows drawn
+    off screen."""
     from . import gui
     if not gui.available():
         raise RuntimeError("PySide6 is not in the app")
@@ -271,6 +273,12 @@ def _native_check() -> str:
     logo = apply_icon(app).pixmap(32, 32).toImage()
     if logo.isNull() or not any(logo.pixelColor(x, y).alpha() > 0 for x in range(32) for y in range(32)):
         raise RuntimeError("the app's icon does not load")
+    from .gui import one_window
+    listening = one_window.Listening(one_window.name(f"http://smoke-{os.getpid()}/"), lambda page: True)
+    heard = listening.listening
+    listening.close()
+    if not heard:
+        raise RuntimeError("a window's local socket does not listen")
     icon = chrome.icon("camera", 16, 16, "#ff0000").toImage()
     if not any(icon.pixelColor(x, y).alpha() > 0 for x in range(16) for y in range(16)):
         raise RuntimeError("the toolbar's icons do not draw")
@@ -306,8 +314,8 @@ def _native_check() -> str:
     if [c.width() for c in companions] != [340, 232, 320, 340] or min(c.height() for c in companions) < 60:
         raise RuntimeError("its party, radar, Pet Tracker and player cards windows drew "
                            + ", ".join(f"{c.width()}x{c.height()}" for c in companions))
-    return (f"OK (Qt {qVersion()}, the app's icon {logo.width()}x{logo.height()}, the overlay {image.width()}x"
-            f"{image.height()}, its party, radar, Pet Tracker and player cards windows "
+    return (f"OK (Qt {qVersion()}, the app's icon {logo.width()}x{logo.height()}, a window's local socket listening, "
+            f"the overlay {image.width()}x{image.height()}, its party, radar, Pet Tracker and player cards windows "
             + ", ".join(f"{c.width()}x{c.height()}" for c in companions) + ")")
 
 
