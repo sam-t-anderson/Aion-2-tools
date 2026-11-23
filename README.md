@@ -22,14 +22,14 @@ Before you run a download, check that it is the file this repository's release b
 match the one below exactly.
 
 <!-- checksums:start -->
-Latest release: **[v0.2.506](https://github.com/sam-t-anderson/Aion-2-tools/releases/tag/v0.2.506)** · [SHA256SUMS.txt](https://github.com/sam-t-anderson/Aion-2-tools/releases/download/v0.2.506/SHA256SUMS.txt)
+Latest release: **[v0.2.507](https://github.com/sam-t-anderson/Aion-2-tools/releases/tag/v0.2.507)** · [SHA256SUMS.txt](https://github.com/sam-t-anderson/Aion-2-tools/releases/download/v0.2.507/SHA256SUMS.txt)
 
 | File | SHA-256 |
 |---|---|
-| `aion2calc-setup-0.2.506.exe` | `3cb8bc4c852674762986a9af5ad0d28cd3d52669d70179e0f6def187c66af28c` |
-| `aion2calc-0.2.506-windows-portable.zip` | `2e293afd180ad5cd362e463ebcfaf9c4bc7bb7b21377da51058a2aa419c2e9ae` |
-| `aion2calc-0.2.506-macos.zip` | `2020ef243411ea035434449c2e35b2f0c3e47b4d0d6cfa96c810cf82e1c364eb` |
-| `aion2calc-0.2.506-linux.tar.gz` | `21791bf826235f84784754621679b660e81dfd177dd0b4f9dcafdeedbcb56991` |
+| `aion2calc-setup-0.2.507.exe` | `dce299a2f64a7d4627d537c443c33c220d23a2742dd2495ca13b4718c11c2a16` |
+| `aion2calc-0.2.507-windows-portable.zip` | `88400d8140421eabc81551867baba460af7a939ddf03bbd4bc08559fcd7b2eac` |
+| `aion2calc-0.2.507-macos.zip` | `4338dbf990bc0101e0082b2c63cd7f54f76829fc6de1a86d032116e0b1f58e77` |
+| `aion2calc-0.2.507-linux.tar.gz` | `84aa4b7eaed1e2462cc7106ea517ec2419c38069bcab8d9c7472d72da8a40a5b` |
 <!-- checksums:end -->
 
 | Your computer | Command |
