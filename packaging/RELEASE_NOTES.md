@@ -1,3 +1,7 @@
+## The app's icon on its native windows (0.2.501)
+
+**The app's window now shows the app's icon in its title bar and on the taskbar**, where it showed a placeholder. The native window did not take the icon from the app's program file, as the web interface's window did; it now sets the app's logo itself, and so do the overlay's windows and every dialog they open.
+
 ## Links open in the app's window, and community comparisons generated there (0.2.500)
 
 **A link on one of the window's pages to another page of the app now opens that page in the window**, at the place the web interface would open it. Until now only a log's review and an analyzed encounter did; every other such link opened the web interface, though the window draws every page.
