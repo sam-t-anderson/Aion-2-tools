@@ -308,6 +308,23 @@ class MainWindow(QMainWindow):
     def show_page(self, key: str) -> None:
         self.nav.setCurrentRow(self.page_rows[key])
 
+    def come_forward(self, page: str = "") -> bool:
+        """Brought forward for the app opened again (0.2.505): out of the taskbar where it was minimized (maximized
+        again where it was), on top and active, on the page asked for (``page``: an address's fragment, ``/settings``
+        from the Settings hotkey) or on the one it shows. False, and nothing done, while it says the app stopped or
+        closes for its installer: it is about to close."""
+        if getattr(self, "kept_while_closing", None) is not None:
+            return False
+        route = page.strip("/")
+        if route:
+            self._open_here(route)
+        if self.isMinimized():
+            self.setWindowState(self.windowState() & ~Qt.WindowMinimized)
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        return True
+
     def open_builds(self, context: dict, back=None) -> None:
         """A log's character opened in Builds (``openBuildWorkspace``, 0.2.489): the page opens on it, and its
         ← Back to log shows the page it came from again, then ``back`` (the log reopened there)."""
@@ -556,6 +573,13 @@ class MainWindow(QMainWindow):
             self.notes_dialog = show_patch_notes(self.api, self, notes, webbrowser.open, seen=True)
 
 
+def _come_forward(page: str) -> bool:
+    """The window shown brought forward for the app opened again (0.2.505), on ``page`` where one is named: False
+    where none is shown that stays."""
+    return any(widget.come_forward(page) for widget in QApplication.topLevelWidgets()
+               if isinstance(widget, MainWindow) and widget.isVisible())
+
+
 def _follow_the_computer(app) -> None:
     """The computer turning light or dark redraws the window shown, where its theme follows the computer's."""
     def changed(*_args):
@@ -610,6 +634,9 @@ def main(argv=None) -> int:
     if QApplication.instance() is None:
         scale_text(AppApi(base), ui)
     app = QApplication.instance() or QApplication(sys.argv[:1])
+    from . import one_window
+    if one_window.hand_over(one_window.name(base), fragment):
+        return 0                                     # the window open came forward instead, on that page (0.2.505)
     apply_icon(app)                                  # the app's icon on its windows and dialogs (0.2.501)
     from . import interface
     interface.connect(AppApi(base))                  # the window's choices, kept by the app with the web pages' (0.2.482)
@@ -619,4 +646,8 @@ def main(argv=None) -> int:
     _follow_the_computer(app)
     window.show()
     window.start()
-    return app.exec()
+    listening = one_window.Listening(one_window.name(base), _come_forward, app)   # the app opened again (0.2.505)
+    try:
+        return app.exec()
+    finally:
+        listening.close()

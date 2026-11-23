@@ -4,6 +4,7 @@ code, a file and an ownership backup read, the keyframes, the map's tokens and t
 playback, the party buffs and the plan's own fields. The expected values are raid.js's own answers for the same input."""
 import json
 import os
+import threading
 
 import pytest
 
@@ -654,8 +655,16 @@ def test_recorded_movement_imported_as_a_new_plan(fights):
                                                               f"{when(NOW)} · fight", f"{when(NOW)} · Lost"]
     assert r.MOVES_HEAD in _texts(page) and r.MOVES_NOTE in _texts(page)
     shown = page.id
+    read, release = fake.get, threading.Event()
+
+    def held(path, timeout=None):              # the recording's answer held until its loading has been seen
+        if path == "/api/sessions?file=a.a2log.json":
+            release.wait(10)
+        return read(path, timeout)
+    fake.get = held
     _choose(page.moves_box, 1)
     assert page.moves == {"id": "a.a2log.json", "loading": True} and r.LOADING_RECORDING in _texts(page)
+    release.set()
     assert settle(lambda: page.fight_pick is not None)
     assert fake.sent("GET")[-1][1] == "/api/sessions?file=a.a2log.json" and page.moves_box.currentIndex() == 1
     assert [page.fight_pick.itemText(i) for i in range(page.fight_pick.count())] == ["Ice Queen · 120 s"]

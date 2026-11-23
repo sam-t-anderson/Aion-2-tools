@@ -1,3 +1,9 @@
+## Opening the app again brings its window forward (0.2.505)
+
+**Opening the app while its window is open now brings that window forward**, where it opened a second window beside it: the tray's **Open Aion 2 Calc**, the **Open the app window** hotkey, and starting the app again. The **Open the Settings page** hotkey brings it forward on Settings.
+- A minimized window comes back at its size, maximized if it was.
+- A window that is closing (after **Quit**, or as the app closes for an update) is left to close, and a new one opens.
+
 ## The app's window opens where you left it (0.2.504)
 
 **The app's window now opens where you left it**: at the size and place it had, on the same screen, and maximized if it was. Until now it always opened at its first size wherever Windows put it.
