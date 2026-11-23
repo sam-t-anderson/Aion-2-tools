@@ -1,3 +1,10 @@
+## The app's window opens where you left it (0.2.504)
+
+**The app's window now opens where you left it**: at the size and place it had, on the same screen, and maximized if it was. Until now it always opened at its first size wherever Windows put it.
+- The place is kept a moment after you move or resize the window, and at once as it closes.
+- If that screen is no longer connected, the window opens on one that is.
+- Changing the language or the theme while the window is maximized no longer leaves it as large as the screen when you restore it.
+
 ## The native windows' errors on record (0.2.503)
 
 **An error in one of the app's own windows is now written to `logs/native.log`** in the app's data folder, with where it happened, and **Export capture diagnostics** includes that log. The installed app has no console, so until now such an error went unseen: a button just did nothing, and nothing said why.

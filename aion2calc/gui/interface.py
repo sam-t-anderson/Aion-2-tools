@@ -160,3 +160,9 @@ def connect(api, old=None) -> None:
 def store(prefix: str = "") -> InterfaceStore:
     """The store the native interface keeps its choices in: the app's, once ``connect`` has read it."""
     return InterfaceStore(prefix)
+
+
+def connected() -> bool:
+    """Whether the store is the app's: ``connect`` has given it the app, where a test's store is kept in memory
+    alone."""
+    return _shared.api is not None
