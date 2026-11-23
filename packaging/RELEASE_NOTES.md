@@ -3,6 +3,7 @@
 **The app's window now opens where you left it**: at the size and place it had, on the same screen, and maximized if it was. Until now it always opened at its first size wherever Windows put it.
 - The place is kept a moment after you move or resize the window, and at once as it closes.
 - If that screen is no longer connected, the window opens on one that is.
+- Changing the language or the theme while the window is maximized no longer leaves it as large as the screen when you restore it.
 
 ## The native windows' errors on record (0.2.503)
 

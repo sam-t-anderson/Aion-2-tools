@@ -293,8 +293,11 @@ class MainWindow(QMainWindow):
     def redraw(self) -> "MainWindow":
         """The window drawn again, on the page shown, in the language and the look chosen now."""
         again = MainWindow(self.api, self.web_base, self.current_page(), self.parent_process)
-        again.setGeometry(self.geometry())
-        again.setWindowState(self.windowState())
+        # its place as Qt keeps it (0.2.504): where it is maximized, its size from before too, which its geometry
+        # alone would lose; minimized where it was, as the computer turning light or dark redraws it there too
+        again.restoreGeometry(self.saveGeometry())
+        if self.isMinimized():
+            again.setWindowState(again.windowState() | Qt.WindowMinimized)
         self.again = again
         again.show()
         again.start()
