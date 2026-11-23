@@ -3,9 +3,9 @@ saved-logs.js and archive-upload.js draw them.
 
 - **Recorded encounters by type:** every fight of every recording this computer saved, fifty recordings at a time,
   in sections by kind (PvP, world and field bosses, raids, the dungeons, the open world), each newest first with its
-  boss's portrait, role, difficulty, length and when it was saved, and **view** opening it at its fight (the single
-  log page, in the web interface for now). Filters by boss, kind, role, difficulty and the days saved; mini-bosses
-  are hidden unless shown, a choice kept as the community combat logs keep it.
+  boss's portrait, role, difficulty, length and when it was saved, and **view** opening it at its fight (the log's
+  review, on this page since 0.2.457). Filters by boss, kind, role, difficulty and the days saved; mini-bosses are
+  hidden unless shown, a choice kept as the community combat logs keep it.
 - **Upload recordings:** the saved parts, twenty-five to a page or one recording's parts, put in a queue of at most a
   hundred and uploaded one by one as separate reports to the log server, as the web page does it: each file's
   fingerprint is read first (a file changed since it was queued stops the batch), each upload carries a request ID

@@ -1,3 +1,7 @@
+## The app's icon in the tray too (0.2.502)
+
+**The tray icon is now the app's logo**, the same icon its windows and taskbar button show, where it was a small gold mark of its own. If the logo cannot be read, the tray falls back to that mark.
+
 ## The app's icon on its native windows (0.2.501)
 
 **The app's window now shows the app's icon in its title bar and on the taskbar**, where it showed a placeholder. The native window did not take the icon from the app's program file, as the web interface's window did; it now sets the app's logo itself, and so do the overlay's windows and every dialog they open.

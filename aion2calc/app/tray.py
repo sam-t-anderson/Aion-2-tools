@@ -13,7 +13,13 @@ the tray is active). ``run_detached`` is tried first for backends that support i
 from __future__ import annotations
 
 import importlib.util
+import pathlib
 import threading
+
+#: The app's logo (0.2.502): the tray's icon, as the app's windows and its program file have it.
+LOGO = pathlib.Path(__file__).resolve().parent / "static" / "logo.png"
+#: The size the logo is given at: Windows makes the tray's icon of every size up to it from the picture.
+ICON_SIZE = 256
 
 
 def available() -> bool:
@@ -25,7 +31,18 @@ def available() -> bool:
 
 
 def _icon_image():
-    """A small self-drawn icon, so no packaged image file has to be located at runtime."""
+    """The tray's icon: the app's logo, as its windows and its program file show it (0.2.502), else the mark drawn
+    here when the logo cannot be read."""
+    from PIL import Image
+    try:
+        with Image.open(LOGO) as logo:
+            return logo.convert("RGBA").resize((ICON_SIZE, ICON_SIZE), Image.LANCZOS)
+    except (OSError, ValueError):
+        return _drawn_mark()
+
+
+def _drawn_mark():
+    """A small self-drawn icon, for when the logo cannot be read (the tray's icon until 0.2.502)."""
     from PIL import Image, ImageDraw
 
     size = 64
