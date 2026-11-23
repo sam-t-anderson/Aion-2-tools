@@ -1,3 +1,7 @@
+## The Live Meter page's skill pictures drawn once (0.2.506)
+
+**The Live Meter page no longer fills up memory with copies of the same picture during a fight.** Its parse card is drawn again with each reading, and a skill without art of its own drew its placeholder picture anew each time, which Qt kept until its picture cache was full (in a test where every skill had no art, about 20 MB after an hour of readings). The placeholder is now drawn once for each size.
+
 ## Opening the app again brings its window forward (0.2.505)
 
 **Opening the app while its window is open now brings that window forward**, where it opened a second window beside it: the tray's **Open Aion 2 Calc**, the **Open the app window** hotkey, and starting the app again. The **Open the Settings page** hotkey brings it forward on Settings.

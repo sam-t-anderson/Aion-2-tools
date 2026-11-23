@@ -94,8 +94,21 @@ def _icon(pixmap, size: int, tip: str = "", name: str = "pIcon") -> QLabel:
     return face
 
 
+#: The placeholders drawn, by size and gold (0.2.506): a parse card drawn again with each of the Live Meter's readings
+#: shows the same picture, where a new one each time left Qt's picture cache an entry for each until it was full.
+_PLACEHOLDERS: dict[tuple[int, str], QPixmap] = {}
+
+
 def placeholder(size: int) -> QPixmap:
-    """A skill without art (``SKILL_PLACEHOLDER``): a gold diamond's outline on the frame's blue."""
+    """A skill without art (``SKILL_PLACEHOLDER``): a gold diamond's outline on the frame's blue, drawn once for each
+    size (and each gold: the theme's)."""
+    key = (size, C["gold"])
+    if key not in _PLACEHOLDERS:
+        _PLACEHOLDERS[key] = _drawn_placeholder(size)
+    return _PLACEHOLDERS[key]
+
+
+def _drawn_placeholder(size: int) -> QPixmap:
     picture = QPixmap(size, size)
     picture.fill(Qt.transparent)
     painter = QPainter(picture)

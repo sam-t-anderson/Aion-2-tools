@@ -4415,3 +4415,33 @@ def test_the_window_draws_combat_logs_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("combat"), CombatPage) and not isinstance(window.page("combat"), WebPage)
     assert not isinstance(window.page("raid"), WebPage)                      # every page native (0.2.490)
+
+
+def test_a_skill_without_art_shows_the_same_placeholder_each_time(qapp, monkeypatch):
+    """The Live Meter's parse card is drawn again with each reading (0.2.506): a skill without art shows the placeholder
+    drawn once for its size and the theme's gold, where a new one drawn each time left Qt's picture cache an entry for
+    each until the cache was full (a few kilobytes a reading)."""
+    from aion2calc.gui import combat_analysis_page as cap
+    from aion2calc.gui import theme
+    drawn = []
+    draw = cap._drawn_placeholder
+    monkeypatch.setattr(cap, "_drawn_placeholder", lambda size: drawn.append(size) or draw(size))
+    monkeypatch.setattr(cap, "_PLACEHOLDERS", {})
+    live = {"name": "TestSorc", "cls": "sorcerer", "dmg": 1000, "dps": 50, "rates": {}, "rotation": [[1.0, "Unknown"]],
+            "skills": [{"skill": "Unknown", "skill_id": 0, "hits": 3, "dmg": 900, "share": 0.9, "dps": 45},
+                       {"skill": "Other", "skill_id": 0, "hits": 1, "dmg": 100, "share": 0.1, "dps": 5}]}
+    for _ in range(3):                                                    # three readings
+        card = ParseCard(live)
+        card.resize(1000, 900)
+        card.show()
+        settle(lambda: card.wide)
+        card.close()
+    assert drawn and len(drawn) == len(set(drawn))                       # each size drawn once
+    first = cap.placeholder(18)
+    assert cap.placeholder(18) is first and first.toImage() == draw(18).toImage()   # the same picture as drawn anew
+    try:
+        theme.apply_look("light")                                         # another gold: drawn in it
+        assert cap.placeholder(18) is not first and cap.placeholder(18).toImage() == draw(18).toImage()
+    finally:
+        theme.apply_look("dark")
+    assert cap.placeholder(18) is first
