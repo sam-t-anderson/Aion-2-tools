@@ -8,6 +8,8 @@ look in ``aion2calc/gui/settings_looks``): each row's words, its controls saving
 import io
 import json
 import os
+import sys
+import threading
 import urllib.error
 
 import pytest
@@ -1443,6 +1445,8 @@ def test_the_window_opens_on_the_page_chosen(qapp, monkeypatch):
     monkeypatch.setattr(interface, "_shared", interface._Shared())
     monkeypatch.setattr(interface, "connect", lambda api, old=None: None)
     monkeypatch.setattr(QApplication, "exec", lambda self: 0)
+    monkeypatch.setattr(sys, "excepthook", sys.excepthook)                # the window's error hooks let go after
+    monkeypatch.setattr(threading, "excepthook", threading.excepthook)
     try:
         assert native_window.main(["--url", "http://127.0.0.1:9/"]) == 0
         assert native_window.main(["--url", "http://127.0.0.1:9/#/settings"]) == 0
