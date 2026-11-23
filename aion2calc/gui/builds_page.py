@@ -49,7 +49,7 @@ from .combat_review_page import LOGO, AutoGrid, details_view
 from .combat_saved import _clear
 from .database_page import Window
 from .news import when as when_at
-from .pictures import Pictures
+from .pictures import Pictures, sized
 from .planner import budgets as read_budgets, progression_path
 from .planner_page import interface_store
 from .settings_looks import js_parse, js_slice, js_units
@@ -377,7 +377,7 @@ class Picture(QLabel):
             picture = QPixmap(LOGO)
             self.setToolTip(SOURCE_IMAGE)
         if picture is not None and not picture.isNull():
-            self.setPixmap(picture.scaled(self.side, self.tall, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.setPixmap(sized(picture, self.side, self.tall, self.devicePixelRatioF()))
 
 
 # ------------------------------------------------------------------ the parts

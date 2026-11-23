@@ -117,7 +117,7 @@ class Picture(QLabel):
 
     def show_pixmap(self, pixmap: QPixmap) -> None:
         self.setText("")
-        self.setPixmap(pixmap.scaled(QSize(self.side, self.side), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.setPixmap(pictures.sized(pixmap, self.side, self.side, self.devicePixelRatioF()))
 
 
 class RecipeButton(QPushButton):

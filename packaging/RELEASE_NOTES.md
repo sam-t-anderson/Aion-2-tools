@@ -1,3 +1,7 @@
+## Sharp pictures on a scaled screen (0.2.507)
+
+**The app's own windows now draw their pictures sharp on a scaled screen**, where Windows' display scaling (125 % or 150 %, common on laptops) or a larger **Size of the app's text** blew them up blurred: the logo in the header and on the Build Planner, items on Crafting and in the Database, a build's and a log's pictures, featured encounters' portraits, the parse card's emblems and skill icons, the Pet Tracker's portraits and the pictures of saved results and of Settings.
+
 ## The Live Meter page's skill pictures drawn once (0.2.506)
 
 **The Live Meter page no longer fills up memory with copies of the same picture during a fight.** Its parse card is drawn again with each reading, and a skill without art of its own drew its placeholder picture anew each time, which Qt kept until its picture cache was full (in a test where every skill had no art, about 20 MB after an hour of readings). The placeholder is now drawn once for each size.
