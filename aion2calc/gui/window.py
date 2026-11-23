@@ -51,6 +51,7 @@ from .settings_page import SettingsPage, show_patch_notes
 from .settings_words import launch_page, patch_notes, text_scale
 from .update_bar import CLOSING as UPDATE_CLOSING, UpdateBar, UpdateWatch, available, bar_state
 from .update_bar import stylesheet as update_stylesheet
+from .window_place import WindowPlace
 
 #: The web interface's navigation (index.html): each section's pages, then Settings and Account.
 SECTIONS = (
@@ -243,6 +244,13 @@ class MainWindow(QMainWindow):
             self._parent_timer = QTimer(self)
             self._parent_timer.timeout.connect(lambda: self.parent_process.alive() or QApplication.quit())
             self._parent_timer.start(2000)
+        # where the window was left, the app's to keep (0.2.504): put back now, kept after each move or resize; none
+        # where the store is not the app's (a test's window, which would move the next test's)
+        self.place: WindowPlace | None = None
+        from . import interface
+        if api is not None and interface.connected():
+            self.place = WindowPlace(self, interface.store())
+            self.place.restore()
 
     def page(self, key: str) -> QWidget:
         return self.pages.widget(self.page_index[key])
