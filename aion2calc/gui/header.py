@@ -26,6 +26,7 @@ from . import i18n, theme
 from .app_icon import LOGO                       # the app's logo, its icon too (0.2.501)
 from .character import js_number, js_string
 from .live_meter import shot_scale
+from .pictures import sized
 from .results import _dict, _truthy
 
 # ------------------------------------------------------------------ index.html's, app.js's and account-view.js's words
@@ -285,7 +286,7 @@ class Header(QFrame):
         logo = QLabel()
         picture = QPixmap(str(LOGO))
         if not picture.isNull():
-            logo.setPixmap(picture.scaled(30, 30, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            logo.setPixmap(sized(picture, 30, 30, logo.devicePixelRatioF()))
         row.addWidget(logo)
         name = QLabel(BRAND)
         name.setObjectName("brandName")

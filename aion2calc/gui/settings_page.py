@@ -53,6 +53,7 @@ from .chrome import FlowLayout
 from .combat import js_text
 from .database_page import Window
 from .pets_page import Toast
+from .pictures import draw_cover
 from .result_windows import GridTable
 from .results import _dict, _truthy
 from .settings_schema import ROWS
@@ -280,8 +281,7 @@ class ProfileTile(QAbstractButton):
         painter.save()
         painter.setClipPath(shape)
         if not self.picture.isNull():                    # ``background-size: cover; background-position: center``
-            shown = self.picture.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-            painter.drawPixmap((self.width() - shown.width()) // 2, (self.height() - shown.height()) // 2, shown)
+            draw_cover(painter, QRectF(self.rect()), self.picture)
         font = QFont(self.font())
         font.setWeight(QFont.DemiBold)
         painter.setFont(font)

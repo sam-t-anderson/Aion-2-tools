@@ -164,8 +164,7 @@ class SkillIcon(QWidget):
         if self.pixmap is not None and not self.pixmap.isNull():
             painter.save()
             painter.setClipPath(frame)
-            shown = self.pixmap.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-            painter.drawPixmap((self.width() - shown.width()) // 2, (self.height() - shown.height()) // 2, shown)
+            pictures.draw_cover(painter, QRectF(self.rect()), self.pixmap)
             painter.restore()
         elif self.placeholder:
             font = QFont(self.font())

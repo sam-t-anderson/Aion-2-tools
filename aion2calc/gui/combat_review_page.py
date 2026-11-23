@@ -78,7 +78,7 @@ from .combat_replay_view import ReplayPanel, merge_row
 from .combat_review_views import ContributionBars, FilterPopup, GaugeChart, Placer, Timeline
 from .combat_saved import TIMEOUT, Section, _button, _clear, _head, _label
 from .database_page import Window
-from .pictures import Pictures
+from .pictures import Pictures, sized
 from .planner_page import interface_store
 from .result_windows import GridTable
 from .results import _dict, _list, _truthy, js_text
@@ -2177,7 +2177,7 @@ class ReviewPage(QWidget):
             label.setText("◇")
             label.setAccessibleName("Image unavailable" if not url else alt)
         else:
-            label.setPixmap(picture.scaled(size, height or size, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            label.setPixmap(sized(picture, size, height or size, label.devicePixelRatioF()))
         return label
 
     def _official_picture(self, url: str, data: bytes) -> None:

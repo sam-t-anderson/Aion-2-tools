@@ -12,7 +12,7 @@ from __future__ import annotations
 import io
 import time
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QRectF, Qt, Signal
 from PySide6.QtGui import QImage, QPixmap
 
 from . import image_health, theme
@@ -39,6 +39,34 @@ def decoded(data: bytes) -> QImage:
         except Exception:                 # noqa: BLE001 - bytes neither can read are no picture
             image = QImage()
     return image
+
+
+def sized(picture: QPixmap, width: float, height: float, ratio: float = 1.0,
+          mode: Qt.AspectRatioMode = Qt.KeepAspectRatio) -> QPixmap:
+    """``picture`` scaled to ``width`` x ``height`` (a widget's size) for a screen of ``ratio`` device pixels to each
+    (the widget's ``devicePixelRatioF``) (0.2.507): drawn at that many, so a scaled screen, or the app's larger text,
+    shows it sharp, where one scaled to the size alone was blown up blurred."""
+    ratio = float(ratio) if isinstance(ratio, (int, float)) and ratio > 0 else 1.0
+    wide, tall = max(1, round(width * ratio)), max(1, round(height * ratio))
+    if picture.devicePixelRatio() == ratio and (picture.width(), picture.height()) == (wide, tall):
+        return picture                                   # drawn for it already (a placeholder kept for its screen)
+    out = picture.scaled(wide, tall, mode, Qt.SmoothTransformation)
+    out.setDevicePixelRatio(ratio)
+    return out
+
+
+def draw_cover(painter, rect: QRectF, picture: QPixmap) -> None:
+    """``picture`` over ``rect`` as ``background-size: cover`` with ``background-position: center``: its middle, its
+    shorter side filling the rect (0.2.507). The painter scales it to the screen's own pixels, where a copy scaled to
+    the rect's size before was drawn blown up on a scaled screen."""
+    ratio = picture.devicePixelRatio() or 1.0
+    wide, tall = picture.width() / ratio, picture.height() / ratio
+    if picture.isNull() or wide <= 0 or tall <= 0:
+        return
+    scale = max(rect.width() / wide, rect.height() / tall)
+    width, height = wide * scale, tall * scale
+    painter.drawPixmap(QRectF(rect.center().x() - width / 2, rect.center().y() - height / 2, width, height),
+                       picture, QRectF(picture.rect()))
 
 
 def _bundled(file) -> bool:

@@ -468,7 +468,7 @@ class DatabasePage(QWidget):
         image = pictures.decoded(data)
         if image.isNull():
             return
-        pixmap = QPixmap.fromImage(image).scaled(ICON_SIZE, ICON_SIZE, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = pictures.sized(QPixmap.fromImage(image), ICON_SIZE, ICON_SIZE, self.devicePixelRatioF())
         self.icons_shown[path] = pixmap
         for row, item in enumerate(self.items):
             if icon_path(item.get("icon")) == path and self.table.item(row, 0) is not None:

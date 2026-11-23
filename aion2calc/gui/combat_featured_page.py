@@ -30,7 +30,7 @@ from . import theme
 from .api import AppApi, Requests
 from .combat_community import _note
 from .combat_saved import TIMEOUT, _button, _clear, _head, _label
-from .pictures import Pictures
+from .pictures import Pictures, sized
 from .result_windows import GridTable
 from .results import _dict, _truthy, cap, js_text
 
@@ -126,7 +126,7 @@ class _Painted(QLabel):
         self.setObjectName("fePortrait")
         self.setFixedSize(size, size)
         if pixmap is not None and not pixmap.isNull():
-            self.setPixmap(pixmap.scaled(size - 2, size - 2, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation))
+            self.setPixmap(sized(pixmap, size - 2, size - 2, self.devicePixelRatioF(), Qt.KeepAspectRatioByExpanding))
             self.setAlignment(Qt.AlignCenter)
         if tip:
             self.setToolTip(tip)

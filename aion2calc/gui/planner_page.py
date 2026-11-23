@@ -25,6 +25,7 @@ from .api import AppApi, Job, Requests
 from .chrome import FlowLayout
 from .database_page import Window
 from .gathering_page import GatheringPage
+from .pictures import sized
 from .result_windows import Columns, ResultWindows
 
 LOGO = pathlib.Path(__file__).resolve().parents[1] / "app" / "static" / "logo.png"
@@ -130,7 +131,7 @@ class PlannerPage(QWidget):
         logo.setFixedSize(92, 92)
         picture = QPixmap(str(LOGO))
         if not picture.isNull():
-            logo.setPixmap(picture.scaled(92, 92, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            logo.setPixmap(sized(picture, 92, 92, logo.devicePixelRatioF()))
         hero.addWidget(logo, 0, Qt.AlignVCenter)
         words = QVBoxLayout()
         words.setSpacing(4)

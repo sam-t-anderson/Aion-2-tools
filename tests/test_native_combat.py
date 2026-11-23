@@ -4425,7 +4425,7 @@ def test_a_skill_without_art_shows_the_same_placeholder_each_time(qapp, monkeypa
     from aion2calc.gui import theme
     drawn = []
     draw = cap._drawn_placeholder
-    monkeypatch.setattr(cap, "_drawn_placeholder", lambda size: drawn.append(size) or draw(size))
+    monkeypatch.setattr(cap, "_drawn_placeholder", lambda size, ratio=1.0: drawn.append(size) or draw(size, ratio))
     monkeypatch.setattr(cap, "_PLACEHOLDERS", {})
     live = {"name": "TestSorc", "cls": "sorcerer", "dmg": 1000, "dps": 50, "rates": {}, "rotation": [[1.0, "Unknown"]],
             "skills": [{"skill": "Unknown", "skill_id": 0, "hits": 3, "dmg": 900, "share": 0.9, "dps": 45},

@@ -27,7 +27,7 @@ import html
 import json
 import webbrowser
 
-from PySide6.QtCore import QObject, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import QObject, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPixmap
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
                                QScrollArea, QVBoxLayout, QWidget)
@@ -342,8 +342,7 @@ class Portrait(QWidget):
         painter.fillPath(clip, QColor(27, 40, 56, 230))
         if self.pixmap is not None and not self.pixmap.isNull():
             painter.setClipPath(clip)
-            scaled = self.pixmap.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-            painter.drawPixmap((self.width() - scaled.width()) // 2, (self.height() - scaled.height()) // 2, scaled)
+            pictures.draw_cover(painter, QRectF(self.rect()), self.pixmap)
         painter.end()
 
 

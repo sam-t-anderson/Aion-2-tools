@@ -28,7 +28,7 @@ from .combat import encode_component
 from .combat_community import _note
 from .combat_saved import _button, _clear, _label
 from .database_page import Window
-from .pictures import Pictures
+from .pictures import Pictures, sized
 from .results import _dict, _truthy, js_text
 
 C = theme.COLORS
@@ -81,35 +81,37 @@ def _plain(layout=QVBoxLayout, spacing: int = 0):
     return box, line
 
 
-def _icon(pixmap, size: int, tip: str = "", name: str = "pIcon") -> QLabel:
-    """A picture in its frame, or the frame alone when the app has none."""
+def _icon(pixmap, size: int, tip: str = "", name: str = "pIcon", ratio: float = 1.0) -> QLabel:
+    """A picture in its frame, or the frame alone when the app has none; drawn for a screen of ``ratio`` device pixels
+    to each (0.2.507)."""
     face = QLabel()
     face.setObjectName(name)
     face.setFixedSize(size, size)
     face.setAlignment(Qt.AlignCenter)
     if pixmap is not None and not pixmap.isNull():
-        face.setPixmap(pixmap.scaled(size - 2, size - 2, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        face.setPixmap(sized(pixmap, size - 2, size - 2, ratio))
     if tip:
         face.setToolTip(tip)
     return face
 
 
-#: The placeholders drawn, by size and gold (0.2.506): a parse card drawn again with each of the Live Meter's readings
-#: shows the same picture, where a new one each time left Qt's picture cache an entry for each until it was full.
-_PLACEHOLDERS: dict[tuple[int, str], QPixmap] = {}
+#: The placeholders drawn, by size, gold and screen (0.2.506): a parse card drawn again with each of the Live Meter's
+#: readings shows the same picture, where a new one each time left Qt's picture cache an entry for each until it was full.
+_PLACEHOLDERS: dict[tuple[int, str, float], QPixmap] = {}
 
 
-def placeholder(size: int) -> QPixmap:
+def placeholder(size: int, ratio: float = 1.0) -> QPixmap:
     """A skill without art (``SKILL_PLACEHOLDER``): a gold diamond's outline on the frame's blue, drawn once for each
-    size (and each gold: the theme's)."""
-    key = (size, C["gold"])
+    size, each gold (the theme's) and each screen's ``ratio`` of device pixels (0.2.507: sharp on a scaled screen)."""
+    key = (size, C["gold"], float(ratio))
     if key not in _PLACEHOLDERS:
-        _PLACEHOLDERS[key] = _drawn_placeholder(size)
+        _PLACEHOLDERS[key] = _drawn_placeholder(size, ratio)
     return _PLACEHOLDERS[key]
 
 
-def _drawn_placeholder(size: int) -> QPixmap:
-    picture = QPixmap(size, size)
+def _drawn_placeholder(size: int, ratio: float = 1.0) -> QPixmap:
+    picture = QPixmap(max(1, round(size * ratio)), max(1, round(size * ratio)))
+    picture.setDevicePixelRatio(ratio)
     picture.fill(Qt.transparent)
     painter = QPainter(picture)
     painter.setRenderHint(QPainter.Antialiasing)
@@ -349,7 +351,7 @@ class ParseCard(QFrame):
         cls = js_text(self.d.get("cls") or "")
         if cls:
             emblem = self.pictures.emblem(cls.lower()) if self.pictures is not None else None
-            line.addWidget(_icon(emblem, 26, name="pClass"))
+            line.addWidget(_icon(emblem, 26, name="pClass", ratio=self.devicePixelRatioF()))
         line.addWidget(_label(js_text(self.d.get("name")) or "—", "pName", wrap=False))
         line.addWidget(_label(ca.head_line(self.d), "pSub", wrap=False))
         line.addStretch(1)
@@ -448,7 +450,8 @@ class ParseCard(QFrame):
         """A skill's icon the app bundles, else the web page's placeholder."""
         art = ca.skill_art(skill_id)
         pixmap = self.pictures.by_address(art) if self.pictures is not None and art else None
-        return _icon(pixmap if pixmap is not None else placeholder(size - 2), size, name)
+        ratio = self.devicePixelRatioF()
+        return _icon(pixmap if pixmap is not None else placeholder(size - 2, ratio), size, name, ratio=ratio)
 
     def _skills(self, wide: bool) -> QWidget:
         """The skills (``pskills``): each one's hits, DPS, average, least, most and damage."""
