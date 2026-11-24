@@ -1976,6 +1976,7 @@ class MeterOverlay(QWidget):
             label = QLabel(words, holder)
             label.setObjectName("ovoption")
             pick = QComboBox(holder)
+            pick.setAccessibleName(words)              # the label beside it (0.2.508)
             pick.setObjectName("ovsel")
             for value, text in choices_:
                 pick.addItem(text, value)
@@ -2000,6 +2001,7 @@ class MeterOverlay(QWidget):
         opacity = QLabel("Opacity", fade)
         opacity.setObjectName("ovoption")
         self.slider = QSlider(Qt.Horizontal, fade)
+        self.slider.setAccessibleName("Opacity")
         self.slider.setRange(20, 100)
         self.slider.setToolTip("The card's opacity behind the readings")
         brand = QLabel("Aion 2 Calc", fade)

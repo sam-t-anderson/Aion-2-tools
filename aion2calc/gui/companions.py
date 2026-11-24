@@ -465,6 +465,7 @@ class Foot(QWidget):
         self.label = QLabel("Opacity", self)
         self.label.setObjectName("ovfootlabel")
         self.slider = QSlider(Qt.Horizontal, self)
+        self.slider.setAccessibleName("Opacity")    # the label beside it (0.2.508)
         self.slider.setObjectName("ovop")
         self.slider.setRange(20, 100)
         self.slider.setFixedHeight(16)
