@@ -5,8 +5,8 @@ Each window is its own process, as the browser window and the pywebview overlay 
 app through the same local API the web pages use (``api.AppApi``), so the meter, the logs and every setting stay
 where they are. ``Settings → Native interface`` (``interface_native``, on unless turned off) chooses it; with the
 setting off, or without PySide6 (a requirement of the package and bundled with the builds since 0.2.426), the app
-opens its web interface. The pages are moved over one at a time: a page the native window does not draw yet
-opens in the web interface from it.
+opens its web interface. Every page the window lists is native since 0.2.490, and a link to a page of the app
+opens it in the window since 0.2.500.
 """
 from __future__ import annotations
 

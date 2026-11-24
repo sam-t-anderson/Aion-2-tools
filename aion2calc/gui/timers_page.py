@@ -9,7 +9,8 @@
   when each boss is expected back.
 - **Recorded boss defeats:** the observations the log server has, by region and boss.
 
-A source log opens in the web interface; the schedule's sources open in the browser.
+A recorded defeat's source log and **Browse combat logs →** open on Combat Logs in the window; the schedule's
+sources open in the browser.
 """
 from __future__ import annotations
 
