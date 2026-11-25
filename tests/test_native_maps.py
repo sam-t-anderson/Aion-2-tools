@@ -315,12 +315,12 @@ def test_the_page_has_no_interactive_map(qapp):
     assert [w.title.text() for w in page.findChildren(Window)] == ["ABYSS PVP HEAT MAP", "FARMING ROUTES"]
     words = [label.text() for label in page.findChildren(QLabel)]
     hosts = {urllib.parse.urlsplit(href).hostname for w in words for href in re.findall(r"href='([^']*)'", w)}
-    assert "interactivemap.app" not in hosts                          # nothing links to the provider's maps
+    assert not any(host == "interactivemap.app" for host in hosts)    # nothing links to the provider's maps
     assert not any("Open provider" in w for w in words)
     assert "Open provider ↗" not in [b.text() for b in page.findChildren(QPushButton)]
     assert not hasattr(page, "zone_box") and not hasattr(m, "provider_url")
     # the routes still credit their waypoints' source, the open AION 2 Interactive Map project (not the provider)
-    assert "aion2-interactive-map.github.io" in hosts
+    assert any(host == "aion2-interactive-map.github.io" for host in hosts)
 
 
 def test_copy_refused_and_a_route_catalog_missing(qapp):
