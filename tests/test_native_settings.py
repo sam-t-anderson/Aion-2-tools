@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import threading
+import time
 import urllib.error
 
 import pytest
@@ -111,11 +112,13 @@ def _refused(path, status, message):
 
 class FakeApp:
     """The app's local API as the page asks it: ``answers`` maps ``(method, path, action)`` to what the app says (a
-    dict; an exception it raises; or a list of either, given in turn). Unknown requests are not found."""
+    dict; an exception it raises; or a list of either, given in turn). Unknown requests are not found. Like the app, it
+    refuses the actions it takes only for its own interface (``server.ORIGIN_ONLY``) when they do not name its address."""
 
     def __init__(self, answers=None):
         self.answers = {key: list(value) if isinstance(value, list) else value for key, value in (answers or {}).items()}
         self.calls = []
+        self.posted = []
 
     def _answer(self, method, path, body):
         key = (method, path, (body or {}).get("action") if method == "POST" else None)
@@ -136,6 +139,9 @@ class FakeApp:
         raise _refused(path, 404, "not found")
 
     def post(self, path, payload, timeout=None, origin=False):
+        self.posted.append((path, origin))
+        if path in server.ORIGIN_ONLY and not origin:
+            raise _refused(path, 403, "PermissionError: This action requires the local application origin.")
         return self._answer("POST", path, payload)
 
     def sent(self, method=None, path=None):
@@ -398,6 +404,31 @@ def test_storage_maintenance(qapp, home):
     _button(page, sw.CLEAN_UPDATES).click()
     settle(lambda: page.storage_message.text() == "Busy")
     assert page.clean_buttons["updates"].isEnabled()
+    assert all(origin for path, origin in app.posted if path == "/api/maintenance")
+
+
+def test_storage_maintenance_cleans_through_the_app_itself(qapp, home):
+    """The app removes files only for its own interface: a clean must name the app's address (``Origin``) as the web
+    page's browser does. Until 0.2.511 the native page named none, and the app refused every clean with
+    "PermissionError: This action requires the local application origin."."""
+    from aion2calc.gui.api import AppApi
+    cache = home / "home" / "cache"
+    cache.mkdir(parents=True)
+    stale = cache / ("ab" * 20 + ".html")                                 # a cached web response, ten days old
+    stale.write_text("<p>old</p>", encoding="utf-8")
+    os.utime(stale, (time.time() - 10 * 86400,) * 2)
+    srv = server.make_server("127.0.0.1", 0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        page = _page(home, AppApi(f"http://127.0.0.1:{srv.server_address[1]}/", timeout=60))
+        page.show_tab("system")
+        _button(page, sw.CLEAN_CACHE).click()
+        settle(lambda: page.storage_message.text() != sw.CLEANING, timeout=60)
+        assert page.storage_message.text() == "Removed 1 files; 0 changed, active, locked or uninspectable files preserved."
+        assert not stale.exists()
+    finally:
+        srv.shutdown()
+        srv.server_close()
 
 
 def test_the_version_its_check_and_its_update(qapp, home):

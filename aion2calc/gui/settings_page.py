@@ -2280,12 +2280,14 @@ class SettingsPage(QWidget):
         self.maintenance_box.addWidget(GridTable(sw.MAINTENANCE_COLUMNS, m["rows"], {0: 3, 4: 3}, left=True))
 
     def clean(self, action: str) -> None:
-        """Old disposable cache or old update files removed (``#storage-cache``, ``#storage-updates``)."""
+        """Old disposable cache or old update files removed (``#storage-cache``, ``#storage-updates``). The app removes
+        files only for its own interface, so the request names the app's address as the web page's browser does
+        (``server.ORIGIN_ONLY``; refused until 0.2.511, when the page named none)."""
         if self.requests is None:
             return
         self.clean_buttons[action].setEnabled(False)
         self.storage_message.setText(sw.CLEANING)
-        self.slow.post(f"clean:{action}", "/api/maintenance", {"action": action})
+        self.slow.post(f"clean:{action}", "/api/maintenance", {"action": action}, origin=True)
 
     def check_update(self) -> None:
         """The latest release checked again (``#chkupd``)."""
