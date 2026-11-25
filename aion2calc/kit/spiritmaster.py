@@ -70,7 +70,6 @@ ASSUME = {
     "dc_delayed_frac": 0.36,      # Dimensional Control "Extra damage after 3s" vs its hit (recorded 0.35-0.38)
     "fusion_delayed_frac": 0.24,  # Elemental Fusion "Extra damage after 3s" vs its hit (recorded 0.23-0.25)
     "fusion_every": 4,            # Spirit skills per Four Elements -> Elemental Fusion
-    "eunify_stacks": 5,           # Element Unification Critical Damage stacks maintained
     "ancient_duration": 30.0,     # Ancient Spirit stigma: a 30s window of a much stronger pet
     "crit_rate": 0.60,
     "chain_frac": 1.5,            # Ashy Call (Combustion chain); community L45 parses put detected
@@ -141,10 +140,12 @@ def build_kit(build: Build, cd: ClassData, filler: str = "cold_shock") -> Kit:
     add_static("SSTRIKE", {0: ("amp_pve", 0.01), 2: ("perfect", 0.01)})   # Spirit Strike
     add_static("CORRODE", {0: ("crit", 1.0)})
     add_static("MFOCUS", {1: ("double", 0.01)})
-    # Element Unification: +2% Critical Damage per Spirit skill, up to 5 stacks, kept up by the pet
+    # Element Unification: +Critical Damage on landing a Spirit skill, kept up by the pet. One stack since the 25
+    # November 2026 patch, five times a stack's before (5.5% at level 1, +0.5% a level): the five stacks the model held
+    # then come to the same (0.2.510)
     if lv("EUNIFY") > 0:
         ev = cd.vals(SID["EUNIFY"], lv("EUNIFY"))
-        static["crit_dmg"] = static.get("crit_dmg", 0.0) + (ev[0] / 100.0) * ASSUME["eunify_stacks"]
+        static["crit_dmg"] = static.get("crit_dmg", 0.0) + ev[0] / 100.0
 
     # --- the Spirits ------------------------------------------------------------
     dc_f, dc_c = (dmg("DIMCTRL") if lv("DIMCTRL") > 0 else (0.0, 0.0))

@@ -170,7 +170,7 @@ def build_kit(build: Build, cd: ClassData, filler: str = "snipe") -> Kit:
         sim.hit("Marking Shot", mk_f, mk_c, tags=tags)
         stats = {"crit": prec_crit}
         if has("MARK", 1):
-            stats["perfect"] = 0.05
+            stats["perfect"] = 0.10       # +10% Perfect Chance while it lasts (+5% before the 25 November 2026 patch)
         sim.buff("precision", prec_dur, stats)
     A["marking_shot"] = Action("marking_shot", "Marking Shot", SID["MARK"], TIMING["marking_shot"],
                                cooldown=cd.cd(SID["MARK"], lv("MARK")), mp=cd.mp(SID["MARK"], lv("MARK")),
