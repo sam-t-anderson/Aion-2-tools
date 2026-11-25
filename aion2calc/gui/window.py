@@ -127,12 +127,31 @@ class MainWindow(QMainWindow):
     def __init__(self, api: AppApi | None, web_base: str = "", page: str = "meter", parent_process=None):
         super().__init__()
         self.api, self.web_base, self.parent_process = api, web_base, parent_process
-        self.shown_look = theme.LOOK["shown"]              # the theme drawn: the computer's, while it follows it
         self.setWindowTitle("Aion 2 Calc")
         self.setWindowIcon(app_icon())                   # the app's own icon, not Qt's placeholder (0.2.501)
         self.resize(1280, 820)
         self.leave_app = QApplication.quit                 # once the app has stopped (Quit)
         self.confirm = self._confirm
+        self.shot_scaled = False
+        self.watch = self.requests = None
+        self._build(page)
+        if parent_process is not None and getattr(parent_process, "watched", lambda: False)():
+            self._parent_timer = QTimer(self)
+            self._parent_timer.timeout.connect(lambda: self.parent_process.alive() or QApplication.quit())
+            self._parent_timer.start(2000)
+        # where the window was left, the app's to keep (0.2.504): put back now, kept after each move or resize; none
+        # where the store is not the app's (a test's window, which would move the next test's)
+        self.place: WindowPlace | None = None
+        from . import interface
+        if api is not None and interface.connected():
+            self.place = WindowPlace(self, interface.store())
+            self.place.restore()
+
+    def _build(self, page: str) -> None:
+        """What the window shows, in the language and the look chosen now, opening on ``page``: the header, the
+        navigation and every page, the update's bar and the passing messages; drawn again in place by ``redraw``."""
+        api = self.api
+        self.shown_look = theme.LOOK["shown"]              # the theme drawn: the computer's, while it follows it
         central = QWidget()
         outer = QVBoxLayout(central)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -233,24 +252,25 @@ class MainWindow(QMainWindow):
         self.page("settings").ui_saved.connect(self._ui_saved)
         from . import interface
         self.header.show_theme(theme.chosen_theme(interface.store()))
-        self.shot_scaled = False
         self.requests = Requests(api, self) if api is not None else None
         if self.requests is not None:
             self.requests.replied.connect(self._replied)
             self.requests.failed.connect(self._failed)
         self.setStyleSheet(theme.app_stylesheet() + header_stylesheet() + update_stylesheet() + str(Toast.STYLE))
         self.show_page(page if page in self.page_index else "meter")
-        if parent_process is not None and getattr(parent_process, "watched", lambda: False)():
-            self._parent_timer = QTimer(self)
-            self._parent_timer.timeout.connect(lambda: self.parent_process.alive() or QApplication.quit())
-            self._parent_timer.start(2000)
-        # where the window was left, the app's to keep (0.2.504): put back now, kept after each move or resize; none
-        # where the store is not the app's (a test's window, which would move the next test's)
-        self.place: WindowPlace | None = None
-        from . import interface
-        if api is not None and interface.connected():
-            self.place = WindowPlace(self, interface.store())
-            self.place.restore()
+
+    def _let_go(self) -> None:
+        """What the window showed until now let go, to be drawn again (``redraw``): its readings stopped, and its pages
+        taken out of the window before Qt deletes them, so that the window's new look is not worked out for them."""
+        for reading in (self.watch, self.requests):
+            if reading is not None:
+                reading.stop()
+                reading.deleteLater()
+        self.watch = self.requests = None
+        shown = self.takeCentralWidget()
+        if shown is not None:
+            shown.hide()
+            shown.deleteLater()
 
     def page(self, key: str) -> QWidget:
         return self.pages.widget(self.page_index[key])
@@ -291,19 +311,14 @@ class MainWindow(QMainWindow):
             self.redraw()
 
     def redraw(self) -> "MainWindow":
-        """The window drawn again, on the page shown, in the language and the look chosen now."""
-        again = MainWindow(self.api, self.web_base, self.current_page(), self.parent_process)
-        # its place as Qt keeps it (0.2.504): where it is maximized, its size from before too, which its geometry
-        # alone would lose; minimized where it was, as the computer turning light or dark redraws it there too
-        again.restoreGeometry(self.saveGeometry())
-        if self.isMinimized():
-            again.setWindowState(again.windowState() | Qt.WindowMinimized)
-        self.again = again
-        again.show()
-        again.start()
-        self.close()
-        self.deleteLater()
-        return again
+        """What the window shows drawn again in place (0.2.509), on the page shown, in the language and the look chosen
+        now. The window itself stays as it is, where it is (maximized, minimized, on its screen) and in the taskbar:
+        until 0.2.509 another window opened in its place and this one closed, as though the app had opened again."""
+        page = self.current_page()
+        self._let_go()
+        self._build(page)
+        self.start()
+        return self
 
     def show_page(self, key: str) -> None:
         self.nav.setCurrentRow(self.page_rows[key])
@@ -561,8 +576,8 @@ class MainWindow(QMainWindow):
     def _whats_new(self) -> None:
         """What's new, once after an update (patch-notes.js ``check``): closing it tells the app, which then never
         shows it again (0.2.475)."""
-        if self.api is None:
-            return
+        if self.api is None or getattr(self, "_notes", None) is not None:
+            return                                       # asked for once: not again as the window is drawn again
         self._notes = Requests(self.api, self)
         self._notes.replied.connect(self._notes_read)
         self._notes.get("notes", "/api/patch-notes")

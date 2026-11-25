@@ -43,9 +43,11 @@ HEAT = {"map_id": 20, "zone": "Abyss", "region": None, "available": True, "windo
                     {"seconds": 604800, "uploaders": 6, "fights": 30}],
         "fights": 9, "uploaders": 4, "hits": 57, "kills": 3, "hidden_cells": 1,
         "cells": [[2, -2, 31, 2], [3, -2, 20, 1], [2, -1, 6, 0]],
-        "footprint": [[x, y] for x in range(0, 6) for y in range(-4, 2)],
+        # the ground, and three squares lying apart from it on the map's middle line, as the live server's has had
+        # them: its bounds take them in, the map is drawn without them (0.2.509) over the ground's 12,000 units each way
+        "footprint": [[x, y] for x in range(0, 6) for y in range(-4, 2)] + [[-40, 0], [25, 0], [26, 0]],
         "landmarks": [{"npc_id": "2600089", "name": "Testboss Gamma", "x": 9000, "y": -1000, "logs": 2}],
-        "bounds": {"x": [0, 12000], "y": [-8000, 4000]}, "generated_at": NOW, "refresh_seconds": 900,
+        "bounds": {"x": [-80000, 54000], "y": [-8000, 4000]}, "generated_at": NOW, "refresh_seconds": 900,
         "min_uploaders": 3, "min_cell_uploaders": 2, "note": "Test heat map.", "matchup": None,
         # log server 0.2.169: a map per Abyss pair, all of them listed with each one's window and last week's counts
         "matchups": [{"id": "nae-1", "region": "nae", "pair": 1, "label": "Israphel vs Zikel",

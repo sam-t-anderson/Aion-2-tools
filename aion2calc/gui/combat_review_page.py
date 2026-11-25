@@ -96,6 +96,14 @@ def _plain(layout=QVBoxLayout, spacing: int = 0):
     return box, line
 
 
+def _flow(across: int = 6, down: int = 6):
+    """Widgets side by side on as many lines as the page's width needs (``.row``'s ``flex-wrap``): a row of the log's
+    series, tabs or choices never makes the page wider than the window (0.2.509)."""
+    box = QWidget()
+    box.setObjectName("plain")
+    return box, FlowLayout(box, align=Qt.AlignLeft, gap=(across, down))
+
+
 def _muted(words: str) -> QLabel:
     return _label(words, "small")
 
@@ -786,10 +794,9 @@ class ReviewPage(QWidget):
             words = _muted("The meter cut this boss fight in two; this encounter is the whole fight, joined from its pieces, "
                            "which are still listed on their own (unranked).")
             body.addWidget(words)
-            row, line = _plain(QHBoxLayout, 6)
+            row, line = _flow(6, 6)
             for index in cut:
                 line.addWidget(_button("Open a piece", lambda index=index: self.open_segment(index)))
-            line.addStretch(1)
             body.addWidget(row)
         self.mapping_status = None
         for part in (self._context(d), self._mapping()):
@@ -910,28 +917,29 @@ class ReviewPage(QWidget):
         return box
 
     def _tabs(self) -> QWidget:
-        """The metric shown (``data-metric``), which the summary sorts by; and at the right the view (``data-view``)."""
-        box, line = _plain(QHBoxLayout, 6)
+        """The metric shown (``data-metric``), which the summary sorts by; and at the right the view (``data-view``),
+        on a line of their own where the window is narrow."""
+        box, line = _flow(6, 6)
         for key, words in cw.METRICS:
             tab = _button(words, lambda key=key: self.choose_metric(key), "primary" if self.state["metric"] == key else "small")
             line.addWidget(tab)
-        line.addStretch(1)
-        for key, words in cw.VIEWS:
+        for index, (key, words) in enumerate(cw.VIEWS):
             tab = _button(words, lambda key=key: self.view(key), "primary" if self.state["view"] == key else "small")
             tab.setAccessibleName(f"{words} view")
+            if not index:
+                line.push(tab)                                       # the views at the right of their line
             line.addWidget(tab)
         return box
 
     # ---------------------------------------------------------------- the options, graph, ping and enemies (0.2.458)
     def _options(self) -> QWidget:
         """What the review shows (``cr-options``): the graph, pets, and pets counted with their owner."""
-        box, line = _plain(QHBoxLayout, 14)
+        box, line = _flow(14, 6)
         for key, words in cw.OPTIONS:
             tick = QCheckBox(words)
             tick.setChecked(bool(self.state.get(key, True)))
             tick.toggled.connect(lambda checked, key=key: self._option(key, checked))
             line.addWidget(tick)
-        line.addStretch(1)
         return box
 
     def _option(self, key: str, checked: bool) -> None:
@@ -947,12 +955,11 @@ class ReviewPage(QWidget):
         """The rate chart (``graph``) with its style, key, the rates at the moment inspected, and its series."""
         model = cw.graph(v, events, self.state, self.state["hidden"])
         box, column = _plain(spacing=6)
-        head, line = _plain(QHBoxLayout, 10)
+        head, line = _flow(10, 6)
         line.addWidget(self._pick("Graph style", cw.GRAPH_MODES, model["mode"], self._graph_mode))
         line.addWidget(_label(model["words"], "small", wrap=False))
-        line.addStretch(1)
         column.addWidget(head)
-        key, line = _plain(QHBoxLayout, 14)
+        key, line = _flow(14, 4)
         if model["mode"] == "players":
             line.addWidget(_label("Class-colored lines: player rates · solid: damage done · dashed: damage taken · dotted: "
                                   "healing", "small"))
@@ -961,7 +968,6 @@ class ReviewPage(QWidget):
             line.addWidget(self._key("Gold line: trailing 10-second average", C["chart_line"]))     # --chart-line
         if model["health"]:
             line.addWidget(self._key(f"Red line: {model['hp_of']} (right axis)", HP.name()))
-        line.addStretch(1)
         column.addWidget(key)
         chart = RateChart(model, v["r"], self.colours)
         self.chart = chart
@@ -975,7 +981,9 @@ class ReviewPage(QWidget):
         self.detail.addWidget(_label(cw.GRAPH_HINT, "small"))
         column.addWidget(detail)
         chart.inspected.connect(lambda t: self._inspected(model, v, t))
-        buttons, line = _plain(QHBoxLayout, 6)
+        # a button for each series, on as many lines as they need: one for each actor and what is drawn of them, which
+        # a raid's log has hundreds of, so that on a single line the page was tens of thousands of pixels wide (0.2.509)
+        buttons, line = _flow(6, 6)
         for s in model["lines"]:
             colour = cr.class_colour(_dict(v["r"].get(s["actor"])).get("class"), self.colours)
             button = _button(f"{cw.actor_label(v['r'].get(s['actor']))} · {s['kind']}", lambda key=s["key"]: self._hide(key))
@@ -983,7 +991,6 @@ class ReviewPage(QWidget):
             button.setAccessibleName(f"Hide {cw.actor_label(v['r'].get(s['actor']))} · {s['kind']}")
             line.addWidget(button)
         line.addWidget(_button("Show all series", self._show_all))
-        line.addStretch(1)
         column.addWidget(buttons)
         return box
 
@@ -1246,12 +1253,11 @@ class ReviewPage(QWidget):
         box, column = _plain(spacing=8)
         self.details = box
         column.addWidget(_head("Abilities and skills"))
-        tabs, line = _plain(QHBoxLayout, 6)
+        tabs, line = _flow(6, 6)
         for key, words in cw.DETAILS:
             tab = _button(words, lambda key=key: self._detail(key), "primary" if state["detail"] == key else "small")
             tab.setAccessibleName(f"{words} tab")
             line.addWidget(tab)
-        line.addStretch(1)
         column.addWidget(tabs)
         self.ability_table = self.skills_table = self.casts = None
         detail = state["detail"]
@@ -1373,13 +1379,12 @@ class ReviewPage(QWidget):
         box, column = _plain(spacing=8)
         self.actions_box = box
         column.addWidget(_head("Casts, buffs and break gauge"))
-        tabs, line = _plain(QHBoxLayout, 6)
+        tabs, line = _flow(6, 6)
         for key, words in cw.ACTIONS:
             tab = _button(words.replace("&", "&&"), lambda key=key: self._actions_tab(key),   # "&" alone marks a mnemonic
                           "primary" if state["actions"] == key else "small")
             tab.setAccessibleName(f"{words} actions")
             line.addWidget(tab)
-        line.addStretch(1)
         column.addWidget(tabs)
         tab = state["actions"]
         if tab == "rotation":

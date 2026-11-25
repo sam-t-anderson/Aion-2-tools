@@ -150,16 +150,26 @@ def test_the_window_opens_in_the_look_and_draws_itself_again_in_another(look, mo
     assert "#f7f2e7" in first.styleSheet() and first.shown_look == "light"
     first.show_page("settings")
     first.show()
-    first.page("settings").accent_seg.buttons["Rose"].click()       # kept, and the window drawn again in it
-    again = first.again
-    assert store.value("accent") == "rose" and "#9e2a6a" in again.styleSheet() and again.current_page() == "settings"
-    assert again.page("settings").accent_seg.chosen == "Rose" and settle(lambda: not shiboken6.isValid(first))
+    shown_windows = lambda: {id(w) for w in QApplication.topLevelWidgets() if isinstance(w, MainWindow)  # noqa: E731
+                             and shiboken6.isValid(w) and w.isVisible()}
+    windows = shown_windows()
+    settings = first.page("settings")
+    settings.accent_seg.buttons["Rose"].click()                   # kept, and the window drawn again in it, in place
+    assert store.value("accent") == "rose" and "#9e2a6a" in first.styleSheet() and first.current_page() == "settings"
+    assert first.page("settings").accent_seg.chosen == "Rose" and first.page("settings") is not settings
+    assert settle(lambda: not shiboken6.isValid(settings))                     # what it showed before, let go
+    # the same window, as it was (0.2.509): no other opened in its place, as though the app had opened again
+    assert shiboken6.isValid(first) and first.isVisible()
+    assert shown_windows() == windows
     # the computer turning dark: nothing while the theme is light; the window drawn again once it follows the computer
-    again.computer_look_changed()
-    assert not hasattr(again, "again")
-    again.page("settings").theme_seg.buttons["Follow computer"].click()
-    following = again.again
-    monkeypatch.setattr(theme, "_computer_light", lambda: not (following.shown_look == "light"))
-    following.computer_look_changed()
-    assert following.again.shown_look != following.shown_look
-    following.again.close()
+    shown = first.page("settings")
+    first.computer_look_changed()
+    assert first.page("settings") is shown
+    shown.theme_seg.buttons["Follow computer"].click()
+    following = first.page("settings")
+    assert following is not shown and store.value("theme") == "system"
+    monkeypatch.setattr(theme, "_computer_light", lambda: not (first.shown_look == "light"))
+    before = first.shown_look
+    first.computer_look_changed()
+    assert first.shown_look != before and first.page("settings") is not following
+    first.close()

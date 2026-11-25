@@ -28,7 +28,7 @@ from PySide6.QtCore import QEvent, QPointF, QRectF, QSize, QStandardPaths, Qt, Q
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPainterPath, QPen, QPolygonF
 from PySide6.QtWidgets import (QBoxLayout, QCheckBox, QColorDialog, QComboBox, QFileDialog, QFrame, QHBoxLayout,
                                QInputDialog, QLabel, QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea,
-                               QSizePolicy, QSlider, QToolTip, QVBoxLayout, QWidget)
+                               QSizePolicy, QSlider, QStyle, QToolTip, QVBoxLayout, QWidget)
 
 from . import builds as b
 from . import combat_replay as moves
@@ -837,7 +837,10 @@ class RaidPage(QWidget):
         self.panel.setFixedWidth(340) if wide else self.panel.setMaximumWidth(16777215)
         if not wide:
             self.panel.setMinimumWidth(0)
-        room = max(160, self.width() - 48 - 28 - (356 if wide else 0) - 2 * Arena.MARGIN)
+        # the page's margins (48), the window's padding (28) and border (2), and its scroll bar, shown or not: where
+        # the bar went uncounted, the page was 16 pixels wider than a window 1,280 wide (0.2.509)
+        bar = self.style().pixelMetric(QStyle.PM_ScrollBarExtent)
+        room = max(160, self.width() - bar - 48 - 28 - 2 - (356 if wide else 0) - 2 * Arena.MARGIN)
         self.arena.set_side(min(Arena.SIDE, room))
         for i in range(1, self.left.count()):
             widget = self.left.itemAt(i).widget()

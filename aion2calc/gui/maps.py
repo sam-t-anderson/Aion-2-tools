@@ -200,9 +200,70 @@ def refresh_ms(data: dict | None) -> int:
     return int(max(300, seconds) * 1000)
 
 
-def view(data: dict, width: float, window_height: float) -> dict | None:
-    """Where the map is drawn in a frame ``width`` wide (``layout``): its scale, padding and size, north up."""
+def _number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _square(square) -> tuple[int, int] | None:
+    """A square's place (``[x, y, ...]``, in squares), or None where it has none."""
+    if isinstance(square, (list, tuple)) and len(square) >= 2 and _number(square[0]) and _number(square[1]):
+        return int(square[0]), int(square[1])
+    return None
+
+
+#: A patch of recorded ground this share of all of it, or larger, is drawn whole even without PvP or a boss in it;
+#: one of ``SPECK`` squares or fewer never is.
+GROUND_PART, SPECK = 0.05, 3
+
+
+def drawn_bounds(data: dict) -> dict | None:
+    """The part of the Abyss the map shows (``drawnBounds``, 0.2.509): the log server's ``bounds``, less the ground
+    squares lying apart from the rest with no PvP square and no boss in them. Its bounds take in every square recordings
+    have covered; three recorded far off on the map's middle line (players' positions as they load in, as it seems)
+    made the Abyss ten times wider than it is, and its map a thin strip. A patch of ground (squares touching, corners
+    too) stays where it holds a PvP square or a boss, or is at least ``GROUND_PART`` of the ground and more than a
+    ``SPECK``; with nothing left out, the bounds are the log server's as they are."""
     bounds = data.get("bounds")
+    if not bounds:
+        return None
+    cell = data.get("cell_size") or 2000
+    ground = {square for square in map(_square, data.get("footprint") or []) if square is not None}
+    if not ground:
+        return bounds
+    heat = {square for square in map(_square, data.get("cells") or []) if square is not None}
+    marks = [(boss["x"], boss["y"]) for boss in data.get("landmarks") or []
+             if isinstance(boss, dict) and _number(boss.get("x")) and _number(boss.get("y"))]
+    held = heat | {(math.floor(x / cell), math.floor(y / cell)) for x, y in marks}
+    parts, seen = [], set()
+    for start in sorted(ground):
+        if start in seen:
+            continue
+        seen.add(start)
+        part, waiting = [], [start]
+        while waiting:
+            x, y = waiting.pop()
+            part.append((x, y))
+            for near in ((x + dx, y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)):
+                if near in ground and near not in seen:
+                    seen.add(near)
+                    waiting.append(near)
+        parts.append(part)
+    least = max(GROUND_PART * len(ground), SPECK + 1)
+    kept = [part for part in parts if len(part) >= least or held.intersection(part)] or [max(parts, key=len)]
+    if sum(len(part) for part in kept) == len(ground):
+        return bounds
+    squares = [square for part in kept for square in part] + sorted(heat)
+    x0, x1 = min(x for x, _ in squares) * cell, (max(x for x, _ in squares) + 1) * cell
+    y0, y1 = min(y for _, y in squares) * cell, (max(y for _, y in squares) + 1) * cell
+    for x, y in marks:
+        x0, x1, y0, y1 = min(x0, x), max(x1, x), min(y0, y), max(y1, y)
+    return {"x": [x0, x1], "y": [y0, y1]}
+
+
+def view(data: dict, width: float, window_height: float, bounds: dict | None = None) -> dict | None:
+    """Where the map is drawn in a frame ``width`` wide (``layout``): its scale, padding and size, north up, over
+    ``bounds`` (``drawn_bounds``, worked out here where not given)."""
+    bounds = bounds or drawn_bounds(data)
     if not bounds:
         return None
     (x0, x1), (y0, y1) = bounds["x"], bounds["y"]

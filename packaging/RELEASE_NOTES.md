@@ -1,3 +1,14 @@
+## Pages that fit the window, the PvP map at its size, and the theme changed in place (0.2.509)
+
+**The app's pages now fit the window's width**, where a log's review ran far off the window's right side:
+- **A log's review**, and the Live Meter's review of the session under the meter: the graph's series buttons (one for each player's and enemy's damage, healing and damage taken) are laid out on as many lines as the window needs, as on the web page. On one line, a raid's log of a hundred players made the page some 40,000 pixels wide. The review's tabs and choices wrap the same way when the window is narrow.
+- **Combat Logs' community filters** and an analyzed encounter's party wrap too; at 1,280 pixels wide the filters made the page wider than the window.
+- **The Raid Planner's map** leaves room for the page's scroll bar, where the page was 16 pixels wider than the window it opens in.
+
+**The Abyss PvP heat map is drawn at the Abyss's own size**, where it was a thin strip across the page. A few squares of ground recorded far off on the map's middle line (players' positions as they load in, as it seems) made it ten times wider than it is. Patches of three squares or fewer, lying apart with no PvP and no boss in them, are now left out of what the map shows, on the app's page and on the web page.
+
+**Choosing a light, dark or computer theme, an accent or a language now changes the window you have open**, where another window opened in its place and this one closed, as though the app had opened again. The window stays where it is, maximized or not, on the page it shows.
+
 ## Every choice named for a screen reader (0.2.508)
 
 **A screen reader now says what each choice in the app's own windows is for**, as on the web pages: News' **News region** and **Show**, Timers' **Game region**, **Korean matching group**, **Game server** and **Faction**, the overlay's options and its windows' **Opacity**, and the logs shown while a calculation runs. Until now these said only their value.

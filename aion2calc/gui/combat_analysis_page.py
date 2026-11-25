@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel, QPushBu
 from . import combat_analysis as ca
 from . import theme
 from .api import AppApi, Job, Requests
+from .chrome import FlowLayout
 from .combat import encode_component
 from .combat_community import _note
 from .combat_saved import _button, _clear, _label
@@ -79,6 +80,13 @@ def _plain(layout=QVBoxLayout, spacing: int = 0):
     line.setContentsMargins(0, 0, 0, 0)
     line.setSpacing(spacing)
     return box, line
+
+
+def _flow(across: int = 6, down: int = 6):
+    """Widgets side by side on as many lines as the window's width needs (``flex-wrap``, 0.2.509)."""
+    box = QWidget()
+    box.setObjectName("plain")
+    return box, FlowLayout(box, align=Qt.AlignLeft, gap=(across, down))
 
 
 def _icon(pixmap, size: int, tip: str = "", name: str = "pIcon", ratio: float = 1.0) -> QLabel:
@@ -652,7 +660,7 @@ class AnalysisPage(QWidget):
         body = encounter.body
         people = ca.party(a)
         if people:
-            row, line = _plain(QHBoxLayout, 6)
+            row, line = _flow(6, 6)
             line.addWidget(_label("Party:", "muted", wrap=False))
             for person in people:
                 button = QPushButton(person["name"] + (f"  {person['class']}" if person["class"] else ""))
@@ -661,7 +669,6 @@ class AnalysisPage(QWidget):
                 button.setAccessibleName(f"Analyze as {person['name']}")
                 button.clicked.connect(lambda _checked=False, who=person["name"], b=button: self.analyze_as(who, b))
                 line.addWidget(button)
-            line.addStretch(1)
             body.addWidget(row)
         if _truthy(a.get("id")):
             row, line = _plain(QHBoxLayout, 8)
@@ -675,10 +682,9 @@ class AnalysisPage(QWidget):
         notes.linkActivated.connect(self.open_link)
         body.addWidget(notes)
         body.addWidget(ParseCard(ca.parse_from_encounter(a), self.pictures))
-        chips, line = _plain(QHBoxLayout, 10)
+        chips, line = _flow(10, 4)
         for name, value in ca.chips(a):
             line.addWidget(_label(f"{html.escape(name)}: <b>{html.escape(value)}</b>", "small", rich=True, wrap=False))
-        line.addStretch(1)
         body.addWidget(chips)
         self.box.addWidget(encounter)
         self.box.addWidget(self._buffs(a))
