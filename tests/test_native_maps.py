@@ -1,5 +1,5 @@
-"""The native Maps page (0.2.433): the provider's interactive maps, the Abyss PvP heat map and the farming routes as
-the web page shows them (static/maps.js, ``A2Maps``), off screen. The heat map is the sample the browser tests serve
+"""The native Maps page (0.2.433): the Abyss PvP heat map and the farming routes as the web page shows them
+(static/maps.js, ``A2Maps``), off screen; not the web page's interactive maps (0.2.512). The heat map is the sample the browser tests serve
 (tests/browser/community.py) and the routes are the app's bundled catalog. ``gui/maps.py``'s words and steps were
 checked against maps.js's own functions; these tests pin what they give.
 """
@@ -172,9 +172,6 @@ def test_the_routes_words():
     assert m.route_text(verteron, {**cubes, "source": "elsewhere"}, None).split("\n")[1] == "Source: elsewhere"
     assert f"href='{source['url']}'" in m.source_line(cubes, source) and f"commit {source['revision'][:12]}" in m.source_line(cubes, source)
     assert m.catalog_line(ROUTES) == f"{ROUTES['note']} Catalog built {m.when(ROUTES['generated_at'])}."
-    assert m.zone_for_map(ROUTES, "altgard")["id"] == "altgard" and m.zone_for_map(ROUTES, "nowhere") is None
-    assert m.provider_url("ishalgen") == "https://interactivemap.app/aion2/maps/ishalgen"
-    assert m.provider_url("elsewhere") == "https://interactivemap.app/aion2/maps/verteron"
 
 
 def test_the_page_reads_the_routes_and_the_busiest_matchups_heat_map(qapp):
@@ -283,7 +280,7 @@ def test_the_farming_routes(qapp):
     page = _page(clipboard=copied.append, open_link=opened.append)
     zone = page.route_zone
     assert [zone.itemText(i) for i in range(zone.count())] == [m.zone_label(z) for z in ROUTES["zones"]]
-    assert zone.currentData() == "verteron"                                       # the map chosen above
+    assert zone.currentData() == "verteron"                                       # the catalog's first zone
     texts = _texts(page)
     verteron = ROUTES["zones"][0]
     assert verteron["notes"][0] in texts and m.catalog_line(ROUTES) in texts
@@ -297,21 +294,30 @@ def test_the_farming_routes(qapp):
     source = next(label for label in page.findChildren(QLabel) if label.isVisibleTo(page) and "Source: " in label.text())
     source.linkActivated.emit(ROUTES["sources"][first["source"]]["url"])
     assert opened == [ROUTES["sources"][first["source"]]["url"]]
-    # the map chosen above takes the routes with it
-    page.zone_box.setCurrentIndex(page.zone_box.findData("altgard"))
-    page.zone_box.activated.emit(page.zone_box.currentIndex())
-    assert page.route_zone.currentData() == "altgard"
+    # another zone's routes
+    page.route_zone.setCurrentIndex(page.route_zone.findData("altgard"))
+    page.route_zone.activated.emit(page.route_zone.currentIndex())
     assert m.route_summary(ROUTES["zones"][1]["routes"][0]) in [b.text() for b in page.findChildren(QToolButton)]
     # a zone without routes or guides
     page.route_zone.setCurrentIndex(page.route_zone.findData("poeta"))
     page.route_zone.activated.emit(page.route_zone.currentIndex())
     texts = _texts(page)
     assert "No route is listed for this zone." in texts and "No guide links were found for this zone." in texts
-    # the provider's maps open in the browser
-    _button(page, "Open provider ↗").click()
-    assert opened[-1] == "https://interactivemap.app/aion2/maps/altgard"
-    references = next(label for label in page.findChildren(QLabel) if "More regional map references" in label.text())
-    assert "href='https://shugo.gg/map'" in references.text() and "href='https://a2db.ru/en/maps'" in references.text()
+
+
+def test_the_page_has_no_interactive_map(qapp):
+    """The window cannot show the provider's interactive maps (InteractiveMap.app), so all it had of them was a choice
+    of map and Open provider, which showed the map in the browser: they are left out (0.2.512). The heat map and the
+    routes are the page."""
+    from aion2calc.gui.database_page import Window
+    page = _page()
+    assert [w.title.text() for w in page.findChildren(Window)] == ["ABYSS PVP HEAT MAP", "FARMING ROUTES"]
+    words = [label.text() for label in page.findChildren(QLabel)]
+    assert not any("InteractiveMap.app" in w or "interactivemap.app" in w or "Open provider" in w for w in words)
+    assert "Open provider ↗" not in [b.text() for b in page.findChildren(QPushButton)]
+    assert not hasattr(page, "zone_box") and not hasattr(m, "provider_url")
+    # the routes still credit their waypoints' source, the open AION 2 Interactive Map project (not the provider)
+    assert any("aion2-interactive-map.github.io" in w for w in words)
 
 
 def test_copy_refused_and_a_route_catalog_missing(qapp):
