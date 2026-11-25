@@ -261,19 +261,18 @@ def test_the_header_s_theme_button_turns_the_look(window_of):
     window = window_of()
     store = interface.store()
     assert window.header.theme_button.text() == "◐"
-    window.header.theme_button.click()                                      # light: kept, the window drawn again in it
-    again = window.again
-    assert store.value("theme") == "light" and theme.LOOK["shown"] == "light"
-    assert again.header.theme_button.text() == "☀" and again.header.theme_button.toolTip() == "Theme: light (click to change)"
-    again.header.theme_button.click()
-    assert store.value("theme") == "dark" and theme.LOOK["shown"] == "dark" and again.again.header.theme_button.text() == "☾"
-    again.again.close()
+    shown = window.header
+    window.header.theme_button.click()                       # light: kept, the window drawn again in it, in place
+    assert store.value("theme") == "light" and theme.LOOK["shown"] == "light" and window.header is not shown
+    assert window.header.theme_button.text() == "☀" and window.header.theme_button.toolTip() == "Theme: light (click to change)"
+    window.header.theme_button.click()
+    assert store.value("theme") == "dark" and theme.LOOK["shown"] == "dark" and window.header.theme_button.text() == "☾"
+    assert window.isVisible() and "#0d1320" in window.styleSheet()                      # the same window, dark again
     store.setValue("theme", "neon")                                          # none of them: no sign; the first next
     other = window_of()
     assert other.header.theme_button.text() == "" and other.header.theme_button.toolTip() == "Theme: neon (click to change)"
     other.header.theme_button.click()
     assert store.value("theme") == "system" and other.header.theme_button.text() == "◐"
-    other.again.close()
 
 
 def test_quit_stops_the_app_once_asked(window_of):

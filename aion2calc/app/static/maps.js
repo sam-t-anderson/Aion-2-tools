@@ -81,6 +81,38 @@
  const matchupName=m=>m?`${m.label}${HEAT_REGIONS[m.region]?' ('+HEAT_REGIONS[m.region]+')':''}`:'every server';
  // Five steps of the ramp, by hits on a log scale from 1 to the busiest square.
  function heatStep(hits,max){return max<=1?4:Math.max(0,Math.min(4,Math.floor(5*Math.log(hits)/Math.log(max+1e-9)-1e-9)));}
+ // The part of the Abyss the map shows (0.2.509): the log server's bounds, less the ground squares lying apart from the
+ // rest with no PvP square and no boss in them. Three recorded far off on the map's middle line (players' positions as
+ // they load in, as it seems) made the Abyss ten times wider than it is, and its map a thin strip. A patch of ground
+ // (squares touching, corners too) stays where it holds a PvP square or a boss, or is at least GROUND_PART of the
+ // ground and more than a SPECK; with nothing left out, the bounds are the log server's as they are.
+ const GROUND_PART=0.05,SPECK=3;
+ function drawnBounds(d){
+  const bounds=d.bounds,cell=d.cell_size||2000,key=(x,y)=>x+','+y,ground=new Map();
+  const number=v=>typeof v==='number'&&Number.isFinite(v),square=s=>Array.isArray(s)&&s.length>=2&&number(s[0])&&number(s[1])?[Math.trunc(s[0]),Math.trunc(s[1])]:null;
+  if(!bounds)return null;
+  for(const s of (d.footprint||[]).map(square))if(s)ground.set(key(s[0],s[1]),s);
+  if(!ground.size)return bounds;
+  const heat=[],marks=[],held=new Set();
+  for(const s of (d.cells||[]).map(square))if(s&&!held.has(key(s[0],s[1]))){heat.push(s);held.add(key(s[0],s[1]));}
+  for(const b of d.landmarks||[])if(b&&number(b.x)&&number(b.y)){marks.push([b.x,b.y]);held.add(key(Math.floor(b.x/cell),Math.floor(b.y/cell)));}
+  const seen=new Set(),parts=[];
+  for(const [k,start] of [...ground.entries()].sort((a,b)=>a[1][0]-b[1][0]||a[1][1]-b[1][1])){
+   if(seen.has(k))continue;
+   seen.add(k);const part=[],waiting=[start];
+   while(waiting.length){const [x,y]=waiting.pop();part.push([x,y]);
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){const n=key(x+dx,y+dy);if(ground.has(n)&&!seen.has(n)){seen.add(n);waiting.push(ground.get(n));}}}
+   parts.push(part);
+  }
+  const least=Math.max(GROUND_PART*ground.size,SPECK+1);
+  let kept=parts.filter(p=>p.length>=least||p.some(([x,y])=>held.has(key(x,y))));
+  if(!kept.length)kept=[parts.reduce((a,b)=>b.length>a.length?b:a)];
+  if(kept.reduce((n,p)=>n+p.length,0)===ground.size)return bounds;
+  const squares=kept.flat().concat(heat),xs=squares.map(s=>s[0]),ys=squares.map(s=>s[1]);
+  let x0=Math.min(...xs)*cell,x1=(Math.max(...xs)+1)*cell,y0=Math.min(...ys)*cell,y1=(Math.max(...ys)+1)*cell;
+  for(const [x,y] of marks){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+  return {x:[x0,x1],y:[y0,y1]};
+ }
  function heatHTML(){
   return '<section class="win heat-panel" data-heat><div class="wh"><h2>Abyss PvP heat map</h2><span class="sub">Where players fight players, by server matchup</span></div><div class="wb">'
    +'<div class="row"><label>Matchup <select data-heat-matchup><option value="">Loading the matchups…</option></select></label><label>Squares <select data-heat-cell>'+HEAT_CELLS.map(([v,t])=>'<option value="'+v+'">'+t+'</option>').join('')+'</select></label><button class="btn small" type="button" data-heat-refresh>Refresh</button></div>'
@@ -98,12 +130,14 @@
    legend=$('[data-heat-legend]'),table=$('[data-heat-table]'),rows=$('[data-heat-rows]'),note=$('[data-heat-note]'),cellSelect=$('[data-heat-cell]'),refresh=$('[data-heat-refresh]'),matchSelect=$('[data-heat-matchup]');
   const api=(io&&io.api)||(window.A2&&typeof window.A2.api==='function'?p=>window.A2.api(p):null);
   let data=null,view=null,hover=null,serial=0,timer=null,loadedAt=0,disposed=false,raf=0,matchup=rememberedMatchup(),listed='';
+  let shown=null,shownOf=null;        // the part of the Abyss shown (drawnBounds), worked out once for each map read
   cellSelect.value=String(rememberedCell());
   const tokens=()=>{const cs=getComputedStyle(panel),v=n=>cs.getPropertyValue(n).trim();
    return {ramp:[1,2,3,4,5].map(i=>v('--heat-'+i)),ground:v('--heat-ground'),surface:v('--heat-surface'),text:v('--text')||'#e9e6df',muted:v('--muted')||'#9aa3b5'};};
   function layout(){
    if(!data||!data.bounds){view=null;return;}
-   const cell=data.cell_size,[x0,x1]=data.bounds.x,[y0,y1]=data.bounds.y,pad=12;
+   if(shownOf!==data){shown=drawnBounds(data);shownOf=data;}
+   const cell=data.cell_size,[x0,x1]=shown.x,[y0,y1]=shown.y,pad=12;
    const width=Math.max(240,frame.clientWidth||panel.clientWidth||600),maxH=Math.max(260,Math.min(720,Math.round((window.innerHeight||900)*.72)));
    const s=Math.min((width-2*pad)/Math.max(1,x1-x0),(maxH-2*pad)/Math.max(1,y1-y0));
    const w=Math.round((x1-x0)*s+2*pad),h=Math.round((y1-y0)*s+2*pad),ox=Math.round((width-w)/2);
@@ -119,7 +153,9 @@
    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,view.width,view.h);
    ctx.fillStyle=t.surface;ctx.fillRect(view.ox,0,view.w,view.h);
    ctx.fillStyle=t.ground;                                   // the ground recordings have covered: no gaps, recessive
+   ctx.save();ctx.beginPath();ctx.rect(view.ox,0,view.w,view.h);ctx.clip();   // not the squares lying apart, outside what is shown
    for(const [cx,cy] of data.footprint||[]){const [x,y,z]=box(cx,cy);ctx.fillRect(x,y,z+.5,z+.5);}
+   ctx.restore();
    for(const c of data.cells){                               // heat: a 2px surface gap between squares big enough for one
     const [x,y,z]=box(c[0],c[1]),g=z>=6?1:0;ctx.fillStyle=t.ramp[heatStep(c[2],max)];
     ctx.beginPath();if(ctx.roundRect&&z>=8)ctx.roundRect(x+g,y+g,z-2*g,z-2*g,Math.min(3,z/4));else ctx.rect(x+g,y+g,z-2*g,z-2*g);ctx.fill();

@@ -17,6 +17,7 @@ from . import combat as cb
 from . import combat_views as cv
 from . import theme
 from .api import AppApi, Requests
+from .chrome import FlowLayout
 from .combat_saved import TIMEOUT, _button, _clear, _label, _row
 from .pictures import Pictures
 from .result_windows import GridTable
@@ -175,12 +176,13 @@ class _View(QWidget):
         pass
 
     def _filters(self, f: dict, choices: dict, mode: bool, changed, mini_changed, cleared) -> QWidget:
-        """The filters (``pveFilters``, ``renderCommunity``): their names over them, the mini-bosses' tick by the boss."""
+        """The filters (``pveFilters``, ``renderCommunity``): their names over them, the mini-bosses' tick by the boss; on
+        as many lines as the window's width needs (``flex-wrap``), where on one they made the page wider than a window
+        narrower than about 1,350 pixels (0.2.509)."""
         row = QWidget()
         row.setObjectName("plain")
-        line = QHBoxLayout(row)
+        line = FlowLayout(row, align=Qt.AlignLeft, gap=(10, 8), centre=False)
         line.setContentsMargins(0, 0, 0, 4)
-        line.setSpacing(10)
 
         def field(words: str, widget: QWidget) -> None:
             box = QWidget()
@@ -190,7 +192,7 @@ class _View(QWidget):
             column.setSpacing(2)
             column.addWidget(_label(words, "small", wrap=False))
             column.addWidget(widget)
-            line.addWidget(box, 0, Qt.AlignBottom)
+            line.addWidget(box)
 
         def combo(key: str, words: str, values) -> None:
             pick = QComboBox()
@@ -222,8 +224,7 @@ class _View(QWidget):
             field("Mini-bosses", tick)
         for key, words in cv.FILTER_FIELDS:
             combo(key, words, choices[key])
-        line.addWidget(_button("Clear", cleared), 0, Qt.AlignBottom)
-        line.addStretch(1)
+        field("", _button("Clear", cleared))                    # under no name: level with the choices
         return row
 
 

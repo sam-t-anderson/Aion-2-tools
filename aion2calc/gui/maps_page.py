@@ -97,6 +97,7 @@ class HeatMap(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.data: dict | None = None
+        self.bounds: dict | None = None                 # the part of the Abyss shown (``drawn_bounds``)
         self.view: dict | None = None
         self.hover = None
         self.setMouseTracking(True)
@@ -109,6 +110,7 @@ class HeatMap(QWidget):
 
     def set_data(self, data: dict | None) -> None:
         self.data, self.hover = data, None
+        self.bounds = m.drawn_bounds(data) if data else None
         self.tip.hide()
         self.setAccessibleName(m.described(data) if data else "")
         self.lay_out()
@@ -118,7 +120,7 @@ class HeatMap(QWidget):
         """The map's place and size for the frame's width (``layout``); the widget is as tall as the map."""
         window = self.window()
         tall = window.height() if window is not None and window is not self else 900
-        self.view = m.view(self.data, self.width(), tall) if self.data else None
+        self.view = m.view(self.data, self.width(), tall, self.bounds) if self.data else None
         height = self.view["h"] if self.view else 0
         if self.minimumHeight() != height:
             self.setMinimumHeight(height)
@@ -139,9 +141,12 @@ class HeatMap(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.fillRect(QRectF(v["ox"], 0, v["w"], v["h"]), surface)
         ground = QColor(m.GROUND)
+        painter.save()
+        painter.setClipRect(QRectF(v["ox"], 0, v["w"], v["h"]))   # not the squares lying apart, outside what is shown
         for cx, cy in data.get("footprint") or []:                 # the ground recordings have covered, without gaps
             x, y, z = m.box(v, cx, cy)
             painter.fillRect(QRectF(x, y, z + .5, z + .5), ground)
+        painter.restore()
         painter.setPen(Qt.NoPen)
         for cell in data.get("cells") or []:                       # a 1 px surface gap round a square big enough
             x, y, z = m.box(v, cell[0], cell[1])
