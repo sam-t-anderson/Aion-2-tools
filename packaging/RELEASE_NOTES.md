@@ -1,3 +1,7 @@
+## Storage maintenance cleans from the app's window (0.2.511)
+
+**Settings → Storage maintenance's Clean old disposable cache and Clean old update files now work in the app's own window**, where each answered "PermissionError: This action requires the local application origin." and removed nothing. The app removes files only when asked from its own interface, which a web page shows by naming the app's address, as a browser does for it; the window's request named none. It now names it, as the window's own screenshot already did. **Inspect cache / updates** was never affected.
+
 ## The 25 November patch in the calculator (0.2.510)
 
 **The build calculator and optimizer now follow the 25 November 2026 patch notes:**

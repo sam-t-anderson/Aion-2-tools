@@ -610,6 +610,10 @@ def _discord_done_page(out: dict) -> bytes:
 # (the rows, bars and text alone over the game). The effects are drawn by overlay.css; "none" turns one off.
 OVERLAY_BG_MODES = ("card", "top", "none")
 OVERLAY_COSMETICS = ("none", "gold", "rainbow", "ember", "frost", "aether", "starlight")
+# The actions the app takes only for its own interface: a request must come from this computer and name the app's own
+# address in ``Origin``, as its web pages do in a browser and the native windows do through ``AppApi.post(origin=True)``
+# (an application screenshot; the storage maintenance's cleans).
+ORIGIN_ONLY = ("/api/screenshot", "/api/maintenance")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -984,7 +988,7 @@ class Handler(BaseHTTPRequestHandler):
 
     # --------------------------------------------------------------- POST
     def route_post(self, path: str, body: dict):
-        if path in ("/api/screenshot", "/api/maintenance"):
+        if path in ORIGIN_ONLY:
             port = self.server.server_address[1]
             allowed = {f"http://127.0.0.1:{port}", f"http://localhost:{port}", f"http://[::1]:{port}"}
             if self.client_address[0] not in ("127.0.0.1", "::1") or self.headers.get("Origin") not in allowed:
