@@ -151,7 +151,8 @@ def test_the_apps_window_keeps_its_place(qapp, store, monkeypatch):
 
 def test_a_window_drawn_again_keeps_its_place(qapp, store, monkeypatch):
     """Drawn again in another language or look (``redraw``): maximized with its size from before, which it lost
-    there until 0.2.504 (un-maximized, it stayed as large as the screen), and minimized where it was."""
+    there until 0.2.504 (un-maximized, it stayed as large as the screen), and minimized where it was. Since 0.2.509
+    the window is drawn again in place: it stays the window it was, where it was."""
     monkeypatch.setattr(native_window.MainWindow, "start", lambda self: None)
     window = native_window.MainWindow(None)
     window.resize(600, 400)
@@ -160,7 +161,7 @@ def test_a_window_drawn_again_keeps_its_place(qapp, store, monkeypatch):
     QCoreApplication.processEvents()
     again = window.redraw()
     QCoreApplication.processEvents()
-    assert again.isMaximized()
+    assert again is window and again.isMaximized()
     again.showNormal()
     QCoreApplication.processEvents()
     assert again.size().toTuple() == (600, 400) and again.pos().toTuple() == (50, 40)
@@ -168,4 +169,4 @@ def test_a_window_drawn_again_keeps_its_place(qapp, store, monkeypatch):
     QCoreApplication.processEvents()
     third = again.redraw()
     QCoreApplication.processEvents()
-    assert third.isMinimized() and third.size().toTuple() == (600, 400)
+    assert third is window and third.isMinimized() and third.size().toTuple() == (600, 400)

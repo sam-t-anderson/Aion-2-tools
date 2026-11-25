@@ -199,23 +199,21 @@ def test_the_main_window_in_a_language_and_another_chosen(shown, monkeypatch):
     assert settings.language.currentData() == "de"
     first.show_page("settings")
     first.show()
-    # another language chosen: kept as the web pages keep it, and the window drawn again in it, on the same page
+    # another language chosen: kept as the web pages keep it, and the window drawn again in it, in place (0.2.509), on
+    # the same page
     settings.language.setCurrentIndex(settings.language.findData("fr"))
     settings.language.activated.emit(settings.language.currentIndex())
-    again = first.again
     assert interface.store().value("a2-lang") == "fr" and i18n.current() == "fr"
-    assert again.current_page() == "settings" and again.isVisible()
-    assert [again.nav.item(i).text() for i in range(3)] == ["COMBAT", "Compteur en direct", "Logs de combat"]
-    assert again.language.currentData() == "fr" and again.page("settings").language.currentData() == "fr"
-    assert settle(lambda: not shiboken6.isValid(first))                    # the window it replaced, closed and let go
+    assert first.current_page() == "settings" and first.isVisible()
+    assert [first.nav.item(i).text() for i in range(3)] == ["COMBAT", "Compteur en direct", "Logs de combat"]
+    assert first.language.currentData() == "fr" and first.page("settings").language.currentData() == "fr"
+    assert settle(lambda: not shiboken6.isValid(settings))           # what it showed before, let go; the window stays
     # and from the window's own list, back to English
-    again.language.setCurrentIndex(again.language.findData("en"))
-    again.language.activated.emit(again.language.currentIndex())
-    english = again.again
+    first.language.setCurrentIndex(first.language.findData("en"))
+    first.language.activated.emit(first.language.currentIndex())
     assert interface.store().value("a2-lang") == "en" and i18n.current() == "en"
-    assert [english.nav.item(i).text() for i in range(3)] == ["COMBAT", "Live Meter", "Combat Logs"]
-    for window in (english,):
-        window.close()
+    assert [first.nav.item(i).text() for i in range(3)] == ["COMBAT", "Live Meter", "Combat Logs"]
+    first.close()
 
 
 def test_an_upload_visibility_is_sent_as_it_is(shown):

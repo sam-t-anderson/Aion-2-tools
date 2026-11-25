@@ -328,3 +328,53 @@ def test_the_window_draws_maps_itself(qapp):
     window = MainWindow(None)
     assert isinstance(window.page("maps"), MapsPage) and not isinstance(window.page("maps"), WebPage)
     assert not isinstance(window.page("raid"), WebPage)                                        # every page native (0.2.490)
+
+
+def _js_drawn_bounds(cases: list) -> list:
+    """maps.js's ``drawnBounds`` on each case, as the web page works them out."""
+    import re
+    import subprocess
+    source = (STATIC / "maps.js").read_text(encoding="utf-8")
+    found = re.search(r"\n const GROUND_PART=[^\n]*\n function drawnBounds\(d\)\{.*?\n \}\n", source, re.S)
+    assert found, "maps.js has no drawnBounds"
+    probe = found.group(0) + f"\nconsole.log(JSON.stringify({json.dumps(cases)}.map(drawnBounds)));"
+    return json.loads(subprocess.run(["node", "-e", probe], capture_output=True, text=True, check=True).stdout)
+
+
+def test_the_heat_map_shows_the_ground_without_the_squares_lying_apart(qapp):
+    """The part of the Abyss the map shows (0.2.509): the log server's bounds take in every square recordings have
+    covered, a few far off on the map's middle line among them, which made the map many times wider than tall, a thin
+    strip; without them it is as tall as the ground (the sample's: 12,000 units each way), and a square lying apart is
+    not drawn outside it."""
+    assert HEAT["bounds"] == {"x": [-80000, 54000], "y": [-8000, 4000]}                # the sample's three apart
+    assert m.drawn_bounds(HEAT) == {"x": [0, 12000], "y": [-8000, 4000]}
+    assert m.view(HEAT, 1000, 900, HEAT["bounds"])["h"] < 120 < m.view(HEAT, 1000, 900)["h"] == 648   # a strip, before
+    # a patch lying apart stays where a PvP square or a boss is in it
+    boss = {**HEAT, "landmarks": HEAT["landmarks"] + [{"name": "Far boss", "x": -79500, "y": 100}]}
+    assert m.drawn_bounds(boss) == {"x": [-80000, 12000], "y": [-8000, 4000]}
+    fight = {**HEAT, "cells": HEAT["cells"] + [[26, 0, 1, 0]]}
+    assert m.drawn_bounds(fight) == {"x": [0, 54000], "y": [-8000, 4000]}
+    # a patch of a twentieth of the ground or more stays; a speck of three squares or fewer never does
+    patch = {**HEAT, "footprint": HEAT["footprint"] + [[x, 0] for x in range(30, 35)]}
+    assert m.drawn_bounds(patch) == {"x": [0, 70000], "y": [-8000, 4000]}
+    # nothing lying apart, no ground or no bounds: the log server's as they are
+    whole = {**HEAT, "footprint": HEAT["footprint"][:36], "bounds": {"x": [0, 12000], "y": [-8000, 4000]}}
+    assert m.drawn_bounds(whole) is whole["bounds"]
+    assert m.drawn_bounds({**HEAT, "footprint": []}) is HEAT["bounds"] and m.drawn_bounds({**HEAT, "bounds": None}) is None
+    odd = {**HEAT, "footprint": HEAT["footprint"] + [None, [], [3], ["4", 5], [True, 1]], "cells": [[None, 1], ["2", 2]],
+           "landmarks": [{"x": "?"}, None, {"x": True, "y": 1}]}
+    assert m.drawn_bounds(odd) == {"x": [0, 12000], "y": [-8000, 4000]}               # what is not a place, left out
+    # the web page works the part shown out alike (maps.js ``drawnBounds``)
+    cases = [HEAT, boss, fight, patch, whole, {**HEAT, "footprint": []}, {**HEAT, "bounds": None}, odd]
+    assert _js_drawn_bounds(cases) == [json.loads(json.dumps(m.drawn_bounds(case))) for case in cases]
+    # the page's map: as tall as the ground, and a square lying apart beside it not drawn there
+    near = {**NAE1, "footprint": NAE1["footprint"] + [[7, 0]], "bounds": {"x": [-80000, 54000], "y": [-8000, 4000]}}
+    page = _page(FakeApp(heat=near))
+    heat = page.map
+    assert heat.view["h"] == heat.height() and heat.view["x0"] == 0 and heat.height() > 500
+    picture = heat.grab().toImage()
+    x, y, z = m.box(heat.view, 7, 0)                           # one square apart: beside the map, inside the widget
+    assert heat.view["ox"] + heat.view["w"] < x + 8 < heat.width()
+    assert picture.pixelColor(int(x + 8), int(y + z / 2)).name() != m.GROUND
+    ground = m.box(heat.view, 0, 1)
+    assert picture.pixelColor(int(ground[0] + 4), int(ground[1] + 4)).name() == m.GROUND
