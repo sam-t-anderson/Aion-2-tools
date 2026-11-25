@@ -61,7 +61,7 @@ class OriginApp(FakeApp):
 
     def post(self, path, payload, timeout=None, origin=False):
         self.origins.append((path, origin))
-        return super().post(path, payload, timeout)
+        return super().post(path, payload, timeout, origin)       # which the app requires of a screenshot (0.2.511)
 
 
 def test_the_header_s_words():
