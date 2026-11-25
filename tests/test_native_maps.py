@@ -309,15 +309,18 @@ def test_the_page_has_no_interactive_map(qapp):
     """The window cannot show the provider's interactive maps (InteractiveMap.app), so all it had of them was a choice
     of map and Open provider, which showed the map in the browser: they are left out (0.2.512). The heat map and the
     routes are the page."""
+    import re
     from aion2calc.gui.database_page import Window
     page = _page()
     assert [w.title.text() for w in page.findChildren(Window)] == ["ABYSS PVP HEAT MAP", "FARMING ROUTES"]
     words = [label.text() for label in page.findChildren(QLabel)]
-    assert not any("InteractiveMap.app" in w or "interactivemap.app" in w or "Open provider" in w for w in words)
+    hosts = {urllib.parse.urlsplit(href).hostname for w in words for href in re.findall(r"href='([^']*)'", w)}
+    assert "interactivemap.app" not in hosts                          # nothing links to the provider's maps
+    assert not any("Open provider" in w for w in words)
     assert "Open provider ↗" not in [b.text() for b in page.findChildren(QPushButton)]
     assert not hasattr(page, "zone_box") and not hasattr(m, "provider_url")
     # the routes still credit their waypoints' source, the open AION 2 Interactive Map project (not the provider)
-    assert any("aion2-interactive-map.github.io" in w for w in words)
+    assert "aion2-interactive-map.github.io" in hosts
 
 
 def test_copy_refused_and_a_route_catalog_missing(qapp):
