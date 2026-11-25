@@ -138,7 +138,8 @@ def typical_build(cls: str, sp_budget: int | None = None, stigma_points: int | N
     * skill points: each skill's average level among top players minus the
       levels those nodes give, fitted to the 203-point budget (most-levelled
       skills keep their points first)
-    * stigmas: the four most-picked damage stigmas at their average levels,
+    * stigmas: the most-picked damage stigmas at their average levels, as many as
+      the top players wear (four before the 25 November 2026 patch's fifth slot),
       fitted to 30 points (least-picked gives way first); a larger budget's
       spare points raise the most-levelled first, up to level 20
 
@@ -179,8 +180,14 @@ def typical_build(cls: str, sp_budget: int | None = None, stigma_points: int | N
     b.sp = {sid: v for sid, v in want.items() if v > 1}
     stig = [(n, r) for n, r in tp.get("stigmas", {}).items() if n not in _DEFENSIVE and n in cd.by_name]
     points = stigma_points if stigma_points is not None else cd.budget(b.level)["stigma"] + 1
+    # as many stigmas as the top players wear (their picks are percentages, so they sum to a hundred times that): four
+    # until the fifth slot of the 25 November 2026 patch shows in their picks, which a fifth most-picked stigma from
+    # before it would only stand in for (0.2.510)
+    slots = cd.budget(b.level)["slots"]
+    picked = sum(float(r.get("pick") or 0) for r in tp.get("stigmas", {}).values())
+    worn = max(1, round(picked / 100)) if picked > 0 else slots
     # a stigma costs a point at level 1: fewer points than slots leave the rest empty
-    stig = sorted(stig, key=lambda nr: -nr[1]["pick"])[: min(cd.budget(b.level)["slots"], points)]
+    stig = sorted(stig, key=lambda nr: -nr[1]["pick"])[: min(slots, worn, points)]
     lv = {cd.by_name[n]["id"]: max(1, round(r.get("avg_level") or 1)) for n, r in stig}
     spare = points > sum(stigma_points_to_reach(v) for v in lv.values())
     for sid in reversed(list(lv)):                               # least-picked gives way first

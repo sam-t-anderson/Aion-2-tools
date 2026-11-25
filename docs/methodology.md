@@ -57,7 +57,7 @@ Budgets constrain a particular optimization, not the maximum progression availab
 | Highest active skill level at 45 | 10 SP + 4 Daevanion nodes + arcana rolls. A Unique +5 Parchment spreads 9 levels over six core actives, so the Lv 16 options (Pyroclasm reset, Wish −10 s, Blaze → Wish, Hellfire −15 s) are reachable with good rolls; a level-45 profile with only Rare arcana already shows Lv 15 actives | official profiles, derived |
 | Stigma points | 30 is the example budget including the third Ascension reward; additional progression can increase it. Configurable (`--stigma-points`) | metabot, official profiles |
 | Stigma level price | Lv 1–5: 1, 6–10: 2, 11–15: 4, 16–20: 8 (75 to Lv 20) | metabot |
-| Stigma slots | 4 (Lv 22/27/32/37) | client data |
+| Stigma slots | 5 (Lv 22/27/32/37, and 45: the fifth since the 25 November 2026 patch, whose notes do not give its level) | client data; [the patch notes](#the-25-november-2026-patch-02510) |
 | Daevanion Crystal points | **360** is the example PvE budget, including level, dungeon, quest and other progression sources; it is configurable and is not a verified maximum | metabot board guide; the global top-player "most common" board spends 351 |
 | Daevanion boards | Nezekan (134), Zikel (134), Vaizel (134), Triniel (168) share the crystal pool; Ariel (232, PvE) and Azphel (232, PvP) open at level 45 and each use their own currency, Daevanion Crystal: Ariel and Daevanion Crystal: Azphel | client data |
 | Daevanion Crystal: Ariel | The character's own total (its profile's spend, or the total entered); class optimizations take the highest total the server reports, else none. Its own budget (`--ariel-points`) | official profiles, server progression |
@@ -161,7 +161,9 @@ efficiency, crit curve capped at 80 %; its multi-hit 12.5 % gave way to the reco
   a boss parries each class at its recorded rate, less 0.1 % a point of
   Accuracy above its typical build's ([Parries against Accuracy](#parries-against-accuracy-02386)).
   Hits from behind are never parried (none of 6,573 recorded boss hits from
-  behind was), nor are guaranteed crits and "ignores Block and Evasion" skills.
+  behind was), nor are guaranteed crits and "ignores Block and Evasion" skills
+  (since the 25 November 2026 patch the Chanter's Incandescent Blow, Bursting
+  Blow and Spinning Strike no longer ignore them; [0.2.510](#the-25-november-2026-patch-02510)).
 
 ## Simulation and scenarios
 
@@ -2845,3 +2847,42 @@ A piece keeps its index, marked `continued_in` with the kind of piece, and the l
 - *Importing a Brawler.* Once the class is out globally, importing a Brawler says the calculator does not model it yet; it raised an error before.
 - *The Korean reference.* The bundled `data/kr/a2dil/brawler.json` holds the top 10 Brawler training-dummy minutes on A2DIL (8 November 2026). They spend 80–100 % of the minute in Rampage, 98 % in the median run. Ascending Blow [Rampage] deals 16 % of the damage, Phantom 15 %, Chain Fist [Rampage] 14 % and Exploding Fist [Rampage] 10 %. Eight of the ten struck the dummy from the front (95–99 % of their hits), one from behind and one from the side, so they say nothing of a boss fight's positions. A Brawler's log is compared with it by the meter's skill names (`analyze.vs_top`), and a log that names no class is a Brawler's by its skills' ids.
 - *Not modelled.* There is no class data, kit or bundled build: the class picker does not list the Brawler and the optimizer does not take it. When metabot.gg shows the class (once the global client names its skills), `python -m aion2calc refresh --only brawler` writes its class data, and the data-driven kit (`kit/generic.py`) can simulate its tooltips. Rage and Rampage need a kit of their own, as the other classes' bespoke mechanics have. Until then a refresh skips the class (`metabot.UPCOMING`).
+
+## The 25 November 2026 patch (0.2.510)
+
+The global patch notes of 25 November 2026 (aion2.plaync.com, *[Notice] Patch Notes | Nov. 25*), applied to the
+bundled class data (`data/global/classes`, and the build catalog made from it) and to the kits. A refresh of the class
+data from a source that has not caught up with the patch would undo them; `tests/test_patch_2026_11_25.py` says so.
+
+* **A fifth stigma slot.** "You will now be able to equip up to 5 Stigma Skills": every class's level-45 budget opens
+  five slots (`stigma_slot_levels` 22/27/32/37/45). The notes do not say at which level the fifth opens; the level cap,
+  where every optimization runs, is the one level it certainly is open. The stigma search tries the fifth slot empty
+  too: 30 points spread over five stigmas can do less than over four (a typical Sorcerer: 12,880 boss DPS with five,
+  13,255 with four, which it keeps), while a Ranger's best five beat its best four (11,158 against 10,843). Its level
+  patterns are made unordered (`stigma_patterns`, the same patterns): the ordered product of five slots took two
+  seconds before every search. The typical build wears as many stigmas as the top players' picks add up to: four,
+  as their statistics are from before the patch, so a fifth most-picked stigma would only stand in for what they will
+  wear in the fifth slot; five once the statistics show it.
+* **Ranger.** Marking Shot's Lv 8 option gives +10 % Perfect Chance while Precision lasts (+5 % before), and Bow of
+  Blessing's cooldown is 1 min 30 s (2 min). The typical Ranger's boss DPS rises 1.4 % (Bow of Blessing nearly all of
+  it: Marking Shot's option adds 0.04 %).
+* **Chanter.** Incandescent Blow's Lv 16 option, which its chain Bursting Blow carries, now "Lands as Multi-Hit" and
+  Spinning Strike's "Lands as a Critical Hit": neither ignores Block and Evasion any more. A boss parries the blows
+  then as the Chanter's other front and side hits, at the class's recorded 0.04 % (−0.01 % boss DPS); against a Block
+  of 1,100 (`simulate --target-block 1100`) a Chanter with the option loses 6.3 %. Spinning Strike's certain Critical
+  Hit stays unparried, as every certain Critical Hit is here: whether the game parries one the recordings do not say
+  yet, and the notes taking "ignores Block and Evasion" away from a skill that keeps landing as a Critical Hit suggest
+  it may.
+* **Spiritmaster.** Element Unification gives 5.5 % Critical Damage at level 1 and 0.5 % more a level, in one stack
+  (1.1 % and 0.1 %, up to five stacks, before): the five stacks the model held come to the same, so its boss DPS does
+  not move. Cold Shock's Lv 12 option gives +10 % Attack on landing Earth Tremor in one stack (+2 % a stack, up to
+  five) which buff removal no longer takes: the same at full stacks, and not modelled, now or before: the data gives
+  the buff no duration.
+* **Templar.** Judgment's PvP damage falls about 5 %, and its Lv 8 options' PvP bonuses about 10 %: PvP only, given
+  as approximate, so the boss model is unchanged and the experimental PvP model keeps the class data's values until
+  a refresh brings the client's own.
+* **Not modelled.** The new daily dungeon (Crobakhi's Secret Depository, its entries shared with the Daeva Bio-Research
+  Base and Odylium Repository; the meter names it once the catalog has its instance), the new Stigma Shard sources and
+  purchase limits (50 more shards: the stigma budget stays the one entered, 30 at level 45 from levels and Ascension),
+  Transcendence season missions' Sync Stones (12 a week, from 3), the Abyss Corridor, the World Market and Exchange
+  and their 20 % tax, Negative Kina, the events and the shop.

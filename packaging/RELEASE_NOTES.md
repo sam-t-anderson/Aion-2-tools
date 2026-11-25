@@ -1,3 +1,15 @@
+## The 25 November patch in the calculator (0.2.510)
+
+**The build calculator and optimizer now follow the 25 November 2026 patch notes:**
+- **A fifth stigma.** Every class can equip five stigmas at level 45 (the notes don't say at which level the fifth slot opens; the app opens it at 45). An optimization tries five stigmas, and four with the fifth slot empty, and keeps whichever does more: with 30 stigma points four still do more for some classes (a typical Sorcerer), five for others (a typical Ranger).
+- **Ranger:** Marking Shot's Lv 8 option gives +10 % Perfect Chance, and Bow of Blessing's cooldown is 1 min 30 s. A typical Ranger's boss DPS rises 1.4 %.
+- **Chanter:** the Lv 16 options of Incandescent Blow (and Bursting Blow) and Spinning Strike no longer ignore Block and Evasion. Against bosses this changes almost nothing, as they rarely parry a Chanter; against a high Block, a Chanter with Incandescent Blow's option loses about 6 %.
+- **Spiritmaster:** Element Unification's Critical Damage comes in one stack of five times the value, the same as its five stacks before, so results don't change. Cold Shock's Lv 12 option shows its new +10 % Attack.
+- **Templar:** Judgment's lower PvP damage is given only as approximate and touches PvP alone, so boss results are unchanged.
+- The skills' option texts on the Builds page follow the patch.
+
+The patch's other changes (the new daily dungeon, more Stigma Shards, more Sync Stones, the World Market and Exchange, Negative Kina, the events) are nothing the app calculates.
+
 ## Pages that fit the window, the PvP map at its size, and the theme changed in place (0.2.509)
 
 **The app's pages now fit the window's width**, where a log's review ran far off the window's right side:

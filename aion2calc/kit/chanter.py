@@ -201,9 +201,10 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
     # the model pressed Onslaught four times as often as the recorded Chanters).
     ic_f, ic_c = dmg("INCAND")
     ic_mult = 1.12 if has("INCAND", 3) else 1.0                  # up to 12% more on fewer targets
-    # Lv 16 "Ignores Block and Evasion and lands as Multi-Hit", on its chain skill too (0.2.382: 147 of 148 recorded
-    # Incandescent Blows with it and 77 of 77 Bursting Blows landed four extra hits)
-    ic_tags = ("multi", "noparry") if has("INCAND", 5) else ()
+    # Lv 16 "Lands as Multi-Hit", on its chain skill too (0.2.382: 147 of 148 recorded Incandescent Blows with it and 77
+    # of 77 Bursting Blows landed four extra hits). Until the 25 November 2026 patch it also ignored Block and Evasion,
+    # so a boss never parried them; now it parries them as the Chanter's other hits (0.2.510)
+    ic_tags = ("multi",) if has("INCAND", 5) else ()
 
     def incand_cast(sim, a):
         sim.hit("Incandescent Blow", ic_f, ic_c, mult=ic_mult, tags=ic_tags)
@@ -291,7 +292,9 @@ def build_kit(build: Build, cd: ClassData, filler: str = "onslaught") -> Kit:
     spin_cd = float(sv[2]) / 100.0 if len(sv) > 2 and isinstance(sv[2], (int, float)) else 0.15
     sp_window = window("SPIN", 4)
     sp_mult = 1.20 if has("SPIN", 3) else 1.0                    # up to +20% on fewer targets
-    sp_tags = ("crit", "noparry") if has("SPIN", 5) else ()      # lands as a Critical Hit (100% recorded, 0.2.319)
+    # Lv 16 "Lands as a Critical Hit" (100% recorded, 0.2.319); it no longer ignores Block and Evasion since the 25
+    # November 2026 patch, though a certain Critical Hit is still never parried here (model.damage)
+    sp_tags = ("crit",) if has("SPIN", 5) else ()
 
     def spin_cast(sim, a):
         sim.hit("Spinning Strike", sp_f, sp_c, mult=sp_mult, tags=sp_tags)

@@ -107,7 +107,9 @@ def stigma_patterns(slots: int, points: int, min_levels=()) -> list[tuple]:
     the seed allocation (10/5/5/5, 30 points) was what the optimizer proposed."""
     levels = (range(1, 21) if slots < 4 else
               sorted({1, 3, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, *min_levels}))
-    patterns = [lv for lv in itertools.product(levels, repeat=slots)
+    # each pattern once, in any order (0.2.510): the fifth slot of the 25 November 2026 patch made the ordered product
+    # a million tuples, two seconds before every stigma search
+    patterns = [lv for lv in itertools.combinations_with_replacement(levels, slots)
                 if sum(stigma_points_to_reach(l) for l in lv) <= points]
 
     def maximal(p):
@@ -527,11 +529,25 @@ class Optimizer:
         if not slots:
             self.log("stigma search skipped: no stigma slot is open at this level, or no stigma point to fill one")
             return build
-        patterns = stigma_patterns(slots, self.stigma_points, self.min_stigmas.values())
-        if not cands or not patterns or slots > len(cands):
+        best_b, best = build, self.evaluate(build, policy)
+        # a fifth slot (the 25 November 2026 patch) is tried empty too: the points that fill four stigmas well can do
+        # less spread over five (a typical Sorcerer's 30: 12,880 boss DPS with five, 13,255 with four) (0.2.510)
+        searched = False
+        for count in [slots] + ([slots - 1] if slots > 4 and len(self.min_stigmas) < slots else []):
+            patterns = stigma_patterns(count, self.stigma_points, self.min_stigmas.values())
+            if not cands or not patterns or count > len(cands):
+                continue
+            searched = True
+            best_b, best = self._search_stigmas(build, policy, cands, count, patterns, best_b, best)
+        if not searched:
             self.log("stigma search skipped: no legal candidate sets for this budget")
             return build
-        best_b, best = build, self.evaluate(build, policy)
+        self.log("stigma search complete")
+        return best_b
+
+    def _search_stigmas(self, build: Build, policy: list, cands: list, slots: int, patterns: list, best_b: Build,
+                        best: float) -> tuple[Build, float]:
+        """The best of ``slots`` stigmas from ``cands`` at the levels of ``patterns``, if better than ``best``."""
         # stage 1: which set (uniform-ish pattern), stage 2: level assignment for top sets
         base_pat = max(patterns, key=lambda p: (p.count(10), -p.count(1)))
         _CTX["stigma"] = (self, build, policy)
@@ -568,8 +584,7 @@ class Optimizer:
                 best = v
                 best_b = build.copy()
                 best_b.stigmas = dict(zip(combo, perm))
-        self.log("stigma search complete")
-        return best_b
+        return best_b, best
 
     def _linked_probe_terms(self, build: Build, policy: list) -> list[tuple[dict, float]]:
         """For each group whose linking effects (:meth:`_spec_links`) its skills' levels keep closed: the levels that

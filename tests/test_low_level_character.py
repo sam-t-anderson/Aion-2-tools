@@ -70,7 +70,7 @@ def test_stigmas_fill_the_slots_the_level_opens_with_the_points_there_are():
 
 def test_a_level_45_optimizer_keeps_every_slot_board_and_level():
     opt = _optimizer()
-    assert opt.level == 45 and opt.slots == 4 and opt.stigma_slots == 4
+    assert opt.level == 45 and opt.slots == 5 and opt.stigma_slots == 5      # the fifth slot of 25 November 2026
     assert opt.boards == dv.CRYSTAL_BOARDS
     assert all(opt._top(sid) == min(10, s.get("buyMax", 10)) for sid, s in opt.cd.skills.items() if s["kind"] != "stigma")
     assert opt.initial_build().level == 45
