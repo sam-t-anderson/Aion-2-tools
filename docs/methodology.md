@@ -2886,3 +2886,42 @@ data from a source that has not caught up with the patch would undo them; `tests
   purchase limits (50 more shards: the stigma budget stays the one entered, 30 at level 45 from levels and Ascension),
   Transcendence season missions' Sync Stones (12 a week, from 3), the Abyss Corridor, the World Market and Exchange
   and their 20 % tax, Negative Kina, the events and the shop.
+
+## Bosses above 100 million HP and Corroded Decontamination Facility's final boss (0.2.514)
+
+**The HP feed's ceiling.** An NPC's HP reaches the meter in two records: its spawn record (`40 36`, `41 36`), which
+carries its NPC code and, as varints, its HP and maximum HP (`scan_spawn_metadata`), and the HP feed: `00 8d`, the
+entity, `02 01 00` and the HP as the low half of a u64 whose high half is zero (`scan_hp_updates`). The feed is found by
+its shape, and records of other data take that shape too: in the 15 and 21 October captures, seven readings of 4.03 to
+4.25 billion HP, each for an enemy whose spawn record gave it at most 63,000 HP or that had none. So the feed was
+taken only up to 100,000,000 HP (`HP_FEED_CEILING`), more than the dungeons' bosses had. The 25 November
+raid's bosses have more: Corroded Decontamination Facility's Black Blood Blatt 171,460,800 HP and Terminator Bargott
+244,944,000. In the raid's public uploads (app 0.2.510) no reading of either falls between 100 million and full: in the
+fight that killed Bargott, the first reading after the spawn's full one was 99,969,473 (40.8 %), 285 s in, after about
+142 million damage; Black Blood Blatt's was 99,926,270. Watcher Kaira, the Abyss's world boss, has 931,500,000 HP: the
+21 October recording's 3,139 feed readings of it, from 914,987,802 down to 100,015,365, were all dropped.
+
+**What it cost.** The overlay held such a boss at full until it fell below 100 million, and a fight's HP graph began
+there. The meter tells a wipe by the boss's HP: once the whole party is dead it needs a reading of the boss above zero
+(`CombatSession._check_boss_wipe`), and a boss back at full after a pause in the party's damage is a reset
+(`_major_below`). So attempts that wiped while the boss was above 100 million ran on as one fight: one upload holds three
+attempts at Bargott, each at a new entity, as one fight of 1,323 s; and the best HP left at such a wipe was unknown.
+
+**Since 0.2.514** a feed reading above the ceiling counts when it is no more than the maximum HP the entity's own spawn
+record reported (`MeterEngine._reported_max_hp`). The bosses' readings all are; none of the records of other data is:
+each is far above the maximum of the enemy it names (17,540 or 63,000 HP), or names one with no spawn record. A boss
+whose spawn record the meter did not see (a meter started in the middle of the fight) is read from
+100 million down, as before. A log recorded before holds no readings above 100 million: its HP graph begins there, and
+a wipe above it stays unseen.
+
+**Corroded Decontamination Facility's final boss.** The curated final-boss table (`dungeon_final_bosses.json`) took the
+instance's highest boss code, the Surveillance Device (2301216), for its final boss. The party fights it first, and in
+some runs again later: six public runs ended at its death, five of them after a fight of 72 to 88 s, the first of the
+run, and five of the recordings go on in the same instance, four to Devouring Klawfly (and Klaw and Black Blood Blatt
+after it), one to Terminator Bargott (2301208). The runs recorded through to Bargott go Devouring Klawfly, Klaw, Black
+Blood Blatt, then Bargott, and the party leaves the instance after Bargott's death. So Terminator Bargott is the final
+boss: a run there goes on past the Surveillance Device and completes at Bargott's death. A run recorded before that ended
+at the Surveillance Device keeps its record, and the run analysis gives it *The run ended at a boss that is not this
+dungeon's final boss*, as for the two dungeons corrected in 0.2.372. The log server sorts a boss's fights by the same
+table, so until its analyzer takes this version's, its pages count Terminator Bargott as one of the raid's mini-bosses
+(which Community Combat Logs hide unless asked) and the Surveillance Device as its final boss.

@@ -1,3 +1,13 @@
+## Bosses with more than 100 million HP, and Corroded Decontamination Facility's last boss (0.2.514)
+
+**The live meter now follows Terminator Bargott's HP from the pull**, where the overlay held the boss at full until it was below 41 %. The meter took HP readings only up to 100 million, and the 25 November raid's bosses have more: Black Blood Blatt 171,460,800 HP, Terminator Bargott 244,944,000. The overlay's boss HP and time to kill, the fight's HP graph and an attempt's progress now follow them from the start.
+
+**A wipe on them now ends the attempt.** The meter tells a wipe by the boss's HP (the whole party dead while the boss has HP left, or the boss back at full after a pause), and it had none above 100 million, so attempts that wiped there ran on as one fight: one recording holds three attempts at Bargott as one fight of 22 minutes.
+
+Watcher Kaira, at 931.5 million HP, is read from full too, where the meter saw only the last 11 % of its HP. A reading counts up to the HP the boss's own spawn record gives it, so a record of other data that only looks like an HP reading stays out. Logs recorded before hold no readings above 100 million.
+
+**A Corroded Decontamination Facility run now ends at Terminator Bargott's death**, where it ended at the Surveillance Device's: the raid's first boss, which the meter took for its last. The run goes on through Devouring Klawfly, Klaw and Black Blood Blatt and completes, timed, when Bargott dies. A run recorded before that ended at the Surveillance Device is no longer taken for a timed clear.
+
 ## Maps without the interactive map in the app's window (0.2.512)
 
 **The app's own window no longer shows Maps' Interactive maps.** It couldn't show the provider's map (InteractiveMap.app) itself, so all it had was a choice of map and **Open provider**, which opened the map in your browser. Showing it in the app would take either a separate window or a web engine that adds about 150–200 MB to the download. Maps now holds the Abyss PvP heat map and the farming routes, which open on Verteron as before. The web interface's Maps page still embeds the interactive map.
