@@ -800,6 +800,8 @@ The bundled schedule is a dated community snapshot from [Shugo.GG](https://shugo
 
 **In the native interface** (0.2.428) the app's window draws Timers itself, its four parts as above: the region and Korean group (kept as the app's settings, which the overlay's event strip reads too), the event cards counting down each second while the page is shown, the respawn reference by zone with its search, the kills for your server and faction from the live meter, and the recorded defeats. A source log opens in the web interface, and the schedule's sources in your browser. The kill list's server and faction choices last while the app runs; the live meter's server is chosen again each time.
 
+**The event chime.** With *Play a sound when an event notification appears* on (Settings → Overlay, off by default), the overlay chimes when a new event enters its strip: a short two-note chime, or the sound you uploaded there. In the app's own overlay windows on Windows (since 0.2.513) it is that chime, played by Windows itself: your sound when it is a WAV file (an MP3, OGG or WebM plays the built-in chime there), and once for a new event even when the meter overlay and the Party window both show the strip. Before 0.2.513 those windows rang the system's alert, Windows' *Default Beep*, for every new event, a ding at intervals that sounded like an error. On other systems they still play the system's alert. *Test* beside the setting plays what the overlay will.
+
 ## Gathering
 
 **Game → Gathering** (since 0.2.358) shows what you gathered and what dungeon reward cubes gave you, next to everyone's drop rates. The Live Meter records both while it runs, in or out of combat. The game tells only the gatherer what a gather gave:

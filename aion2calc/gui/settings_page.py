@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (QAbstractButton, QApplication, QCheckBox, QColorD
                                QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMessageBox, QPushButton, QScrollArea,
                                QSlider, QSpinBox, QTextBrowser, QVBoxLayout, QWidget)
 
+from . import chime
 from . import image_health
 from . import settings_looks as looks
 from . import settings_profiles as cp
@@ -1211,11 +1212,16 @@ class SettingsPage(QWidget):
         """The event notification's sound: a file of your own uploaded, tried, or the built-in chime again."""
         self.sound_message = _words(sw.SOUND_BUILT_IN, "setnote")
         self.sound_message.setAccessibleName("Event sound status")
-        holder = _flow(_button(sw.SOUND_UPLOAD, self.upload_sound), _button(sw.SOUND_TEST, QApplication.beep),
+        holder = _flow(_button(sw.SOUND_UPLOAD, self.upload_sound), _button(sw.SOUND_TEST, self.test_sound),
                        _button(sw.SOUND_DEFAULT, self.clear_sound), self.sound_message, gap=(6, 4))
         holder.setContentsMargins(22, 0, 0, 0)
         row.body.addWidget(holder)
         row.body.addWidget(_note(sw.SOUND_NATIVE, indent=22))
+
+    def test_sound(self) -> None:
+        """The event chime as the overlay plays it (``#ov-events-sound-test``): your WAV, else the built-in chime
+        (0.2.513; the system's alert before, and still where the app's windows have no chime of their own)."""
+        chime.play(custom_sound=True)
 
     def upload_sound(self) -> None:
         """A short sound of your own for the event notification (``#ov-events-sound-file``): 1 MB at most."""
