@@ -1217,8 +1217,19 @@ def scan_spawn_metadata(data: bytes, diagnostics: dict | None = None) -> dict[in
     return found
 
 
-def scan_hp_updates(data: bytes) -> tuple[dict[int, int], dict[int, int]]:
-    """Return current HP and maximum HP learned from packet/feed records."""
+#: The most HP the HP feed (``00 8d`` entity ``02 01 00``, the HP in the low half of a u64) is taken at on its own. A
+#: record of other data can take the feed's shape: one read 4,043,461,478 HP for an enemy whose spawn record gave it
+#: 17,540 (the 15 October capture).
+HP_FEED_CEILING = 100_000_000
+
+
+def scan_hp_updates(data: bytes, maxima=None) -> tuple[dict[int, int], dict[int, int]]:
+    """Return current HP and maximum HP learned from packet/feed records.
+
+    An HP reading above ``HP_FEED_CEILING`` counts when it is no more than the maximum HP the entity's own spawn record
+    gave it (``maxima(entity)``, the engine's): bosses have come with more since the 25 November raid, Corroded
+    Decontamination Facility's Black Blood Blatt 171,460,800 and Terminator Bargott 244,944,000. Until 0.2.514 every
+    reading above the ceiling was dropped, so the meter saw their HP only from 100 million down: Bargott's from 41 %."""
     current: dict[int, int] = {}
     maximum: dict[int, int] = {}
     i = 0
@@ -1234,7 +1245,7 @@ def scan_hp_updates(data: bytes) -> tuple[dict[int, int], dict[int, int]]:
         if (pos + 11 <= len(data) and data[pos:pos + 3] == b"\x02\x01\x00"
                 and data[pos + 7:pos + 11] == b"\0\0\0\0"):
             value = int.from_bytes(data[pos + 3:pos + 7], "little")
-            if value <= 100_000_000:
+            if value <= HP_FEED_CEILING or maxima is not None and value <= (maxima(entity_id) or 0):
                 current[entity_id] = value
             i = pos + 11
         else:

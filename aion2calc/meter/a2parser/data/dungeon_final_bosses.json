@@ -2,7 +2,7 @@
  "version": 1,
  "catalog_revision": "4cc5a513531fb6910f23dc3a7d250fa440125934",
  "note": "Per-dungeon final boss mob codes, used to auto-mark a dungeon run complete (and rankable) when the party kills the final boss, without manual configuration. Keyed by catalog dungeonId; each value is every mob code sharing the final boss's name in that dungeon (its HP-bar phases / variants). Derived from the community NPC catalog (isBoss + dungeonId) by taking the highest-code real boss per dungeon, then hand-checked against known AION 2 final bosses. Placeholder ('None') and training ('(Specimen)') entries are excluded. Dungeons with no single verifiable final boss are omitted (the 300-boss Nightmare hub 200003; the Blazing Guardian Sword / Kaldrix raids 620021-620022) and simply do not auto-rank until confirmed. A manual final_boss_ids override still wins.",
- "corrections": "Two dungeons' final bosses were wrong under the highest-code rule, because the catalog attributes no dungeon to most codes of the real final boss (0.2.372). Deus Research Base (600051-600059, 610052): public uploads fight Gelcos, then Nazmun, then Atiel (runs open with Gelcos 37 times; Gelcos is followed by Nazmun and Nazmun by Atiel in the same instance, and Atiel only by the next run), so Atiel is the final boss and Gelcos and Nazmun are mini-bosses. Vakron Sky Island (600071-600074): Tiere, then Thamon, then Vakron (Tiere opens 15 runs, Thamon is followed by Vakron 20 times, Vakron only by the next run's Tiere), so Vakron is the final boss. Until then a run of either ended at its first or second boss: it was timed to that boss, and the rest of the run started a run of its own.",
+ "corrections": "Two dungeons' final bosses were wrong under the highest-code rule, because the catalog attributes no dungeon to most codes of the real final boss (0.2.372). Deus Research Base (600051-600059, 610052): public uploads fight Gelcos, then Nazmun, then Atiel (runs open with Gelcos 37 times; Gelcos is followed by Nazmun and Nazmun by Atiel in the same instance, and Atiel only by the next run), so Atiel is the final boss and Gelcos and Nazmun are mini-bosses. Vakron Sky Island (600071-600074): Tiere, then Thamon, then Vakron (Tiere opens 15 runs, Thamon is followed by Vakron 20 times, Vakron only by the next run's Tiere), so Vakron is the final boss. Until then a run of either ended at its first or second boss: it was timed to that boss, and the rest of the run started a run of its own. Corroded Decontamination Facility (620011, the raid of 25 November 2026) too (0.2.514): its highest boss code is the Surveillance Device (2301216), which the party fights first, and in some runs again later. Six public runs ended at its death, five of them after a fight of 72 to 88 s, the first of the run, and five of the recordings go on in the same instance: four to Devouring Klawfly (and Klaw and Black Blood Blatt after it), one to Terminator Bargott (2301208). The runs recorded through to Bargott go Devouring Klawfly, Klaw, Black Blood Blatt, then Bargott, and the party leaves the instance after Bargott's death, so Terminator Bargott is the final boss.",
  "final_bosses": {
   "600001": [
    2300171,
@@ -188,7 +188,7 @@
    2356709
   ],
   "620011": [
-   2301216
+   2301208
   ],
   "620025": [
    2301113,

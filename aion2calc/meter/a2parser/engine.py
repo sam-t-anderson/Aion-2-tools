@@ -352,7 +352,7 @@ class MeterEngine:
         self.known_entities.update(links.values())
         if map_id is not None:
             self._note_map(map_id, timestamp_ms)
-        current_hp, maximum_hp = scan_hp_updates(complete)
+        current_hp, maximum_hp = scan_hp_updates(complete, self._reported_max_hp)
         self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum_hp.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current_hp.items())
         self.telemetry.extend(self._player_deaths_from_hp(current_hp, timestamp_ms))
         self._identify_boss_by_hp(current_hp, maximum_hp)
@@ -408,7 +408,7 @@ class MeterEngine:
                     self.spawn_info[entity_id]["reportedMaxHp"] = info["maxHp"]
                     self.telemetry.append({"kind":"hp", "entity":entity_id, "current":info["currentHp"], "max":info["maxHp"], "timestamp_ms":timestamp_ms})
             self.known_entities.update(self.spawn_info)
-            current, maximum = scan_hp_updates(packet)
+            current, maximum = scan_hp_updates(packet, self._reported_max_hp)
             self.telemetry.extend({"kind": "hp", "entity": eid, "current": hp, "max": maximum.get(eid), "timestamp_ms": timestamp_ms} for eid, hp in current.items())
             self.telemetry.extend(self._player_deaths_from_hp(current, timestamp_ms))
             self._identify_boss_by_hp(current, maximum)
@@ -599,6 +599,11 @@ class MeterEngine:
                 self._at_zero_hp.add(entity_id)
                 out.append({"kind": "death", "entity": entity_id, "timestamp_ms": timestamp_ms})
         return out
+
+    def _reported_max_hp(self, entity_id: int) -> int | None:
+        """The maximum HP the entity's spawn record reported (or the party's HP record, ``1b 92``): the HP feed's
+        readings above its ceiling count up to it (``scan_hp_updates``, 0.2.514)."""
+        return (self.spawn_info.get(entity_id) or {}).get("reportedMaxHp")
 
     def _identify_boss_by_hp(self, current: dict, maximum: dict) -> None:
         """Learn catalog bosses' max HP, and name a spawn-less enemy by it.

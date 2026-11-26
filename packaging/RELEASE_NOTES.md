@@ -1,3 +1,13 @@
+## Bosses with more than 100 million HP, and Corroded Decontamination Facility's last boss (0.2.514)
+
+**The live meter now follows Terminator Bargott's HP from the pull**, where the overlay held the boss at full until it was below 41 %. The meter took HP readings only up to 100 million, and the 25 November raid's bosses have more: Black Blood Blatt 171,460,800 HP, Terminator Bargott 244,944,000. The overlay's boss HP and time to kill, the fight's HP graph and an attempt's progress now follow them from the start.
+
+**A wipe on them now ends the attempt.** The meter tells a wipe by the boss's HP (the whole party dead while the boss has HP left, or the boss back at full after a pause), and it had none above 100 million, so attempts that wiped there ran on as one fight: one recording holds three attempts at Bargott as one fight of 22 minutes.
+
+Watcher Kaira, at 931.5 million HP, is read from full too, where the meter saw only the last 11 % of its HP. A reading counts up to the HP the boss's own spawn record gives it, so a record of other data that only looks like an HP reading stays out. Logs recorded before hold no readings above 100 million.
+
+**A Corroded Decontamination Facility run now ends at Terminator Bargott's death**, where it ended at the Surveillance Device's: the raid's first boss, which the meter took for its last. The run goes on through Devouring Klawfly, Klaw and Black Blood Blatt and completes, timed, when Bargott dies. A run recorded before that ended at the Surveillance Device is no longer taken for a timed clear.
+
 ## The event chime instead of the Windows ding (0.2.513)
 
 **With *Play a sound when an event notification appears* on, the app's own overlay now plays the event chime, not Windows' "ding".** Qt, which draws the app's windows, comes without audio, so the native overlay and its Party window rang the system's alert, Windows' *Default Beep*, each time a new event entered the event strip. That was a ding every so often, sounding like an error, and twice when both windows were open. On Windows they now play the same short two-note chime as the web overlay, or your own sound when it is a WAV file (MP3, OGG and WebM play the built-in chime there). A new event chimes once, whichever window shows it first. *Test* beside the setting plays what the overlay will. Turn the setting off for no sound at all.
