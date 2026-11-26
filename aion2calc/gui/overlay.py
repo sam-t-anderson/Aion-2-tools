@@ -47,6 +47,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QFont, QFontMetrics
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QSizePolicy, QSlider, QVBoxLayout, QWidget)
 
+from . import chime
 from . import events as schedule
 from . import theme
 from . import arena as A
@@ -3190,8 +3191,8 @@ class MeterOverlay(QWidget):
         else:
             fresh = keys - self._announced
             self._announced = (self._announced & keys) | keys   # one that left can chime when it comes again
-            if fresh and ui.get("overlay_events_sound") is True:
-                QApplication.beep()               # the system's alert: Qt's bundled modules have no audio
+            if fresh and ui.get("overlay_events_sound") is True:   # the web page's chime, once for every window (0.2.513)
+                chime.announce(fresh, ui.get("overlay_events_sound_set") is True)
         if not shown:
             self._show_events(False)
             return
