@@ -657,8 +657,9 @@ SOUND_UPLOADING = "Uploading…"
 SOUND_SAVED = "Custom sound set. Use Test to hear it."
 SOUND_CLEARED = "Using the built-in chime."
 SOUND_READ_FAILED = "Could not read the file"
-#: the native window has no audio player: Test plays the system's alert, as the native overlay does for an event
-SOUND_NATIVE = "This window has no audio of its own: Test plays your system's alert, as the native overlay does."
+#: what the app's own windows play (gui/chime.py, 0.2.513): Windows plays a WAV itself, not an MP3, OGG or WebM
+SOUND_NATIVE = ("On Windows the app's own overlay and Test play your sound when it is a WAV file, else the built-in "
+                "chime; on other systems, your system's alert.")
 SOUND_TYPES = {".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".wav": "audio/wav", ".webm": "audio/webm"}
 
 RTSS = (

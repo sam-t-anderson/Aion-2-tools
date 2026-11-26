@@ -21,6 +21,7 @@ pytest.importorskip("PySide6")
 from PySide6.QtCore import QCoreApplication, QEvent  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
+from aion2calc.gui import chime  # noqa: E402
 from aion2calc.gui import events  # noqa: E402
 from aion2calc.gui.overlay import MeterOverlay  # noqa: E402
 
@@ -167,20 +168,50 @@ def test_observed_field_boss_kills_join_the_strip(qapp):
     assert window.events.isHidden()
 
 
-def test_a_new_event_chimes_once_with_the_chime_on(qapp, monkeypatch):
-    beeps = []
+def _chimes(monkeypatch, tmp_path):
+    """The chimes played (whether with the uploaded sound) and the system's alerts sounded, the claims in ``tmp_path``."""
+    monkeypatch.setenv("AION2CALC_HOME", str(tmp_path))
+    played, beeps = [], []
+    monkeypatch.setattr(chime, "play", lambda custom_sound=False, home=None: played.append(custom_sound))
     monkeypatch.setattr(QApplication, "beep", staticmethod(lambda: beeps.append(1)))
+    return played, beeps
+
+
+def test_a_new_event_chimes_once_with_the_chime_on(qapp, monkeypatch, tmp_path):
+    """The web page's chime (gui/chime.py), not the system's alert: until 0.2.513 Windows' "Default Beep" rang for every
+    event entering the strip."""
+    played, beeps = _chimes(monkeypatch, tmp_path)
     window = _overlay(event_region="na-east", overlay_events_sound=True)
-    assert beeps == []                                                         # the first reading primes it
+    assert played == []                                                        # the first reading primes it
     window.now = utc(2026, 11, 20, 1, 0, 30)                                   # the rift opened, the festival began
     window.render_events()
-    assert beeps == [1]
+    assert played == [False]                                                   # the built-in chime: no sound uploaded
     window.render_events()
-    assert beeps == [1]
+    assert played == [False]
     window.apply_ui({"overlay_width": 340, "event_region": "na-east"})         # the chime off
     window.now = utc(2026, 11, 20, 1, 20)
     window.render_events()
-    assert beeps == [1]
+    assert played == [False] and beeps == []
+
+
+def test_the_meter_overlay_and_the_party_window_chime_once_between_them(qapp, monkeypatch, tmp_path):
+    """Each overlay window is a process of its own and both show the strip: the first to see a new event claims it, and
+    the other stays quiet (0.2.513; until then each rang the system's alert)."""
+    from aion2calc.gui.companions import PartyWindow
+    from test_native_overlay_companions import _store
+    played, beeps = _chimes(monkeypatch, tmp_path)
+    sound = {"event_region": "na-east", "overlay_events_sound": True, "overlay_events_sound_set": True}
+    meter = _overlay(**sound)
+    party = PartyWindow(None, store=_store())
+    party._catalog = CATALOG
+    party.events_clock = lambda: meter.now
+    party.apply_ui({"overlay_width": 340, **sound})
+    party.apply_meter(fight())
+    assert not party.events.isHidden() and played == []                       # both show it; each primed silently
+    meter.now = utc(2026, 11, 20, 1, 0, 30)
+    meter.render_events()
+    party.render_events()
+    assert played == [True] and beeps == []                                    # your sound, once
 
 
 class CatalogApp(FakeApp):

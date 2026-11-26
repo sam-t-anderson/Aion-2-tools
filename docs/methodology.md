@@ -2892,9 +2892,9 @@ data from a source that has not caught up with the patch would undo them; `tests
 **The HP feed's ceiling.** An NPC's HP reaches the meter in two records: its spawn record (`40 36`, `41 36`), which
 carries its NPC code and, as varints, its HP and maximum HP (`scan_spawn_metadata`), and the HP feed: `00 8d`, the
 entity, `02 01 00` and the HP as the low half of a u64 whose high half is zero (`scan_hp_updates`). The feed is found by
-its shape, and records of other data take that shape too: in the 15 and 21 October captures, seven readings of 4.03 to
-4.25 billion HP, each for an enemy whose spawn record gave it at most 63,000 HP or that had none. So the feed was
-taken only up to 100,000,000 HP (`HP_FEED_CEILING`), more than the dungeons' bosses had. The 25 November
+its shape, and records of other data take that shape too: in the 11, 15 and 21 October captures, eight readings of
+4.03 to 4.25 billion HP, each for an enemy whose spawn record gave it at most 63,000 HP or that had none. So the feed
+was taken only up to 100,000,000 HP (`HP_FEED_CEILING`), more than the dungeons' bosses had. The 25 November
 raid's bosses have more: Corroded Decontamination Facility's Black Blood Blatt 171,460,800 HP and Terminator Bargott
 244,944,000. In the raid's public uploads (app 0.2.510) no reading of either falls between 100 million and full: in the
 fight that killed Bargott, the first reading after the spawn's full one was 99,969,473 (40.8 %), 285 s in, after about
@@ -2909,9 +2909,12 @@ attempts at Bargott, each at a new entity, as one fight of 1,323 s; and the best
 
 **Since 0.2.514** a feed reading above the ceiling counts when it is no more than the maximum HP the entity's own spawn
 record reported (`MeterEngine._reported_max_hp`). The bosses' readings all are; none of the records of other data is:
-each is far above the maximum of the enemy it names (17,540 or 63,000 HP), or names one with no spawn record. A boss
-whose spawn record the meter did not see (a meter started in the middle of the fight) is read from
-100 million down, as before. A log recorded before holds no readings above 100 million: its HP graph begins there, and
+each is far above the maximum of the enemy it names (17,540 or 63,000 HP), or names one with no spawn record. Replayed
+through 0.2.512 and this version, twelve of the fourteen diagnostic captures read the same, and the other two, the 21
+and 23 October recordings of Watcher Kaira, gain 3,139 and 912 readings of it, between 100,015,365 and 914,987,802
+HP: every other HP reading, and every split, kill and run, is the same. A boss whose spawn record the meter did not
+see (a meter started in the middle of the fight) is read from 100 million down, as before: the 11 October recording's
+1,283 readings of about 409 million, for an enemy whose spawn record it never caught, stay out. A log recorded before holds no readings above 100 million: its HP graph begins there, and
 a wipe above it stays unseen.
 
 **Corroded Decontamination Facility's final boss.** The curated final-boss table (`dungeon_final_bosses.json`) took the

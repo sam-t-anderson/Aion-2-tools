@@ -33,6 +33,7 @@ from PySide6.QtGui import (QColor, QFont, QFontMetricsF, QImage, QPainter, QPain
 from PySide6.QtWidgets import (QAbstractButton, QApplication, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QSizePolicy,
                                QSlider, QVBoxLayout, QWidget)
 
+from . import chime
 from . import events as schedule
 from . import theme
 from .api import AppApi, Poller, Requests
@@ -1154,8 +1155,8 @@ class PartyWindow(CompanionWindow):
                 else:
                     fresh = keys - self._announced
                     self._announced = (self._announced & keys) | keys
-                    if fresh and ui.get("overlay_events_sound") is True:
-                        QApplication.beep()
+                    if fresh and ui.get("overlay_events_sound") is True:     # once for every window (0.2.513)
+                        chime.announce(fresh, ui.get("overlay_events_sound_set") is True)
                 if shown:
                     self._show_strip(shown)
                 self.events.setVisible(bool(shown))

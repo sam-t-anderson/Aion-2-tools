@@ -22,6 +22,7 @@ from PySide6.QtCore import QCoreApplication, QEvent, QSettings  # noqa: E402
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton  # noqa: E402
 
 from aion2calc.app import server  # noqa: E402
+from aion2calc.gui import chime  # noqa: E402
 from aion2calc.gui import image_health  # noqa: E402
 from aion2calc.gui import settings_looks as looks  # noqa: E402
 from aion2calc.gui import settings_words as sw  # noqa: E402
@@ -681,7 +682,7 @@ def test_pet_tracker_elsewhere_and_not_installed(qapp, home):
 
 
 # ------------------------------------------------------------------ Overlay, first part (0.2.478)
-def test_the_live_meter_overlay_and_rtss(qapp, home, tmp_path):
+def test_the_live_meter_overlay_and_rtss(qapp, home, tmp_path, monkeypatch):
     sound = tmp_path / "chime.ogg"
     sound.write_bytes(b"OggS" + b"\0" * 60)
     big = tmp_path / "long.wav"
@@ -706,6 +707,12 @@ def test_the_live_meter_overlay_and_rtss(qapp, home, tmp_path):
         if item[0] == "note":
             assert item[1] in texts, item[1]
     assert sw.SOUND_NATIVE in texts
+    # Test plays the overlay's chime, your WAV when you uploaded one, never the system's alert (0.2.513)
+    played, beeps = [], []
+    monkeypatch.setattr(chime, "play", lambda custom_sound=False, home=None: played.append(custom_sound))
+    monkeypatch.setattr(QApplication, "beep", staticmethod(lambda: beeps.append(1)))
+    _button(page, sw.SOUND_TEST).click()
+    assert played == [True] and beeps == []
     # shown by the web page's rules
     assert page.controls["overlay_close_on_stop"].box.isChecked() and not page.controls["overlay_show_target"].box.isChecked()
     assert page.controls["overlay_show_contribution"].box.isChecked() and not page.controls["overlay_show_ttk"].box.isChecked()

@@ -8,6 +8,10 @@ Watcher Kaira, at 931.5 million HP, is read from full too, where the meter saw o
 
 **A Corroded Decontamination Facility run now ends at Terminator Bargott's death**, where it ended at the Surveillance Device's: the raid's first boss, which the meter took for its last. The run goes on through Devouring Klawfly, Klaw and Black Blood Blatt and completes, timed, when Bargott dies. A run recorded before that ended at the Surveillance Device is no longer taken for a timed clear.
 
+## The event chime instead of the Windows ding (0.2.513)
+
+**With *Play a sound when an event notification appears* on, the app's own overlay now plays the event chime, not Windows' "ding".** Qt, which draws the app's windows, comes without audio, so the native overlay and its Party window rang the system's alert, Windows' *Default Beep*, each time a new event entered the event strip. That was a ding every so often, sounding like an error, and twice when both windows were open. On Windows they now play the same short two-note chime as the web overlay, or your own sound when it is a WAV file (MP3, OGG and WebM play the built-in chime there). A new event chimes once, whichever window shows it first. *Test* beside the setting plays what the overlay will. Turn the setting off for no sound at all.
+
 ## Maps without the interactive map in the app's window (0.2.512)
 
 **The app's own window no longer shows Maps' Interactive maps.** It couldn't show the provider's map (InteractiveMap.app) itself, so all it had was a choice of map and **Open provider**, which opened the map in your browser. Showing it in the app would take either a separate window or a web engine that adds about 150–200 MB to the download. Maps now holds the Abyss PvP heat map and the farming routes, which open on Verteron as before. The web interface's Maps page still embeds the interactive map.
