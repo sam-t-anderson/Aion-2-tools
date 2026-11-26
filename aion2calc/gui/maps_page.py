@@ -1,17 +1,15 @@
-"""The native Maps page (0.2.433): Game → Maps as the web page shows it (static/maps.js, ``A2Maps``), its three
-windows one under the other.
+"""The native Maps page (0.2.433): Game → Maps as the web page shows it (static/maps.js, ``A2Maps``), its windows one
+under the other. The web page's first, the provider's interactive maps (InteractiveMap.app), is not drawn here since
+0.2.512: the window cannot show the provider's page, and opening it in the browser was all it could do.
 
-- **Interactive maps:** the provider's maps (InteractiveMap.app) for Verteron, Altgard, Poeta and Ishalgen. The
-  native window cannot embed the provider's page, so **Open provider** shows the chosen map in the browser, as the web
-  page's own button does; the provider's notes and the other regional references are as on the web page.
 - **Abyss PvP heat map:** where players fight players in the Abyss, from the log server's ``/api/v1/pvp-heat``
   through the app: the server matchups by region (the busiest first), the square size, the status line, the map
   itself (the ground recordings have covered, the squares in their ramp step, kills, the recorded bosses, and what
   the pointer is over), its legend and its 25 busiest squares. It is read again every ``refresh_seconds`` (at least
   five minutes) while the page is shown.
 - **Farming routes:** the bundled route catalog (``static/farming-routes.json``): each zone's attributed waypoint
-  loops with their legs, waypoints, sources and licences, **Copy as text**, and its guide links. The zone follows
-  the map chosen above.
+  loops with their legs, waypoints, sources and licences, **Copy as text**, and its guide links. The catalog's
+  first zone (Verteron) is shown first.
 
 The words and the geometry are ``maps.py``'s, checked against the web page's own functions. The choices last while
 the app runs.
@@ -38,8 +36,6 @@ from .timers_page import Fold
 ROUTES_LOADING = "Loading the route catalog…"
 HEAT_LOADING = "Loading the heat map…"
 GUIDES = "Guides (links only — no reuse terms, so nothing from them is copied)"
-NATIVE_NOTE = ("The native window does not embed the provider's page: Open provider shows the map in your browser. "
-               "The provider's page downloads about 10–14 MB, including its advertising and tracking scripts.")
 
 
 def _label(text: str = "", name: str = "", rich: bool = False, wrap: bool = True) -> QLabel:
@@ -335,7 +331,6 @@ class MapsPage(QWidget):
         layout = QVBoxLayout(content)
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(14)
-        layout.addWidget(self._provider())
         layout.addWidget(self._heat())
         layout.addWidget(self._routes())
         layout.addStretch(1)
@@ -362,27 +357,6 @@ class MapsPage(QWidget):
         """
 
     # ------------------------------------------------------------------ the windows
-    def _provider(self) -> QWidget:
-        window = Window("Interactive maps", "InteractiveMap.app")
-        line, flow = _flow()
-        self.zone_box = QComboBox()
-        self.zone_box.setAccessibleName("Map")
-        for zone, name in m.ZONES.items():
-            self.zone_box.addItem(name, zone)
-        self.zone_box.activated.connect(lambda _index: self._follow_map())
-        flow.addWidget(_field("Map", self.zone_box))
-        provider = QPushButton("Open provider ↗")
-        provider.clicked.connect(lambda: self.open_link(m.provider_url(self.zone_box.currentData())))
-        flow.addWidget(provider)
-        window.body.addWidget(line)
-        window.body.addWidget(_label(m.PROVIDER_NOTE, "muted"))
-        window.body.addWidget(_label(NATIVE_NOTE))
-        references = _label("More regional map references: " + " · ".join(_link(url, name) for name, url in m.REFERENCES)
-                            + ".", "muted", rich=True)
-        references.linkActivated.connect(self.open_link)
-        window.body.addWidget(references)
-        return window
-
     def _heat(self) -> QWidget:
         window = Window("Abyss PvP heat map", "Where players fight players, by server matchup")
         line, flow = _flow()
@@ -483,9 +457,6 @@ class MapsPage(QWidget):
             self.route_zone.clear()
             for zone in answer["zones"]:
                 self.route_zone.addItem(m.zone_label(zone), zone.get("id"))
-            current = m.zone_for_map(answer, self.zone_box.currentData())
-            if current is not None:
-                self.route_zone.setCurrentIndex(max(0, self.route_zone.findData(current.get("id"))))
             self.draw_routes()
         elif name.startswith("heat:"):
             if int(name[5:]) != self.serial:
@@ -577,15 +548,6 @@ class MapsPage(QWidget):
         self.squares.setVisible(bool(rows))
 
     # ------------------------------------------------------------------ the routes
-    def _follow_map(self) -> None:
-        """The routes' zone follows the map chosen above it."""
-        if self.routes is None:
-            return
-        zone = m.zone_for_map(self.routes, self.zone_box.currentData())
-        if zone is not None:
-            self.route_zone.setCurrentIndex(max(0, self.route_zone.findData(zone.get("id"))))
-            self.draw_routes()
-
     def draw_routes(self) -> None:
         """The zone's routes and guides (``routesHTML``)."""
         data = self.routes

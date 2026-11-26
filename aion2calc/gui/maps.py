@@ -1,8 +1,8 @@
 """The Maps page's words and geometry (0.2.433), as static/maps.js (``A2Maps``) works them out for the web page: the
-provider's interactive maps, the Abyss PvP heat map from the log server (``/api/v1/pvp-heat``: its matchups, its
-status line, its five-step ramp, where each square and boss is drawn and which one the pointer is over, its busiest
-squares), and the farming routes of the bundled catalog (``static/farming-routes.json``). The native page
-(``maps_page.py``) draws them.
+Abyss PvP heat map from the log server (``/api/v1/pvp-heat``: its matchups, its status line, its five-step ramp, where
+each square and boss is drawn and which one the pointer is over, its busiest squares), and the farming routes of the
+bundled catalog (``static/farming-routes.json``). The native page (``maps_page.py``) draws them; the web page's
+interactive maps (the provider's own page) are not part of it since 0.2.512.
 """
 from __future__ import annotations
 
@@ -15,13 +15,6 @@ import urllib.parse
 from . import theme
 from .news import when
 
-#: The provider's interactive maps (InteractiveMap.app), by its map id.
-ZONES = {"verteron": "Verteron", "altgard": "Altgard", "poeta": "Poeta", "ishalgen": "Ishalgen"}
-PROVIDER = "https://interactivemap.app/aion2/maps/{}"
-REFERENCES = (("Shugo.GG", "https://shugo.gg/map"), ("A2DB", "https://a2db.ru/en/maps"))
-PROVIDER_NOTE = ("Provider-hosted map, markers and controls. Map data and any account/checklist state belong to the "
-                 "provider. This view does not send your combat logs, profile or application credentials. Build/region "
-                 "applicability and marker completeness are not independently verified.")
 HEAT_MAP_ID = 20
 HEAT_CELLS = ((2000, "Normal squares (2,000)"), (1000, "Fine squares (1,000)"), (4000, "Coarse squares (4,000)"))
 #: Where the web page keeps the square size and the matchup chosen (maps.js ``HEAT_DETAIL``, ``HEAT_MATCHUP``), with the
@@ -59,13 +52,6 @@ def plural(value, one: str, many: str) -> str:
     except (TypeError, ValueError):
         single = False
     return f"{num(value)} {one if single else many}"
-
-
-# ------------------------------------------------------------------ the provider's maps
-def provider_url(zone: str) -> str:
-    """The provider's page for a map (``https://interactivemap.app/aion2/maps/verteron``); an unknown map is the
-    first."""
-    return PROVIDER.format(urllib.parse.quote(zone if zone in ZONES else next(iter(ZONES)), safe=""))
 
 
 # ------------------------------------------------------------------ the heat map
@@ -361,8 +347,3 @@ def route_text(zone: dict, route: dict, source) -> str:
 
 def catalog_line(data: dict) -> str:
     return f"{data.get('note') or ''} Catalog built {when(data.get('generated_at'))}."
-
-
-def zone_for_map(data: dict, provider_map: str):
-    """The routes' zone for the provider's map chosen above them."""
-    return next((z for z in data.get("zones") or [] if z.get("provider_map") == provider_map), None)

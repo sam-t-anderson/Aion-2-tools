@@ -1,3 +1,7 @@
+## Maps without the interactive map in the app's window (0.2.512)
+
+**The app's own window no longer shows Maps' Interactive maps.** It couldn't show the provider's map (InteractiveMap.app) itself, so all it had was a choice of map and **Open provider**, which opened the map in your browser. Showing it in the app would take either a separate window or a web engine that adds about 150–200 MB to the download. Maps now holds the Abyss PvP heat map and the farming routes, which open on Verteron as before. The web interface's Maps page still embeds the interactive map.
+
 ## Storage maintenance cleans from the app's window (0.2.511)
 
 **Settings → Storage maintenance's Clean old disposable cache and Clean old update files now work in the app's own window**, where each answered "PermissionError: This action requires the local application origin." and removed nothing. The app removes files only when asked from its own interface, which a web page shows by naming the app's address, as a browser does for it; the window's request named none. It now names it, as the window's own screenshot already did. **Inspect cache / updates** was never affected.
